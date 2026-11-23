@@ -168,8 +168,8 @@ describe("Was ausgeliefert wird", () => {
     });
 
     const e = await lauf();
-    // Sieben Dateien der öffentlichen Seiten, dazu die Anmeldeseite und je eine Hülle für die zwei ganz geschützten Seiten
-    expect(e).toEqual({ geschrieben: 16, geloescht: 0, fehler: 0 });
+    // Sieben Dateien der öffentlichen Seiten, dazu die Anmeldeseite, der Datenplan (termine.json, #564) und je eine Hülle für die zwei ganz geschützten Seiten
+    expect(e).toEqual({ geschrieben: 17, geloescht: 0, fehler: 0 });
 
     const dateien = await alle();
     expect(Object.keys(dateien).sort()).toEqual([
@@ -186,6 +186,7 @@ describe("Was ausgeliefert wird", () => {
       "stufen/index.html",
       "stufen/woelfe/index.html",
       "termine/index.html",
+      "termine/termine.json",
       "termine/vorschlagen/index.html",
       "wartung.html",
       "website/website.css",
@@ -443,6 +444,7 @@ describe("Was ausgeliefert wird", () => {
       "robots.txt",
       "sitemap.xml",
       "termine/index.html",
+      "termine/termine.json",
       "termine/vorschlagen/index.html",
       "wartung.html",
       "website/website.css",
@@ -606,7 +608,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     await seite({ adresse: "unter", inhalt: dok("Unter") });
     const merker = new Map<string, string>();
-    expect((await lauf({ merker })).geschrieben).toBe(13);
+    expect((await lauf({ merker })).geschrieben).toBe(14);
     const vorher = await hash(id);
     // Eigene Ausgabe, die jeden Schreibversuch zählt
     const schreibt = vi.spyOn(ausgabe, "schreibe");
@@ -617,8 +619,8 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     // Auch ohne Merker (neuer Prozess): Seiten tragen den Hash in der Datenbank, nur die Gesamtdateien schreibt der erste Lauf einmal neu
     const nachNeustart = await lauf();
-    expect(nachNeustart.geschrieben).toBe(11);
-    expect(schreibt).toHaveBeenCalledTimes(11);
+    expect(nachNeustart.geschrieben).toBe(12);
+    expect(schreibt).toHaveBeenCalledTimes(12);
     expect(await hash(id)).toEqual(vorher);
   });
 
@@ -676,6 +678,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
       "robots.txt",
       "sitemap.xml",
       "termine/index.html",
+      "termine/termine.json",
       "termine/vorschlagen/index.html",
       "wartung.html",
       "website/website.css",
@@ -714,6 +717,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
       "robots.txt",
       "sitemap.xml",
       "termine/index.html",
+      "termine/termine.json",
       "termine/vorschlagen/index.html",
       "wartung.html",
       "website/website.css",

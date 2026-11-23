@@ -1217,3 +1217,41 @@
 .tm .seite-spalte .btn {
   align-self: flex-start;
 }
+
+/* Öffentlicher Datenplan (#564): Liste aus dem HTML und aus termine.json, Hinweis unter den Reitern, Monat mit Liste darunter */
+.tm p.reiter-hinweis {
+  margin: 16px 0 0;
+  color: var(--on-surface-variant);
+}
+/* Zeile mit Link: Pfeil am Ende (Form und Bewegung aus website.css) */
+.tm .plan a.termin {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .tm .plan a.termin {
+    grid-template-columns: 60px minmax(0, 1fr) auto;
+  }
+}
+.tm .plan .i .f {
+  fill: currentcolor;
+  stroke: none;
+}
+.tm .monat + .plan,
+.tm .monat + .monat-leer {
+  margin-top: 32px;
+}
+.tm .abschnitt-kopf [aria-disabled="true"] {
+  opacity: 0.4;
+  cursor: default;
+}
+.tm .eintrag-mehr {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+}
+@media (max-width: 720px) {
+  .tm .monat .zelle .eintrag-mehr {
+    display: none;
+  }
+}

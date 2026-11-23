@@ -27,7 +27,12 @@ import {
   type NavPunkt,
   type TerminEintrag,
 } from "../src/website/rendern.js";
-import { ladeTerminlisten } from "../src/website/termine-liste.js";
+import {
+  DATENPLAN,
+  ladeDatenplan,
+  ladeTerminlisten,
+} from "../src/website/termine-liste.js";
+import { DATENPLAN_DATEI } from "../src/website/termine-seiten.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
 // Darstellung nach dem Design «Cevi Web» (#549): Stufenkarten, Termin-Liste, Hinweisband, Kontaktkarte, Titelbild, Navigation in einer Zeile, Fuss
@@ -644,10 +649,129 @@ describe("Abgleich", () => {
     const t = termine!.get(lager.id)![0]!;
     expect(t.zeitVon).toBeNull();
     expect(t.von < t.bis).toBe(true);
+    // Ohne Bausteine bleibt nur der öffentliche Datenplan (#564)
+    expect([
+      ...(
+        await ladeTerminlisten(db, abteilungId, [], new Map([["s", dok("T")]]))
+      ).termine!.keys(),
+    ]).toEqual([DATENPLAN]);
+  });
+
+  test("öffentlicher Datenplan (#564): nur aktive Termine für Eltern und öffentliche Anlässe; nie intern, leitende, abgesagt, unklar, fremd; Datei ohne IDs", async () => {
+    const woelfe = await stufe("Wölfe");
+    const team = (
+      await db
+        .insert(schema.tag)
+        .values({ abteilungId, typ: "team", name: "Küchenteam", kuerzel: "KT" })
+        .returning()
+    )[0]!.id;
+    await termin("Programm Wölfe", 3, { tags: [woelfe, team] });
+    const mitSeite = await termin("Weihnachtsfest", 5, {
+      anlass: "oeffentlich",
+    });
+    await termin("Anlass ohne Seite", 6, { anlass: "oeffentlich" });
+    await termin("Anlass nur für Angemeldete", 4, { anlass: "angemeldet" });
+    await termin("Intern", 1, { sichtbarkeit: "intern", tags: [woelfe] });
+    await termin("Leitende", 1, { sichtbarkeit: "leitende", tags: [woelfe] });
+    await termin("Abgesagt", 1, { status: "abgesagt", tags: [woelfe] });
+    await termin("Unklar", 1, { status: "pruefen", tags: [woelfe] });
+    await termin("Längst vorbei", -70, { tags: [woelfe] });
+    await termin("Zu weit weg", 450, { tags: [woelfe] });
+    const [fremd] = await db
+      .insert(schema.abteilung)
+      .values({ name: "Fremd" })
+      .returning();
+    await db.insert(schema.programm).values({
+      abteilungId: fremd!.id,
+      googleEventId: id(),
+      titel: "Fremdes Programm",
+      ganztaegig: false,
+      beginn: tage(3),
+      ende: tage(3),
+    });
+    const seiteId = await neueSeite(
+      "weihnachtsfest",
+      { v: 1, titel: "Fest", bausteine: [b("trenner", { art: "linie" })] },
+      "Fest",
+    );
+    await db
+      .update(schema.anlass)
+      .set({ seiteId })
+      .where(eq(schema.anlass.programmId, mitSeite));
+
+    const erlaubt = ["Programm Wölfe", "Weihnachtsfest", "Anlass ohne Seite"];
     expect(
-      (await ladeTerminlisten(db, abteilungId, [], new Map([["s", dok("T")]])))
-        .termine!.size,
-    ).toBe(0);
+      (await ladeDatenplan(db, abteilungId)).map((t) => t.titel).sort(),
+    ).toEqual([...erlaubt].sort());
+
+    await erzeugeWebsite(db, {
+      ausgabe,
+      abteilungId,
+      basisUrl: "https://www.example.org",
+      stylesheet: "body{}",
+      datenquellen: [ladeTerminlisten],
+    });
+    const roh = await readFile(join(wurzel, DATENPLAN_DATEI), "utf8");
+    const plan = JSON.parse(roh) as {
+      von: string;
+      bis: string;
+      termine: Record<string, unknown>[];
+    };
+    expect(plan.termine.map((t) => t.titel).sort()).toEqual(
+      [...erlaubt].sort(),
+    );
+    // Nur, was die Zeile zeigt: keine IDs, keine Personen, keine Zahlen; Gruppen nur als Namen der Stufen
+    expect(roh).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
+    for (const t of plan.termine) {
+      expect(
+        Object.keys(t).filter(
+          (k) =>
+            ![
+              "titel",
+              "von",
+              "bis",
+              "zeitVon",
+              "zeitBis",
+              "ort",
+              "stufen",
+              "seite",
+            ].includes(k),
+        ),
+      ).toEqual([]);
+    }
+    const nach = (titel: string) =>
+      plan.termine.find((t) => t.titel === titel)!;
+    expect(nach("Programm Wölfe")).toMatchObject({
+      ort: "Treffpunkt",
+      stufen: ["Wölfe"],
+    });
+    // Ein Link nur auf die öffentliche Seite des Anlasses, nie auf «/anlass?id=»
+    expect(nach("Weihnachtsfest").seite).toBe("/weihnachtsfest");
+    expect(nach("Anlass ohne Seite").seite).toBeUndefined();
+    expect(plan.von).toMatch(/^\d{4}-\d\d-01$/);
+
+    // Dieselben Termine als Liste im HTML, lesbar ohne Skript
+    const html = await readFile(join(wurzel, "termine", "index.html"), "utf8");
+    expect(html).toContain('<div class="plan" id="tm-plan">');
+    for (const titel of erlaubt) {
+      expect(html).toContain(`<span class="titel">${titel}</span>`);
+    }
+    expect(html).toContain('<a class="termin" href="/weihnachtsfest"');
+    expect(html).not.toContain("/anlass?id=");
+    for (const nie of [
+      "Intern",
+      "Leitende",
+      "Abgesagt",
+      "Unklar",
+      "Fremdes Programm",
+      "Anlass nur für Angemeldete",
+      "Küchenteam",
+      "Längst vorbei",
+      "Zu weit weg",
+    ]) {
+      expect(roh, nie).not.toContain(nie);
+      expect(html, nie).not.toContain(nie);
+    }
   });
 
   test("die erzeugte Startseite zeigt die Termine, der Fuss die Seiten des Baums; die Schrift kommt unverändert als Datei", async () => {

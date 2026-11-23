@@ -1,10 +1,10 @@
 // Seite «Termine» (#530, Boards W5 und W6): Reiter «Alle» und «Mein Kalender», Liste und Monat, Filter nach Gruppe und Zeitraum.
 // Abfragen: je Reiter und Zeitraum eine Seite (GET /termine/alle oder /termine/mein), danach aus dem Zwischenspeicher der Seite; der Filter nach Gruppe läuft im Browser. Kein Abruf im Takt.
+// Ohne Anmeldung (#564) zeigt «Alle» den öffentlichen Datenplan aus der Datei /termine/termine.json, die der Abgleich schreibt: ein Abruf der Datei je Besuch, keine Abfrage der Datenbank.
 // Die Ansichten (…View) sind reine Funktionen und ohne Browser testbar; start() verbindet sie mit dem Dokument.
 import {
   api,
   baue,
-  bandView,
   fehlerView,
   h,
   heute,
@@ -23,6 +23,7 @@ import {
   WOCHENTAG,
   WOCHENTAG_KURZ,
   wochentagVon,
+  zuerichZuIso,
   zustandView,
 } from "./tm.js";
 import { startLink } from "./termine-link.js";
@@ -86,9 +87,38 @@ export function gruppenVon(termine) {
 const gruppeName = (gruppen, id) =>
   gruppen.find((g) => g.id === id)?.name ?? null;
 
-// Link zur Anlass-Seite, falls der Termin einen Anlass hat
+// Link zur Anlass-Seite, falls der Termin einen Anlass hat; im öffentlichen Datenplan die öffentliche Seite des Anlasses
 export const anlassLink = (t) =>
-  t.anlass ? `/anlass/?id=${t.anlass.id}` : null;
+  t.seite ?? (t.anlass ? `/anlass/?id=${t.anlass.id}` : null);
+
+export const PLAN_DATEI = "/termine/termine.json";
+const zeitpunkt = (tag, zeit) => {
+  const t = tagTeile(tag);
+  const [h, mi] = zeit.split(":").map(Number);
+  return zuerichZuIso(t.y, t.m, t.d, h, mi);
+};
+// Ein Eintrag des öffentlichen Datenplans in der Form der API, damit Liste und Monat dieselben Ansichten nutzen. Die Gruppen sind die Namen der Stufen (die Datei nennt keine IDs)
+export function ausPlan(e) {
+  const ganztaegig = e.zeitVon === null;
+  return {
+    id: null,
+    titel: e.titel,
+    status: "aktiv",
+    ganztaegig,
+    beginn: ganztaegig ? null : zeitpunkt(e.von, e.zeitVon),
+    ende: ganztaegig ? null : zeitpunkt(e.bis, e.zeitBis ?? e.zeitVon),
+    tagVon: ganztaegig ? e.von : null,
+    tagBis: ganztaegig ? e.bis : null,
+    ort: e.ort,
+    tags: e.stufen.map((name) => ({ id: name, name })),
+    anlass: null,
+    // Nur ein Pfad der eigenen Website wird zum Link
+    seite: /^\/[a-z0-9/-]*$/.test(e.seite ?? "") ? e.seite : null,
+  };
+}
+// Die Termine des Plans, die einen Zeitraum berühren (ganze Tage, beide eingeschlossen)
+export const imBereich = (termine, von, bis) =>
+  termine.filter((t) => letzterTag(t) >= von && ersterTag(t) <= bis);
 
 // «Samstag 6. Februar, Waldspiel, 14:00–17:00 · Ort, für Wölfe, Adler»
 export function terminAria(t) {
@@ -113,7 +143,7 @@ export function terminKarte(t) {
     ),
     h(
       "span",
-      {},
+      { class: "termin-text" },
       h("span", { class: "titel" }, t.titel),
       h("span", { class: "meta" }, terminMeta(t)),
       h(
@@ -134,6 +164,20 @@ export function terminKarte(t) {
       ),
     ),
   ];
+  if (link) {
+    inhalt.push(
+      h(
+        "span",
+        { class: "termin-pfeil", "aria-hidden": "true" },
+        h(
+          "svg",
+          { class: "i", viewBox: "0 0 24 24" },
+          h("path", { d: "M3 12h12" }),
+          h("path", { class: "f", d: "M14 6l7.5 6-7.5 6z" }),
+        ),
+      ),
+    );
+  }
   const aria = terminAria(t);
   return h(
     "li",
@@ -159,7 +203,7 @@ export function listeView(termine, { mehr = false } = {}) {
   }
   return h(
     "div",
-    {},
+    { class: "plan" },
     gruppen.map((g) => [
       h("h2", { class: "monat-titel" }, monatTitel(g.monat)),
       h("ul", { class: "termine" }, g.termine.map(terminKarte)),
@@ -216,8 +260,17 @@ export function listeLadeView() {
   );
 }
 
+const ZELLE_MAX = 3;
 // Monatsraster: Wochen von Montag bis Sonntag. Breit zeigt es die Titel der Termine, schmal Punkte und darunter die Liste
-export function monatView(monat, termine, heuteTag, { mehr = false } = {}) {
+// fenster ({ von, bis }, ganze Tage): Ausserhalb davon gibt es keine Daten (öffentlicher Datenplan), die Schaltflächen am Rand sind dann gesperrt
+export function monatView(
+  monat,
+  termine,
+  heuteTag,
+  { mehr = false, fenster = null } = {},
+) {
+  const amAnfang = fenster && monat <= fenster.von.slice(0, 7);
+  const amEnde = fenster && monat >= fenster.bis.slice(0, 7);
   const [y, m] = monat.split("-").map(Number);
   const anzahl = tageImMonat(y, m);
   const vorne = (wochentagVon(`${monat}-01`) + 6) % 7;
@@ -258,7 +311,8 @@ export function monatView(monat, termine, heuteTag, { mehr = false } = {}) {
           ),
           tag,
         ),
-        liste.map((t) => {
+        // Höchstens drei Titel je Tag, der Rest als Zahl: Die Liste unter dem Raster nennt alle
+        liste.slice(0, ZELLE_MAX).map((t) => {
           const link = anlassLink(t);
           const klasse = `eintrag${t.status === "abgesagt" ? " abgesagt" : ""}`;
           const titel =
@@ -267,6 +321,13 @@ export function monatView(monat, termine, heuteTag, { mehr = false } = {}) {
             ? h("a", { class: klasse, href: link }, titel)
             : h("span", { class: klasse }, titel);
         }),
+        liste.length > ZELLE_MAX
+          ? h(
+              "span",
+              { class: "eintrag-mehr", "aria-hidden": "true" },
+              `+ ${liste.length - ZELLE_MAX} weitere`,
+            )
+          : null,
         liste.length
           ? [
               h("span", { class: "punkt", "aria-hidden": "true" }),
@@ -280,7 +341,11 @@ export function monatView(monat, termine, heuteTag, { mehr = false } = {}) {
       ),
     );
   }
-  const imMonat = termine.filter((t) => ersterTag(t).slice(0, 7) === monat);
+  // Die letzte Woche auffüllen, damit das Raster unten geschlossen ist
+  while (zellen.length % 7 !== 0)
+    zellen.push(h("li", { class: "zelle leer", "aria-hidden": "true" }));
+  // Auch mehrtägige Termine, die in den Monat hineinreichen
+  const imMonat = imBereich(termine, `${monat}-01`, `${monat}-31`);
   return h(
     "div",
     {},
@@ -293,6 +358,7 @@ export function monatView(monat, termine, heuteTag, { mehr = false } = {}) {
           type: "button",
           class: "btn s",
           "aria-label": "Vorheriger Monat",
+          "aria-disabled": amAnfang ? "true" : null,
           "data-aktion": "monat:zurueck",
           "data-f": "zurueck",
         },
@@ -309,6 +375,7 @@ export function monatView(monat, termine, heuteTag, { mehr = false } = {}) {
           type: "button",
           class: "btn s",
           "aria-label": "Nächster Monat",
+          "aria-disabled": amEnde ? "true" : null,
           "data-aktion": "monat:vor",
           "data-f": "vor",
         },
@@ -327,14 +394,19 @@ export function monatView(monat, termine, heuteTag, { mehr = false } = {}) {
       ),
       h("ol", { class: "tage", "aria-labelledby": "tm-monat-titel" }, zellen),
     ),
+    // Zeit, Ort und Gruppen stehen in der Liste unter dem Raster: Das Raster zeigt nur Titel oder Punkte
     imMonat.length
       ? h(
           "div",
-          { class: "nur-schmal" },
+          { class: "plan" },
           h("h3", { class: "monat-titel" }, `Termine im ${MONAT[m - 1]}`),
           h("ul", { class: "termine" }, imMonat.map(terminKarte)),
         )
-      : null,
+      : h(
+          "p",
+          { class: "leise monat-leer" },
+          `Im ${MONAT[m - 1]} stehen keine Termine an.`,
+        ),
     mehr
       ? h(
           "div",
@@ -402,14 +474,14 @@ export function reiterView({ tab, angemeldet }) {
       reiter("alle", "Alle", false),
       reiter("mein", "Mein Kalender", !angemeldet),
     ),
+    // Der Datenplan ist offen; die Anmeldung braucht nur, wer den eigenen Kalender, den Kalender-Link oder eine Anmeldung zu einem Anlass will
     !angemeldet
       ? h(
-          "div",
+          "p",
           { class: "reiter-hinweis" },
-          bandView({
-            text: "Melde dich an, um nur deine Termine zu sehen.",
-            aktion: h("a", { href: "/anmelden?weiter=%2Ftermine" }, "Anmelden"),
-          }),
+          "Du siehst den öffentlichen Datenplan. Für deinen eigenen Kalender ",
+          h("a", { href: "/anmelden?weiter=%2Ftermine" }, "melde dich an"),
+          ".",
         )
       : null,
   );
@@ -621,7 +693,10 @@ export function feldView(s, daten, heuteTag) {
   if (daten.status === "fehler") return fehlerView("nochmal");
   const sichtbar = filtere(daten.termine, s.gruppe);
   if (s.ansicht === "monat") {
-    return monatView(s.monat, sichtbar, heuteTag, { mehr: daten.weitere });
+    return monatView(s.monat, sichtbar, heuteTag, {
+      mehr: daten.weitere,
+      fenster: daten.fenster,
+    });
   }
   if (sichtbar.length === 0 && !daten.weitere) {
     if (filter) {
@@ -665,6 +740,28 @@ function start(doc, wurzel) {
   const heuteTag = heute();
   const speicher = new Map();
   let zaehler = 0;
+  // Die Liste aus dem HTML bleibt stehen, bis die ersten Daten da sind (kein Flackern, kein Platzhalter)
+  let statisch = doc.getElementById("tm-plan");
+  // Der öffentliche Datenplan: einmal je Besuch geladen; null, wenn die Datei fehlt oder nicht lesbar ist
+  let plan;
+  const ladePlan = () =>
+    (plan ??= fetch(PLAN_DATEI, { cache: "no-cache" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then(
+        (d) => d && { von: d.von, bis: d.bis, termine: d.termine.map(ausPlan) },
+      )
+      .catch(() => null));
+  // Antwort in der Form der API
+  const planAntwort = async (von, bis) => {
+    const p = await ladePlan();
+    return p
+      ? {
+          status: 200,
+          daten: { termine: imBereich(p.termine, von, bis), weitere: false },
+          fenster: { von: p.von, bis: p.bis },
+        }
+      : { status: 0, daten: null };
+  };
 
   wurzel.replaceChildren(
     ...["tm-reiter", "tm-link", "tm-werkzeug"].map((id) =>
@@ -705,7 +802,13 @@ function start(doc, wurzel) {
     bLink.hidden = s.tab !== "mein";
     bWerkzeug.replaceChildren(baue(doc, werkzeugView(s, gruppen)));
     bFeld.setAttribute("aria-labelledby", `tm-reiter-${s.tab}`);
-    bFeld.replaceChildren(baue(doc, feldView(s, daten, heuteTag)));
+    const laedt = !daten || daten.status === "laedt";
+    if (!laedt) statisch = null;
+    bFeld.replaceChildren(
+      statisch && s.tab === "alle" && s.ansicht === "liste"
+        ? statisch
+        : baue(doc, feldView(s, daten, heuteTag)),
+    );
     if (blatt.open) {
       const anzahl = daten?.termine
         ? filtere(daten.termine, s.gruppe).length
@@ -732,7 +835,15 @@ function start(doc, wurzel) {
       limit: "100",
       ...(nach && { nach }),
     });
-    const r = await api(`/termine/${s.tab === "mein" ? "mein" : "alle"}?${q}`);
+    // Ohne Anmeldung kommt «Alle» aus der Datei; die API wird nur einmal gefragt, ob es eine Sitzung gibt
+    let r =
+      !s.angemeldet && s.tab === "alle"
+        ? null
+        : await api(`/termine/${s.tab === "mein" ? "mein" : "alle"}?${q}`);
+    if (!r || (r.status === 401 && s.tab === "alle")) {
+      s.angemeldet = false;
+      r = await planAntwort(von, bis);
+    }
     if (nummer !== zaehler) return;
     let eintrag;
     if (r.status === 200) {
@@ -742,6 +853,7 @@ function start(doc, wurzel) {
         termine: [...(nach ? bisher.termine : []), ...r.daten.termine],
         weitere: r.daten.weitere,
         naechste: r.daten.naechste,
+        fenster: r.fenster ?? null,
       };
     } else if (r.status === 401) {
       s.angemeldet = false;
@@ -792,6 +904,7 @@ function start(doc, wurzel) {
       s.ansicht = wert;
       lade();
     } else if (aktion === "monat") {
+      if (b.getAttribute("aria-disabled") === "true") return;
       s.monat = monatPlus(s.monat, wert === "vor" ? 1 : -1);
       lade();
     } else if (aktion === "gruppe") {

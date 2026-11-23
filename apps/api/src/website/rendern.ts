@@ -724,7 +724,7 @@ function monatKurz(tag: string) {
 }
 
 // Eine Zeile der Liste (Design W1): Datumsfeld, Titel, Zeit und Ort, Chips der Stufen. Ein Anlass führt auf seine Seite, ein Termin ohne Anlass ist keine Verknüpfung
-function terminZeile(t: TerminEintrag): HtmlKnoten {
+export function terminZeile(t: TerminEintrag): HtmlKnoten {
   const zeit = t.zeitVon
     ? `${t.zeitVon}${t.zeitBis ? `–${t.zeitBis}` : ""}`
     : "ganztägig";

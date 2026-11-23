@@ -41,7 +41,12 @@ import {
   type NavPunkt,
 } from "./rendern.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
-import { rendereTermineSeiten, TERMINE_DATEIEN } from "./termine-seiten.js";
+import {
+  DATENPLAN_DATEI,
+  rendereDatenplan,
+  rendereTermineSeiten,
+  TERMINE_DATEIEN,
+} from "./termine-seiten.js";
 import {
   adresseSchema,
   adressenVon,
@@ -546,6 +551,7 @@ export async function erzeugeWebsite(
     STYLESHEET,
     ANMELDUNG,
     ...TERMINE_DATEIEN,
+    DATENPLAN_DATEI,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
     ...[...huellen.values()].map((h) => h.datei),
     ...weiterleitungen.map(([datei]) => datei),
@@ -606,6 +612,8 @@ export async function erzeugeWebsite(
     [STYLESHEET, opt.stylesheet],
     [ANMELDUNG, rendereAnmeldung(kontext)],
     ...rendereTermineSeiten(kontext),
+    // Der öffentliche Datenplan (#564) als Datei: Die Seite «Termine» liest sie im Browser
+    rendereDatenplan(kontext),
     ...Object.entries(opt.skripte ?? {}).map(
       ([name, inhalt]): [string, string | Uint8Array] => [
         `website/${name}`,

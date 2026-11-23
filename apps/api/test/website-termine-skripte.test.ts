@@ -268,10 +268,10 @@ describe("Termine: Ansichten (W5, W6)", () => {
     expect(m).toContain('aria-label="Vorheriger Monat"');
     // Mobil: die Liste unter dem Raster
     expect(m).toContain("Termine im Februar");
-    // März 2027 beginnt an einem Montag, April an einem Donnerstag: drei leere Zellen
+    // März 2027 beginnt an einem Montag, April an einem Donnerstag: drei leere Zellen davor, zwei füllen die letzte Woche
     expect(
       html(termine.monatView("2027-04", [], "2027-02-01")).match(/zelle leer/g),
-    ).toHaveLength(3);
+    ).toHaveLength(5);
   });
   test("Mehrtägiger Termin erscheint an jedem Tag", () => {
     const t = termin({
@@ -290,7 +290,10 @@ describe("Termine: Ansichten (W5, W6)", () => {
   test("Reiter: ohne Sitzung ist «Mein Kalender» gesperrt und der Hinweis steht da", () => {
     const aus = html(termine.reiterView({ tab: "alle", angemeldet: false }));
     expect(aus).toContain('aria-disabled="true"');
-    expect(aus).toContain("Melde dich an, um nur deine Termine zu sehen.");
+    expect(aus).toContain("Du siehst den öffentlichen Datenplan.");
+    expect(aus).toContain(
+      '<a href="/anmelden?weiter=%2Ftermine">melde dich an</a>',
+    );
     const an = html(termine.reiterView({ tab: "mein", angemeldet: true }));
     expect(an).toContain('id="tm-reiter-mein" aria-selected="true"');
     expect(an).not.toContain("Melde dich an");
@@ -862,5 +865,95 @@ describe("auswahl: Tippen springt zur Option (#564)", () => {
   });
   test("gesperrte Optionen werden übersprungen", () => {
     expect(sucheTreffer(namen, "a", 0, [false, true])).toBe(0);
+  });
+});
+
+describe("Termine: öffentlicher Datenplan aus der Datei (#564)", () => {
+  const eintrag = (extra: Record<string, unknown> = {}) => ({
+    titel: "Waldspiel",
+    von: "2027-02-06",
+    bis: "2027-02-06",
+    zeitVon: "14:00",
+    zeitBis: "17:00",
+    ort: "Treffpunkt",
+    stufen: ["Wölfe"],
+    ...extra,
+  });
+  test("ein Eintrag wird zur Form der API: Zürcher Zeit, Gruppen als Namen, kein Anlass", () => {
+    const t = termine.ausPlan(eintrag());
+    expect(t).toMatchObject({
+      ganztaegig: false,
+      beginn: "2027-02-06T13:00:00.000Z",
+      ende: "2027-02-06T16:00:00.000Z",
+      tags: [{ id: "Wölfe", name: "Wölfe" }],
+      anlass: null,
+      seite: null,
+    });
+    const zeile = html(termine.terminKarte(t));
+    expect(zeile).toContain('<div class="termin" role="group"');
+    expect(zeile).toContain("14:00–17:00 · Treffpunkt");
+    const sommer = termine.ausPlan(
+      eintrag({ von: "2027-07-03", bis: "2027-07-03" }),
+    );
+    expect(sommer.beginn).toBe("2027-07-03T12:00:00.000Z");
+  });
+  test("ganztägig über mehrere Tage; Link nur auf einen Pfad der eigenen Website", () => {
+    const lager = termine.ausPlan(
+      eintrag({
+        von: "2027-07-24",
+        bis: "2027-08-02",
+        zeitVon: null,
+        zeitBis: null,
+        seite: "/anlaesse/lager",
+      }),
+    );
+    expect(lager).toMatchObject({
+      ganztaegig: true,
+      tagVon: "2027-07-24",
+      tagBis: "2027-08-02",
+      seite: "/anlaesse/lager",
+    });
+    expect(html(termine.terminKarte(lager))).toContain(
+      '<a class="termin" href="/anlaesse/lager"',
+    );
+    for (const seite of [
+      "https://evil.example",
+      "//evil.example",
+      "javascript:alert(1)",
+    ]) {
+      expect(termine.ausPlan(eintrag({ seite })).seite).toBeNull();
+    }
+    // Der Zeitraum zählt jeden berührten Tag
+    expect(termine.imBereich([lager], "2027-08-01", "2027-08-31")).toHaveLength(
+      1,
+    );
+    expect(termine.imBereich([lager], "2027-08-03", "2027-08-31")).toHaveLength(
+      0,
+    );
+  });
+  test("Monat: an den Rändern des Plans sind die Schaltflächen gesperrt, die Liste steht unter dem Raster", () => {
+    const fenster = { von: "2027-02-01", bis: "2028-02-29" };
+    const t = termine.ausPlan(eintrag());
+    const anfang = html(
+      termine.monatView("2027-02", [t], "2027-02-01", { fenster }),
+    );
+    expect(anfang).toContain(
+      'aria-label="Vorheriger Monat" aria-disabled="true"',
+    );
+    expect(anfang).not.toContain('aria-label="Nächster Monat" aria-disabled');
+    expect(anfang).toContain("Termine im Februar");
+    const ende = html(
+      termine.monatView("2028-02", [], "2027-02-01", { fenster }),
+    );
+    expect(ende).toContain('aria-label="Nächster Monat" aria-disabled="true"');
+    expect(ende).toContain("Im Februar stehen keine Termine an.");
+  });
+  test("Monat: höchstens drei Titel je Tag, der Rest als Zahl", () => {
+    const viele = [1, 2, 3, 4, 5].map((n) =>
+      termine.ausPlan(eintrag({ titel: `Programm ${n}` })),
+    );
+    const aus = html(termine.monatView("2027-02", viele, "2027-02-01"));
+    expect(aus).toContain("+ 2 weitere");
+    expect(aus).toContain("5 Termine");
   });
 });
