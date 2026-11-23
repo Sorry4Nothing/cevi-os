@@ -30,7 +30,7 @@
 }
 
 .kontakt-hinweis {
-  max-width: 34ch;
+  max-width: 40ch;
   color: var(--on-surface-variant);
   font-size: 1.25rem;
   line-height: 1.5;
@@ -65,7 +65,6 @@
 /* Die Angaben zum Nachlesen und Kopieren: Zeilen mit Linie, links die Bezeichnung */
 .kontakt-angaben {
   min-width: 0;
-  border-bottom: 1px solid var(--outline-variant);
 }
 
 .kontakt-angaben > div {
