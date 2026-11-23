@@ -107,6 +107,7 @@ const stand = async (abteilungId: string) => {
       name: schema.abteilung.name,
       logo: schema.abteilung.websiteLogoMediumId,
       logoDunkel: schema.abteilung.websiteLogoDunkelMediumId,
+      zeichen: schema.abteilung.websiteZeichenMediumId,
     })
     .from(schema.abteilung)
     .where(eq(schema.abteilung.id, abteilungId));
@@ -298,6 +299,30 @@ describe("Name und Logo der Website (#550)", () => {
     const weg = await anfrage(admin, "PATCH", { logoDunkelMediumId: null });
     expect(weg.status).toBe(200);
     expect((await stand(welt.testabteilungId)).logoDunkel).toBeNull();
+  });
+
+  test("Zeichen für das Favicon (#558): setzen, dieselben Prüfungen, nicht löschbar, entfernen", async () => {
+    const m = await medium(welt.testabteilungId);
+    const fremd = await medium(welt.demoAbteilungId);
+    const nein = await anfrage(admin, "PATCH", { zeichenMediumId: fremd });
+    expect(nein.status).toBe(422);
+    expect(((await nein.json()) as { code: string }).code).toBe(
+      "MEDIUM_UNBEKANNT",
+    );
+    const antwort = await anfrage(admin, "PATCH", { zeichenMediumId: m });
+    expect(antwort.status).toBe(200);
+    expect(
+      ((await antwort.json()) as { zeichenMediumId: string }).zeichenMediumId,
+    ).toBe(m);
+    expect((await stand(welt.testabteilungId)).zeichen).toBe(m);
+    const loeschen = await app.request(`/api/v1/redaktion/medien/${m}`, {
+      method: "DELETE",
+      headers: admin.headers,
+    });
+    expect(loeschen.status).toBe(409);
+    const weg = await anfrage(admin, "PATCH", { zeichenMediumId: null });
+    expect(weg.status).toBe(200);
+    expect((await stand(welt.testabteilungId)).zeichen).toBeNull();
   });
 
   test("ein Medium, das als Logo dient, lässt sich nicht löschen (409 MEDIUM_VERWENDET)", async () => {
