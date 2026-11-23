@@ -23,13 +23,19 @@ import {
   ansichtsleiste,
   gespeicherteAnsicht,
   gliedere,
-  marke,
   mitgliedKarte,
   mitgliedKopf,
   skeletonKarten,
   stufenKennzeichen,
   zeichneAnsicht,
 } from "./mitglieder.js";
+import {
+  kontoKarte,
+  oeffneKontoEinstellung,
+  zugangMarke,
+  zugangText,
+  zugangVon,
+} from "./kinder-konto.js";
 import { leerKarte } from "./zustaende.js";
 
 export function zeige(bereich, ctx) {
@@ -42,6 +48,7 @@ export function zeige(bereich, ctx) {
       ]);
       return {
         kinder: kinder.kinder,
+        einstellung: kinder.einstellung,
         personen: personen.personen,
         stufen: stufen.stufen,
       };
@@ -69,11 +76,22 @@ function karte(titel, text, ...inhalt) {
   );
 }
 
-// Zugang eines Kindes: Sehen kann es in der App nur, wer als Elternteil verknüpft ist. Ein Kind ohne Elternteil hat keinen Zugang: nicht gleich ein Fehler, aber für die App unsichtbar
-const zugangChip = (mitEltern) =>
-  mitEltern
-    ? chip("Eltern verknüpft", "ok")
-    : chip("Kein Zugang", undefined, "info");
+// Zugang eines Kindes: Sehen kann es in der App, wer als Elternteil verknüpft ist (und Einsicht hat) oder wer das eigene Konto des Kindes ist. Ein Kind ohne beides hat keinen Zugang: nicht gleich ein Fehler, aber für die App unsichtbar
+const zugangChip = (zugang) =>
+  zugang === "keiner"
+    ? chip(zugangText(zugang), undefined, "info")
+    : chip(zugangText(zugang), "ok");
+
+const ZUGANG_ERKLAERUNG = {
+  keiner:
+    "Zugang: keiner. Ohne verknüpften Elternteil und ohne eigenes Konto kann niemand das Kind in der App sehen.",
+  eltern:
+    "Zugang: Die verknüpften Eltern sehen die Programme und den Chat der Stufe.",
+  konto:
+    "Zugang: Das Kind sieht die Programme seiner Stufe mit seinem eigenen Konto. Die Eltern sehen nichts.",
+  beides:
+    "Zugang: Das Kind sieht die Programme seiner Stufe mit seinem eigenen Konto, die verknüpften Eltern sehen sie auch.",
+};
 
 // Eine Seite im Fluss zum Anlegen (kind = null) und Bearbeiten, aufgebaut wie die Seite einer Person: Karten links, das Kind mit seinem Zustand rechts
 function oeffneKind({ kind, daten, ctx, neu }) {
@@ -137,17 +155,19 @@ function oeffneKind({ kind, daten, ctx, neu }) {
     bild.replaceChildren(avatar(voll || "Neues Kind", { hell: true }));
     name.textContent = voll || "Neues Kind";
     zusatz.textContent = ceviName.eingabe.value.trim();
-    const mitEltern = eltern ? eltern.wert().length > 0 : false;
+    const art = zugangVon(
+      eltern ? eltern.wert().length : 0,
+      Boolean(kind?.konto),
+      kind?.konto?.elternEinsicht ?? true,
+    );
     chips.replaceChildren(
       chip(stufenname.get(stufe.eingabe.value) ?? "Ohne Stufe", "stufe"),
       aktiv && !aktiv.eingabe.checked
         ? chip("Inaktiv", undefined, "schliessen")
         : chip("Aktiv", "ok"),
-      ...(kind ? [zugangChip(mitEltern)] : []),
+      ...(kind ? [zugangChip(art)] : []),
     );
-    zugang.textContent = mitEltern
-      ? "Zugang: Die verknüpften Eltern sehen die Programme und den Chat der Stufe."
-      : "Zugang: keiner. Ohne verknüpften Elternteil kann niemand das Kind in der App sehen.";
+    zugang.textContent = ZUGANG_ERKLAERUNG[art];
   };
   for (const f of [vorname, nachname, ceviName, stufe]) {
     f.eingabe.addEventListener("input", zeichneProfil);
@@ -194,10 +214,18 @@ function oeffneKind({ kind, daten, ctx, neu }) {
       "Eltern und Zugang",
       kind
         ? "Eltern sehen die Programme und den Chat der Stufe ihres Kindes. Verknüpfe nur auf Angabe der Erziehungsberechtigten."
-        : "Elternteile verknüpfst du, sobald das Kind angelegt ist.",
+        : "Elternteile und ein eigenes Konto richtest du ein, sobald das Kind angelegt ist.",
       eltern?.wurzel,
       kind && zugang,
     ),
+    kind &&
+      kontoKarte({
+        kind,
+        einstellung: daten.einstellung,
+        ctx,
+        neu,
+        schliesse: () => seite.close(),
+      }),
     el("div", { class: "pe-fuss" }, fehler, abbrechen, speichern),
   );
   const { kopf } = flussKopf({
@@ -309,6 +337,11 @@ function zeichne(bereich, ctx, daten, neu) {
   const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
   const personen = new Map(daten.personen.map((p) => [p.id, p]));
   ctx.kopfAktion(
+    knopf("Konten für Kinder", {
+      symbol: "schluessel",
+      onclick: () =>
+        oeffneKontoEinstellung({ einstellung: daten.einstellung, ctx, neu }),
+    }),
     daten.stufen.length > 0
       ? knopf("Kind anlegen", {
           art: "haupt",
@@ -339,11 +372,8 @@ function zeichne(bereich, ctx, daten, neu) {
           !kind.aktiv && chip("Inaktiv", undefined, "schliessen"),
         )
       : null;
-  // Zugang als ruhige Marke: Ein Kind ohne Elternteil ist für die App unsichtbar, aber kein Fehler
-  const zugang = (kind) =>
-    kind.eltern.length > 0
-      ? marke("Eltern verknüpft", "haken", "ok")
-      : marke("Kein Zugang", "sperre");
+  // Zugang als ruhige Marke: Ein Kind ohne Elternteil und ohne eigenes Konto ist für die App unsichtbar, aber kein Fehler
+  const zugang = (kind) => zugangMarke(kind.zugang);
   const eintraege = daten.kinder.map((kind) => {
     const name = `${kind.vorname} ${kind.nachname}`;
     return {
@@ -359,6 +389,17 @@ function zeichne(bereich, ctx, daten, neu) {
       kontext: e.name,
       onclick: () => oeffneKind({ kind: e.kind, daten, ctx, neu }),
     });
+  // Wer das Kind sieht, in einem Satz: die Eltern und, wenn vorhanden, das Konto mit Benutzername und Stand
+  const kartenHinweis = (kind) => {
+    const teile = [
+      kind.eltern.length > 0 && `Eltern: ${elternText(kind, personen)}`,
+      kind.konto &&
+        `Konto: ${kind.konto.benutzername ?? "–"}${kind.konto.gesperrt ? " (gesperrt)" : ""}${kind.konto.elternEinsicht ? "" : ", Eltern ohne Einsicht"}`,
+    ].filter(Boolean);
+    return (
+      teile.length > 0 && el("p", { class: "mg-hinweis" }, teile.join(" · "))
+    );
+  };
   const karte = (e) =>
     mitgliedKarte({
       id: e.kind.id,
@@ -371,13 +412,7 @@ function zeichne(bereich, ctx, daten, neu) {
         zusatz: zugang(e.kind),
       }),
       rollen: stufeChips(e.kind, ansicht.stand().gruppierung !== "stufe"),
-      hinweis:
-        e.kind.eltern.length > 0 &&
-        el(
-          "p",
-          { class: "mg-hinweis" },
-          `Eltern: ${elternText(e.kind, personen)}`,
-        ),
+      hinweis: kartenHinweis(e.kind),
       aktionen: bearbeiten(e),
     });
   const zeile = (e) =>
@@ -403,12 +438,18 @@ function zeichne(bereich, ctx, daten, neu) {
           zugang(e.kind),
           e.kind.eltern.length > 0 &&
             el("span", { class: "mg-zweit" }, elternText(e.kind, personen)),
+          e.kind.konto &&
+            el(
+              "span",
+              { class: "mg-zweit" },
+              `Konto: ${e.kind.konto.benutzername ?? "–"}${e.kind.konto.gesperrt ? " (gesperrt)" : ""}`,
+            ),
         ),
       ),
       aktionenZelle(bearbeiten(e)),
     );
 
-  const ohneZugang = daten.kinder.filter((k) => k.eltern.length === 0).length;
+  const ohneZugang = daten.kinder.filter((k) => k.zugang === "keiner").length;
   const keine = el("div");
   const liste = el("div", { class: "mg-ansicht" });
   const seiten = seitenwahl({ beiWechsel: () => aktualisiere() });
@@ -429,6 +470,7 @@ function zeichne(bereich, ctx, daten, neu) {
         optionen: [
           ["", "Alle"],
           ["ohne", "Ohne Zugang"],
+          ["konto", "Mit eigenem Konto"],
         ],
       },
     ],
@@ -466,10 +508,12 @@ function zeichne(bereich, ctx, daten, neu) {
       : art === "zugang"
         ? {
             gruppen: [
-              { schluessel: "mit", titel: "Mit Zugang" },
-              { schluessel: "ohne", titel: "Ohne Zugang" },
+              { schluessel: "eltern", titel: "Eltern verknüpft" },
+              { schluessel: "beides", titel: "Eltern und eigenes Konto" },
+              { schluessel: "konto", titel: "Eigenes Konto" },
+              { schluessel: "keiner", titel: "Ohne Zugang" },
             ],
-            schluesselVon: (e) => (e.kind.eltern.length > 0 ? "mit" : "ohne"),
+            schluesselVon: (e) => e.kind.zugang,
           }
         : { gruppen: null, schluesselVon: () => "" };
 
@@ -481,7 +525,8 @@ function zeichne(bereich, ctx, daten, neu) {
       (e) =>
         e.suche.includes(frage) &&
         (!filter.stufe || e.kind.stufeId === filter.stufe) &&
-        (filter.zugang !== "ohne" || e.kind.eltern.length === 0),
+        (filter.zugang !== "ohne" || e.kind.zugang === "keiner") &&
+        (filter.zugang !== "konto" || e.kind.konto !== null),
     );
     const { gruppen, schluesselVon } = gruppenFuer(gruppierung);
     const { geordnet, gesamt } = gliedere(treffer, gruppen, schluesselVon);
@@ -520,8 +565,8 @@ function zeichne(bereich, ctx, daten, neu) {
           "p",
           { class: "hinweis" },
           ohneZugang === 1
-            ? "1 Kind hat keinen Zugang: Ohne verknüpften Elternteil kann niemand es in der App sehen."
-            : `${ohneZugang} Kinder haben keinen Zugang: Ohne verknüpften Elternteil kann niemand sie in der App sehen.`,
+            ? "1 Kind hat keinen Zugang: Ohne verknüpften Elternteil und ohne eigenes Konto kann niemand es in der App sehen."
+            : `${ohneZugang} Kinder haben keinen Zugang: Ohne verknüpften Elternteil und ohne eigenes Konto kann niemand sie in der App sehen.`,
         ),
       leiste.wurzel,
       ansicht.wurzel,

@@ -739,6 +739,22 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
 
+## 43. Verwaltung: Kind mit eigenem Konto (#644)
+
+Dieser Abschnitt gilt für `kinder.js`, `kinder-konto.js` und die Seiten «Eigenes Konto erstellen» und «Konten für Kinder». Die Abschnitte 1 bis 4, 6, 9 und 17 gelten sinngemäss. Alles sind Seiten im Fluss; Rückfragen stehen am Knopf (zweistufig), nie in einem Popup.
+
+- [ ] **43.1** Der Zugang eines Kindes steht als Wort mit Symbol (Kein Zugang, Eltern verknüpft, Eigenes Konto, Eltern und eigenes Konto), nie nur als Farbe; «Kein Zugang» ist ein ruhiger Hinweis, kein Fehler. Die Gruppierung «Zugang» und der Filter «Mit eigenem Konto» benennen dieselben Zustände.
+- [ ] **43.2** Auf der Karte «Eigenes Konto» hat jede Aktion einen Titel, einen Erklärsatz und einen Knopf mit Namen (44 Pixel hoch). Folgenreiche Aktionen (Konto übergeben, neues Startpasswort, sperren, entfernen) sind zweistufig: Der erste Klick stellt die Frage im Knopf und sagt sie als Zustandsmeldung an, der zweite führt aus, Escape nimmt zurück.
+- [ ] **43.3** «Eigenes Konto erstellen» hat beschriftete Felder (Benutzername mit Vorschlag und Hilfetext, Haken «Die Eltern sind informiert und einverstanden», Datumsfeld «Informiert am», Haken zur Einsicht der Eltern). Fehlt etwas, nennt eine Zusammenfassung «n Angaben prüfen» mit einem Knopf je Feld, und am Feld steht der Fehler als Text mit Symbol. Ein vergebener Benutzername steht am Feld.
+- [ ] **43.3a** Das Startpasswort erscheint genau einmal in der Karte im Fluss (Kopieren-Knopf, Zustandsmeldung «Kopiert.»), beim Schliessen ist der Text aus der Seite gelöscht; bei offenem Startpasswort lässt sich die Anzeige in der Karte «Eigenes Konto» wieder öffnen.
+- [ ] **43.4** «Konten für Kinder» (Einstellungen) hat beschriftete Felder, das eigene Auswahlfeld der Verwaltung für Chat und Mindestalter und Hilfetexte; der Satz, was ein Konto sieht, steht als Liste.
+- [ ] **43.5** Hell, Dunkel, «Bewegung reduzieren» und erzwungene Farben; Kontrast der Marken, Chips und Texte wie in den Tokens (4.5 : 1).
+- [ ] **43.6** 320, 390, 720, 1440, 1920 und 2560 Pixel: nichts scrollt waagrecht, die Aktionen der Karte brechen unter den Text.
+
+### Stand der Prüfung (#644)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung mit erfundenen Demo-Daten gesehen: 43.1 bis 43.3a bei 1440 Pixel Hell (Liste, Kind mit Konto, Erstellen mit Fehlerzusammenfassung und mit Startpasswort, Einstellungen), dazu das Konto eines Kindes in der Verwaltung («Kein Zugang», 403). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, erzwungene Farben, Kontrastwerte mit einem Messwerkzeug, Bewegung reduzieren, 2560 Pixel, der Ablauf der zweistufigen Knöpfe mit Tastatur.
+
 ## 45. Website: Stufenseite, Tafel und «Mitnehmen» (#645)
 
 Gilt für die blaue Tafel `dl.fakten.karte` der Stufenfakten (`stufenfakten.ts`, `mitnehmen.ts`, `rendern.ts`, Stil in `website.css`). Geprüft im Browser (Chromium, headless) bei 195 (200 % von 390), 390, 720 (200 % von 1440), 1024, 1440 und 2560 Pixeln, Tag und Nacht, ohne Skript, mit erzwungenen Farben.

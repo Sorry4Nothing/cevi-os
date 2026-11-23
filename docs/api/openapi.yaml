@@ -277,6 +277,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/kinder-konto.js:
+    get:
+      operationId: getAdminKinderKontoSkript
+      summary: Skript der Verwaltung – Konto eines Kindes
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/mitteilungen.js:
     get:
       operationId: getAdminMitteilungenSkript
@@ -5246,7 +5261,7 @@ paths:
       operationId: listeAdminKinder
       summary: Kinder der Abteilung mit Elternteilen
       description: |
-        Nur Admins. Liefert alle Kinder der eigenen Abteilung (sortiert nach Nachname, Vorname) mit den IDs der verknüpften Elternteile aus derselben Abteilung. Keine Datumsfelder.
+        Nur Admins. Liefert alle Kinder der eigenen Abteilung (sortiert nach Nachname, Vorname) mit den IDs der verknüpften Elternteile aus derselben Abteilung, dem Zugang (`zugang`: keiner, Eltern, eigenes Konto oder beides) und, wenn das Kind ein eigenes Konto hat, mit dem Stand des Kontos (`konto`). Dazu die Einstellungen der Abteilung für Konten von Kindern.
 
         Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
@@ -5424,7 +5439,7 @@ paths:
       operationId: loescheAdminKind
       summary: Kind löschen
       description: |
-        Nur Admins, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen.
+        Nur Admins, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen. Hat das Kind ein eigenes Konto, geht das Konto mit seinen Sitzungen und Nachrichten mit.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -5435,6 +5450,261 @@ paths:
       responses:
         "204":
           description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kinder/konto-einstellung:
+    get:
+      operationId: leseAdminKindKontoEinstellung
+      summary: Einstellungen der Konten für Kinder lesen
+      description: |
+        Nur Admins. Ohne gespeicherte Einstellung gilt die vorsichtige Vorgabe: Konten für Kinder aus, Chat aus, die Eltern behalten die Einsicht.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Einstellungen der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKindKontoEinstellung"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminKindKontoEinstellung
+      summary: Einstellungen der Konten für Kinder speichern
+      description: |
+        Nur Admins. Ersetzt die Einstellungen der Abteilung vollständig. `erlaubt` schaltet das Erstellen von Konten für Kinder ein; ist es aus, ist auch der Chat für Kinder aus. `chat` regelt, was ein Kind im Gruppenchat seiner Stufe darf. `mindestalter` ist nur ein Hinweis beim Erstellen: Cevi OS kennt das Alter der Kinder nicht. Die Änderung steht im Audit-Log (`kind_konto_einstellung_geaendert`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminKindKontoEinstellung"
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kinder/{id}/konto:
+    post:
+      operationId: legeAdminKindKontoAn
+      summary: Eigenes Konto für ein Kind erstellen
+      description: |
+        Nur Admins, nur Kinder der eigenen Abteilung, nur wenn die Abteilung Konten für Kinder erlaubt. Legt ein gewöhnliches Konto ohne Rolle und ohne Adminrecht an (Benutzername, Startpasswort wie bei `POST /api/v1/admin/personen`: 7 Tage gültig, Pflichtwechsel beim ersten Anmelden, nur in dieser 201-Antwort und in der Liste, solange es offen ist). Das Konto sieht nur sein Kind: die Programme und die Leitung der Stufe, die eigene Anmeldung und, je nach Einstellung, den Gruppenchat; nie andere Kinder, Eltern oder Telefonnummern, nie die Verwaltung. `elternInformiertAm` ist Pflicht und hält fest, dass die Abteilung die Eltern informiert hat; der Text der Einwilligung bleibt ausserhalb von Cevi OS. `elternEinsicht` bestimmt, ob die verknüpften Eltern weiter sehen, was das Kind sieht (ohne Angabe die Vorgabe der Abteilung). Die Aktion steht im Audit-Log (`kind_konto_erstellt`, nur IDs und Daten). Höchstens 20 neue Konten je Stunde und Person.
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Kind in der eigenen Abteilung (404), Admin-Recht (403), Einstellung (409 `KONTEN_AUS`), Kind aktiv (409 `KIND_INAKTIV`), noch kein Konto (409 `KONTO_VORHANDEN`), Datum (400 `DATUM_UNGUELTIG`: nicht in der Zukunft und höchstens ein Jahr zurück), Drosselung (429 `ZU_VIELE_KONTEN`).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe oder ungültigem Datum. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit den Codes oben oder `BENUTZERNAME_VERGEBEN`. 429 bei zu vielen Konten.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminKindId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminKindKontoAnlegen"
+      responses:
+        "201":
+          description: Konto angelegt; enthält das Startpasswort (einmalig).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminPersonAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Konten für Kinder sind aus (`KONTEN_AUS`), das Kind ist inaktiv (`KIND_INAKTIV`), hat schon ein Konto (`KONTO_VORHANDEN`) oder der Benutzername ist vergeben (`BENUTZERNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    patch:
+      operationId: aendereAdminKindKonto
+      summary: Einsicht der Eltern am Konto eines Kindes ändern («Konto übergeben»)
+      description: |
+        Nur Admins, nur Kinder mit eigenem Konto. `elternEinsicht: false` übergibt das Konto dem Kind ganz: Die verknüpften Eltern bleiben verknüpft, sehen aber weder Programme noch Chat noch Kontakte dieses Kindes mehr. `true` gibt ihnen die Sicht zurück. Die Änderung steht im Audit-Log (`kind_konto_eltern_einsicht`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist, zu einer anderen Abteilung gehört oder kein Konto hat.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminKindId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminKindKontoAendern"
+      responses:
+        "204":
+          description: Geändert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminKindKonto
+      summary: Konto eines Kindes entfernen
+      description: |
+        Nur Admins, nur Kinder mit eigenem Konto. Löscht das Konto samt Sitzungen und Nachrichten; das Kind bleibt. Vermerk und Einsicht der Eltern werden zurückgesetzt, die Eltern sehen danach wieder alles. Die Aktion steht im Audit-Log (`kind_konto_entfernt`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist, zu einer anderen Abteilung gehört oder kein Konto hat.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminKindId"
+      responses:
+        "204":
+          description: Entfernt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kinder/{id}/konto/startpasswort:
+    post:
+      operationId: setzeAdminKindKontoStartpasswortNeu
+      summary: Neues Startpasswort für das Konto eines Kindes erzeugen
+      description: |
+        Nur Admins, nur Kinder mit eigenem Konto. Wie `POST /api/v1/admin/personen/{id}/startpasswort`: beendet alle Sitzungen, verlangt beim nächsten Anmelden einen Passwortwechsel, gilt 7 Tage und setzt die Bremse zurück. Kein Request-Body. Das Startpasswort steht nur in dieser 200-Antwort und in der Liste, solange es offen ist.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist, zu einer anderen Abteilung gehört oder kein Konto hat.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminKindId"
+      responses:
+        "200":
+          description: Neues Startpasswort (einmalig).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStartpasswort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kinder/{id}/konto/sperren:
+    post:
+      operationId: sperreAdminKindKonto
+      summary: Konto eines Kindes sperren
+      description: |
+        Nur Admins, nur Kinder mit eigenem Konto. Sperrt das Konto und beendet alle Sitzungen; das Kind bleibt, die Eltern sehen weiter wie eingestellt. Kein Request-Body. Die Aktion steht im Audit-Log (`kind_konto_gesperrt`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist, zu einer anderen Abteilung gehört oder kein Konto hat.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminKindId"
+      responses:
+        "204":
+          description: Gesperrt.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/kinder/{id}/konto/entsperren:
+    post:
+      operationId: entsperreAdminKindKonto
+      summary: Konto eines Kindes entsperren
+      description: |
+        Nur Admins, nur Kinder mit eigenem Konto. Hebt die Sperre auf und setzt dabei ein neues Startpasswort wie `POST /api/v1/admin/personen/{id}/aktivieren`. Kein Request-Body. Das Startpasswort steht nur in dieser 200-Antwort und in der Liste, solange es offen ist.
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für Nicht-Admins. 404, wenn das Kind unbekannt ist, zu einer anderen Abteilung gehört oder kein Konto hat.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/AdminKindId"
+      responses:
+        "200":
+          description: Entsperrt, mit neuem Startpasswort (einmalig).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStartpasswort"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -24231,9 +24501,34 @@ components:
             $ref: "#/components/schemas/IchStufe"
         kinder:
           type: array
-          description: Die aktiven Kinder der Person (nur Eltern), nach `id` sortiert.
+          description: Die aktiven Kinder der Person (Eltern; beim eigenen Konto eines Kindes nur dieses Kind), nach `id` sortiert.
           items:
             $ref: "#/components/schemas/IchKind"
+        teilnehmer:
+          type: object
+          description: Nur beim eigenen Konto eines Kindes (Teilnehmer); fehlt für alle anderen. Das Konto hat nie eine Rolle, nie Adminrechte und nie Zugang zur Verwaltung.
+          required:
+            - kindId
+            - stufeId
+            - aktiv
+            - chat
+          properties:
+            kindId:
+              type: string
+              format: uuid
+            stufeId:
+              type: string
+              format: uuid
+            aktiv:
+              type: boolean
+              description: "`false`, wenn das Kind inaktiv ist; das Konto sieht dann nichts mehr."
+            chat:
+              type: string
+              enum:
+                - aus
+                - lesen
+                - schreiben
+              description: Was das Konto im Gruppenchat seiner Stufe darf; schreiben ist sonst 403 `KIND_CHAT_NUR_LESEN`.
     IchEinstellungen:
       type: object
       additionalProperties: false
@@ -25133,6 +25428,9 @@ components:
             - ROLLENNAME_VERGEBEN
             - ROLLE_VORGEGEBEN
             - ANLASS_HAT_GRUPPE
+            - KONTEN_AUS
+            - KIND_INAKTIV
+            - KONTO_VORHANDEN
         message:
           type: string
           example: Der letzte Admin lässt sich nicht entfernen.
@@ -26228,6 +26526,8 @@ components:
         - stufeId
         - aktiv
         - eltern
+        - zugang
+        - konto
       properties:
         id:
           type: string
@@ -26253,16 +26553,127 @@ components:
           items:
             type: string
             format: uuid
+        zugang:
+          type: string
+          enum:
+            - keiner
+            - eltern
+            - konto
+            - beides
+          description: Wer das Kind in der App sieht. `keiner`, wenn weder Eltern noch ein eigenes Konto Zugang haben. `eltern`, wenn verknüpfte Eltern es sehen. `konto`, wenn nur das eigene Konto es sieht (auch bei verknüpften Eltern ohne Einsicht). `beides`, wenn Eltern und das eigene Konto es sehen.
+        konto:
+          oneOf:
+            - $ref: "#/components/schemas/AdminKindKonto"
+            - type: "null"
+          description: Das eigene Konto des Kindes; `null`, wenn es keines hat.
+    AdminKindKonto:
+      type: object
+      required:
+        - benutzername
+        - gesperrt
+        - mussPasswortAendern
+        - startpasswort
+        - seit
+        - elternInformiertAm
+        - elternEinsicht
+      properties:
+        benutzername:
+          type:
+            - string
+            - "null"
+        gesperrt:
+          type: boolean
+        mussPasswortAendern:
+          type: boolean
+        startpasswort:
+          description: Das offene Startpasswort, solange es gültig ist; sonst `null`. Nur für die Verwaltung.
+          oneOf:
+            - $ref: "#/components/schemas/AdminStartpasswortWert"
+            - type: "null"
+        seit:
+          type:
+            - string
+            - "null"
+          format: date-time
+          description: Seit wann das Konto besteht.
+        elternInformiertAm:
+          type:
+            - string
+            - "null"
+          format: date
+          description: Vermerk der Abteilung, dass die Eltern informiert sind.
+        elternEinsicht:
+          type: boolean
+          description: Sehen die verknüpften Eltern weiter, was das Kind sieht?
+    AdminKindKontoEinstellung:
+      type: object
+      additionalProperties: false
+      required:
+        - erlaubt
+        - chat
+        - mindestalter
+        - elternEinsichtVorgabe
+      properties:
+        erlaubt:
+          type: boolean
+          description: Dürfen Kinder dieser Abteilung ein eigenes Konto haben? Vorgabe `false`.
+        chat:
+          type: string
+          enum:
+            - aus
+            - lesen
+            - schreiben
+          description: Was das Konto eines Kindes im Gruppenchat seiner Stufe darf. Vorgabe `aus`. Einzelchats mit der Leitung gibt es für Kinder nie.
+        mindestalter:
+          type:
+            - integer
+            - "null"
+          minimum: 6
+          maximum: 18
+          description: Hinweis beim Erstellen eines Kontos; Cevi OS prüft das Alter nicht.
+        elternEinsichtVorgabe:
+          type: boolean
+          description: Vorgabe für `elternEinsicht` beim Erstellen. Vorgabe `true`.
+    AdminKindKontoAnlegen:
+      type: object
+      additionalProperties: false
+      required:
+        - benutzername
+        - elternInformiertAm
+      properties:
+        benutzername:
+          type: string
+          minLength: 2
+          maxLength: 64
+          pattern: ^[a-zA-Z0-9._-]+$
+        elternInformiertAm:
+          type: string
+          format: date
+          description: Tag, an dem die Abteilung die Eltern informiert hat; nicht in der Zukunft, höchstens ein Jahr zurück.
+        elternEinsicht:
+          type: boolean
+          description: Ohne Angabe gilt die Vorgabe der Abteilung.
+    AdminKindKontoAendern:
+      type: object
+      additionalProperties: false
+      required:
+        - elternEinsicht
+      properties:
+        elternEinsicht:
+          type: boolean
     AdminKinderListe:
       type: object
       required:
         - kinder
+        - einstellung
       properties:
         kinder:
           type: array
           description: Nach Nachname, Vorname sortiert.
           items:
             $ref: "#/components/schemas/AdminKind"
+        einstellung:
+          $ref: "#/components/schemas/AdminKindKontoEinstellung"
     ProtokollArt:
       type: string
       enum: [aktion, anmeldung, audit, zugriff, system]
@@ -26295,7 +26706,7 @@ components:
               enum: [person, anonym, cli, system]
             rollen:
               type: array
-              description: Funktionen zum Zeitpunkt (abteilungsleitung, stufenleitung, leitung, webmaster, plattformrolle, entwickler, eltern).
+              description: Funktionen zum Zeitpunkt (abteilungsleitung, stufenleitung, leitung, webmaster, plattformrolle, entwickler, eltern, teilnehmer).
               items:
                 type: string
         abteilungId:

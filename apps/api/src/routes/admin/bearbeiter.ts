@@ -6,6 +6,7 @@ import { OBJEKT_TYPEN } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, bearbeiter, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
 
 // Ein Sonderrecht gilt für genau ein Objekt (objektId Pflicht). «Alle Seiten» ist das Plattformrecht «Seiten bearbeiten» der Rolle Webmaster (/api/v1/admin/plattform/rollen), nicht mehr eine Zeile hier (#426). Genau eines von userId und tagId
@@ -58,6 +59,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
               and(
                 eq(user.id, userId),
                 eq(user.abteilungId, person.abteilungId),
+                keinKindKonto(user.id),
               ),
             )
         : await db
