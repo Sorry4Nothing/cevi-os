@@ -175,3 +175,368 @@ a.pe-bearbeiten:hover {
     justify-content: center;
   }
 }
+
+/* ===== Person erfassen und bearbeiten: eine Seite im Fluss mit Profil rechts (#594) ===== */
+.pe-seite.fluss-breit {
+  max-width: 72rem;
+}
+
+.pe-formular {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.pe-karte {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+.pe-karte > h2 {
+  font-size: 1.25rem;
+}
+
+.pe-paar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.pe-wahlfeld {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.pe-rollenraster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  gap: 0.75rem 1.5rem;
+}
+
+.pe-rollenraster > .rolle {
+  margin: 0;
+}
+
+.personen-benutzername {
+  margin: 0;
+  font-family: var(--mono);
+}
+
+/* Kasten mit den Knöpfen unten: bleibt beim Scrollen im Blick, wie die Fusszeile eines Blatts */
+.pe-fuss {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  background: var(--surface);
+  border-top: 1px solid var(--outline-variant);
+}
+
+.pe-fuss > .pe-zusammenfassung {
+  flex: 1 0 100%;
+}
+
+/* Profil: das Bild der Person gross, darunter Name und Zustand */
+.pe-profil {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  text-align: center;
+}
+
+.pe-bild .ava {
+  width: 9rem;
+  height: 9rem;
+  font-size: 2.5rem;
+}
+
+.pe-profil-name {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.pe-profil .chips {
+  justify-content: center;
+}
+
+/* Zuordnen per Suche: Gewählte als Liste, darunter das Suchfeld mit Treffern */
+.pe-wahl-block {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.pe-wahl-block > .zeile h3 {
+  font-size: 1rem;
+}
+
+.pe-gewaehlt,
+.pe-treffer {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pe-wahlzeile {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.pe-wahlzeile:last-child {
+  border-bottom: 0;
+}
+
+.pe-keiner {
+  padding: 0.5rem 0;
+}
+
+.pe-suchkarte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+  background: var(--surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+}
+
+.pe-suchkarte .suche {
+  max-width: none;
+}
+
+/* Auswahlleiste: Zahl, Aktionen und, wenn eine offen ist, ihr Formular darunter */
+.auswahlleiste {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem 0.5rem 1rem;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.auswahlleiste-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.auswahl-zahl {
+  margin-right: 0.5rem;
+}
+
+.auswahlleiste-formular {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem;
+  color: var(--on-surface);
+  background: var(--karte);
+  border-radius: var(--r-sm);
+  font-weight: 400;
+}
+
+.auswahlleiste-felder {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: 1rem;
+}
+
+.auswahlleiste-hinweis {
+  margin: 0;
+  padding: 0.5rem 0;
+}
+
+@media (min-width: 68.8125em) {
+  .pe-seite .formularraster-seite {
+    align-self: start;
+    max-height: 100%;
+  }
+}
+
+.pe-suchkarte .suche {
+  flex: none;
+}
+
+/* Schmal: das Profil steht zuerst und ist kompakt, Bild links */
+@media (max-width: 68.75em) {
+  .pe-seite .formularraster-seite {
+    order: -1;
+    padding: 1rem;
+  }
+
+  .pe-seite .formularraster-titel {
+    display: none;
+  }
+
+  .pe-profil {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: 1rem;
+    row-gap: 0.25rem;
+    align-items: center;
+    text-align: left;
+  }
+
+  .pe-profil > .pe-bild {
+    grid-row: 1 / span 4;
+  }
+
+  .pe-bild .ava {
+    width: 4.5rem;
+    height: 4.5rem;
+    font-size: 1.5rem;
+  }
+
+  .pe-profil .chips {
+    justify-content: flex-start;
+  }
+}
+
+/* ===== Gruppe: Mitglieder links, Hinzufügen rechts ===== */
+.pe-gruppe {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 28rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.pe-zurueck {
+  align-self: flex-start;
+  margin: 0 0 0.5rem -0.75rem;
+}
+
+.pe-mitglied {
+  flex-wrap: wrap;
+}
+
+.pe-mitglied > .wer {
+  flex: 1 1 14rem;
+}
+
+.pe-rolle {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.pe-rolle--offen {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.pe-karte > .suche {
+  max-width: none;
+  flex: none;
+}
+
+@media (max-width: 68.75em) {
+  .pe-gruppe {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ===== Stufen: Leitung als Sortierliste in der Karte, Logo mit Vorschau daneben ===== */
+.stufe-sl {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.stufe-sl h3 {
+  font-size: 1rem;
+}
+
+.stufe-sl .sortier-eintrag {
+  background: var(--surface);
+}
+
+.stufe-logozeile {
+  display: grid;
+  grid-template-columns: 7rem minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.stufe-logofelder {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.stufe-vorschau {
+  width: 7rem;
+  height: 7rem;
+  padding: 0.5rem;
+  object-fit: contain;
+  background: var(--logo-grund, var(--karte));
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+@media (max-width: 30em) {
+  .stufe-logozeile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Datei wählen: echte Eingabe unsichtbar, aber mit Fokus; der Knopf davor trägt den Fokusring */
+.datei-eingabe {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.datei-zeile {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.datei-eingabe:focus-visible + .knopf {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.datei-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pe-wahlzeile {
+  flex-wrap: wrap;
+}
+
+.pe-wahlzeile > .wer {
+  flex: 1 1 11rem;
+}

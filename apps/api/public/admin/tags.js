@@ -1,15 +1,7 @@
 import { anfrage } from "./api.js";
 import { flussOffen } from "./fluss.js";
-import {
-  aktionenZelle,
-  chip,
-  el,
-  filterGruppe,
-  icon,
-  knopf,
-  neueId,
-  tabelle,
-} from "./dom.js";
+import { aktionenZelle, chip, el, icon, knopf, tabelle } from "./dom.js";
+import { filterleiste } from "./filterleiste.js";
 import {
   aktionenKopfVerstecken,
   macheSortierbar,
@@ -61,10 +53,10 @@ function zeile(tag, ctx, neu) {
     {
       class: "knopf knopf--klein pe-bearbeiten",
       href: `#personen/gruppen/${tag.id}`,
-      "aria-label": `Bearbeiten: ${tag.name}`,
+      "aria-label": `Öffnen: ${tag.name}`,
     },
-    icon("bearbeiten"),
-    "Bearbeiten",
+    icon("weiter"),
+    "Öffnen",
   );
   return {
     tag,
@@ -124,11 +116,7 @@ function zeichne(bereich, ctx, tags, neu) {
     knopf("Neue Gruppe", { art: "haupt", symbol: "plus", onclick: anlegen }),
   );
   if (tags.length === 0) {
-    bereich.append(
-      leerKarte("Lege zuerst eine Gruppe an.", [
-        knopf("Neue Gruppe", { symbol: "plus", onclick: anlegen }),
-      ]),
-    );
+    bereich.append(leerKarte("Lege zuerst eine Gruppe an.", []));
     return;
   }
   const eintraege = tags.map((t) => zeile(t, ctx, neu));
@@ -137,50 +125,28 @@ function zeichne(bereich, ctx, tags, neu) {
     spalten: ["Name", "Typ", "Mitglieder", "Aktionen"],
     zeilen: [],
   });
-  const anzahl = el("p", { class: "klein leise", role: "status" });
   const keine = el("div");
-  const suchId = neueId("suche");
-  const suche = el("input", {
-    class: "eingabe",
-    id: suchId,
-    type: "search",
-    placeholder: "Gruppe suchen",
-    autocomplete: "off",
-    oninput: () => {
-      zustand.frage = suche.value;
-      seiten.anfang();
-      aktualisiere();
-    },
-  });
-  suche.value = zustand.frage;
-  const filter = filterGruppe({
-    beschriftung: "Typ",
-    wert: zustand.typ,
-    eintraege: [
-      { text: "Alle", n: tags.length, wert: "alle" },
-      ...TYPEN.map(([wert, text]) => ({
-        text,
-        n: tags.filter((t) => t.typ === wert).length,
-        wert,
-      })),
+  // Suche und Typ in einer Filterleiste mit gesetzten Filtern als Chips und laufender Trefferzahl
+  const leiste = filterleiste({
+    suche: { label: "Gruppe suchen", wert: zustand.frage },
+    filter: [
+      {
+        schluessel: "typ",
+        label: "Typ",
+        optionen: [["alle", "Alle Typen"], ...TYPEN],
+        wert: zustand.typ,
+      },
     ],
-    beiAenderung: (wert) => {
-      zustand.typ = wert;
+    namen: { einzahl: "Gruppe", mehrzahl: "Gruppen" },
+    beiAenderung: ({ suche, filter }) => {
+      zustand.frage = suche;
+      zustand.typ = filter.typ;
       seiten.anfang();
       aktualisiere();
     },
   });
   const seiten = seitenleiste({ beiWechsel: () => aktualisiere() });
   const tabellenBox = el("div", {}, wurzel, seiten.wurzel);
-  const zuruecksetzen = () => {
-    zustand.frage = "";
-    zustand.typ = "alle";
-    suche.value = "";
-    filter.setze("alle");
-    seiten.anfang();
-    aktualisiere();
-    suche.focus();
-  };
   function aktualisiere() {
     const frage = zustand.frage.trim().toLowerCase();
     const treffer = sortiere(
@@ -195,15 +161,18 @@ function zeichne(bereich, ctx, tags, neu) {
     const [von, bis] = seiten.fenster(treffer.length);
     koerper.replaceChildren(...treffer.slice(von, bis).map((e) => e.tr));
     tabellenBox.hidden = treffer.length === 0;
-    anzahl.textContent =
-      treffer.length === 1 ? "1 Gruppe" : `${treffer.length} Gruppen`;
+    leiste.setzeTreffer(treffer.length, tags.length);
     keine.replaceChildren(
       treffer.length === 0
         ? leerKarte(
             frage.trim()
               ? `Keine Treffer für «${zustand.frage.trim()}».`
               : "Keine Gruppen dieses Typs.",
-            [knopf("Filter zurücksetzen", { onclick: zuruecksetzen })],
+            [
+              knopf("Filter zurücksetzen", {
+                onclick: () => leiste.setzeAlles(),
+              }),
+            ],
           )
         : [],
     );
@@ -222,23 +191,7 @@ function zeichne(bereich, ctx, tags, neu) {
   );
   aktionenKopfVerstecken(wurzel);
   aktualisiere();
-  bereich.append(
-    el(
-      "div",
-      { class: "werkzeuge" },
-      el(
-        "div",
-        { class: "suche" },
-        el("label", { class: "nur-leser", for: suchId }, "Gruppe suchen"),
-        icon("lupe"),
-        suche,
-      ),
-      filter.wurzel,
-    ),
-    anzahl,
-    keine,
-    tabellenBox,
-  );
+  bereich.append(leiste.wurzel, keine, tabellenBox);
   if (zustand.fokus) {
     const ziel = eintraege.find((e) => e.tag.id === zustand.fokus);
     zustand.fokus = null;
