@@ -1,0 +1,721 @@
+/* Lager: Menschen und Einteilung (#675): Teilnehmende, Abzählen, Anwesenheit, Gruppen, Zimmer, Fahrten, Schichtplan, Diensttausch, Adressbuch. Klassen mit dem Vorsatz «mn-»; Farben nur aus den Tokens, Masse in rem oder px, Bewegung nur bei erlaubter Bewegung. Zustand nie nur über Farbe: Wort und Symbol stehen immer dabei. */
+
+.mn-werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-bottom: 16px;
+}
+
+.mn-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.mn-flaechenkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+}
+
+.mn-flaechenkopf > h2 {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Brett: links die Personen ohne Platz, rechts die Karten; unter 60rem untereinander */
+.mn-brett {
+  display: grid;
+  gap: 16px;
+  align-items: start;
+}
+
+.mn-brett:has(> .mn-offen) {
+  grid-template-columns: minmax(16rem, 23rem) minmax(0, 1fr);
+}
+
+@media (max-width: 60rem) {
+  .mn-brett:has(> .mn-offen) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.mn-offen {
+  position: sticky;
+  top: 16px;
+  max-height: calc(100vh - 32px);
+  overflow-y: auto;
+}
+
+@media (max-width: 60rem) {
+  .mn-offen {
+    position: static;
+    max-height: 28rem;
+  }
+}
+
+.mn-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.mn-karten--eng {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 13rem), 1fr));
+}
+
+.mn-zimmer {
+  min-width: 0;
+}
+
+.mn-fuelltext {
+  margin: 0;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-fahrtinfo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+  margin: 0;
+  color: var(--leise);
+}
+
+.mn-warn {
+  margin: 0;
+}
+
+.mn-leerzeile {
+  margin: 0;
+  padding: 8px 0;
+}
+
+/* Belegung: ein Balken, dazu immer der Satz «3 von 4 Plätzen belegt» */
+.mn-fuell {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 8px;
+  border: 0;
+  border-radius: 4px;
+  background: var(--rand-leise);
+  overflow: hidden;
+}
+
+.mn-fuell::-webkit-progress-bar {
+  background: var(--rand-leise);
+}
+
+.mn-fuell::-webkit-progress-value {
+  background: var(--blau);
+}
+
+.mn-fuell::-moz-progress-bar {
+  background: var(--blau);
+}
+
+.mn-fuell.ist-voll::-webkit-progress-value {
+  background: var(--rot);
+}
+
+.mn-fuell.ist-voll::-moz-progress-bar {
+  background: var(--rot);
+}
+
+/* Personenzeilen */
+.mn-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mn-person {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 2px 4px;
+  border-radius: 10px;
+}
+
+.mn-person:hover {
+  background: var(--leiste);
+}
+
+.mn-person-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mn-person-text .name {
+  overflow-wrap: break-word;
+}
+
+.mn-person .menue {
+  flex: none;
+}
+
+.mn-person .menue > summary {
+  min-height: 44px;
+  padding-inline: 10px;
+  font-size: 0.8125rem;
+}
+
+.mn-person .mn-griff {
+  width: 36px;
+}
+
+.mn-wahl {
+  flex: none;
+  min-height: 0;
+}
+
+.mn-griff {
+  display: inline-grid;
+  flex: none;
+  place-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  color: var(--leise);
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  cursor: grab;
+  touch-action: none;
+}
+
+.mn-griff:hover {
+  color: var(--text);
+  background: var(--leiste);
+}
+
+.mn-griff .i {
+  width: 20px;
+  height: 20px;
+}
+
+/* Ablegen: Die Fläche unter dem Zeiger hebt sich ab (Rand und Fläche, nicht nur Farbe) */
+.mn-ziel {
+  outline: 3px solid transparent;
+  outline-offset: 2px;
+}
+
+.mn-ziel--aktiv {
+  outline: 3px dashed var(--akzent);
+  background: color-mix(in oklab, var(--akzent) 12%, var(--karte));
+}
+
+td.mn-ziel--aktiv {
+  outline-offset: -3px;
+}
+
+body.mn-zieht {
+  cursor: grabbing;
+  user-select: none;
+}
+
+body.mn-zieht * {
+  cursor: grabbing !important;
+}
+
+.mn-huelle {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 1000;
+  max-width: 16rem;
+  padding: 8px 16px;
+  overflow: hidden;
+  color: var(--auf-blau);
+  background: var(--blau);
+  border-radius: 999px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.3);
+  font-weight: 700;
+  pointer-events: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mn-ziel {
+    transition:
+      outline-color 0.15s ease,
+      background-color 0.15s ease;
+  }
+
+  .mn-huelle {
+    transition:
+      opacity 0.18s ease,
+      scale 0.18s ease;
+  }
+
+  .mn-huelle--ab {
+    opacity: 0;
+    scale: 0.6;
+  }
+
+  .mn-huelle--zurueck {
+    opacity: 0;
+    scale: 1.1;
+  }
+}
+
+/* Leiste für die Auswahl und für gesammelte Änderungen: unten, solange etwas offen ist */
+.mn-leiste {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  background: var(--erhoben);
+  border: 1px solid var(--rand);
+  border-radius: 12px;
+  box-shadow: 0 6px 20px rgb(0 0 0 / 0.18);
+}
+
+.mn-leiste .feld {
+  min-width: 14rem;
+}
+
+.mn-leiste-zahl {
+  margin: 0;
+  font-weight: 700;
+}
+
+/* Konflikt: beide Stände nebeneinander */
+.mn-konflikt {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 16px;
+  padding: 16px;
+  color: var(--wa);
+  background: var(--wa-f);
+  border: 2px solid var(--wa);
+  border-radius: 12px;
+}
+
+.mn-konflikt h3 {
+  margin: 0;
+}
+
+.mn-konflikt-tabelle {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.mn-konflikt-tabelle th,
+.mn-konflikt-tabelle td {
+  padding: 6px 8px;
+  border-bottom: 1px solid currentcolor;
+  overflow-wrap: anywhere;
+}
+
+.mn-konflikt-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Import */
+.mn-importfeld,
+.feld textarea.mn-importfeld {
+  min-height: 12rem;
+  font-family: var(--mono);
+  font-size: 0.9375rem;
+  white-space: pre;
+  overflow: auto;
+}
+
+.mn-importausgabe {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mn-fehlerliste {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.mn-auswahlzelle {
+  width: 56px;
+}
+
+.mn-notiz {
+  display: block;
+  max-width: 28rem;
+  overflow-wrap: anywhere;
+}
+
+/* Abzählen: grosse Zeilen zum Antippen, auch mit Handschuhen */
+.mn-summe {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mn-abzaehl {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+}
+
+.mn-abzaehl-zeile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-height: 64px;
+  padding: 12px 16px;
+  color: var(--text);
+  background: var(--karte);
+  border: 2px solid var(--rand-leise);
+  border-radius: 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.mn-abzaehl-zeile:hover:not(:disabled) {
+  border-color: var(--rand);
+}
+
+.mn-abzaehl-zeile:disabled {
+  cursor: default;
+}
+
+.mn-abzaehl-zeile.ist-da {
+  color: var(--ok);
+  background: var(--ok-f);
+  border-color: var(--ok);
+}
+
+.mn-haken {
+  position: relative;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--rand);
+  border-radius: 8px;
+}
+
+.ist-da .mn-haken {
+  background: var(--ok);
+  border-color: var(--ok);
+}
+
+.ist-da .mn-haken::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  width: 12px;
+  height: 7px;
+  border-bottom: 3px solid var(--ok-f);
+  border-left: 3px solid var(--ok-f);
+  transform: rotate(-45deg);
+}
+
+.mn-abzaehl-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.mn-abzaehl-wort {
+  flex: none;
+  font-weight: 700;
+}
+
+/* Anwesenheit */
+.mn-fristzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.mn-fristzeile .i {
+  width: 18px;
+  height: 18px;
+  vertical-align: -3px;
+}
+
+.mn-anwzelle {
+  min-width: 8rem;
+}
+
+.mn-anw {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 44px;
+  padding: 4px 12px;
+  color: var(--text);
+  background: var(--karte);
+  border: 2px solid var(--rand-leise);
+  border-radius: 10px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mn-anw:disabled {
+  cursor: default;
+}
+
+.mn-anw .i {
+  width: 18px;
+  height: 18px;
+}
+
+.mn-anw--A {
+  color: var(--ok);
+  background: var(--ok-f);
+  border-color: var(--ok);
+}
+
+.mn-anw--F {
+  background: var(--leiste);
+  border-color: var(--rand);
+}
+
+.mn-anw--O {
+  color: var(--leise);
+  border-style: dashed;
+}
+
+.mn-anw.ist-geaendert {
+  outline: 3px solid var(--akzent);
+  outline-offset: 1px;
+}
+
+.mn-punkt {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 8px;
+  height: 8px;
+  background: var(--akzent);
+  border-radius: 50%;
+}
+
+.mn-summe-zeile th,
+.mn-summe-zeile td {
+  border-top: 2px solid var(--rand);
+  font-weight: 600;
+}
+
+.mn-anwesenheit th .knopf--klein {
+  display: flex;
+  margin-top: 4px;
+}
+
+/* Schichtplan */
+.mn-plan th,
+.mn-plan td {
+  vertical-align: top;
+}
+
+.mn-abschnitt th {
+  background: var(--leiste);
+  font-size: 0.9375rem;
+}
+
+.mn-dienstkopf {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 10rem;
+}
+
+.mn-zelle {
+  min-width: 11rem;
+  border-left: 3px solid transparent;
+}
+
+.mn-zelle.ist-luecke,
+.mn-zelle.ist-leer {
+  border-left-color: var(--wa);
+}
+
+.mn-chips,
+.mn-pool {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 0 0 8px;
+  padding: 0;
+  list-style: none;
+}
+
+.mn-pool {
+  margin: 8px 0 0;
+}
+
+.mn-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 44px;
+  padding: 0 4px;
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: 999px;
+}
+
+.mn-chip .mn-griff {
+  width: 32px;
+  height: 44px;
+  border-radius: 999px;
+}
+
+.mn-chip-name {
+  padding: 0 4px;
+  font-weight: 600;
+}
+
+.mn-chip-weg {
+  display: inline-grid;
+  place-content: center;
+  width: 44px;
+  height: 44px;
+  margin-inline: -4px 0;
+  padding: 0;
+  color: var(--leise);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.mn-chip-weg:hover {
+  color: var(--text);
+  background: var(--leiste);
+}
+
+.mn-chip-weg .i {
+  width: 16px;
+  height: 16px;
+}
+
+.mn-zelltext {
+  display: flex;
+  align-items: flex-start;
+  gap: 4px;
+  margin: 0 0 8px;
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.mn-zelltext .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+}
+
+.mn-poolflaeche summary {
+  min-height: 44px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.mn-wahlliste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mn-mischen {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mn-namen {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mn-schichtort {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (max-width: 40rem) {
+  .mn-leiste {
+    bottom: 8px;
+  }
+
+  .mn-leiste .feld {
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+}
+
+/* Zielgrössen: Das Kästchen bleibt 24 px gross, die Fläche zum Treffen 44 px (das Etikett deckt sie ab); Verweise in Tabellenzellen haben 44 px Höhe, ohne die Zeile zu vergrössern */
+.mn-wahl,
+.mn-auswahlzelle .wahl {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-content: center;
+  width: 44px;
+  min-height: 44px;
+  height: 44px;
+}
+
+.mn-wahl label,
+.mn-auswahlzelle .wahl label {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  font-size: 0;
+  clip-path: none;
+  cursor: pointer;
+}
+
+.lg-modul .tabelle td a {
+  padding-block: 14px;
+  margin-block: -14px;
+}

@@ -191,7 +191,7 @@ describe("Termine: Ansichten (W5, W6)", () => {
       "Noch unklar",
     );
   });
-  test("Termin mit Anlass ist ein Link auf die Anlassseite, sonst kein Link", () => {
+  test("Termin mit Anlass ist ein Link auf die Anlassseite, einer ohne Anlass führt auf die Seite «Termin», der öffentliche Plan hat keine ID und keinen Link", () => {
     const mit = html(
       termine.terminKarte(
         termin({
@@ -206,7 +206,19 @@ describe("Termine: Ansichten (W5, W6)", () => {
     );
     expect(mit).toContain(`href="/anlass/?id=${ID}"`);
     expect(mit).toContain("Angemeldet");
-    expect(html(termine.terminKarte(termin()))).not.toContain("<a ");
+    expect(html(termine.terminKarte(termin()))).toContain(
+      `href="/termin/?id=${ID}"`,
+    );
+    const plan = termine.ausPlan({
+      titel: "Waldspiel",
+      von: "2027-02-06",
+      bis: "2027-02-06",
+      zeitVon: "14:00",
+      zeitBis: "17:00",
+      ort: null,
+      stufen: ["Wölfe"],
+    });
+    expect(html(termine.terminKarte(plan))).not.toContain("<a ");
   });
   test("Laden (#574): Skelett in der Form der Zeilen, aria-busy, verborgen; die Ansage steht in der Statusregion, nicht im Skelett", () => {
     const h = html(termine.feldView(s, { status: "laedt" }, "2027-02-01"));

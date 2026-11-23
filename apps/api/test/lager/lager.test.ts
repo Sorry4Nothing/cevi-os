@@ -464,6 +464,7 @@ describe("Mitglieder: /api/v1/admin/lager/{id}/mitglieder", () => {
     expect(mitglieder).toHaveLength(2);
     for (const m of mitglieder) {
       expect(Object.keys(m).sort()).toEqual([
+        "bildUrl",
         "ceviName",
         "name",
         "personId",
@@ -471,6 +472,29 @@ describe("Mitglieder: /api/v1/admin/lager/{id}/mitglieder", () => {
       ]);
     }
     expect(text).not.toMatch(/passw|hash|secret|token|mail|username|cookie/i);
+  });
+
+  test("die Liste nennt den Pfad des Profilbilds, ohne Bild null (#668)", async () => {
+    const id = await legeLager("aktiv", [
+      [sl, "lagerleitung"],
+      [leitende, "team"],
+    ]);
+    await db
+      .insert(schema.profilbild)
+      .values({ userId: leitende.id!, inhalt: new Uint8Array([1, 2, 3]) })
+      .onConflictDoNothing();
+    const { mitglieder } = (await (
+      await anfrage(admin, "GET", `${ADMIN}/${id}/mitglieder`)
+    ).json()) as { mitglieder: { personId: string; bildUrl: string | null }[] };
+    const bild = (pid?: string | null) =>
+      mitglieder.find((m) => m.personId === pid)?.bildUrl;
+    expect(bild(leitende.id)).toMatch(
+      new RegExp(`^/api/v1/personen/${leitende.id}/bild[?]v=[0-9]+$`),
+    );
+    expect(bild(sl.id)).toBeNull();
+    await db
+      .delete(schema.profilbild)
+      .where(eq(schema.profilbild.userId, leitende.id!));
   });
 
   test("nur ein aktives Konto der Abteilung wird Mitglied; unbekannt, deaktiviert und fremd sind 404", async () => {

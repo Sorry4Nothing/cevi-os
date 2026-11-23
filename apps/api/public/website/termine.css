@@ -1370,3 +1370,73 @@
   fill: currentcolor;
   stroke: none;
 }
+
+/* Termin und Mein Konto (#671): Antwortzeilen mit Name und Schaltern, Linkliste */
+.tm .seite-spalte.breit {
+  max-width: 640px;
+}
+.tm .seite-spalte .seite-spalte {
+  max-width: none;
+}
+.tm .antworten {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+.tm .antwort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--outline-variant);
+}
+.tm .antwort:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.tm .antwort-name {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.tm .antwort-text {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tm .antwort-offen {
+  flex-basis: 100%;
+  font-size: 0.9375rem;
+  color: var(--on-surface-variant);
+}
+.tm .teil-titel {
+  margin-top: 8px;
+  font-size: 1rem;
+}
+.tm .linkliste {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+.tm .linkliste a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.tm .frage {
+  color: var(--on-surface-variant);
+}
+.tm .antwort .seg button[aria-disabled="true"] {
+  cursor: progress;
+}
+/* Die Karte «fakten» der Website ist dunkel (weisse Schrift); unter .tm ist sie hell (#671) */
+.tm .fakten.karte dt {
+  color: var(--on-surface-variant);
+}
+.tm .fakten.karte dd {
+  color: var(--on-surface);
+}

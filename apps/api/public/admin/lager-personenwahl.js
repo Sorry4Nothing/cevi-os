@@ -54,7 +54,7 @@ export function personenWahl({
         el(
           "li",
           { class: "lg-chip" },
-          avatar(p.name),
+          avatar(p.name, { hell: true, bildUrl: p.bildUrl }),
           el("span", {}, p.name),
           el(
             "button",
@@ -108,7 +108,7 @@ export function personenWahl({
             "label",
             { class: "lg-person" },
             box,
-            avatar(p.name),
+            avatar(p.name, { hell: true, bildUrl: p.bildUrl }),
             el(
               "span",
               { class: "lg-person-text" },

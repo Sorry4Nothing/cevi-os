@@ -186,6 +186,14 @@ export const BEREICHE = [
         untertitel: "Anfragen, die dein Team bestätigt oder ablehnt.",
         zugang: "termine:raumAnfragen",
       },
+      // Einen Raum anfragen und die eigenen Anfragen (#671): jede Leitung, wie die Belegung. Die Route erlaubt jeder angemeldeten Person der Abteilung, die Verwaltung öffnet aber nur Leitenden
+      {
+        schluessel: "meine",
+        name: "Meine Anfragen",
+        modul: "./raeume-meine.js",
+        untertitel: "Einen Raum anfragen und sehen, was daraus wurde.",
+        zugang: "belegung",
+      },
     ],
   },
   {

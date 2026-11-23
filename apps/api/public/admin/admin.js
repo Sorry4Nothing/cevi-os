@@ -613,6 +613,10 @@ async function navigiere() {
     // Aktion mit «Rückgängig» statt Rückfrage (rueckgaengig.js)
     mitRueckgaengig,
     lade: erstelleLader(container, { zurUebersicht }),
+    // Eine Adresse, die es nicht gibt (unbekannter Reiter, Kennung ohne UUID): «Diese Seite gibt es nicht» wie bei einem toten Link, ohne Anfrage an den Server
+    nichtGefunden: () => {
+      if (meine === navigation) zeigeNichtGefunden();
+    },
     // Für Module mit eigenem Container (Website), damit das Laden nicht ihre Unternavigation leert
     erstelleLader: (ziel) => erstelleLader(ziel, { zurUebersicht }),
     // Hauptaktion rechts im Seitenkopf, z. B. «Person anlegen»; der Kopf wird mit jeder Navigation neu gebaut

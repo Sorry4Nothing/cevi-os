@@ -162,4 +162,6 @@ export const RESERVIERT = [
   "ical",
   "termine",
   "anlass",
+  "termin",
+  "konto",
 ];
