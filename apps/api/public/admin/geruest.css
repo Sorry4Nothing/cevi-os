@@ -526,7 +526,7 @@
   }
 }
 
-/* Befehlspalette (befehlspalette.js, Strg oder Cmd + K): eine Karte oben in der Mitte über abgedunkeltem Grund. Der Knopf im Kopf zeigt Symbol, Wort und Kürzel; schmal nur das Symbol */
+/* Knopf «Suchen» im Kopf (befehlspalette.js): Symbol, Wort und Kürzel; schmal nur das Symbol */
 
 .palette-knopf {
   gap: 0.5rem;
@@ -563,114 +563,420 @@
   }
 }
 
-.palette {
-  width: min(36rem, calc(100vw - 2rem));
-  max-height: min(32rem, calc(100dvh - 8rem));
-  margin: 4rem auto auto;
-  padding: 0;
-  overflow: hidden;
-  border: 1px solid var(--outline-variant);
-  border-radius: 16px;
-  background: var(--karte);
-  color: var(--on-surface);
-  box-shadow: 0 12px 40px rgb(0 0 0 / 0.25);
-}
+/* Suche (befehlspalette.js, Strg oder Cmd + K): eine Karte oben, so breit wie der Inhalt der Website (--seitenbreite und --seitenrand, die Werte von .wrap), über abgedunkeltem Grund. Oben das Feld, darunter Reiter mit Zahlen und die Treffer in Gruppen; jede Zeile trägt die Angaben, an denen man den Treffer erkennt (Aufbau nach Kokonut «Action Search Bar» und «Team Member List», eigene Klassen). */
 
-.palette[open] {
-  display: flex;
-  flex-direction: column;
+.palette {
+  --palette-rand: var(--seitenrand);
+  --palette-oben: clamp(0.75rem, 7vh, 4.5rem);
+  width: 100%;
+  max-width: min(var(--seitenbreite), 100%);
+  max-height: none;
+  margin: 0 auto auto;
+  padding: var(--palette-oben) var(--palette-rand) 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: var(--text);
 }
 
 .palette::backdrop {
-  background: rgb(0 0 0 / 0.45);
+  background: var(--schleier);
+}
+
+.palette-karte {
+  display: flex;
+  flex-direction: column;
+  max-height: min(50rem, calc(100dvh - var(--palette-oben) - 1rem));
+  overflow: hidden;
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten);
 }
 
 .palette-kopf {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 0.75rem;
-  padding: 0 1rem;
-  border-bottom: 1px solid var(--outline-variant);
+  padding: 0 0.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--rand-leise);
+  color: var(--leise);
 }
 
-.palette-eingabe {
-  flex: 1;
-  min-width: 0;
-  min-height: 3.5rem;
-  border: 0;
-  background: none;
-  color: inherit;
-  font: inherit;
-  font-size: 1.0625rem;
-}
-
-.palette-eingabe:focus-visible {
-  outline: none;
+.palette-kopf > .i {
+  flex: none;
+  width: 24px;
+  height: 24px;
 }
 
 .palette-kopf:focus-within {
   box-shadow: inset 0 -3px 0 var(--primary);
 }
 
-.palette-liste {
+.palette-eingabe {
   flex: 1;
-  margin: 0;
-  padding: 0.5rem;
-  overflow-y: auto;
-  overscroll-behavior: contain;
-  list-style: none;
+  min-width: 0;
+  min-height: 4rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
 }
 
-.palette-gruppe {
-  padding: 0.5rem 0.75rem 0.25rem;
+.palette-eingabe::placeholder {
+  color: var(--leise);
+  font-weight: 400;
+  opacity: 1;
+}
+
+.palette-eingabe:focus-visible {
+  outline: none;
+}
+
+.palette-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--leise);
+  cursor: pointer;
+}
+
+.palette-icon:hover {
+  background: var(--leiste);
+  color: var(--text);
+}
+
+.palette-esc,
+.palette-fuss kbd {
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--rand-leise);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--leise);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.palette-reiter {
+  display: flex;
+  flex: none;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--rand-leise);
+}
+
+.palette-reiter-knopf {
+  flex: none;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--leise);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.palette-reiter-knopf:hover {
+  color: var(--text);
+}
+
+.palette-reiter-knopf[aria-selected="true"] {
+  background: var(--erhoben);
+  color: var(--text);
+}
+
+.palette-reiter-knopf .n {
+  font-weight: 400;
+}
+
+.palette-koerper {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.25rem 0.5rem 0.75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.palette-tipp {
+  padding: 0.75rem;
+  color: var(--leise);
+}
+
+.palette-gruppenkopf {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.75rem 0.25rem;
+  background: var(--karte);
   color: var(--leise);
   font-size: 0.8125rem;
   font-weight: 700;
 }
 
+.palette-gruppenkopf .i {
+  width: 16px;
+  height: 16px;
+}
+
+/* Eine Zeile hat fünf Felder: Bild oder Symbol, Titel mit Zusatz, Angabe, Chips, Zustand. Schmal stehen sie untereinander. */
 .palette-eintrag {
-  display: flex;
+  scroll-margin-top: 2.5rem;
+  display: grid;
+  grid-template-columns:
+    2.5rem minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.5fr)
+    12rem;
   align-items: center;
-  gap: 0.75rem;
-  min-height: 2.75rem;
-  padding: 0 0.75rem;
-  border-radius: 10px;
+  gap: 0.25rem 1rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
   cursor: pointer;
 }
 
 .palette-eintrag[aria-selected="true"] {
   background: var(--surface);
-  box-shadow: inset 3px 0 0 var(--primary);
+  box-shadow: inset 4px 0 0 var(--primary);
 }
 
-.palette-text {
-  font-weight: 600;
+.pz-links {
+  grid-column: 1;
+  display: flex;
 }
 
-.palette-zusatz {
-  margin-left: auto;
+.pz-haupt {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pz-meta {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.pz-chips {
+  grid-column: 4;
+  min-width: 0;
+}
+
+.pz-status {
+  grid-column: 5;
+  justify-self: end;
+}
+
+.pz-status .chips {
+  justify-content: flex-end;
+}
+
+.pz-titel {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.pz-zusatz {
+  color: var(--leise);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.pz-adresse {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.pz-zahl {
+  color: var(--leise);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.pz-symbol {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-sm);
+  background: var(--leiste);
+  color: var(--leise);
+}
+
+.pz-symbol .i {
+  width: 20px;
+  height: 20px;
+}
+
+/* Kachel mit Tag und Monat eines Termins */
+.pz-datum {
+  display: inline-flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-sm);
+  background: var(--leiste);
+  color: var(--text);
+  line-height: 1.05;
+}
+
+.pz-datum-tag {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.pz-datum-monat {
+  color: var(--leise);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pz-zeile {
+  display: block;
+}
+
+/* Treffer im Text: getönter Grund und kräftiger, nie nur Farbe */
+.palette-treffer {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
+  color: inherit;
+  font-weight: 800;
+}
+
+.palette-eintrag.palette-mehr {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  color: var(--akzent);
+  font-weight: 700;
+}
+
+.palette-eintrag.palette-mehr .i {
+  width: 20px;
+  height: 20px;
+}
+
+.palette-lade,
+.palette-fehler {
+  margin: 0.5rem 0.25rem 0;
+}
+
+.palette-lade-text {
+  padding: 0.25rem 0.5rem;
   color: var(--leise);
   font-size: 0.875rem;
 }
 
-.palette-leer {
-  margin: 0;
-  padding: 1.5rem;
-  color: var(--leise);
-  text-align: center;
+.palette-skelett {
+  display: block;
+  height: 3.5rem;
+  margin: 0.25rem 0;
+  border-radius: 12px;
+  background: var(--skeleton);
+}
+
+.palette-fehler {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--fe-f);
+  color: var(--fe);
+  font-weight: 700;
 }
 
 .palette-fuss {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
   margin: 0;
-  padding: 0.625rem 1rem;
-  border-top: 1px solid var(--outline-variant);
+  padding: 0.625rem 1.25rem;
+  border-top: 1px solid var(--rand-leise);
   color: var(--leise);
   font-size: 0.8125rem;
 }
 
+.palette-fuss kbd + kbd {
+  margin-left: 0.25rem;
+}
+
+@media (max-width: 56rem) {
+  .palette-eintrag {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+
+  .pz-links {
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .pz-haupt,
+  .pz-meta,
+  .pz-chips,
+  .pz-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .pz-status .chips {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 40rem) {
+  .palette-esc,
+  .palette-fuss {
+    display: none;
+  }
+
+  .palette-eingabe {
+    font-size: 1.125rem;
+  }
+}
+
+/* Ohne Tastatur braucht niemand die Tastenhilfe */
+@media (hover: none) and (pointer: coarse) {
+  .palette-fuss {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
-  .palette[open] {
+  .palette[open] .palette-karte {
     animation: palette-ein var(--dauer) var(--kurve);
+  }
+
+  .palette-skelett {
+    animation: palette-puls 1.6s ease-in-out infinite;
   }
 
   @keyframes palette-ein {
@@ -679,11 +985,26 @@
       transform: translateY(-0.5rem);
     }
   }
+
+  @keyframes palette-puls {
+    50% {
+      opacity: 0.55;
+    }
+  }
 }
 
 @media (forced-colors: active) {
-  .palette-eintrag[aria-selected="true"] {
+  .palette-karte {
+    border-color: CanvasText;
+  }
+
+  .palette-eintrag[aria-selected="true"],
+  .palette-reiter-knopf[aria-selected="true"] {
     outline: 2px solid Highlight;
+  }
+
+  .palette-treffer {
+    outline: 1px solid CanvasText;
   }
 }
 

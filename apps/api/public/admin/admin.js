@@ -51,10 +51,11 @@ let entwickler = false;
 const sichtbareBereiche = () =>
   bereicheFuer({ istAdmin: istAdmin(), zugang, entwickler });
 
-// Befehlspalette (Strg oder Cmd + K): Seiten, «Neue Person» und geladene Personen, nur im Rahmen dessen, was die Navigation der Person zeigt
+// Suche (Strg oder Cmd + K): Seiten, Personen, Gruppen, Termine, Anlässe, Website-Seiten und Lager, nur im Rahmen dessen, was die Navigation der Person zeigt
 const palette = erstellePalette({
   bereiche: () => sichtbareBereiche(),
   bereit: () => ich !== null && document.getElementById("bereich") !== null,
+  ich: () => ich?.id ?? null,
 });
 
 const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
@@ -129,6 +130,8 @@ function anmeldeSeite({
 // kopfzeichen: Chip-Definition für zeichen(), z. B. ["429 · Zu viele Versuche", "uhr", "warn"]
 function zeigeLogin(hinweis, kopfzeichen) {
   ich = null;
+  // Die Suche behält nichts vom bisherigen Konto
+  palette.vergiss();
   // Der Chip für «zu viele Versuche» steht von Anfang an im Kopf und erscheint erst bei einer 429
   const zuViele = zeichen(ZU_VIELE);
   zuViele.hidden = true;
