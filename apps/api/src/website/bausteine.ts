@@ -310,7 +310,7 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       personId: z.uuid().optional(),
     }),
   ),
-  // Personen (#560): von Hand gepflegte Ansprechpersonen mit Foto, Name, Funktion und E-Mail-Adresse. Anders als «leitungsteam» braucht es kein Konto.
+  // Personen (#560): echte Personen der Plattform. Name (Cevi-Name, sonst Vorname) und Bild (das Profilbild) kommen von der Person und erscheinen nur mit ihrer Freigabe; Funktion und Funktionsadresse sind Angaben der Seite.
   // Es gibt bewusst kein Feld für eine Telefonnummer: auf die Website gehört die Funktionsadresse
   baustein(
     "personen",
@@ -318,10 +318,9 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       eintraege: z
         .array(
           z.strictObject({
-            name: kurztext(MAX_KURZTEXT),
+            personId: z.uuid(),
             funktion: kurztext(MAX_KURZTEXT).optional(),
             email: z.email().max(254).optional(),
-            mediumId: mediumId.optional(),
           }),
         )
         .min(1)

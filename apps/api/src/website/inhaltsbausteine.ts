@@ -24,17 +24,13 @@ function foto(
   id: string | undefined,
   daten: Daten,
   nebenText: string,
-  immerLeer = false,
 ): HtmlKnoten | null {
   const m = id ? daten.medien.get(id) : undefined;
   if (!id || !m || !m.mimeTyp.startsWith("image/")) return null;
   const alt = (m.altText ?? "").trim();
   return el("img", {
     src: medienUrl(id),
-    alt:
-      immerLeer || alt.toLowerCase() === nebenText.trim().toLowerCase()
-        ? ""
-        : alt,
+    alt: alt.toLowerCase() === nebenText.trim().toLowerCase() ? "" : alt,
     ...(m.breite &&
       m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),
     loading: "lazy",
@@ -47,26 +43,38 @@ export function rendereInhaltsBaustein(
   b: InhaltsBaustein,
   daten: Daten,
   letzte: { ebene: number },
-): HtmlKnoten {
+): HtmlKnoten | null {
   const ebene = Math.min(3, letzte.ebene + 1);
   switch (b.typ) {
     // Der Anzeigename (Cevi-Name oder Vorname) ist die Hauptzeile, Funktion und Adresse stehen klein darunter
-    case "personen":
+    case "personen": {
+      // Nur freigegebene Personen (#560): Wer nicht in den Daten steht, erscheint gar nicht, auch nicht mit Namen
+      const eintraege = b.daten.eintraege.flatMap((e) => {
+        const p = daten.websitePersonen.get(e.personId.toLowerCase());
+        return p ? [{ ...e, ...p }] : [];
+      });
+      if (eintraege.length === 0) return null;
       return el(
         "ul",
         { class: "personen" },
-        ...b.daten.eintraege.map((e) => {
-          // Das Porträt trägt keinen Inhalt, den der Name daneben nicht nennt
-          const bild = foto(e.mediumId, daten, e.name, true);
-          // Der Rahmen schneidet das Porträt zu, damit es beim Zeigen wachsen kann; «einblenden» ist die Bewegung der Grundlage (#555)
+        ...eintraege.map((e) => {
+          // Das Profilbild trägt keinen Inhalt, den der Name daneben nicht nennt; der Rahmen schneidet es zu, damit es beim Zeigen wachsen kann. «einblenden» ist die Bewegung der Grundlage (#555)
           return el(
             "li",
             { class: "einblenden" },
             el(
               "span",
               { class: "portraet-rahmen" },
-              bild && typeof bild === "object"
-                ? { ...bild, attr: { class: "portraet", ...bild.attr } }
+              e.bild
+                ? el("img", {
+                    class: "portraet",
+                    src: e.bild,
+                    alt: "",
+                    width: "256",
+                    height: "256",
+                    loading: "lazy",
+                    decoding: "async",
+                  })
                 : el(
                     "span",
                     { class: "portraet portraet--leer", "aria-hidden": "true" },
@@ -87,6 +95,7 @@ export function rendereInhaltsBaustein(
           );
         }),
       );
+    }
     case "artikel":
       return el(
         "ul",

@@ -411,6 +411,10 @@ export function oeffneBlatt({ person, daten, ctx, neu, beiFokus, tr }) {
     maxlength: 30,
     autocomplete: "off",
   });
+  const websiteFreigabe = ankreuzen({
+    label: "Name und Profilbild auf der Website zeigen",
+    gewaehlt: person.websiteFreigabe,
+  });
   const admin = ankreuzen({ label: "Admin-Rechte", gewaehlt: person.admin });
   const rollen = rollenFelder(daten.stufen, person.rollen);
   const kinder = kinderFelder(daten.kinder, daten.stufen, person.elternteilVon);
@@ -436,6 +440,12 @@ export function oeffneBlatt({ person, daten, ctx, neu, beiFokus, tr }) {
       name.wurzel,
       ceviName.wurzel,
       telefon.wurzel,
+      websiteFreigabe.wurzel,
+      el(
+        "p",
+        { class: "hilfe" },
+        "Die öffentliche Website zeigt den Cevi-Namen (sonst den Vornamen) und das Profilbild, aber nur mit dieser Freigabe. Die Person kann sie auch selbst setzen und widerrufen. Bei Minderjährigen braucht es das Einverständnis der Eltern.",
+      ),
       el(
         "div",
         { class: "feld" },
@@ -482,6 +492,7 @@ export function oeffneBlatt({ person, daten, ctx, neu, beiFokus, tr }) {
         name: name.eingabe.value.trim(),
         ceviName: ceviName.eingabe.value,
         telefon: telefon.eingabe.value,
+        websiteFreigabe: websiteFreigabe.eingabe.checked,
         admin: admin.eingabe.checked,
         rollen: rollen.wert(),
         elternteilVon: kinder.wert(),

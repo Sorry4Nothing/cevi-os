@@ -70,10 +70,9 @@ describe("Schema", () => {
         b("personen", {
           eintraege: [
             {
-              name: "Beispiel v/o Muster",
+              personId: id(),
               funktion: "Stufenleitung",
               email: "stufe@example.org",
-              mediumId: id(),
             },
           ],
         }),
@@ -98,12 +97,29 @@ describe("Schema", () => {
     ["personen ohne Einträge", b("personen", { eintraege: [] })],
     [
       "personen mit ungültiger E-Mail",
-      b("personen", { eintraege: [{ name: "A", email: "keine adresse" }] }),
+      b("personen", {
+        eintraege: [{ personId: id(), email: "keine adresse" }],
+      }),
     ],
     // Bewusst kein Feld für eine Telefonnummer
     [
       "personen mit Telefon",
-      b("personen", { eintraege: [{ name: "A", telefon: "079 000 00 00" }] }),
+      b("personen", {
+        eintraege: [{ personId: id(), telefon: "079 000 00 00" }],
+      }),
+    ],
+    // Name und Bild kommen von der Person, nicht aus dem Baustein
+    [
+      "personen mit Name statt Person",
+      b("personen", { eintraege: [{ name: "A" }] }),
+    ],
+    [
+      "personen mit Medium",
+      b("personen", { eintraege: [{ personId: id(), mediumId: id() }] }),
+    ],
+    [
+      "personen mit ungültiger Person",
+      b("personen", { eintraege: [{ personId: "anna" }] }),
     ],
     ["artikel ohne Name", b("artikel", { eintraege: [{ preis: "CHF 1.–" }] })],
     [
@@ -119,11 +135,11 @@ describe("Schema", () => {
     expect(pruefe(baustein).ok).toBe(false);
   });
 
-  test("Verweise: Bilder von Personen und Artikeln, Seiten der Eckdaten", () => {
-    const [m1, m2] = [id(), id()];
+  test("Verweise: Personen, Bilder der Artikel, Seiten der Eckdaten", () => {
+    const [p1, m2] = [id(), id()];
     const v = sammleVerweise(
       dok(
-        b("personen", { eintraege: [{ name: "A", mediumId: m1 }] }),
+        b("personen", { eintraege: [{ personId: p1 }] }),
         b("artikel", {
           eintraege: [{ name: "B", mediumId: m2 }, { name: "C" }],
         }),
@@ -132,7 +148,8 @@ describe("Schema", () => {
         }),
       ),
     );
-    expect(v.medien.sort()).toEqual([m1, m2].sort());
+    expect(v.personen).toEqual([p1]);
+    expect(v.medien).toEqual([m2]);
     expect(v.seiten).toEqual(["/lager"]);
   });
 });
@@ -171,35 +188,54 @@ describe("Renderer", () => {
     );
   });
 
-  test("Personen: Foto ohne Alt-Text, sonst Initialen; die Adresse ist ein mailto-Link", () => {
-    const foto = id();
+  test("Personen: Name und Profilbild von der Person, ohne Freigabe gar nicht; die Adresse ist ein mailto-Link", () => {
+    const [frei, ohneBild, gesperrt] = [id(), id(), id()];
     const html = seite(
       dok(
         b("ueberschrift", { ebene: 2, text: "Leitung" }),
         b("personen", {
           eintraege: [
             {
-              name: "Anna Muster v/o Flink",
+              personId: frei,
               funktion: "Stufenleitung",
               email: "flink@example.org",
-              mediumId: foto,
             },
-            { name: `${BOESE} Beat Beispiel`, mediumId: id() },
+            { personId: ohneBild, funktion: BOESE },
+            { personId: gesperrt, funktion: "Nicht freigegeben" },
           ],
         }),
       ),
-      { ...keineDaten(), medien: new Map([[foto, bildDaten("Porträt")]]) },
+      {
+        ...keineDaten(),
+        websitePersonen: new Map([
+          [
+            frei,
+            { name: "Flink", bild: "/website/person-0123456789abcdef.jpg" },
+          ],
+          [ohneBild, { name: `${BOESE} Beat` }],
+        ]),
+      },
     );
-    expect(html).toMatch(
-      new RegExp(
-        `<ul class="personen"><li class="einblenden"><span class="portraet-rahmen"><img class="portraet" src="/api/v1/medien/${foto}" alt="" width="400" height="300"[^>]*></span><h3 class="titel">Anna Muster v/o Flink</h3><p>Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p></li>`,
+    expect(html).toContain(
+      `<ul class="personen"><li class="einblenden"><span class="portraet-rahmen"><img class="portraet" src="/website/person-0123456789abcdef.jpg" alt="" width="256" height="256" decoding="async"></span><h3 class="titel">Flink</h3><p>Stufenleitung</p><p class="adresse"><a href="mailto:flink@example.org">flink@example.org</a></p></li>`,
+    );
+    // Ohne Profilbild: Initialen
+    expect(html).toContain(
+      `<span class="portraet portraet--leer" aria-hidden="true">XA</span>`,
+    );
+    // Wer nicht freigegeben ist, erscheint nicht, auch nicht mit der Funktion
+    expect(html).not.toContain("Nicht freigegeben");
+    expect(html).not.toContain("<x-boese");
+  });
+
+  test("Personen: ohne eine einzige freigegebene Person entfällt der Baustein samt Liste", () => {
+    const html = seite(
+      dok(
+        b("personen", { eintraege: [{ personId: id(), funktion: "Leitung" }] }),
       ),
     );
-    // Das zweite Bild gibt es nicht (oder es ist nicht öffentlich): Initialen
-    expect(html).toContain(
-      '<span class="portraet portraet--leer" aria-hidden="true">XA</span>',
-    );
-    expect(html).not.toContain("<x-boese");
+    expect(html).not.toContain(`class="personen"`);
+    expect(html).not.toContain("Leitung");
   });
 
   test("Artikel: Bild, Name und Preis in einer Karte; der Alt-Text entfällt, wenn er nur den Namen wiederholt", () => {

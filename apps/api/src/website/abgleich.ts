@@ -21,6 +21,7 @@ import {
   type Seitendokument,
 } from "./dokument.js";
 import { aufWebsiteEreignis } from "./ereignisse.js";
+import { ladeWebsitePersonen, PERSON_DATEI, personenIn } from "./personen.js";
 import {
   keineDaten,
   rendereAnmeldung,
@@ -321,7 +322,20 @@ export async function ladeDaten(
       });
     }
   }
-  return { ...keineDaten(), medien, personen, teams };
+  // Freigegebene Personen und ihre Profilbilder für den Baustein «personen» (#560)
+  const frei = await ladeWebsitePersonen(
+    db,
+    abteilungId,
+    personenIn(dokumente),
+  );
+  return {
+    ...keineDaten(),
+    medien,
+    personen,
+    teams,
+    websitePersonen: frei.personen,
+    personenDateien: frei.dateien,
+  };
 }
 
 // Pfad im Netz und Datei: die Seite «start» der obersten Ebene ist «/»; null, wenn die Adresse nie ausgeliefert wird
@@ -583,6 +597,7 @@ export async function erzeugeWebsite(
     ...TERMINE_DATEIEN,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
     ...(zeichen ? ZEICHEN_DATEIEN : []),
+    ...(daten.personenDateien ?? []).map(([pfad]) => pfad),
     ...[...huellen.values()].map((h) => h.datei),
     ...weiterleitungen.map(([datei]) => datei),
   ]);
@@ -651,6 +666,7 @@ export async function erzeugeWebsite(
     ...(zeichen
       ? ZEICHEN_DATEIEN.map((d): [string, Uint8Array] => [d, zeichen[d]])
       : []),
+    ...(daten.personenDateien ?? []),
     ...weiterleitungen,
   ];
   for (const [datei, inhalt] of gesamt) {
@@ -670,7 +686,11 @@ export async function erzeugeWebsite(
   for (const datei of vorhanden) {
     if (
       soll.has(datei) ||
-      !(SEITENDATEI.test(datei) || datei === CADDY_DATEI)
+      !(
+        SEITENDATEI.test(datei) ||
+        datei === CADDY_DATEI ||
+        PERSON_DATEI.test(datei)
+      )
     ) {
       continue;
     }

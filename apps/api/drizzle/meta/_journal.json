@@ -659,6 +659,13 @@
       "when": 1793555000000,
       "tag": "0130_website_zeichen",
       "breakpoints": true
+    },
+    {
+      "idx": 132,
+      "version": "7",
+      "when": 1793555200000,
+      "tag": "0132_website_freigabe",
+      "breakpoints": true
     }
   ]
 }
