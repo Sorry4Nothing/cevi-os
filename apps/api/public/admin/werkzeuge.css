@@ -29,10 +29,55 @@
   box-shadow: var(--schatten);
 }
 
+/* Ziehen mit Zeiger (zieheMitBewegung in sortieren.js, gilt auch für Seitenbaum und Lädeli): Die gezogene Zeile ist angehoben und folgt dem Zeiger, ein gestrichelter Platzhalter zeigt den Zielplatz */
+.wird-gezogen {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: var(--schatten);
+  cursor: grabbing;
+  will-change: transform;
+}
+
 .sortier-eintrag.wird-gezogen {
   background: var(--surface-container-high);
-  border: 2px dashed var(--focus);
-  box-shadow: var(--schatten);
+  border-color: var(--outline);
+}
+
+.sortier-platzhalter {
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--surface-container);
+  border: 2px dashed var(--outline);
+  border-radius: var(--r-sm);
+}
+
+.sortierliste {
+  position: relative;
+}
+
+/* Beim Ziehen färbt der Zeiger die Zeile darunter nicht ein: Der Zielplatz ist der Platzhalter */
+.sortier-zieht tr:not(.wird-gezogen):hover > *,
+.sortier-zieht .sortier-griff:not([aria-pressed="true"]):hover,
+.sortier-zieht .ws-zeile:not(.wird-gezogen):not(.ws-ziel-in):hover {
+  background: transparent;
+}
+
+body.sortieren-aktiv {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.sortier-schritte {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
 }
 
 .sortier-griff {
@@ -93,9 +138,19 @@
   min-width: 12rem;
 }
 
+/* Auswahlfelder oben wie auf der Website (Termine, #607): 220 px breit, Beschriftung 16 px mit 8 px Abstand zum Feld, Pfeil in der leisen Textfarbe */
 .filterleiste-feld {
-  flex: 0 1 14rem;
+  flex: 0 1 13.75rem;
   min-width: 10rem;
+}
+
+.filterleiste-feld .feld {
+  gap: 0.5rem;
+}
+
+.filterleiste-feld .feld > label {
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .filterleiste-gesetzt {
@@ -455,6 +510,38 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
+  /* Die anderen Zeilen weichen aus; die gezogene setzt sich beim Loslassen ab; der Platzhalter wandert mit */
+  .sortier-weicht.sortier-weicht {
+    transition: transform 0.3s var(--kurve);
+  }
+
+  .sortier-setzt-ab.sortier-setzt-ab {
+    transition: transform 0.22s var(--kurve);
+  }
+
+  .sortier-platzhalter--gleitet {
+    transition: transform 0.3s var(--kurve);
+  }
+
+  .sortier-schritte {
+    animation: sortier-schritte 1.6s var(--kurve) both;
+  }
+
+  @keyframes sortier-schritte {
+    from {
+      opacity: 0;
+      transform: translateX(0.25rem);
+    }
+    15%,
+    75% {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
   .sortier-eintrag,
   .filter-chip,
   .kalender-tag {

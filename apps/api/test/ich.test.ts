@@ -89,7 +89,6 @@ describe("GET /api/v1/ich", () => {
       mussPasswortAendern: false,
       datenschutzGelesenAm: null,
       telefon: null,
-      websiteFreigabe: false,
       bildUrl: null,
       pushChat: true,
       pushProgramme: true,
@@ -409,68 +408,17 @@ describe("Kein Löschen durch die Person", () => {
   });
 });
 
-describe("Freigabe für die Website (#560)", () => {
-  const patchen = (konto: PersonaKonto, wert: unknown) =>
-    app.request("/api/v1/ich", {
+describe("Keine Freigabe für die Website (#610)", () => {
+  test("«Mein Profil» kennt das Feld nicht mehr: PATCH lehnt es ab, GET nennt es nicht", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const antwort = await app.request("/api/v1/ich", {
       method: "PATCH",
       headers: { ...konto.headers, "content-type": "application/json" },
-      body: JSON.stringify({ websiteFreigabe: wert }),
+      body: JSON.stringify({ websiteFreigabe: true }),
     });
-  const eintraege = (id: string) =>
-    db
-      .select({
-        aktion: schema.auditLog.aktion,
-        akteurId: schema.auditLog.akteurId,
-        details: schema.auditLog.details,
-      })
-      .from(schema.auditLog)
-      .where(eq(schema.auditLog.zielId, id));
-
-  test("Vorgabe: nicht freigegeben; die Person setzt und widerruft selbst, nur ein Wechsel steht im Audit-Log", async () => {
-    const konto = await legePersonaAn(welt, "elternA");
-    expect((await (await ich(konto)).json()).websiteFreigabe).toBe(false);
-
-    expect((await patchen(konto, true)).status).toBe(204);
-    expect((await (await ich(konto)).json()).websiteFreigabe).toBe(true);
-    const [bisher] = await db
-      .select({ am: schema.user.websiteFreigabeAm })
-      .from(schema.user)
-      .where(eq(schema.user.id, konto.id!));
-    // Dieselbe Freigabe nochmals: kein neuer Eintrag, der Zeitpunkt bleibt
-    expect((await patchen(konto, true)).status).toBe(204);
-    const [danach] = await db
-      .select({ am: schema.user.websiteFreigabeAm })
-      .from(schema.user)
-      .where(eq(schema.user.id, konto.id!));
-    expect(danach!.am).toEqual(bisher!.am);
-
-    expect((await patchen(konto, false)).status).toBe(204);
-    expect((await (await ich(konto)).json()).websiteFreigabe).toBe(false);
-    expect(await eintraege(konto.id!)).toEqual([
-      {
-        aktion: "website_freigabe_geaendert",
-        akteurId: konto.id,
-        details: { websiteFreigabe: true },
-      },
-      {
-        aktion: "website_freigabe_geaendert",
-        akteurId: konto.id,
-        details: { websiteFreigabe: false },
-      },
-    ]);
-  });
-
-  test("nur ein Wahrheitswert; ein anderes Feld im selben Aufruf bleibt gültig", async () => {
-    const konto = await legePersonaAn(welt, "elternA");
-    expect((await patchen(konto, "ja")).status).toBe(400);
-    expect((await patchen(konto, null)).status).toBe(400);
-    const gemischt = await app.request("/api/v1/ich", {
-      method: "PATCH",
-      headers: { ...konto.headers, "content-type": "application/json" },
-      body: JSON.stringify({ websiteFreigabe: true, pushChat: false }),
-    });
-    expect(gemischt.status).toBe(204);
-    const koerper = await (await ich(konto)).json();
-    expect(koerper).toMatchObject({ websiteFreigabe: true, pushChat: false });
+    expect(antwort.status).toBe(400);
+    expect(await (await ich(konto)).json()).not.toHaveProperty(
+      "websiteFreigabe",
+    );
   });
 });

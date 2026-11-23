@@ -1,7 +1,7 @@
 // Übersicht (#583): was jetzt zu tun ist und wie es der Abteilung geht, je nach Rolle. Ein einziger Abruf, GET /api/v1/admin/uebersicht; der Server gibt jeder Person nur die Teile, die sie sehen darf (docs/rechte.md). Die Oberfläche blendet nur aus, was fehlt, und verlässt sich auf nichts.
 //
 // Datenbanklast: ein Abruf beim Öffnen und auf «Aktualisieren», kein Polling. Der Server hält die Antwort 45 Sekunden je Person im Speicher.
-// Aufbau: Jetzt zu tun (Band mit Zahl und Sprung) · Kennzahlen (mit Verlauf und Vergleich) · Kommendes und Kinder je Stufe · Zustand. Kacheln und Diagramme liegen in uebersicht-kacheln.js und uebersicht-diagramme.js, die Stile in uebersicht.css.
+// Aufbau: Jetzt zu tun (gleich grosse Kacheln mit Zahl und Sprung) · Kennzahlen (Zahl, Veränderung, kleine Grafik) · Kommendes und Kinder je Stufe · Zustand (Website und Kalender-Abgleich). Kacheln und Diagramme liegen in uebersicht-kacheln.js und uebersicht-diagramme.js, die Stile in uebersicht.css.
 // Fehlt ein Teil (kein Recht), fehlt seine Kachel. Scheitert ein Teil auf dem Server, zeigt nur diese Kachel «Nochmals versuchen».
 import { anfrage } from "./api.js";
 import { el, knopf } from "./dom.js";
@@ -11,7 +11,6 @@ import {
   kennzahlen,
   kinderJeStufe,
   kommendes,
-  termineProWoche,
   zustand,
 } from "./uebersicht-kacheln.js";
 import { leerKarte } from "./zustaende.js";
@@ -23,10 +22,7 @@ const uhr = new Intl.DateTimeFormat("de-CH", {
   second: "2-digit",
 });
 
-// Der Wunsch «Tabellen statt Diagramme» bleibt bei «Aktualisieren» erhalten
-let tabellen = false;
-
-// Skelett in der Form des echten Inhalts: Band, vier Kennzahlen, zwei Flächen, vier Zustände
+// Skelett in der Form des echten Inhalts: Band, vier Kennzahlen, zwei Flächen, ein Streifen mit zwei Zuständen
 function skelett() {
   const kachel = (zeilen = 3) =>
     el(
@@ -53,7 +49,7 @@ function skelett() {
     abschnitt(160, "ub-aufgaben", 4, 1),
     abschnitt(136, "ub-raster", 4, 3),
     el("div", { class: "ub-zweispaltig" }, kachel(6), kachel(5)),
-    abschnitt(96, "ub-raster ub-raster--zustand", 4, 2),
+    abschnitt(96, "ub-raster ub-raster--zustand", 2, 2),
   );
 }
 
@@ -69,15 +65,10 @@ function melde(ctx, a) {
 
 function zeichne(bereich, ctx, daten, neuLaden) {
   melde(ctx, daten.aufgaben);
-  const wurzel = el("div", {
-    class: "ub-seite" + (tabellen ? " ub--tabellen" : ""),
-  });
+  const wurzel = el("div", { class: "ub-seite" });
   const opt = { nochmals: neuLaden };
-  // Links die Liste, rechts übereinander die Wochen und die Stufen
-  const rechts = [
-    termineProWoche(daten),
-    kinderJeStufe(daten, ctx, opt),
-  ].filter(Boolean);
+  // Links die Liste, rechts die Stufen
+  const rechts = [kinderJeStufe(daten, ctx, opt)].filter(Boolean);
   const zweispaltig = [
     kommendes(daten, ctx, opt),
     rechts.length > 0 && el("div", { class: "ub-spalte" }, rechts),
@@ -85,14 +76,7 @@ function zeichne(bereich, ctx, daten, neuLaden) {
   wurzel.append(
     ...[
       aufgabenBand(daten, ctx, neuLaden),
-      kennzahlen(daten, ctx, {
-        nochmals: neuLaden,
-        tabellen,
-        beiTabellen: (an) => {
-          tabellen = an;
-          wurzel.classList.toggle("ub--tabellen", an);
-        },
-      }),
+      kennzahlen(daten, ctx, { nochmals: neuLaden }),
       zweispaltig.length > 0 &&
         el(
           "section",

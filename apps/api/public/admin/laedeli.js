@@ -16,11 +16,13 @@ import {
 import { formularRaster } from "./formularraster.js";
 import { sk, skeletonTabelle } from "./lader.js";
 import { ansichtVon } from "./rueckgaengig.js";
+import { merkePlaetze, rutscheAnPlatz, zieheMitBewegung } from "./sortieren.js";
 import {
   entferneFeldFehler,
   ersetze,
   feldFehler,
   pruefHinweis,
+  speicherLeiste,
   stempel,
   zaehlwort,
 } from "./kalenderhilfen.js";
@@ -113,7 +115,7 @@ export function zeige(bereich, ctx) {
 
 // ===== Bestellungen =====
 
-// Karten, solange die Bestellungen laden: Name, Summe, Schiene mit drei Schritten, Positionen, Aktion
+// Karten, solange die Bestellungen laden: Kopf mit Kachel, Schiene mit drei Schritten, Positionen, Aktion
 function skeletonBestellungen() {
   const karte = () =>
     el(
@@ -122,7 +124,8 @@ function skeletonBestellungen() {
       el(
         "div",
         { class: "ld-bestellung-kopf" },
-        el("div", {}, sk("t", 136), sk("t", 112)),
+        sk("k", 40),
+        el("div", { class: "ld-bestellung-wer" }, sk("t", 136), sk("t", 112)),
         sk("t", 64),
       ),
       el(
@@ -268,15 +271,9 @@ function zeigeBestellungen(bereich, ctx) {
       return null;
     }
 
-    // Statusschiene: Offen, Bereit, Übergeben. Erledigte Schritte tragen einen Haken, der aktuelle ist gefüllt und «aktueller Schritt» für Screenreader; Zustand nie nur über Farbe
+    // Statusschiene wie beim Bestellverfolger: eine Linie mit drei Punkten (Offen, Bereit, Übergeben), die Linie ist bis zum aktuellen Schritt gefüllt.
+    // Erledigte Schritte tragen einen Haken, der aktuelle ist gefüllt und «aktueller Schritt» für Screenreader, darunter steht seit wann; Zustand nie nur über Farbe
     function schiene(b) {
-      if (b.status === "storniert") {
-        return el(
-          "ul",
-          { class: "chips" },
-          chip(STAND.storniert.text, STAND.storniert.art, "sperre"),
-        );
-      }
       const schritte = [
         ["offen", "Offen"],
         ["bereit", "Bereit"],
@@ -285,7 +282,11 @@ function zeigeBestellungen(bereich, ctx) {
       const aktuell = schritte.findIndex(([w]) => w === b.status);
       return el(
         "ol",
-        { class: "ld-schiene", "aria-label": "Stand der Bestellung" },
+        {
+          class: "ld-schiene",
+          "aria-label": "Stand der Bestellung",
+          "data-schritt": String(aktuell),
+        },
         schritte.map(([, text], i) =>
           el(
             "li",
@@ -300,51 +301,114 @@ function zeigeBestellungen(bereich, ctx) {
             ),
             el("span", { class: "ld-schritttext" }, text),
             i < aktuell && el("span", { class: "nur-leser" }, " (erledigt)"),
+            i === aktuell &&
+              b.status !== "offen" &&
+              el(
+                "span",
+                { class: "ld-seit klein leise" },
+                `seit ${stempel(b.geaendertAm)}`,
+              ),
           ),
         ),
       );
     }
 
+    const kuerzel = (name) =>
+      name
+        .split(/\s+/)
+        .map((w) => w[0])
+        .join("")
+        .slice(0, 2)
+        .toUpperCase();
+
+    // Karte wie die Bestellkarten von Kokonut: Kopf mit Initialen, Name und Zeit, Stand rechts; Schiene; Positionen mit Zeilensumme; Summe; Übergabe und Aktion unten
     function karte(b) {
       const wurzel = el("article", {
-        class: "ld-bestellung",
+        class: `ld-bestellung${b.status === "storniert" ? " ld-bestellung--storniert" : ""}`,
         "aria-label": `Bestellung von ${wer(b)}`,
       });
       const aktion = aktionen(b, wurzel);
+      const stand = STAND[b.status];
       wurzel.append(
-        el(
-          "header",
-          { class: "ld-bestellung-kopf" },
+        ...[
           el(
-            "div",
-            {},
-            el("h3", { class: "ld-bestellung-name" }, wer(b)),
-            b.person.ceviName &&
-              el("span", { class: "klein leise ld-unter" }, b.person.name),
+            "header",
+            { class: "ld-bestellung-kopf" },
             el(
               "span",
-              { class: "klein leise ld-unter" },
-              stempel(b.erstelltAm),
+              { class: "ld-kuerzel", "aria-hidden": "true" },
+              kuerzel(wer(b)),
+            ),
+            el(
+              "div",
+              { class: "ld-bestellung-wer" },
+              el("h3", { class: "ld-bestellung-name" }, wer(b)),
+              el(
+                "span",
+                { class: "klein leise ld-unter" },
+                b.person.ceviName
+                  ? `${b.person.name}, bestellt ${stempel(b.erstelltAm)}`
+                  : `Bestellt ${stempel(b.erstelltAm)}`,
+              ),
+            ),
+            el(
+              "ul",
+              { class: "chips ld-stand" },
+              chip(
+                stand.text,
+                stand.art,
+                stand.symbol ??
+                  (b.status === "storniert" ? "sperre" : undefined),
+              ),
             ),
           ),
-          el("p", { class: "ld-summe" }, summeText(b.summeRappen)),
-        ),
-        schiene(b),
-        el(
-          "ul",
-          { class: "ld-positionen" },
-          b.positionen.map((p) =>
+          b.status !== "storniert" && schiene(b),
+          el(
+            "ul",
+            { class: "ld-positionen" },
+            b.positionen.map((p) =>
+              el(
+                "li",
+                { class: "ld-position" },
+                el(
+                  "span",
+                  { class: "ld-position-text" },
+                  el("span", { class: "ld-position-name" }, p.name),
+                  (p.variante || p.menge > 1) &&
+                    el(
+                      "span",
+                      { class: "klein leise" },
+                      [
+                        p.variante && `Grösse ${p.variante}`,
+                        p.menge > 1 &&
+                          `${p.menge} × ${preisText(p.einzelpreisRappen)}`,
+                      ]
+                        .filter(Boolean)
+                        .join(", "),
+                    ),
+                ),
+                el(
+                  "span",
+                  { class: "ld-position-preis" },
+                  summeText(p.menge * p.einzelpreisRappen),
+                ),
+              ),
+            ),
             el(
               "li",
-              {},
-              `${p.menge} × ${p.name}`,
-              p.variante && el("span", { class: "leise" }, `, ${p.variante}`),
+              { class: "ld-position ld-total" },
+              el("span", {}, "Summe"),
+              el("span", { class: "ld-summe" }, summeText(b.summeRappen)),
             ),
           ),
-        ),
-        el("p", { class: "klein leise ld-uebergabe" }, b.uebergabe),
-        aktion &&
-          el("div", { class: "ld-bestellung-aktion" }, aktion.wurzel ?? aktion),
+          el("p", { class: "klein leise ld-uebergabe" }, b.uebergabe),
+          aktion &&
+            el(
+              "div",
+              { class: "ld-bestellung-aktion" },
+              aktion.wurzel ?? aktion,
+            ),
+        ].filter(Boolean),
       );
       return wurzel;
     }
@@ -460,8 +524,8 @@ function zeigeArtikel(bereich, ctx) {
     const idsJetzt = () => reihe().map((tr) => tr.dataset.id);
     const platzText = (id) =>
       `Position ${idsJetzt().indexOf(id) + 1} von ${artikel.length}`;
-    // Eine laufende Zeigerbewegung (Maus, Finger)
-    let zug = null;
+    // Die Hülle der Tabelle nimmt den Platzhalter beim Ziehen auf (sie entsteht weiter unten)
+    let huelleTabelle = null;
 
     async function speichere(vorher, nachher) {
       if (vorher.join() === nachher.join()) return;
@@ -581,53 +645,27 @@ function zeigeArtikel(bereich, ctx) {
       knopfGriff.addEventListener("blur", () => {
         if (gegriffen && !bewegt) ende(false);
       });
-      // Maus und Finger: Die gezogene Zeile folgt dem Zeiger, eine Kante zeigt, wo sie landet; erst beim Loslassen wandert sie dorthin (sonst verlöre der Griff den Zeiger)
-      const markeLoeschen = () => {
-        for (const z of reihe()) z.classList.remove("ld-vor", "ld-nach");
-      };
+      // Maus und Finger: Die Zeile folgt dem Zeiger, die anderen rutschen weg, ein Platzhalter zeigt den Zielplatz (zieheMitBewegung); beim Loslassen ordnet die Tabelle neu und speichert
       knopfGriff.addEventListener("pointerdown", (e) => {
-        if (e.button !== 0 || gegriffen) return;
+        if ((e.button !== 0 && e.pointerType === "mouse") || gegriffen) return;
         e.preventDefault();
-        knopfGriff.setPointerCapture(e.pointerId);
-        zug = { id: a.id, start: e.clientY, davor: undefined };
-        zeile().classList.add("ld-gezogen");
-        document.body.classList.add("ld-zieht");
-      });
-      knopfGriff.addEventListener("pointermove", (e) => {
-        if (!zug || zug.id !== a.id) return;
         const mich = zeile();
-        mich.style.transform = `translateY(${e.clientY - zug.start}px)`;
-        const andere = reihe().filter((z) => z !== mich);
-        const davor = andere.find((z) => {
-          const r = z.getBoundingClientRect();
-          return e.clientY < r.top + r.height / 2;
-        });
-        markeLoeschen();
-        zug.davor = davor ?? null;
-        if (davor) davor.classList.add("ld-vor");
-        else andere.at(-1)?.classList.add("ld-nach");
-        // Am Rand des Fensters rollt die Seite mit
-        if (e.clientY < 70) window.scrollBy(0, -12);
-        else if (e.clientY > window.innerHeight - 70) window.scrollBy(0, 12);
-      });
-      const loslassen = (abbruch) => {
-        if (!zug || zug.id !== a.id) return;
-        const { davor } = zug;
         const vorher = idsJetzt();
-        zug = null;
-        const mich = zeile();
-        mich.classList.remove("ld-gezogen");
-        mich.style.transform = "";
-        markeLoeschen();
-        document.body.classList.remove("ld-zieht");
-        if (abbruch || davor === undefined) return;
-        if (davor) davor.before(mich);
-        else koerper.append(mich);
-        ansage(platzText(a.id));
-        void beendeUndSpeichere(a.id, vorher);
-      };
-      knopfGriff.addEventListener("pointerup", () => loslassen(false));
-      knopfGriff.addEventListener("pointercancel", () => loslassen(true));
+        zieheMitBewegung({
+          ereignis: e,
+          zeile: mich,
+          andere: () => reihe().filter((z) => z !== mich),
+          huelle: huelleTabelle,
+          beiEnde: ({ abgebrochen, pos, pos0 }) => {
+            if (abgebrochen || pos === pos0) return;
+            const rest = reihe().filter((z) => z !== mich);
+            if (rest[pos]) rest[pos].before(mich);
+            else koerper.append(mich);
+            ansage(platzText(a.id));
+            void beendeUndSpeichere(a.id, vorher);
+          },
+        });
+      });
       return knopfGriff;
     }
 
@@ -695,14 +733,18 @@ function zeigeArtikel(bereich, ctx) {
               n > 0 && {
                 text: "Nach oben",
                 onclick: () => {
+                  const plaetze = merkePlaetze(reihe());
                   schiebe(a.id, -1);
+                  rutscheAnPlatz(reihe(), plaetze);
                   void beendeUndSpeichere(a.id, ids0);
                 },
               },
               n < artikel.length - 1 && {
                 text: "Nach unten",
                 onclick: () => {
+                  const plaetze = merkePlaetze(reihe());
                   schiebe(a.id, 1);
+                  rutscheAnPlatz(reihe(), plaetze);
                   void beendeUndSpeichere(a.id, ids0);
                 },
               },
@@ -726,6 +768,7 @@ function zeigeArtikel(bereich, ctx) {
     });
     t.koerper.replaceWith(koerper);
     t.wurzel.classList.add("ld-tabelle");
+    huelleTabelle = t.wurzel;
     bereich.append(
       el(
         "p",
@@ -1067,16 +1110,70 @@ function zeigeEinstellungen(bereich, ctx) {
   return ctx.lade(
     () => anfrage("GET", `${BASIS}/einstellungen`),
     (daten) => {
+      let gespeichert = [...daten.uebergabearten];
+      const artenAus = (text) => [
+        ...new Set(
+          text
+            .split("\n")
+            .map((v) => v.trim())
+            .filter(Boolean),
+        ),
+      ];
       const arten = feld({
         label: "Übergabearten",
         hilfe:
           "Eine je Zeile, mindestens eine, höchstens fünf, je höchstens 80 Zeichen. Wer bestellt, wählt eine davon. Bei nur einer entfällt die Wahl.",
-        wert: daten.uebergabearten.join("\n"),
+        wert: gespeichert.join("\n"),
         mehrzeilig: true,
         rows: 5,
       });
       const meldungsfeld = el("div", {});
-      const speichern = knopf("Speichern", { art: "haupt", type: "submit" });
+      // Vorschau rechts: so erscheint die Wahl beim Bestellen
+      const vorschau = el("div", { class: "ld-vorschau" });
+      const zeigeVorschau = () => {
+        const liste = artenAus(arten.eingabe.value);
+        vorschau.replaceChildren(
+          liste.length > 1
+            ? el(
+                "ul",
+                { class: "ld-wahlvorschau" },
+                liste.map((art) =>
+                  el(
+                    "li",
+                    {},
+                    el("span", { class: "ld-ring", "aria-hidden": "true" }),
+                    art,
+                  ),
+                ),
+              )
+            : el(
+                "p",
+                {},
+                liste.length === 1
+                  ? `Es gibt nur eine Art: «${liste[0]}». Beim Bestellen entfällt die Wahl.`
+                  : "Noch keine Übergabeart eingetragen.",
+              ),
+        );
+      };
+      const leiste = speicherLeiste({
+        beiSpeichern: (k) => speichere(k),
+        beiVerwerfen: () => {
+          arten.eingabe.value = gespeichert.join("\n");
+          entferneFeldFehler(formular);
+          ersetze(meldungsfeld);
+          zeigeVorschau();
+          aktualisiere();
+        },
+      });
+      // Die Leiste unten erscheint, sobald sich etwas von der gespeicherten Fassung unterscheidet
+      const aktualisiere = () => {
+        const jetzt = artenAus(arten.eingabe.value);
+        if (jetzt.join("\n") === gespeichert.join("\n")) leiste.verstecke();
+        else
+          leiste.zeige(
+            "Die Übergabearten sind geändert, noch nicht gespeichert.",
+          );
+      };
       const formular = el(
         "form",
         { class: "formular ld-einstellungen", novalidate: true },
@@ -1087,20 +1184,16 @@ function zeigeEinstellungen(bereich, ctx) {
           "Eine Bestellung nennt, wie sie übergeben wird. Bezahlt wird immer bei der Übergabe; eine Lieferadresse gibt es nicht.",
         ),
         arten.wurzel,
-        el("div", { class: "aktionen aktionen--unten" }, speichern),
       );
-      formular.addEventListener("submit", async (e) => {
-        e.preventDefault();
+      formular.addEventListener("submit", (e) => e.preventDefault());
+      arten.eingabe.addEventListener("input", () => {
+        zeigeVorschau();
+        aktualisiere();
+      });
+      async function speichere(knopfNode) {
         entferneFeldFehler(formular);
         ersetze(meldungsfeld);
-        const liste = [
-          ...new Set(
-            arten.eingabe.value
-              .split("\n")
-              .map((v) => v.trim())
-              .filter(Boolean),
-          ),
-        ];
+        const liste = artenAus(arten.eingabe.value);
         if (
           liste.length < 1 ||
           liste.length > 5 ||
@@ -1113,13 +1206,16 @@ function zeigeEinstellungen(bereich, ctx) {
           arten.eingabe.focus();
           return;
         }
-        speichern.disabled = true;
-        speichern.setAttribute("aria-busy", "true");
+        knopfNode.disabled = true;
+        knopfNode.setAttribute("aria-busy", "true");
         try {
           await anfrage("PUT", `${BASIS}/einstellungen`, {
             uebergabearten: liste,
           });
+          gespeichert = liste;
           arten.eingabe.value = liste.join("\n");
+          zeigeVorschau();
+          aktualisiere();
           ctx.melde("Übergabearten gespeichert.");
         } catch (f) {
           const h = el(
@@ -1130,11 +1226,19 @@ function zeigeEinstellungen(bereich, ctx) {
           ersetze(meldungsfeld, h);
           h.focus();
         } finally {
-          speichern.disabled = false;
-          speichern.removeAttribute("aria-busy");
+          knopfNode.disabled = false;
+          knopfNode.removeAttribute("aria-busy");
         }
-      });
-      bereich.append(formular);
+      }
+      zeigeVorschau();
+      bereich.append(
+        formularRaster({
+          felder: formular,
+          seiteTitel: "So wählt man beim Bestellen",
+          seite: vorschau,
+        }),
+        leiste.wurzel,
+      );
     },
     { skeleton: "formular" },
   );

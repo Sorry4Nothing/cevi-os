@@ -680,6 +680,13 @@
       "when": 1793555300000,
       "tag": "0133_website_fehlerbild",
       "breakpoints": true
+    },
+    {
+      "idx": 134,
+      "version": "7",
+      "when": 1793555400000,
+      "tag": "0134_website_freigabe_entfernt",
+      "breakpoints": true
     }
   ]
 }
