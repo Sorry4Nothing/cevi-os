@@ -98,7 +98,7 @@ export function websiteSicht(profil) {
     return {
       sichtbar: false,
       stufen,
-      text: "Du erscheinst nicht auf der Website. Dort stehen nur Personen, die in einer Stufe Leitung oder Stufenleitung sind.",
+      text: "Du erscheinst nicht auf der Website. Dort erscheinen nur Personen, die Leitung oder Stufenleitung einer Stufe sind.",
     };
   }
   if (!ceviName) {
@@ -403,19 +403,8 @@ function zeichne(bereich, ctx, profil) {
       el("dd", {}, icon(symbol), wert),
     );
   const sichtText = el("p", { class: "hilfe" });
-  const sichtWert = el("dd", {});
-  const sichtKennwert = el(
-    "div",
-    { class: "kt-kennwert" },
-    el("dt", {}, "Website"),
-    sichtWert,
-  );
   const zeichneSicht = () => {
     const s = websiteSicht({ ...profil, bildUrl: stand.bildUrl });
-    sichtWert.replaceChildren(
-      icon(s.sichtbar ? "haken" : "minus"),
-      s.sichtbar ? "Sichtbar" : "Nicht sichtbar",
-    );
     sichtText.textContent = s.text;
   };
 
@@ -461,7 +450,6 @@ function zeichne(bereich, ctx, profil) {
           profil.zweiterFaktor ? "Aktiv" : "Aus",
           profil.zweiterFaktor ? "schild" : "minus",
         ),
-        sichtKennwert,
       ),
       el("div", { class: "kt-bildblock" }, bildAktionen, bildStatus, datei),
     ),
@@ -752,7 +740,7 @@ function zeichne(bereich, ctx, profil) {
       el(
         "p",
         { class: "hilfe" },
-        "Das ist keine Auswahl, es folgt deiner Rolle. Dein Name im Konto, dein Benutzername und deine Telefonnummer erscheinen dort nie.",
+        "Das ist keine Auswahl, es folgt deiner Rolle. Dein Benutzername, deine Telefonnummer und deine E-Mail-Adresse zeigt die Website nie.",
       ),
     ),
     el(

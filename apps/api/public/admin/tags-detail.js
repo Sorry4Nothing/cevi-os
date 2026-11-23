@@ -7,7 +7,15 @@ import {
   mitFehlertitel,
   pruefHinweis,
 } from "./liste-hilfen.js";
-import { kandidatenSuche, personZeile } from "./personen-wahl.js";
+import {
+  abschnitte,
+  ansichtsleiste,
+  gliedere,
+  mitgliedKarte,
+  mitgliedKopf,
+  zeichneAnsicht,
+} from "./mitglieder.js";
+import { kandidatenSuche } from "./personen-wahl.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { zurueckKlick } from "./verlauf.js";
 import { anlassKarte, anlassText, ladeFreieAnlaesse } from "./tags-anlass.js";
@@ -317,9 +325,14 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
       .join(" · ");
   };
 
-  const liste = el("ul", {
-    class: "pe-gewaehlt pe-mitglieder",
-    "aria-label": `Mitglieder von «${tag.name}»`,
+  const liste = el("div", { class: "mg-ansicht" });
+  const ansicht = ansichtsleiste({
+    gruppierungen: [
+      ["keine", "Keine"],
+      ["funktion", "Funktion"],
+    ],
+    gruppierung: "keine",
+    beiAenderung: () => zeichneListe(true),
   });
   const stand = el("p", { class: "klein leise", role: "status" });
   const filterId = `mitglieder-filter-${tag.id}`;
@@ -357,7 +370,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
     filter,
   );
 
-  function rolleZelle(m, zeile) {
+  function rolleZelle(m) {
     return el(
       "div",
       { class: "pe-rolle" },
@@ -373,13 +386,13 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
             art: "still",
             symbol: "bearbeiten",
             kontext: nameVon(m),
-            onclick: () => bearbeite(m, zeile),
+            onclick: () => bearbeite(m),
           }),
     );
   }
 
   // Die Rolle wird in der Zeile bearbeitet: Eingabe mit Enter speichern, Escape bricht ab, kein eigenes Fenster
-  function bearbeite(m, zeile) {
+  function bearbeite(m) {
     const f = feld({
       label: `Rolle von ${nameVon(m)}`,
       wert: m.rolle ?? "",
@@ -424,8 +437,8 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         fertig();
       }
     });
-    zeile
-      .querySelector(".pe-rolle")
+    liste
+      .querySelector(`[data-id="${m.userId}"] .pe-rolle`)
       .replaceWith(
         el(
           "div",
@@ -437,7 +450,43 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
     f.eingabe.focus();
   }
 
-  function zeichneListe() {
+  const funktion = (m) => (m.rolle ? rolleText(m.rolle) : "");
+  // Die Funktionen mit Stufenrolle zuerst, die übrigen nach Name, «Ohne Funktion» zuletzt
+  const funktionsRang = (n) =>
+    n === "" ? 3 : ["Stufenleitung", "Leitung"].indexOf(n) + 1 || 2;
+  const entfernenKnopf = (m) =>
+    !istStufenrolle(tag, m) &&
+    knopf("Entfernen", {
+      klein: true,
+      art: "still",
+      symbol: "schliessen",
+      kontext: nameVon(m),
+      onclick: () => entfernen(m),
+    });
+  const kopfVon = (m, gross) =>
+    mitgliedKopf({
+      name: nameVon(m),
+      ceviName: zusatzVon(m),
+      bildUrl: bekannt.get(m.userId)?.bildUrl,
+      gross,
+    });
+  const karte = (m) =>
+    mitgliedKarte({
+      id: m.userId,
+      kopf: kopfVon(m, true),
+      rollen: rolleZelle(m),
+      aktionen: entfernenKnopf(m),
+    });
+  const zeile = (m) =>
+    el(
+      "li",
+      { class: "pe-mitglied", "data-id": m.userId },
+      kopfVon(m, false),
+      rolleZelle(m),
+      entfernenKnopf(m),
+    );
+
+  function zeichneListe(animiert = false) {
     const frage = filter.value.trim().toLowerCase();
     const sortiert = [...mitgliederListe].sort((a, b) =>
       nameVon(a).localeCompare(nameVon(b), "de-CH"),
@@ -447,31 +496,27 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         .toLowerCase()
         .includes(frage),
     );
-    liste.replaceChildren(
-      ...treffer.map((m) => {
-        const name = nameVon(m);
-        const zeile = personZeile({
-          id: m.userId,
-          name,
-          zusatz: zusatzVon(m),
-          bildUrl: bekannt.get(m.userId)?.bildUrl,
-        });
-        zeile.classList.add("pe-mitglied");
-        zeile.append(rolleZelle(m, zeile));
-        if (!istStufenrolle(tag, m)) {
-          zeile.append(
-            knopf("Entfernen", {
-              klein: true,
-              art: "still",
-              symbol: "schliessen",
-              kontext: name,
-              onclick: () => entfernen(m),
-            }),
-          );
-        }
-        return zeile;
-      }),
-    );
+    const { ansicht: art, gruppierung } = ansicht.stand();
+    const gruppen =
+      gruppierung === "funktion"
+        ? [...new Set(treffer.map(funktion))]
+            .sort(
+              (a, b) =>
+                funktionsRang(a) - funktionsRang(b) ||
+                a.localeCompare(b, "de-CH"),
+            )
+            .map((n) => ({ schluessel: n, titel: n || "Ohne Funktion" }))
+        : null;
+    const { geordnet, gesamt } = gliedere(treffer, gruppen, funktion);
+    zeichneAnsicht(liste, {
+      ansicht: art,
+      beschriftung: `Mitglieder von «${tag.name}»`,
+      abschnitte: abschnitte(geordnet, gruppen, funktion, gesamt),
+      karte,
+      zeile,
+      animiert,
+      ebene: "h3",
+    });
     stand.textContent =
       mitgliederListe.length === 0
         ? ""
@@ -480,6 +525,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
           : mitglieder(mitgliederListe.length);
     leerText.hidden = mitgliederListe.length !== 0;
     filterFeld.hidden = mitgliederListe.length === 0;
+    ansicht.wurzel.hidden = mitgliederListe.length === 0;
     keineTreffer.hidden = !(frage && treffer.length === 0);
     kopfZeile();
     suche.setzeKandidaten(kandidatenListe());
@@ -545,6 +591,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
         stand,
         leerText,
         keineTreffer,
+        ansicht.wurzel,
         liste,
       ),
       tag.typ === "stufe"
@@ -571,5 +618,5 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
           ),
     ),
   );
-  zeichneListe();
+  zeichneListe(true);
 }
