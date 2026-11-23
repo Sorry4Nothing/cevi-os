@@ -468,61 +468,91 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Verfügbarkeit je Grösse (#629): Schalter mit Symbol und Wort; ausgeschaltet durchgestrichen und mit «nicht verfügbar», nie nur Farbe */
-.ld-groessen {
+/* Verfügbarkeit je Grösse (#629): Pillen-Schalter wie die Segment-Auswahl der Verwaltung (.seg): verfügbar ist gefüllt und trägt einen Haken, nicht verfügbar hat einen gestrichelten Rand, ein Kreuz und den durchgestrichenen Namen; das Wort steht unter der Pille. Eigene Datei, damit nichts anderes sie überschreibt. */
+
+ul.ld-groessen {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  align-items: flex-start;
+  gap: 12px 8px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.ld-gschalter {
+ul.ld-groessen > li.ld-gposten {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+ul.ld-groessen button.ld-gschalter {
+  -webkit-appearance: none;
+  appearance: none;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  min-width: 2.75rem;
-  min-height: 2.75rem;
-  padding: 0 12px;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-sm);
-  background: var(--karte);
-  color: var(--on-surface);
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 4.5rem;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px 0 12px;
+  border: 2px solid var(--blau);
+  border-radius: 9999px;
+  background: var(--blau);
+  background-image: none;
+  box-shadow: none;
+  color: var(--auf-blau);
   font: inherit;
   font-size: 0.875rem;
+  line-height: 1.25rem;
   font-weight: 700;
+  text-align: center;
   cursor: pointer;
 }
 
-/* In der Artikelliste sitzen die Schalter dicht: 44 px hoch, nur so breit wie ihr Inhalt */
-.ld-groessenzelle .ld-gschalter {
-  padding: 0 10px;
-}
-
-.ld-gschalter:hover {
-  background: var(--surface-container);
-}
-
-.ld-gschalter .i {
+ul.ld-groessen button.ld-gschalter .i {
   flex: none;
   width: 16px;
   height: 16px;
+  stroke-width: 2.6;
 }
 
-.ld-gschalter--aus {
-  border-style: dashed;
+ul.ld-groessen button.ld-gschalter:hover {
+  filter: brightness(1.12);
+}
+
+ul.ld-groessen button.ld-gschalter:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+ul.ld-groessen button.ld-gschalter--aus,
+ul.ld-groessen button.ld-gschalter--aus:hover {
+  border: 2px dashed var(--rand);
   background: transparent;
-  color: var(--on-surface-variant);
+  color: var(--leise);
+  filter: none;
 }
 
-.ld-gschalter--aus s {
+ul.ld-groessen button.ld-gschalter--aus s {
   text-decoration-thickness: 2px;
 }
 
-.ld-gtext {
+.ld-gstand {
+  color: var(--leise);
   font-size: 0.75rem;
-  font-weight: 600;
+  line-height: 1rem;
+}
+
+.ld-gstand--aus {
+  color: var(--text);
+  font-weight: 700;
 }
 
 .ld-gwahl {
@@ -539,7 +569,7 @@
 }
 
 .ld-gwahl .hilfe {
-  margin: 0 0 8px;
+  margin: 0 0 12px;
 }
 
 .ld-stand-weg {
@@ -547,21 +577,26 @@
 }
 
 @media (forced-colors: active) {
-  .ld-gschalter {
-    border: 1px solid ButtonText;
+  ul.ld-groessen button.ld-gschalter {
+    border: 2px solid ButtonText;
+  }
+
+  ul.ld-groessen button.ld-gschalter--aus {
+    border-style: dashed;
   }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ld-gschalter {
+  ul.ld-groessen button.ld-gschalter {
     transition:
       background-color 0.15s ease,
       border-color 0.15s ease,
-      color 0.15s ease;
+      color 0.15s ease,
+      filter 0.15s ease;
   }
 }
 
-/* Schmal (Handy): Jede Zeile wird eine Karte, damit die Schalter der Grössen ohne Seitwärtsscrollen erreichbar sind. Die Spaltenköpfe bleiben für Hilfstechnik, aber unsichtbar; Grösse und Stand tragen ihren Namen */
+/* Schmal (Handy): Jede Zeile der Artikelliste wird eine Karte, damit die Schalter ohne Seitwärtsscrollen erreichbar sind. Die Spaltenköpfe bleiben für Hilfstechnik, aber unsichtbar; Grösse und Stand tragen ihren Namen */
 @media (max-width: 48rem) {
   .ld-tabelle .tabelle {
     display: block;
