@@ -109,7 +109,7 @@ export const KATEGORIEN = {
   laedeli: {
     titel: "Bestellungen im Lädeli",
     zweck:
-      "Angemeldete Personen bestellen im Lädeli der Abteilung Artikel, zum Beispiel Kleider und Abzeichen. Gespeichert ist, wer bestellt hat, was (Artikel, Variante, Menge, Preis zum Zeitpunkt der Bestellung), die gewählte Übergabe, die Summe und der Stand. Die Abteilungsleitung sieht die Bestellungen mit dem Namen der Person und setzt den Stand; die bestellende Person sieht ihre eigenen und kann eine offene stornieren. Cevi OS wickelt keine Zahlung ab und speichert keine Zahlungsdaten und keine Lieferadresse: Bezahlt wird bei der Übergabe.",
+      "Angemeldete Personen bestellen im Lädeli der Abteilung Artikel, zum Beispiel Kleider und Abzeichen. Gespeichert ist, wer bestellt hat, was (Artikel, Variante, Menge, Preis zum Zeitpunkt der Bestellung), die gewählte Übergabe, die Summe und der Stand. Die Abteilungsleitung sieht die Bestellungen mit dem Namen der Person und setzt den Stand; die bestellende Person sieht ihre eigenen und kann eine offene stornieren. Cevi OS wickelt keine Zahlung ab und speichert keine Zahlungsdaten und keine Lieferadresse: Bezahlt wird bei der Übergabe. Der Warenkorb entsteht erst nach der Anmeldung und liegt bis zum Absenden nur im Browser der Person.",
     frist:
       "180 Tage nachdem die Bestellung übergeben oder storniert ist; eine Bestellung, die nie abgeschlossen wurde, ein Jahr nach der letzten Änderung. Mit dem Konto der bestellenden Person früher. Auf Anfrage löscht die Leitung Daten.",
     apple: ["Purchases: Purchase History"],

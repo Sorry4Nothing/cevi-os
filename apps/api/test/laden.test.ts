@@ -302,7 +302,13 @@ describe("Bestellen", () => {
     const d = await json(r);
     expect(d.code).toBe("ARTIKEL_NICHT_VERFUEGBAR");
     expect(d.artikelIds.sort()).toEqual([weg.id, fremd.id, unbekannt].sort());
-    expect(await db.select().from(schema.ladenBestellung)).toHaveLength(0);
+    // Nur die Bestellungen dieser Person: Andere Testdateien schreiben in dieselbe Datenbank
+    expect(
+      await db
+        .select()
+        .from(schema.ladenBestellung)
+        .where(eq(schema.ladenBestellung.userId, eltern.id!)),
+    ).toHaveLength(0);
   });
 
   test("die Übergabe muss eine der eingestellten sein", async () => {

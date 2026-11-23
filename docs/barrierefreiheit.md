@@ -9,6 +9,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Vor dem Pilot und vor Version 1.0: alle Punkte auf jedem Bildschirm.
 - Öffentliche Seiten der Website und Editor der Verwaltung (Web statt App): Abschnitt 11, im Browser geprüft.
 - Bereich «Termine» der Verwaltung (Web statt App): Abschnitt 12, im Browser geprüft.
+- Lädeli auf der Website: Abschnitt 11 («Lädeli»); Bereich «Lädeli» der Verwaltung: Abschnitt 13, im Browser geprüft.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
@@ -140,6 +141,20 @@ Gilt für `/termine`, `/termine/vorschlagen`, `/anlass` und `/anlass/anmeldung` 
 - [ ] **11.46** Auswahlfelder (#564, `auswahl.js`): Das Feld ist eine Schaltfläche mit `role="combobox"`, `aria-expanded` und dem Namen des `label`; die Liste ist eine `listbox`, die aktive Option steht in `aria-activedescendant`, die gewählte trägt `aria-selected` und einen Haken. Pfeiltasten, Pos1, Ende, Bild auf und ab, Eingabe, Leertaste, Escape, Tab und Tippen zum Springen wirken wie beim Feld des Browsers; ein Klick daneben schliesst. Die Liste klappt nach oben oder richtet sich rechts aus, wenn der Platz fehlt; Optionen sind 44 px hoch. Ohne Skript steht das `<select>` des Browsers da.
 - [ ] **11.45** Rückfragen («Neuen Link erzeugen?», «Abmelden?») sind ein `alertdialog` mit Fokus auf «Abbrechen». Eine Meldung wie «Link kopiert» verschwindet nie von selbst, sondern mit «OK».
 
+### Lädeli (#566)
+
+Gilt für den Baustein «laden» zusätzlich zu 11.1 bis 11.11, mit und ohne Anmeldung (Demo-Konto).
+
+- [ ] **11.50** Ohne Anmeldung: Der Laden ist ein Katalog. Statt Warenkorb und Bestellen steht ein Text mit dem Link «Zum Bestellen anmelden» (Link, keine Schaltfläche, führt auf `/anmelden?weiter=…`), im Kopf des Ladens und im Artikelfenster. Bis klar ist, ob jemand angemeldet ist, sind die Bedienelemente nicht da (kein Sprung, nichts wird zuerst angesagt und dann entfernt).
+- [ ] **11.51** Die Kachel ist eine Schaltfläche mit Name, Preis und, wo es zutrifft, «nicht verfügbar» (auch als Text in der Ecke, nie nur als blasseres Bild). Das schnelle Hinzufügen (nur angemeldet) erscheint beim Zeigen und beim Fokus auf der Kachel; das Plus in der Ecke gibt es nur auf Geräten ohne Zeigen, ist 44 px gross und trägt den Namen «Schnell dazu: <Artikel>». Esc schliesst den offenen Streifen und gibt den Fokus an das Plus zurück.
+- [ ] **11.52** Artikelfenster, Warenkorb und Bestellübersicht sind ein `dialog` mit `aria-labelledby` (`showModal`): Der Fokus geht hinein und beim Schliessen zurück an den Auslöser, Esc und der Knopf «Schliessen» schliessen, der Hintergrund ist nicht bedienbar.
+- [ ] **11.53** Mengenknöpfe: «Eins weniger» und «Eins mehr» tragen einen Namen mit dem Artikel (Gruppe mit `legend` «Menge <Artikel>»), die Grenzen (1 und 10) sind `aria-disabled`, die Menge steht als Zahl und die neue Menge und Summe sagt eine Live-Region an («Menge 2. Summe CHF 80.–»). Touch-Ziele mindestens 44 px.
+- [ ] **11.54** Die Wahl der Grösse (nur bei einer Liste) sind Schalter mit `aria-pressed`, der gewählte unterscheidet sich in der Form und nicht nur in der Farbe; fehlt die Wahl, ist «In den Warenkorb» `aria-disabled` und ein Klick führt zur Wahl und sagt «Wähle zuerst eine Variante». Bei Einheitsgrösse gibt es keine Wahl.
+- [ ] **11.55** Entfernen im Warenkorb zeigt an der Stelle der Zeile «Entfernt: <Artikel>» mit dem Knopf «Rückgängig»; der Fokus liegt auf «Rückgängig», die Zeile verschwindet nicht von selbst (keine Frist, WCAG 2.2.1), sondern erst mit der nächsten Änderung des Korbs. Nach «Rückgängig» liegt der Fokus auf dem ersten Knopf der Zeile.
+- [ ] **11.56** Statusmeldungen (Artikel liegt im Warenkorb, Menge, entfernt, «Wird gesendet …», «Deine Bestellung ist eingegangen», storniert) stehen in einer Live-Region (`role="status"`) ohne Fokussprung; Fehler beim Bestellen (zu viele Versuche, Preis geändert, nicht verfügbar, keine Verbindung) stehen als Text mit Symbol in einem `role="alert"`-Band, der Warenkorb bleibt erhalten. Beim Senden ist der Knopf `aria-disabled` und trägt «Wird gesendet …».
+- [ ] **11.57** «Deine Bestellungen»: Überschrift, Liste mit Datum, Stand als Wort (Offen, Bereit zur Übergabe, Übergeben, Storniert), Positionen und Summe; «Stornieren» nennt die Bestellung im Namen. Zustände Lädt, leer und Fehler sind Text, der Fehler mit «Nochmals versuchen».
+- [ ] **11.58** Mit «Bewegung reduzieren» rollen Zahlen nicht, der Streifen gleitet nicht und das Blatt blendet nur ein; mit erzwungenen Farben haben Kachel, Plus, Streifen und Knöpfe einen Rand.
+
 ### Editor
 
 - [ ] **11.15** Der Editor lässt sich vollständig mit der Tastatur bedienen: Seitenliste, Einstellungen, Bausteine hinzufügen, bearbeiten, verschieben, duplizieren und löschen, Vorschau, Veröffentlichen, Versionen, Medienbibliothek. Verschieben geht mit Knöpfen («Nach oben», «Nach unten») und am Griff mit der Tastatur (Leertaste nimmt auf, Pfeiltasten verschieben, Leertaste legt ab, Escape bricht ab), nie nur durch Ziehen (WCAG 2.5.7). Die Stelle einer Seite im Seitenbaum ändern die Felder «Elternseite» und «Position» in den Seiteneinstellungen.
@@ -188,6 +203,19 @@ Vorbereitung: die Demo-Abteilung mit je einem Beispiel pro Reiter (Termine ohne 
 ### Stand der Prüfung
 
 Aus den PRs der Issues, ohne neue Messung für dieses Dokument: Jeder Reiter wurde im Browser (Chromium, Playwright) mit der echten `termine.js` und `admin.css` und erfundenen Antworten geprüft, mit Demo-Namen, bei 390 Pixeln Breite und, wo der PR es vermerkt, 1280 Pixeln: Warnliste (#433: Liste, Nachladen, leer), Vorschläge (#441: Tastaturablauf von Liste bis Eintragen, 409, Netzausfall, erzwungene Farben), Anlässe (#445: Verschieben und Entfernen per Tastatur, Validierung, Export, 403, 401, 500, offline) und Räume (#446, #447); der Bereich «Anwesenheit» ist hier nicht Teil dieser Angabe. Nicht geprüft: ein echter Server mit zweitem Faktor, Screenreader (NVDA, VoiceOver, TalkBack) und 200 Prozent Zoom von Hand. Die Punkte oben sind das Mass für diese Prüfung und noch von Hand abzuhaken; die Verwaltung folgt seit dem Neuaufbau (#524) Tag und Nacht des Geräts, die Aussage oben bezieht sich auf die frühere Fassung.
+
+## 13. Verwaltung: Bereich «Lädeli»
+
+Dieser Abschnitt gilt für die drei Unterseiten des Bereichs «Lädeli» unter `/admin` (`apps/api/public/admin/laedeli.js`): Bestellungen, Artikel, Einstellungen. Geprüft wird im Browser am PC und am Handy; die Abschnitte 1 bis 4 und 7 gelten dafür sinngemäss.
+
+- [ ] **13.1** Die Unterseiten lassen sich mit der Tastatur erreichen (`aria-current="page"`), jede hat eine Überschrift und sagt ehrlich, was los ist: Laden, leer (als Satz), Fehler mit «Nochmals versuchen», kein Zugriff.
+- [ ] **13.2** Bestellungen: Der Stand ist ein Wort mit Symbol, nie nur Farbe; der Filter nach Stand zeigt die Auswahl nicht nur über Farbe und behält den Fokus; «Weitere laden» meldet das Ergebnis in einer Live-Region. Der Stand lässt sich mit Knöpfen setzen, ein endgültiger Stand («Übergeben», «Storniert») fragt vorher nach und nennt die Folge; bei einem Konflikt (409) zeigt die Seite den aktuellen Stand und setzt den Fokus auf den Hinweis.
+- [ ] **13.3** Artikel: Die Tabelle hat Spaltenköpfe und die Spalte «Grösse» («Einheitsgrösse» oder die Liste); der Zustand «Verfügbar» oder «Nicht verfügbar» steht als Wort. Das Bild in der Zeile hat `alt=""`, weil der Name daneben steht.
+- [ ] **13.4** Das Blatt «Artikel» ist ein `dialog` (Fokus hinein, Esc schliesst, Fokus zurück). Die Grösse ist eine Pflichtangabe als Gruppe zweier Wahlkarten (`fieldset` mit `legend` «Grösse (Pflicht)», Radioknöpfe mit Pfeiltasten); das Feld «Vorhandene Grössen» erscheint nur bei «Liste mit Grössen». Ohne Wahl lässt sich nicht speichern.
+- [ ] **13.5** Fehler stehen oben in einer Zusammenfassung («N Angaben prüfen», Knöpfe fokussieren das Feld, `role="alert"`, trägt den Fokus) und beim Feld (`aria-invalid`, `aria-describedby`); ein Fehler vom Server (422 mit Feld, 400, 409, offline) steht als Text. Beim Speichern sind die Felder und die Wahl gesperrt, der Knopf trägt `aria-busy`.
+- [ ] **13.6** «Artikel löschen» fragt nach und nennt, was geschieht (Bestellungen behalten ihre Positionen); danach liegt der Fokus auf der Überschrift.
+- [ ] **13.7** Einstellungen: Die Übergabearten haben eine sichtbare Beschriftung mit Hilfetext (1 bis 5, eine je Zeile), Fehler stehen beim Feld.
+- [ ] **13.8** Der Bereich ist bei 200 Prozent Zoom und bei 320 Pixeln Breite benutzbar (die Tabelle scrollt in ihrem Rahmen), Kontrast und Ziele wie 12.11, Texte kurz, Schweizer Schreibweise, Knöpfe sind Verben.
 
 ## Im PR angeben
 

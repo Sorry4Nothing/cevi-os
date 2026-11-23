@@ -184,6 +184,34 @@ Die Seite und jeder innere Scrollbereich (Tagesfeld der Termine, Auswahlliste, M
 - **Karussell:** Mit Skript hat der Streifen keine Leiste (Pfeile, Ziehen, Wischen und die Fortschrittsanzeige übernehmen); ohne Skript (`scripting: none`) zeigt er die waagrechte Leiste.
 - Eigene Scrollbereiche brauchen nichts: `overflow: auto` genügt, die Leiste kommt von der Regel für alle Elemente.
 
+## Lädeli (#566)
+
+Der Baustein «laden» (`src/website/laden.ts`, Stil `laden.css`, Verhalten `laden.js`) ist ein Laden: Raster, Artikelfenster, Warenkorb, Bestellübersicht. Er nutzt die Tokens der Website (Farben, Schrift, Bewegung) und kein Bibliotheksteil. Ein Muster eines Ladens diente als Vorlage für Aufbau und Abfolge; Code und Bilder stammen nicht daraus.
+
+**Wer was sieht.** Ohne Anmeldung ist der Laden ein Katalog: Raster, Preise, Artikelfenster mit grossem Foto, Name, Preis, Beschreibung und, wo es sie gibt, den Grössen als Text. Statt der Bedienelemente steht ein ruhiger Hinweis mit dem Knopf «Zum Bestellen anmelden» (im Kopf des Ladens und im Artikelfenster); nach der Anmeldung öffnet sich der Artikel wieder. Es gibt für Besucher keinen Warenkorb, kein «Schnell dazu» und kein Plus, und im Browser entsteht nichts im `localStorage`. Mit Anmeldung kommen Warenkorb-Knopf, schwebender Knopf mit Summe, schnelles Hinzufügen, Menge, Warenkorb-Blatt, Bestellübersicht und «Deine Bestellungen» dazu. Das Skript fragt beim Öffnen einmal `GET /api/v1/laden`: 200 heisst angemeldet, 401 nicht. Bis die Antwort da ist, bleiben die Bedienelemente verborgen, damit nichts flackert.
+
+**Schnelles Hinzufügen.** Mit der Maus erscheint der Streifen am unteren Rand der Kachel beim Zeigen, mit der Tastatur beim Fokus auf der Kachel. Das runde Plus in der Ecke gibt es nur auf Geräten ohne Zeigen (`@media (hover: none)`, also Touch): Dort öffnet es den Streifen. Bei Einheitsgrösse hat der Streifen einen Knopf «In den Warenkorb», bei einer Liste je Grösse einen (ab sieben «Variante wählen» zum Artikelfenster).
+
+**Grösse.** Jeder Artikel ist ausdrücklich «Einheitsgrösse» (keine Wahl im Laden) oder hat eine Liste mit mindestens zwei Grössen; die Verwaltung verlangt die Angabe.
+
+| Merkmal der Vorlage                                 | Übernommen | Grund                                                                                                                |
+| --------------------------------------------------- | ---------- | -------------------------------------------------------------------------------------------------------------------- |
+| Raster mit 2 bis 4 Spalten und Dichte-Umschalter    | ja         | Wer viele Artikel sieht, wählt die Dichte; Standard 2 am Handy, 3 ab 40 rem, 4 ab 75 rem                             |
+| Kachel im Format 4:5 mit unbeschnittenem Foto       | ja         | Die Fotos der Artikel haben verschiedene Formate; nichts wird abgeschnitten                                          |
+| Schnelles Hinzufügen in der Kachel                  | ja         | Mehrere Artikel nacheinander, ohne jedes Mal ein Fenster zu öffnen; nur nach Anmeldung                               |
+| Artikelfenster mit grossem Foto, Variante und Menge | ja         | Foto, Preis und Wahl an einem Ort; als `dialog` mit Tastatur und Fokusrückgabe                                       |
+| Warenkorb als Blatt von rechts                      | ja         | Der Laden bleibt dahinter sichtbar; Menge ändern, Entfernen und Rückgängig                                           |
+| Bestellübersicht mit Summe und einer Hauptaktion    | ja         | Ein klarer letzter Schritt; die Summe prüft der Server                                                               |
+| Gezeichnete Kleidungsstücke als Vorschau            | nein       | Wir haben Fotos der echten Artikel; Zeichnungen würden sie ersetzen                                                  |
+| Farbwechsel am Artikel                              | nein       | Ein Artikel hat bei uns keine Farbfotos je Variante; Farben sind Varianten im Text                                   |
+| Kategorie-Tabs                                      | nein       | 21 Artikel; Sortierung genügt, Kategorien wären erfunden                                                             |
+| Grössentabelle                                      | nein       | Die Abteilung kennt die Masse nicht; bei Bedarf steht ein Hinweis am Artikel                                         |
+| Lagerhinweis («nur noch 3»)                         | nein       | Es gibt keinen Lagerbestand, ein Artikel ist verfügbar oder nicht                                                    |
+| Versand und Lieferadresse                           | nein       | Es gibt nur Übergabe; keine Adressen von Kindern oder Eltern speichern                                               |
+| Promo-Code                                          | nein       | Es gibt keine Aktionen und keine Zahlung im System                                                                   |
+| Steuer in der Übersicht                             | nein       | Preise sind Endpreise; bezahlt wird bei der Übergabe                                                                 |
+| Ablaufende Rückgängig-Frist beim Entfernen          | nein       | Eine Frist, die von selbst abläuft, verletzt WCAG 2.2.1; «Rückgängig» bleibt stehen, bis sich der Korb wieder ändert |
+
 ## Neuer Seitentyp
 
 1. Inhalt in `rahmen(k, { titel, aktuell, inhalt, … })` übergeben. `inhalt` ist fertiges Markup, das in `.wrap` steht. `titel` landet im `<title>` («Titel | Abteilung»), den `h1` schreibt der Seitentyp.
