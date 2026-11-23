@@ -6,6 +6,9 @@ const lies = (datei: string) =>
 
 const DATEIEN = [
   "lager.js",
+  "lager-detail.js",
+  "lager-rahmen.js",
+  "lager-module.js",
   "lager-gemeinsam.js",
   "lager-anlegen.js",
   "lager-mitglieder.js",
@@ -22,6 +25,7 @@ const methoden = (quelle: string) =>
 describe("Panel der Abteilungsleitung: Lager", () => {
   test("Module und Stilvorlage sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/lager.css"');
+    expect(lies("index.html")).toContain('href="/admin/lager-rahmen.css"');
     const navigation = lies("navigation.js");
     expect(navigation).toContain('"./lager.js"');
     expect(navigation).toContain('"./lager-vorlagen.js"');
@@ -49,7 +53,7 @@ describe("Panel der Abteilungsleitung: Lager", () => {
   });
 
   test("Löschen nur am Ort mit der Eingabe des Namens und dem Titel im Body", () => {
-    const lager = lies("lager.js");
+    const lager = lies("lager-detail.js");
     expect(lager).toMatch(
       /anfrage\(\s*"DELETE",\s*`\$\{BASIS\}\/\$\{lager\.id\}`,\s*\{/,
     );
