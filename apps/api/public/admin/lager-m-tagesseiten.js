@@ -15,7 +15,6 @@ import {
   mitFehlertext,
   neueReihenfolge,
   personName,
-  schreibschutzHinweis,
   druckKnopf,
 } from "./lager-m-hilfen.js";
 import { tagText, warnChips, wetterSatz } from "./lager-m-wetter.js";
@@ -124,7 +123,6 @@ function zeichne(ctx, lagerId, lager, daten, neu) {
   return el(
     "div",
     { class: "lm-seite" },
-    schreibschutzHinweis(lager),
     el(
       "div",
       { class: "lm-tagesraster" },

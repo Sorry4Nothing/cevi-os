@@ -1,5 +1,13 @@
 import { readFileSync } from "node:fs";
-import { beforeAll, describe, expect, test, vi } from "vitest";
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+  vi,
+} from "vitest";
 
 // Lager-Arbeitsbereich, Module «Material und Infos» (#674): reine Funktionen und Quelltext-Prüfungen ohne Browser.
 type Modul = Record<string, (...a: any[]) => any>; // eslint-disable-line @typescript-eslint/no-explicit-any
@@ -29,6 +37,10 @@ beforeAll(async () => {
   register = (await lade("lager-module.js")) as unknown as typeof register;
   vi.unstubAllGlobals();
 });
+
+// Die Browser-Funktionen lesen window.URL
+beforeEach(() => vi.stubGlobal("window", { URL }));
+afterEach(() => vi.unstubAllGlobals());
 
 const quelle = (name: string) =>
   readFileSync(new URL(`../public/admin/${name}`, import.meta.url), "utf8");

@@ -23,7 +23,6 @@ import {
   lagerPfad,
   listenFehler,
   personName,
-  schreibschutzHinweis,
   werkzeugzeile,
 } from "./lager-m-hilfen.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
@@ -399,11 +398,13 @@ function zeichne(ctx, lagerId, lager, daten, neuLaden) {
             "Artikel",
             "Menge",
             "Einkäufer",
-            ["Aktionen", "lm-nicht-drucken"],
+            ["Aktionen", "rechts lm-nicht-drucken"],
           ],
           zeilen: g.zeilen.map(zeile),
         });
-        t.wurzel.querySelector("table").classList.add("lg-karten");
+        t.wurzel
+          .querySelector("table")
+          .classList.add("lg-karten", "lm-tabelle");
         return el(
           "section",
           { class: "flaeche lm-abschnitt", "aria-label": g.name },
@@ -501,7 +502,9 @@ function zeichne(ctx, lagerId, lager, daten, neuLaden) {
             );
           }),
         });
-        t.wurzel.querySelector("table").classList.add("lg-karten");
+        t.wurzel
+          .querySelector("table")
+          .classList.add("lg-karten", "lm-tabelle");
         return el(
           "section",
           { class: "flaeche lm-abschnitt", "aria-label": g.name },
@@ -678,7 +681,6 @@ function zeichne(ctx, lagerId, lager, daten, neuLaden) {
 
   haenge(
     wurzel,
-    schreibschutzHinweis(lager),
     darf &&
       el(
         "section",

@@ -135,6 +135,32 @@ tr.lm-erledigt th label {
   cursor: pointer;
 }
 
+/* Tabellen des Einkaufs: feste Spalten, damit alle Abteilungen untereinander gleich laufen */
+.lm-tabelle {
+  table-layout: fixed;
+}
+
+.lm-tabelle th:nth-child(1) {
+  width: 40%;
+}
+
+.lm-tabelle th:nth-child(2) {
+  width: 14%;
+}
+
+.lm-tabelle th:nth-child(3) {
+  width: 18%;
+}
+
+.lm-tabelle th:nth-child(4) {
+  width: 20rem;
+}
+
+.lm-tabelle .lm-zeilenknoepfe {
+  flex-wrap: nowrap;
+  justify-content: flex-end;
+}
+
 /* Neue Zeile: Felder nebeneinander, der Knopf am Fuss der Felder */
 .lm-neuzeile {
   display: grid;

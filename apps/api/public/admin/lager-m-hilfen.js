@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { el, feld, knopf } from "./dom.js";
-import { meldung } from "./lager-gemeinsam.js";
+import { knopfMit, meldung } from "./lager-gemeinsam.js";
 
 // Gemeinsames der Module «Material und Infos» im Lager-Arbeitsbereich (#674): Adressen der Lager-Routen, Rechte, Version-Konflikt, Personenliste. Klassen mit dem Vorsatz «lm-» (lager-material.css).
 
@@ -13,20 +13,6 @@ export const kannLesen = (lager, recht) =>
 // Schreiben braucht das Recht und ein offenes Lager (abgeschlossen oder archiviert ist schreibgeschützt)
 export const kannSchreiben = (lager, recht) =>
   kannLesen(lager, recht) && !lager?.schreibgeschuetzt;
-
-// Hinweis über dem Inhalt, wenn das Lager nur gelesen werden kann
-export const schreibschutzHinweis = (lager) =>
-  lager?.schreibgeschuetzt
-    ? el(
-        "div",
-        { class: "hinweis hinweis--info", role: "status" },
-        el(
-          "span",
-          {},
-          "Das Lager ist schreibgeschützt. Du kannst alles lesen, aber nichts ändern.",
-        ),
-      )
-    : null;
 
 // 409 VERSION_KONFLIKT: Jemand hat die Zeile inzwischen geändert. Der Body nennt den Stand des Servers («aktuell») und die Felder, die abweichen.
 export const istKonflikt = (f) =>
@@ -160,7 +146,7 @@ export async function ladeMitglieder(lagerId) {
 // Link nur anzeigen, wenn er mit «https:» beginnt (der Server speichert nur solche; hier eine zweite Sicherung)
 export const sichererLink = (url) => {
   try {
-    const u = new URL(String(url));
+    const u = new window.URL(String(url));
     return u.protocol === "https:" ? u.href : null;
   } catch {
     return null;
@@ -199,7 +185,7 @@ export function werkzeugzeile(...knoepfe) {
 }
 
 export const druckKnopf = (text = "Drucken", kontext) =>
-  knopf(text, {
+  knopfMit(text, {
     symbol: "drucker",
     kontext,
     onclick: () => window.print(),

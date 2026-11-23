@@ -1,7 +1,7 @@
 import { anfrage } from "./api.js";
 import { ankreuzen, dialogFormular, el, feld, knopf } from "./dom.js";
 import { skeletonListe } from "./lader.js";
-import { feldFehler, haenge, meldung } from "./lager-gemeinsam.js";
+import { feldFehler, haenge, knopfMit, meldung } from "./lager-gemeinsam.js";
 import {
   angabe,
   aussenLink,
@@ -13,7 +13,6 @@ import {
   lagerPfad,
   listenFehler,
   mitFehlertext,
-  schreibschutzHinweis,
   sichererLink,
   werkzeugzeile,
 } from "./lager-m-hilfen.js";
@@ -413,7 +412,6 @@ function zeichne(ctx, lagerId, lager, daten, neu) {
   return el(
     "div",
     { class: "lm-seite" },
-    schreibschutzHinweis(lager),
     werkzeugzeile(
       darf &&
         knopf("Info hinzufügen", {
@@ -432,7 +430,7 @@ function zeichne(ctx, lagerId, lager, daten, neu) {
           onclick: () => alleOeffnen(false),
         }),
       abschnitte.length > 0 &&
-        knopf("Drucken", {
+        knopfMit("Drucken", {
           symbol: "drucker",
           // Zugeklappte Abschnitte kämen nicht aufs Blatt
           onclick: () => {

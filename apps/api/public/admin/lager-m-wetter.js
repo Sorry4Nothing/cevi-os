@@ -2,12 +2,7 @@ import { anfrage } from "./api.js";
 import { chip, el, feld, knopf, tabelle, zeit } from "./dom.js";
 import { skeletonListe } from "./lader.js";
 import { feldFehler, haenge, meldung } from "./lager-gemeinsam.js";
-import {
-  angabe,
-  lagerPfad,
-  schreibschutzHinweis,
-  werkzeugzeile,
-} from "./lager-m-hilfen.js";
+import { angabe, lagerPfad } from "./lager-m-hilfen.js";
 import { leerKarte } from "./zustaende.js";
 
 // Wetter im Lager-Arbeitsbereich (#674): die Vorhersage für den Ort des Lagers (heute und die nächsten Tage) mit Warnungen, und der Ort. Adresse: …/wetter. Lesen: wetter.lesen; den Ort setzt nur die Lagerleitung. Der Server holt die Vorhersage höchstens alle sechs Stunden und hält sie je Lager; die Seite fragt nur beim Öffnen und bei «Aktualisieren». Ohne Ort oder bei einem Ausfall des Dienstes gibt es kein Wetter statt eines Fehlers.
@@ -145,20 +140,22 @@ function ortKarte(ctx, lagerId, lager, daten, neu) {
     "section",
     { class: "flaeche lm-nicht-drucken" },
     el("h2", {}, "Ort für das Wetter"),
-    daten.ort
+    daten.ort && !darf
       ? el(
           "dl",
           { class: "lm-angaben" },
           angabe("Breitengrad", String(daten.ort.breite).replace(".", ",")),
           angabe("Längengrad", String(daten.ort.laenge).replace(".", ",")),
         )
-      : el(
-          "p",
-          { class: "leise" },
-          darf
-            ? "Es ist noch kein Ort gesetzt. Trage ihn ein, dann zeigt das Lager das Wetter."
-            : "Es ist noch kein Ort gesetzt. Die Lagerleitung kann ihn eintragen.",
-        ),
+      : daten.ort
+        ? null
+        : el(
+            "p",
+            { class: "leise" },
+            darf
+              ? "Es ist noch kein Ort gesetzt. Trage ihn ein, dann zeigt das Lager das Wetter."
+              : "Es ist noch kein Ort gesetzt. Die Lagerleitung kann ihn eintragen.",
+          ),
     darf &&
       el(
         "div",
@@ -194,10 +191,6 @@ function zeichne(ctx, lagerId, lager, daten, neu) {
   const wurzel = el("div", { class: "lm-seite" });
   haenge(
     wurzel,
-    schreibschutzHinweis(lager),
-    werkzeugzeile(
-      knopf("Aktualisieren", { symbol: "aktualisieren", onclick: () => neu() }),
-    ),
     daten.tage.length === 0
       ? leerKarte(
           daten.ort

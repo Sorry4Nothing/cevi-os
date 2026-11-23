@@ -15,7 +15,6 @@ import {
   listenFehler,
   mitFehlertext,
   neueReihenfolge,
-  schreibschutzHinweis,
   werkzeugzeile,
 } from "./lager-m-hilfen.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
@@ -85,7 +84,6 @@ export function zeige(bereich, ctx, lagerId, lager) {
     (daten, neu) => {
       haenge(
         bereich,
-        schreibschutzHinweis(lager),
         umschalter(lagerId, ansicht, darfVorlage),
         ansicht === "vorlage"
           ? vorlage(ctx, lagerId, lager, daten, neu)
@@ -113,11 +111,7 @@ function umschalter(lagerId, ansicht, darfVorlage) {
     "nav",
     { class: "lm-reiter-leiste lm-nicht-drucken", "aria-label": "Packliste" },
     eintrag("meine", "Meine Packliste", `${ADRESSE}/${lagerId}/packliste`),
-    eintrag(
-      "vorlage",
-      "Vorlage bearbeiten",
-      `${ADRESSE}/${lagerId}/packliste/vorlage`,
-    ),
+    eintrag("vorlage", "Vorlage", `${ADRESSE}/${lagerId}/packliste/vorlage`),
   );
 }
 
@@ -419,7 +413,6 @@ function meine(ctx, lagerId, lager, daten) {
     el(
       "section",
       { class: "flaeche lm-kopfkarte" },
-      el("h2", {}, "Meine Packliste"),
       stand,
       balken,
       !darfAbhaken &&
@@ -594,41 +587,50 @@ function vorlage(ctx, lagerId, lager, daten, neuLaden) {
   };
 
   const sektionen = abschnitte.map((a) => {
-    const liste = sortierListe({
-      beschriftung: `Punkte im Abschnitt ${a.name}`,
-      eintraege: a.zeilen.map((p) => ({
-        id: p.id,
-        text: p.text,
-        inhalt: el(
-          "div",
-          { class: "lm-vorlagenzeile", "data-id": p.id },
-          el("span", { class: "lm-vorlagentext" }, p.text),
-          p.nurLagerleitung &&
-            el("span", { class: "chip" }, "Nur Lagerleitung"),
-          darf &&
-            el(
-              "span",
-              { class: "lm-zeilenknoepfe" },
-              knopf("Bearbeiten", {
-                klein: true,
-                symbol: "bearbeiten",
-                kontext: p.text,
-                onclick: () => bearbeiten(p),
-              }),
-              knopf("Löschen", {
-                klein: true,
-                art: "still",
-                symbol: "papierkorb",
-                kontext: p.text,
-                onclick: (e) => loesche(p, e),
-              }),
-            ),
-        ),
-      })),
-      beiNeu: (ids) => ordne(a, ids),
-      mitRueckgaengig: darf ? mitFehlertext(ctx, neuLaden) : undefined,
-      aktionstext: `Reihenfolge im Abschnitt ${a.name} geändert`,
-    });
+    const zeile = (p) =>
+      el(
+        "div",
+        { class: "lm-vorlagenzeile", "data-id": p.id },
+        el("span", { class: "lm-vorlagentext" }, p.text),
+        p.nurLagerleitung && el("span", { class: "chip" }, "Nur Lagerleitung"),
+        darf &&
+          el(
+            "span",
+            { class: "lm-zeilenknoepfe" },
+            knopf("Bearbeiten", {
+              klein: true,
+              symbol: "bearbeiten",
+              kontext: p.text,
+              onclick: () => bearbeiten(p),
+            }),
+            knopf("Löschen", {
+              klein: true,
+              art: "still",
+              symbol: "papierkorb",
+              kontext: p.text,
+              onclick: (e) => loesche(p, e),
+            }),
+          ),
+      );
+    const liste = !darf
+      ? {
+          wurzel: el(
+            "ul",
+            { class: "lm-infoliste" },
+            a.zeilen.map((p) => el("li", {}, zeile(p))),
+          ),
+        }
+      : sortierListe({
+          beschriftung: `Punkte im Abschnitt ${a.name}`,
+          eintraege: a.zeilen.map((p) => ({
+            id: p.id,
+            text: p.text,
+            inhalt: zeile(p),
+          })),
+          beiNeu: (ids) => ordne(a, ids),
+          mitRueckgaengig: darf ? mitFehlertext(ctx, neuLaden) : undefined,
+          aktionstext: `Reihenfolge im Abschnitt ${a.name} geändert`,
+        });
     return el(
       "section",
       { class: "flaeche lm-abschnitt", "aria-label": a.name },

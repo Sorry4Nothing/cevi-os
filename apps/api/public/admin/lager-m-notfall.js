@@ -15,7 +15,6 @@ import {
   listenFehler,
   mitFehlertext,
   neueReihenfolge,
-  schreibschutzHinweis,
   sichererLink,
   werkzeugzeile,
 } from "./lager-m-hilfen.js";
@@ -469,7 +468,6 @@ function zeichne(ctx, lagerId, lager, daten, neu) {
   return el(
     "div",
     { class: "lm-seite lm-notfall" },
-    schreibschutzHinweis(lager),
     werkzeugzeile(druckKnopf("Notfallblatt drucken")),
     el(
       "p",
