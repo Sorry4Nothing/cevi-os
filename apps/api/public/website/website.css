@@ -49,6 +49,12 @@
   --kurve: cubic-bezier(0.2, 0.7, 0.2, 1);
   --dauer: 0.2s;
   --dauer-lang: 0.5s;
+  /* Scrollleisten (#572): Griff im Ton der Umrisse (mindestens 3:1 zu Fläche und Karte), Spur durchsichtig */
+  --leiste-breite: thin;
+  --leiste-griff: var(--outline);
+  --leiste-griff-hover: var(--on-surface-variant);
+  --leiste-griff-aktiv: var(--accent);
+  --leiste-spur: transparent;
   /* Feld hinter einem Logo ohne Fassung für den dunklen Grund */
   --logo-grund: transparent;
   /* Gestaltung (#555): Titel, Karten und die sechs Töne der Stufen */
@@ -2678,5 +2684,97 @@ a.btn.w {
     .station--bild:nth-child(even) .jahr {
       animation-name: jahr-rechts;
     }
+  }
+}
+
+/* Scrollleisten (#572): dünn, mit rundem Griff in den Tokens; Tag und Nacht folgen den Tokens, ohne Skript. Die Regeln stehen nur hier.
+   Chrome, Edge und Safari zeichnen den Griff über ::-webkit-scrollbar (rund, ohne Pfeile, deutlicher bei Hover und beim Ziehen); Firefox kennt nur die zwei Eigenschaften scrollbar-width und scrollbar-color. Beide Wege dürfen nie gleichzeitig gelten: Sobald scrollbar-color gesetzt ist, ignoriert Chrome die WebKit-Regeln. */
+
+/* Der Platz der Leiste bleibt reserviert: Die Seite springt nicht, wenn sie länger oder kürzer wird */
+html {
+  scrollbar-gutter: stable;
+}
+
+/* Das Tagesfeld der Termine wechselt oft zwischen kurz und lang */
+.tm .kal-termine {
+  scrollbar-gutter: stable both-edges;
+}
+
+/* Die Grossansicht ist immer dunkel, unabhängig vom Thema */
+dialog.lichtkasten {
+  --leiste-griff: var(--lk-leise);
+  --leiste-griff-hover: var(--lk-text);
+  --leiste-griff-aktiv: var(--lk-text);
+}
+
+/* Firefox */
+@supports not selector(::-webkit-scrollbar) {
+  * {
+    scrollbar-width: var(--leiste-breite);
+    scrollbar-color: var(--leiste-griff) var(--leiste-spur);
+  }
+}
+
+/* Chrome, Edge, Safari. Mit Finger oder Stift bleibt die Leiste des Systems (dünn, über dem Inhalt) */
+@supports selector(::-webkit-scrollbar) {
+  @media (not (pointer: coarse)) and (not (forced-colors: active)) {
+    ::-webkit-scrollbar {
+      width: 14px;
+      height: 14px;
+    }
+
+    ::-webkit-scrollbar-track,
+    ::-webkit-scrollbar-corner {
+      background: var(--leiste-spur);
+    }
+
+    /* Der durchsichtige Rand macht den Griff 8 px dick und hält ihn vom Rand weg */
+    ::-webkit-scrollbar-thumb {
+      border: 3px solid transparent;
+      border-radius: var(--r-full);
+      background-color: var(--leiste-griff);
+      background-clip: padding-box;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: var(--leiste-griff-hover);
+    }
+
+    ::-webkit-scrollbar-thumb:active {
+      background-color: var(--leiste-griff-aktiv);
+    }
+  }
+}
+
+/* Der Streifen des Karussells ist mit Skript ohne Leiste (Pfeile, Ziehen, Wischen); ohne Skript zeigt er sie. :root hebt die Regeln in karussell.css auf */
+@media (scripting: none) {
+  :root .folien {
+    scrollbar-width: auto;
+  }
+
+  :root .folien::-webkit-scrollbar {
+    display: block;
+  }
+}
+
+@supports not selector(::-webkit-scrollbar) {
+  @media (scripting: none) {
+    :root .folien {
+      scrollbar-width: var(--leiste-breite);
+    }
+  }
+}
+
+/* Mit Finger oder Stift (Firefox) nicht schmaler als der Standard des Systems */
+@media (pointer: coarse) {
+  :root {
+    --leiste-breite: auto;
+  }
+}
+
+/* Erzwungene Farben: Firefox behält die Leiste des Systems, die WebKit-Regeln oben gelten dann nicht */
+@media (forced-colors: active) {
+  * {
+    scrollbar-color: auto;
   }
 }

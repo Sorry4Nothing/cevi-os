@@ -196,6 +196,14 @@ Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Akt
 
 Die Seite «System → Komponenten» (`#system/komponenten`) zeigt alle Bausteine in ihren Zuständen und die Skeleton-Galerie; öffne sie in Tag und Nacht, wenn du einen Baustein änderst.
 
+## Scrollleisten (#572)
+
+Die Verwaltung zeigt schlichte Scrollleisten: schmal, runder Griff in der Randfarbe `--rand` (3:1 zur Fläche, 4.1:1 im Tag, 5.7:1 in der Nacht), bei Hover `--leise`, beim Ziehen `--text`; die Spur ist durchsichtig. Die Regeln stehen in `admin.css` (Abschnitt «Scrollleisten») und gelten für die Seite und alle inneren Scrollbereiche (Dialoge, Tabellen, Listen). `html` hat `scrollbar-gutter: stable`, damit die Seite beim Wechsel zwischen kurzen und langen Ansichten nicht springt.
+
+- Chrome, Edge und Safari zeichnen den Griff über `::-webkit-scrollbar` (14 px Leiste, 8 px Griff); Firefox bekommt `scrollbar-width: thin` und `scrollbar-color` in `@supports not selector(::-webkit-scrollbar)`. Beide Wege gelten nie zugleich: Mit `scrollbar-color` ignoriert Chrome die WebKit-Regeln.
+- Mit Finger oder Stift (`pointer: coarse`) und in erzwungenen Farben bleibt die Leiste des Systems.
+- Ein neuer Scrollbereich braucht nichts ausser `overflow: auto`.
+
 ## Lokal prüfen
 
 Der Server liest alle Dateien aus `public/admin/` **einmal beim Start** (`src/seiten.ts`). Nach jeder Änderung an einer Datei dort den Server neu starten, sonst zeigt der Browser die alte Fassung. Eigener Dev-Server und Datenbank wie in der Regel für UI-Arbeit; der zweite Faktor lässt sich in Playwright umgehen, indem `GET /api/auth/get-session` und die Daten-Routen mit `page.route` beantwortet werden (siehe die Antwortformen in `docs/api/openapi.yaml`). Prüfe jede Ansicht bei 1280, 1024 und 390 px in Tag und Nacht (`emulateMedia({ colorScheme })`), mit Tastatur und mit `reducedMotion: "reduce"`.

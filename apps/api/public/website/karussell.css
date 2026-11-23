@@ -49,16 +49,10 @@
   scroll-snap-type: none;
 }
 
-/* Ohne Skript zeigt die Bildlaufleiste, dass es seitwärts weitergeht */
+/* Ohne Skript zeigt die Bildlaufleiste, dass es seitwärts weitergeht (ihr Aussehen steht im Abschnitt «Scrollleisten» in website.css) */
 @media (scripting: none) {
   .folien {
     padding-bottom: 0.5rem;
-    scrollbar-width: thin;
-  }
-
-  .folien::-webkit-scrollbar {
-    display: block;
-    height: 0.5rem;
   }
 }
 
