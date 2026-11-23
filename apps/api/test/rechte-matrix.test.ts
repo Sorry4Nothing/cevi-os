@@ -2604,7 +2604,10 @@ async function wegwerfWeiterleitungId() {
 async function wegwerfOrtId() {
   const [zeile] = await welt.db
     .insert(schema.ort)
-    .values({ abteilungId: welt.testabteilungId, name: `Matrix ${randomUUID()}` })
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: `Matrix ${randomUUID()}`,
+    })
     .returning({ id: schema.ort.id });
   return zeile.id;
 }
