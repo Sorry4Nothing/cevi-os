@@ -5,7 +5,7 @@ const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
 // Personen, Gruppen und Tags im neuen Design (#525): Die Module rufen nur vorhandene Routen auf
-describe("Admin-Panel: Personen, Gruppen und Tags", () => {
+describe("Panel der Abteilungsleitung: Personen, Gruppen und Tags", () => {
   test("Module und Stilvorlage sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/personen.css"');
     const navigation = lies("navigation.js");

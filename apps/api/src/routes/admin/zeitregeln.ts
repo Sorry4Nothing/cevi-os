@@ -16,7 +16,7 @@ const text = z.string().trim().min(1).max(150);
 // Der Text unter dem Titel; leer heisst: kein Text
 const beschreibung = z.string().trim().min(1).max(300).nullable();
 
-// Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
+// Ein Schema pro Route, mit keiner Route ausserhalb der Verwaltung geteilt
 const anlegenSchema = z.strictObject({
   stufeId: z.uuid().nullable(),
   wochentag,

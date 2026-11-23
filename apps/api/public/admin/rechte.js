@@ -50,9 +50,13 @@ const REITER = [
   ["rollen", "Rollen"],
   ["uebersicht", "Was darf wer?"],
 ];
+// Der Entwickler (ohne das Recht «rechte.verwalten») sieht nur «Rollen»: Dort stellt er die Rechte der Abteilungsleitung ein. Gruppen, Personen und «Was darf wer?» bleiben bei der Abteilungsleitung (#663)
+const REITER_ENTWICKLER = [["rollen", "Rollen"]];
 
 export function zeige(bereich, ctx) {
-  const [reiter = "gruppen", ...rest] = ctx.pfad;
+  // Hat der Bereich nur eine Unterseite (so sieht es der Entwickler), steht «rechte» noch vorn im Pfad
+  const pfad = ctx.pfad[0] === "rechte" ? ctx.pfad.slice(1) : ctx.pfad;
+  const [reiter = "gruppen", ...rest] = pfad;
   ctx.lade(
     ladeGrund,
     (daten, neu) => zeichne(bereich, ctx, daten, neu, reiter, rest),
@@ -79,15 +83,23 @@ function merke(rolle, gruppeName) {
   if (zellen.size === 0) entwurf.delete(rolle.id);
 }
 
-function zeichne(bereich, ctx, daten, neu, reiter, rest) {
+function zeichne(bereich, ctx, daten, neu, reiterWunsch, restWunsch) {
   const katalog = daten.katalog;
+  const verwaltet = katalog.ich?.rechteVerwalten === true;
+  const reiter = verwaltet ? reiterWunsch : "rollen";
+  const rest = verwaltet || reiterWunsch === "rollen" ? restWunsch : [];
   const klartextVon = new Map(katalog.rechte.map((r) => [r.id, r.klartext]));
   const z = {
     ctx,
     katalog,
+    ich: katalog.ich ?? {
+      rechteVerwalten: true,
+      abteilungsleitungAendern: false,
+    },
     gruppen: daten.gruppen,
     globale: daten.globale,
     personen: daten.personen,
+    stufen: daten.stufen,
     entwurf,
     neu,
     adminIds: new Set(daten.personen.filter((p) => p.admin).map((p) => p.id)),
@@ -107,7 +119,7 @@ function zeichne(bereich, ctx, daten, neu, reiter, rest) {
   const tabs = el(
     "nav",
     { class: "tabs", "aria-label": "Rollen und Rechte" },
-    REITER.map(([schluessel, name]) =>
+    (verwaltet ? REITER : REITER_ENTWICKLER).map(([schluessel, name]) =>
       el(
         "a",
         {
@@ -148,7 +160,7 @@ function hinweisband(modus) {
   const text =
     modus === "alt"
       ? "Das neue Rechtemodell ist abgeschaltet. Was du hier einstellst, wird gespeichert, wirkt aber nicht, bis der Betreiber es einschaltet."
-      : "Das neue Rechtemodell läuft im Übergang. Rechte aus Rollen wirken zusätzlich zu den bisherigen Regeln. Ein Recht wegnehmen wirkt erst, wenn der Betreiber auf «neu» umgestellt hat.";
+      : "Das neue Rechtemodell läuft im Übergang. Rechte aus Rollen wirken zusätzlich zu den bisherigen Regeln. Ein Recht wegnehmen wirkt bei Rollen und Gruppen erst, wenn der Betreiber auf «neu» umgestellt hat; bei der Abteilungsleitung wirkt es sofort.";
   return el(
     "div",
     { class: "hinweis hinweis--warn", role: "note" },
@@ -197,17 +209,29 @@ function baueLeiste(z) {
       gross.length > 0
         ? `Wirklich speichern? Grosse Wirkung: ${[...new Set(gross.map((g) => `«${z.klartext(g.recht)}» für ${rolleName(g.rolle)}`))].join(", ")}.`
         : null;
+    // Die Rechte der Abteilungsleitung ändern immer, was die Abteilung kann: Das fragt noch einmal
+    if (rollen.some((r) => r.abteilungsleitung)) {
+      frage = `Wirklich speichern? Das ändert, was die Abteilungsleitung darf.${frage ? frage.replace("Wirklich speichern?", "") : ""}`;
+    }
     const b = betroffene(rollen, entwurf, z.adminIds);
     const offen = vorschauBlock.open;
     vorschauBlock.replaceChildren(
       el(
         "summary",
         {},
-        b.personen === 0
-          ? "Vorschau: niemand betroffen"
-          : `Vorschau: ${personenText(b.personen)} betroffen`,
+        rollen.every((r) => r.abteilungsleitung)
+          ? "Vorschau: die Abteilungsleitung ist betroffen"
+          : b.personen === 0
+            ? "Vorschau: niemand betroffen"
+            : `Vorschau: ${personenText(b.personen)} betroffen`,
       ),
-      el("p", { class: "klein" }, vorschauText(b)),
+      el(
+        "p",
+        { class: "klein" },
+        rollen.every((r) => r.abteilungsleitung)
+          ? "Die Änderung gilt für jedes Konto der Abteilungsleitung ab der nächsten Anfrage."
+          : vorschauText(b),
+      ),
       el(
         "ul",
         { class: "rr-vorschau-liste" },
@@ -216,7 +240,9 @@ function baueLeiste(z) {
             "li",
             {},
             el("strong", {}, rolleName(a.rolle)),
-            ` ${personenText(a.personen)}. `,
+            a.rolle.abteilungsleitung
+              ? " Gilt für jedes Konto der Abteilungsleitung. "
+              : ` ${personenText(a.personen)}. `,
             a.hinzu.length > 0 &&
               `Dazu: ${a.hinzu.map((x) => zuteilungText({ recht: x.recht, geltung: x.nach }, z.klartext)).join(", ")}. `,
             a.weg.length > 0 &&
@@ -227,7 +253,7 @@ function baueLeiste(z) {
       el(
         "p",
         { class: "klein leise", "data-server": "" },
-        "Die Abteilungsleitung hat ohnehin jedes Recht und zählt nicht mit.",
+        "Die Abteilungsleitung zählt hier nicht mit, solange sie das Recht ohnehin hat.",
       ),
     );
     vorschauBlock.open = offen;
@@ -253,7 +279,7 @@ function baueLeiste(z) {
       );
       if (lauf !== vorschauLauf || !hinweis.isConnected) return;
       const summe = antworten.reduce((s, x) => s + x.personen, 0);
-      hinweis.textContent = `Der Server zählt ${personenText(summe)} in den geänderten Gruppenrollen. Die Abteilungsleitung hat ohnehin jedes Recht.`;
+      hinweis.textContent = `Der Server zählt ${personenText(summe)} in den geänderten Gruppenrollen. Die Abteilungsleitung zählt nicht mit, solange sie das Recht ohnehin hat.`;
     } catch {
       // Die lokale Zahl bleibt stehen
     }

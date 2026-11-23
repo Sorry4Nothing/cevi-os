@@ -10,7 +10,7 @@ import { TERMINE_PUSH_ARTEN } from "./push-arten.js";
 // Der Text ist fest: Der Push steht je nach Handy auf dem gesperrten Bildschirm, darum nie der Titel des Vorschlags und kein Name
 const TEXT = "Ein Vorschlag wartet auf deinen Entscheid.";
 
-// Push «termin_vorschlag» an alle aktiven Konten der Abteilungsleitung (Admins) der Abteilung des Vorschlags, ausser der vorschlagenden Person selbst. Nach dem Commit aufrufen. Wirft nie; ohne Fcm geht nichts hinaus und die Abfrage entfällt. Eine Abfrage für die Empfänger, dann die von sendePush
+// Push «termin_vorschlag» an alle aktiven Konten der Abteilungsleitung der Abteilung des Vorschlags, ausser der vorschlagenden Person selbst. Nach dem Commit aufrufen. Wirft nie; ohne Fcm geht nichts hinaus und die Abfrage entfällt. Eine Abfrage für die Empfänger, dann die von sendePush
 export async function pushNeuerVorschlag(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   {

@@ -248,7 +248,7 @@ describe("Baum", () => {
     expect((await liste(person)).map((s) => s.id)).toEqual([aId]);
   });
 
-  test("ein Konto ohne zweiten Faktor: Admin 403 mit eigenem Code, andere nicht betroffen", async () => {
+  test("ein Konto ohne zweiten Faktor: Abteilungsleitung 403 mit eigenem Code, andere nicht betroffen", async () => {
     const antwort = await anfrage(adminOhne, "GET", BASIS);
     expect(antwort.status).toBe(403);
     expect(await fehlercode(antwort)).toBe("ZWEITER_FAKTOR_FEHLT");

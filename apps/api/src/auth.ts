@@ -226,7 +226,7 @@ export function erstelleAuth(
                 throw new APIError("FORBIDDEN", {
                   code: "STARTPASSWORT_ABGELAUFEN",
                   message:
-                    "Das Startpasswort ist abgelaufen. Ein Admin kann ein neues setzen.",
+                    "Das Startpasswort ist abgelaufen. Eine Person der Abteilungsleitung kann ein neues setzen.",
                 });
               }
             }
@@ -273,7 +273,7 @@ export function erstelleAuth(
           return;
         }
         if (ctx.path === "/two-factor/enable") {
-          // Ein Admin mit offenem Startpasswort erreicht enable vor dem Wechsel; der Vergleich bleibt normalisiert
+          // Eine Person der Abteilungsleitung mit offenem Startpasswort erreicht enable vor dem Wechsel; der Vergleich bleibt normalisiert
           const sitzung = await getSessionFromCtx(ctx);
           if (
             (sitzung?.user as Bremsfelder | undefined)?.mussPasswortAendern &&
@@ -484,7 +484,7 @@ function mitExpoOrigin(anfrage: Request) {
 
 export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
   const routen = new Hono<{ Variables: AktivitaetVariablen }>();
-  // Den zweiten Faktor richten nur Admins ein; für alle anderen ist der Pfad zu
+  // Den zweiten Faktor richtet nur die Abteilungsleitung ein; für alle anderen ist der Pfad zu
   routen.post("/api/auth/two-factor/enable", async (c, next) => {
     const sitzung = await auth.api.getSession({
       headers: c.req.raw.headers,
@@ -535,7 +535,7 @@ export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
           {
             code: "ANMELDUNG_FEHLGESCHLAGEN",
             message:
-              "Anmeldung nicht möglich. Bitte Benutzername und Passwort prüfen oder später nochmals versuchen. Sonst hilft ein Admin.",
+              "Anmeldung nicht möglich. Bitte Benutzername und Passwort prüfen oder später nochmals versuchen. Sonst hilft eine Person der Abteilungsleitung.",
           },
           401,
         );

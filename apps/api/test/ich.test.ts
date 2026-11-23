@@ -117,7 +117,7 @@ describe("GET /api/v1/ich", () => {
     });
   });
 
-  test("Admin ohne Rollen und Kinder: admin true, leere Listen", async () => {
+  test("Abteilungsleitung ohne Rollen und Kinder: admin true, leere Listen", async () => {
     const konto = await legePersonaAn(welt, "admin");
     const koerper = await (await ich(konto)).json();
     expect(koerper).toMatchObject({

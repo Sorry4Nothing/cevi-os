@@ -636,7 +636,7 @@ describe("Was ausgeliefert wird", () => {
     });
     await seite({ adresse: "api", inhalt: dok("Api") });
     await seite({ adresse: "website", inhalt: dok("Web") });
-    await seite({ adresse: "admin", inhalt: dok("Admin") });
+    await seite({ adresse: "admin", inhalt: dok("Abteilungsleitung") });
     const eltern = await seite({ adresse: "ordner", inhalt: dok("Ordner") });
     // Unterseiten dürfen reservierte Adressen tragen
     await seite({ adresse: "api", elternId: eltern, inhalt: dok("Unter") });

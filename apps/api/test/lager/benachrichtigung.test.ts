@@ -649,7 +649,7 @@ describe("GET und POST /api/v1/lager/{id}/benachrichtigungen", () => {
       );
     expect((await gelesen(eltern)).status).toBe(404);
     expect((await gelesen(demoAdmin)).status).toBe(404);
-    // Admin ohne Mitgliedszeile: Lagerleitung, aber ohne eigene Einträge
+    // Abteilungsleitung ohne Mitgliedszeile: Lagerleitung, aber ohne eigene Einträge
     expect(await (await liste(admin, lagerId)).json()).toEqual({
       eintraege: [],
       naechster: null,

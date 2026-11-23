@@ -1441,6 +1441,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   plattform_entwickler: {
     rollen: ["user_id", "erstellt_am"],
   },
+  abteilungsleitung_recht: {
+    rollen: ["abteilung_id", "ohne", "version", "geaendert_am"],
+  },
   seite: {
     website: [
       "id",
@@ -1569,7 +1572,7 @@ export const STORE_ALLGEMEIN = {
   tracking: false,
   werbung: false,
   analyse: false,
-  // Pushes tragen weder Chat-Inhalt noch Kindernamen, nur den Namen eines Chats oder Programms und den Text der Admins
+  // Pushes tragen weder Chat-Inhalt noch Kindernamen, nur den Namen eines Chats oder Programms und den Text der Abteilungsleitung
   weitergabeAn: ["Apple (Push)", "Google (Push)"],
   verschluesselteUebertragung: true,
   loeschungMoeglich: true,

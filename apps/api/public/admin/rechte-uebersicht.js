@@ -10,11 +10,15 @@ import {
   typText,
 } from "./rechte-gemeinsam.js";
 import {
+  anzahlText,
   gruppiereNachBereich,
   herkunftGeltung,
   herkunftText,
+  listenZeilen,
   markenVon,
+  passtZurSuche,
   rechteFehlerText,
+  rolleText,
   verlaufText,
   werDarf,
 } from "./rechte-modell.js";
@@ -65,11 +69,19 @@ const skelett = () =>
 // ---------- Person ----------
 
 function zeigePerson(ort, z, id) {
-  const personenListe = [...z.personen]
-    .filter((p) => !p.deaktiviert)
-    .sort((a, b) => a.name.localeCompare(b.name, "de-CH"));
+  const stufenName = new Map((z.stufen ?? []).map((s) => [s.id, s.name]));
+  const zeilen = listenZeilen(
+    [...z.personen]
+      .filter((p) => !p.deaktiviert)
+      .sort((a, b) => a.name.localeCompare(b.name, "de-CH")),
+    stufenName,
+  );
   const sucheId = neueId("rr-personensuche");
   const liste = el("ul", { class: "rr-wahlliste", "aria-label": "Personen" });
+  const zahl = el("p", {
+    class: "klein leise rr-wahlzahl",
+    role: "status",
+  });
   const suche = el("input", {
     id: sucheId,
     class: "eingabe",
@@ -82,38 +94,31 @@ function zeigePerson(ort, z, id) {
   const detail = el("div", { class: "rr-detail", "aria-live": "polite" });
 
   function zeichneListe() {
-    const f = suche.value.trim().toLowerCase();
+    const treffer = zeilen.filter((x) => passtZurSuche(x, suche.value));
+    zahl.textContent = anzahlText(treffer.length);
     liste.replaceChildren(
-      ...personenListe
-        .filter(
-          (p) =>
-            !f ||
-            `${p.name} ${p.ceviName ?? ""} ${p.benutzername ?? ""}`
-              .toLowerCase()
-              .includes(f),
-        )
-        .map((p) =>
+      ...treffer.map(({ person: p, rolle, zusatz }) =>
+        el(
+          "li",
+          {},
           el(
-            "li",
-            {},
+            "a",
+            {
+              class: "rr-wahlzeile",
+              href: adresse("uebersicht", "person", p.id),
+              ...(p.id === id && { "aria-current": "true" }),
+            },
+            avatar(p.name, { hell: true, bildUrl: p.bildUrl }),
             el(
-              "a",
-              {
-                class: "rr-wahlzeile",
-                href: adresse("uebersicht", "person", p.id),
-                ...(p.id === id && { "aria-current": "true" }),
-              },
-              avatar(p.name, { hell: true, bildUrl: p.bildUrl }),
-              el(
-                "span",
-                { class: "rr-wahlname" },
-                p.name,
-                p.admin &&
-                  el("span", { class: "klein leise" }, "Abteilungsleitung"),
-              ),
+              "span",
+              { class: "rr-wahlname" },
+              el("span", { class: "rr-wahlname-text" }, p.name),
+              rolle && el("span", { class: "klein leise" }, rolle),
+              zusatz && el("span", { class: "klein leise rr-zusatz" }, zusatz),
             ),
           ),
         ),
+      ),
     );
   }
   zeichneListe();
@@ -129,20 +134,44 @@ function zeigePerson(ort, z, id) {
         },
         el(
           "div",
-          { class: "suche" },
-          el("label", { class: "nur-leser", for: sucheId }, "Person suchen"),
-          icon("lupe"),
-          suche,
+          { class: "rr-wahlkopf" },
+          el(
+            "div",
+            { class: "suche" },
+            el("label", { class: "nur-leser", for: sucheId }, "Person suchen"),
+            icon("lupe"),
+            suche,
+          ),
+          zahl,
         ),
         liste,
       ),
       detail,
     ),
   );
+  // Liegt die gewählte Zeile ausserhalb der Liste, rückt sie in die Mitte (nur die Liste scrollt, nicht die Seite)
+  const hier = liste.querySelector("[aria-current]");
+  if (
+    hier &&
+    (hier.offsetTop < liste.scrollTop ||
+      hier.offsetTop + hier.offsetHeight > liste.scrollTop + liste.clientHeight)
+  ) {
+    liste.scrollTop = Math.max(
+      0,
+      hier.offsetTop - (liste.clientHeight - hier.offsetHeight) / 2,
+    );
+  }
   if (!id) {
     detail.append(
-      leerKarte(
-        "Wähle links eine Person. Du siehst dann, was sie darf und woher sie es hat.",
+      el(
+        "div",
+        { class: "flaeche rr-flaeche rr-leer-karte" },
+        el("h3", {}, "Person wählen"),
+        el(
+          "p",
+          { class: "leise rr-leer-hinweis" },
+          "Wähle links eine Person. Du siehst dann, was sie darf und woher sie es hat.",
+        ),
       ),
     );
     return;
@@ -153,6 +182,10 @@ function zeigePerson(ort, z, id) {
     return;
   }
   detail.append(skelett());
+  // Untereinander (schmal) steht die Person unter der Liste: Sie rückt nach der Wahl ins Bild
+  if (!window.matchMedia("(min-width: 60rem)").matches) {
+    detail.scrollIntoView({ block: "start" });
+  }
   ladePerson(id).then(
     (daten) => detail.replaceChildren(personDetail(z, daten, person)),
     (f) =>
@@ -177,13 +210,29 @@ function personDetail(z, daten, person) {
   const bereiche = gruppiereNachBereich(z.katalog, (r) =>
     rechte.some((x) => x.recht === r.id),
   );
+  const rolle = rolleText(
+    person,
+    new Map((z.stufen ?? []).map((s) => [s.id, s.name])),
+  );
   return el(
     "section",
     { class: "flaeche rr-flaeche", "aria-labelledby": "rr-person-titel" },
     el(
       "div",
-      { class: "rr-kopfzeile" },
-      el("h3", { id: "rr-person-titel" }, daten.person.name),
+      { class: "rr-kopfzeile rr-personkopf" },
+      avatar(person.name, { hell: true, bildUrl: person.bildUrl }),
+      el(
+        "div",
+        { class: "rr-personname" },
+        el("h3", { id: "rr-person-titel" }, daten.person.name),
+        el(
+          "span",
+          { class: "klein leise" },
+          [rolle, person.ceviName, person.benutzername]
+            .filter(Boolean)
+            .join(" · "),
+        ),
+      ),
       el(
         "span",
         { class: "klein leise" },
@@ -285,9 +334,14 @@ function personDetail(z, daten, person) {
         ),
     alleDarf.length > 0 &&
       el(
-        "p",
-        { class: "klein leise" },
-        `Dazu kommt, was jede angemeldete Person darf: ${alleDarf.map((r) => r.klartext.toLowerCase()).join(", ")}.`,
+        "div",
+        { class: "rr-person-gruppen" },
+        el("h4", {}, "Dazu kommt, was jede angemeldete Person darf"),
+        el(
+          "ul",
+          { class: "rr-gruppenchips" },
+          alleDarf.map((r) => el("li", { class: "chip" }, r.klartext)),
+        ),
       ),
   );
 }
@@ -487,9 +541,13 @@ function zeigeVerlauf(ort, z) {
       { class: "leise rr-erklaerung" },
       "Wer hat wann welche Rolle angelegt, geändert, gelöscht oder zugeordnet? Die Einträge enthalten nur Namen von Rollen und Gruppen, keine Kontaktdaten. Der Verlauf lässt sich nicht ändern.",
     ),
-    liste,
-    status,
-    el("div", { class: "reihe" }, mehr),
+    el(
+      "section",
+      { class: "flaeche rr-flaeche rr-verlaufkarte", "aria-label": "Verlauf" },
+      liste,
+      status,
+      el("div", { class: "reihe" }, mehr),
+    ),
   );
 
   // Rollennamen der Gruppen, die im Verlauf vorkommen, einmal nachladen (eine Abfrage je Gruppe)

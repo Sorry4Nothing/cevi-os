@@ -16,7 +16,12 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
-import { verlange } from "../../rechtemodell/darf.js";
+import {
+  ladeAbteilungsleitung,
+  rechteDerAbteilungsleitung,
+  speichereAbteilungsleitung,
+} from "../../rechtemodell/abteilungsleitung.js";
+import { darf, verlange } from "../../rechtemodell/darf.js";
 import { pruefeEigeneRechte } from "../../rechtemodell/eskalation.js";
 import {
   mitgliederDerRollen,
@@ -34,6 +39,7 @@ import {
   type RechtId,
 } from "../../rechtemodell/katalog.js";
 import { rechteModus } from "../../rechtemodell/modus.js";
+import { verlangeEines } from "../../rechtemodell/tuer.js";
 import { ladePerson } from "../../rechtemodell/person.js";
 import { ladeRechteSatz } from "../../rechtemodell/satz.js";
 import {
@@ -41,7 +47,7 @@ import {
   type Zuteilung,
 } from "../../rechtemodell/standard.js";
 
-// Matrix-API (#643): die Rechte der Abteilung lesen und einstellen, je Gruppe und global. Nur die Abteilungsleitung mit zweitem Faktor (Pfad /admin, dazu verlange «rechte.verwalten»: ein festes Recht). Der Server prüft alles: Abteilung (fremd = 404, vor dem 403), Katalog (ein Name oder eine Geltung ausserhalb ist 400), Eskalation (wer vergibt, hat), Version (409 bei gleichzeitiger Änderung).
+// Matrix-API (#643): die Rechte der Abteilung lesen und einstellen, je Gruppe und global. Die Abteilungsleitung mit zweitem Faktor (Pfad /admin, dazu verlange «rechte.verwalten»: ein festes Recht) und seit #663 der Entwickler mit zweitem Faktor («rechte.abteilungsleitung»): Er liest alles ohne Namen von Personen, ändert die Rechte der Abteilungsleitung und, in den Grenzen seiner eigenen Rechte, die der anderen Rollen. Personen zuordnen und «Was darf wer?» bleiben bei der Abteilungsleitung. Die Rechte der Abteilungsleitung ändert nur der Entwickler, nie sie selbst. Der Server prüft alles: Abteilung (fremd = 404, vor dem 403), Katalog (ein Name oder eine Geltung ausserhalb ist 400), Eskalation (wer vergibt, hat), Version (409 bei gleichzeitiger Änderung).
 // Die Seite «Rollen und Rechte» zeigt weiter /zuordnungen (rechte.ts) und die Plattformrollen (plattform-rollen.ts); beide bleiben, wie sie sind.
 // Nie in einer Antwort oder im Audit: Kontaktdaten. Die Namen von Personen stehen nur dort, wo die Abteilungsleitung sie ohnehin sieht (Mitglieder einer Rolle, Herkunft der Rechte einer Person).
 
@@ -95,10 +101,19 @@ const aendernGlobalSchema = z
   })
   .refine((f) => f.name !== undefined || f.rechte !== undefined);
 
+const aendernAbteilungsleitungSchema = z.strictObject({
+  version,
+  rechte: rechteGlobal,
+});
+
 const listeSchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).default(50),
   nach: z.uuid().optional(),
 });
+
+// Der Name der Systemrolle bleibt ihr (#663): keine zweite Rolle «Abteilungsleitung»
+const istSystemname = (name: string) =>
+  name.trim().toLowerCase() === "abteilungsleitung";
 
 const NAME_VERGEBEN = {
   code: "ROLLENNAME_VERGEBEN",
@@ -129,6 +144,7 @@ const AENDERUNGS_AKTIONEN = [
   "plattform_rolle_geloescht",
   "plattform_rolle_vergeben",
   "plattform_rolle_entzogen",
+  "abteilungsleitung_rechte_geaendert",
 ];
 
 const alsZuteilung = (z: { recht: string; geltung: string }): Zuteilung => ({
@@ -143,8 +159,14 @@ const gueltig = (z: { recht: string; geltung: string }) =>
   (eintragVon(z.recht).geltungen as readonly string[]).includes(z.geltung);
 
 export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
-  // Tür jeder Route: das feste Recht «Rechte und Rollen vergeben» (Abteilungsleitung); erst nach dem Laden des Objekts
-  const tuer = (person: Person) => verlange(db, person, "rechte.verwalten");
+  // Tür der Routen: das feste Recht «Rechte und Rollen vergeben» (Abteilungsleitung) oder «Rechte der Abteilungsleitung ändern» (Entwickler); erst nach dem Laden des Objekts
+  const tuer = (person: Person) =>
+    verlangeEines(db, person, ["rechte.verwalten", "rechte.abteilungsleitung"]);
+  // Tür für alles mit Personen (Zuordnen, «Was darf wer?»): nur die Abteilungsleitung. Der Entwickler sieht keine Personendaten
+  const nurAbteilungsleitung = (person: Person) =>
+    verlange(db, person, "rechte.verwalten");
+  // Sieht die Person Namen von Personen? Nur die Abteilungsleitung (SR-41)
+  const sieheNamen = (person: Person) => darf(db, person, "rechte.verwalten");
 
   async function ladeGruppe(person: Person, tagId: string) {
     const [gruppe] = await db
@@ -213,6 +235,15 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
         await tuer(person);
         return c.json({
           modus: rechteModus(),
+          // Was die Person hier darf; die Oberfläche blendet danach Zuordnen, Namen und die Zeile «Abteilungsleitung» ein oder sperrt sie
+          ich: {
+            rechteVerwalten: await darf(db, person, "rechte.verwalten"),
+            abteilungsleitungAendern: await darf(
+              db,
+              person,
+              "rechte.abteilungsleitung",
+            ),
+          },
           bereiche: BEREICHE.map((id) => ({ id, name: BEREICH_NAMEN[id] })),
           rechte: RECHT_IDS.map((id) => {
             const e = eintragVon(id);
@@ -286,10 +317,12 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
                       rollen.map((r) => r.id),
                     ),
                   ),
-            mitgliederDerRollen(db, gruppe.id).orderBy(
-              asc(user.name),
-              asc(user.id),
-            ),
+            (await sieheNamen(person))
+              ? mitgliederDerRollen(db, gruppe.id).orderBy(
+                  asc(user.name),
+                  asc(user.id),
+                )
+              : [],
           ]);
           return c.json({
             gruppe,
@@ -577,7 +610,7 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
           const rolle = rolleId
             ? await ladeRolle(person, tagId, rolleId)
             : undefined;
-          await tuer(person);
+          await nurAbteilungsleitung(person);
           // Wer eine Rolle zuordnet, hat die Rechte der Rolle selbst
           if (rolle) {
             await pruefeEigeneRechte(
@@ -613,6 +646,8 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
       .get("/rollen", async (c) => {
         const person = c.get("person");
         await tuer(person);
+        const mitNamen = await sieheNamen(person);
+        const al = await ladeAbteilungsleitung(db, person.abteilungId);
         const [rollen, rechte, vergaben] = await Promise.all([
           db
             .select()
@@ -632,24 +667,36 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
                 eq(plattformRolle.abteilungId, person.abteilungId),
               ),
             ),
-          db
-            .select({
-              rolleId: personPlattformRolle.rolleId,
-              id: user.id,
-              name: user.name,
-            })
-            .from(personPlattformRolle)
-            .innerJoin(
-              plattformRolle,
-              and(
-                eq(plattformRolle.id, personPlattformRolle.rolleId),
-                eq(plattformRolle.abteilungId, person.abteilungId),
-              ),
-            )
-            .innerJoin(user, eq(user.id, personPlattformRolle.userId))
-            .orderBy(asc(user.name), asc(user.id)),
+          mitNamen
+            ? db
+                .select({
+                  rolleId: personPlattformRolle.rolleId,
+                  id: user.id,
+                  name: user.name,
+                })
+                .from(personPlattformRolle)
+                .innerJoin(
+                  plattformRolle,
+                  and(
+                    eq(plattformRolle.id, personPlattformRolle.rolleId),
+                    eq(plattformRolle.abteilungId, person.abteilungId),
+                  ),
+                )
+                .innerJoin(user, eq(user.id, personPlattformRolle.userId))
+                .orderBy(asc(user.name), asc(user.id))
+            : [],
         ]);
         return c.json({
+          // Die Systemrolle «Abteilungsleitung» (#663): Standard sind alle vergebbaren Rechte, der Entwickler nimmt weg. «fest» sind die Rechte, die ihr nie fehlen; «aenderbar» sagt, ob die anfragende Person sie ändern darf (nur der Entwickler)
+          abteilungsleitung: {
+            version: al.version,
+            rechte: rechteDerAbteilungsleitung(al.ohne),
+            fest: RECHT_IDS.filter(
+              (r) =>
+                eintragVon(r).art === "fest" && !eintragVon(r).nurEntwickler,
+            ),
+            aenderbar: await darf(db, person, "rechte.abteilungsleitung"),
+          },
           rollen: rollen.map((r) => ({
             id: r.id,
             name: r.name,
@@ -669,6 +716,7 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
         const person = c.get("person");
         await tuer(person);
         const eingang = c.req.valid("json");
+        if (istSystemname(eingang.name)) return c.json(NAME_VERGEBEN, 409);
         await pruefeEigeneRechte(
           db,
           person,
@@ -735,6 +783,9 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
             neuerName !== rolle.name
           ) {
             return c.json(ROLLE_VORGEGEBEN, 409);
+          }
+          if (neuerName !== undefined && istSystemname(neuerName)) {
+            return c.json(NAME_VERGEBEN, 409);
           }
           const vorherZeilen = await db
             .select({ recht: plattformRolleRecht.recht })
@@ -879,6 +930,60 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
           return c.body(null, 204);
         },
       )
+      // Die Rechte der Abteilungsleitung (#663): nur der Entwickler ändert sie, mit zweitem Faktor. Die Abteilungsleitung bekommt 403, auch für ihre eigene Rolle: Sie ändert ihre eigenen Rechte nie. Das gilt für jeden Weg, denn die Rolle liegt in keiner Tabelle der anderen Rollen (plattform_rolle, gruppen_rolle). Gespeichert werden nur die Abzüge vom Standard (alle vergebbaren Rechte)
+      .patch(
+        "/abteilungsleitung",
+        eingabe("json", aendernAbteilungsleitungSchema),
+        async (c) => {
+          const person = c.get("person");
+          await verlange(db, person, "rechte.abteilungsleitung");
+          const { version: erwartet, rechte } = c.req.valid("json");
+          const vorher = await ladeAbteilungsleitung(db, person.abteilungId);
+          const vorherRechte = rechteDerAbteilungsleitung(vorher.ohne);
+          const nachher = VERGEBBARE_RECHTE.filter((r) => rechte.includes(r));
+          const ohne = VERGEBBARE_RECHTE.filter((r) => !rechte.includes(r));
+          const ergebnis = await db.transaction(async (tx) => {
+            const neu = await speichereAbteilungsleitung(
+              tx,
+              person.abteilungId,
+              erwartet,
+              ohne,
+            );
+            if (neu === "konflikt") return neu;
+            // Nur Namen von Rechten: nie Personen
+            await tx.insert(auditLog).values({
+              abteilungId: person.abteilungId,
+              akteurId: person.id,
+              aktion: "abteilungsleitung_rechte_geaendert",
+              zielTyp: "abteilung",
+              zielId: person.abteilungId,
+              details: {
+                hinzu: nachher.filter((r) => !vorherRechte.includes(r)),
+                weg: vorherRechte.filter((r) => !nachher.includes(r)),
+              },
+            });
+            return neu;
+          });
+          if (ergebnis === "konflikt") {
+            const aktuell = await ladeAbteilungsleitung(db, person.abteilungId);
+            return c.json(
+              {
+                code: "VERSION_KONFLIKT",
+                message:
+                  "Die Rechte der Abteilungsleitung wurden inzwischen geändert.",
+                aktuell: {
+                  version: aktuell.version,
+                  rechte: rechteDerAbteilungsleitung(aktuell.ohne).map(
+                    (recht) => ({ recht, geltung: "alle" }),
+                  ),
+                },
+              },
+              409,
+            );
+          }
+          return c.json({ version: ergebnis });
+        },
+      )
       // Was darf wer, und woher? Jedes Recht der Person mit seinen Quellen. Eine Abfrage für den Satz, zwei für die Person
       .get("/personen/:userId", eingabe("param", pfadPerson()), async (c) => {
         const person = c.get("person");
@@ -888,7 +993,7 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
           c.req.valid("param").userId,
         );
         if (!ziel) throw new HTTPException(404);
-        await tuer(person);
+        await nurAbteilungsleitung(person);
         const satz = await ladeRechteSatz(db, ziel);
         const gruppen = await db
           .select({
@@ -969,7 +1074,7 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
           ),
         ];
         const namen =
-          akteure.length === 0
+          akteure.length === 0 || !(await sieheNamen(person))
             ? []
             : await db
                 .select({ id: user.id, name: user.name })

@@ -426,7 +426,7 @@ describe("POST /admin/termin-vorschlaege/{id}/entscheid", () => {
     expect(antwort.status).toBe(200);
   });
 
-  test("Rechte: Nicht-Admins 403, Fremdabteilung 404, kein Push, nichts geändert", async () => {
+  test("Rechte: alle anderen 403, Fremdabteilung 404, kein Push, nichts geändert", async () => {
     const id = await vorschlag(konten.slA.id!);
     await token(konten.slA);
     const body = { entscheid: "freigeben" };
@@ -667,7 +667,7 @@ describe("POST /admin/termin-vorschlaege/{id}/eingetragen", () => {
     expect(await protokoll(id, "termin_vorschlag_eingetragen")).toHaveLength(1);
   });
 
-  test("Rechte: Nicht-Admins 403, Fremdabteilung 404", async () => {
+  test("Rechte: alle anderen 403, Fremdabteilung 404", async () => {
     const id = await vorschlag(konten.slA.id!, "freigegeben");
     expect(
       (await aufruf(konten.slA, "POST", `${ADMIN}/${id}/eingetragen`)).status,

@@ -19,7 +19,7 @@ const methoden = (quelle: string) =>
   [...quelle.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]);
 
 // Bereich «Lager» der Verwaltung (#527): Er ruft nur Routen auf, die die API kennt
-describe("Admin-Panel: Lager", () => {
+describe("Panel der Abteilungsleitung: Lager", () => {
   test("Module und Stilvorlage sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/lager.css"');
     const navigation = lies("navigation.js");
@@ -27,7 +27,7 @@ describe("Admin-Panel: Lager", () => {
     expect(navigation).toContain('"./lager-vorlagen.js"');
   });
 
-  test("Lager, Mitglieder und Rechte nur über die Admin-Routen", () => {
+  test("Lager, Mitglieder und Rechte nur über die Verwaltungsrouten", () => {
     expect(alle).toContain('"/api/v1/admin/lager"');
     expect(alle).toContain("/mitglieder");
     expect(alle).toContain("/rechte");

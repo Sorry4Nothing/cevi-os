@@ -56,7 +56,7 @@ const hatTerminRecht = (z) =>
 const istAdmin = () => ich?.role === "admin";
 // Nur der Entwickler darf den Namen der Abteilung ändern: Dieses Signal («nameAenderbar», GET /api/v1/redaktion/website) steuert den Eintrag «Komponenten»
 let entwickler = false;
-// Admins sehen alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
+// Die Abteilungsleitung sieht alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
 const sichtbareBereiche = () =>
   bereicheFuer({ istAdmin: istAdmin(), zugang, entwickler });
 
@@ -342,7 +342,7 @@ async function pruefeKonto(nachAnmeldung = true) {
     );
     await zeigeVerwaltung();
   } else {
-    // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Admin-Daten geladen
+    // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Daten der Abteilungsleitung geladen
     zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
     // Leitende ohne Zugang zur Website sehen den Belegungsplan der Räume (#628)
     if (
@@ -414,7 +414,7 @@ function zeigeStartFehler(f) {
   ]);
 }
 
-// Zum ersten Bereich, den die Person sieht: für Admins die Übersicht
+// Zum ersten Bereich, den die Person sieht: für die Abteilungsleitung die Übersicht
 function zurUebersicht(klasse = "") {
   const erster = sichtbareBereiche()[0];
   return el(

@@ -31,7 +31,7 @@ const leitung = (erfolg: number) =>
     },
     403,
   );
-// Admin-Route: nur die Abteilungsleitung, die fremde Abteilung 404, alle anderen 403
+// Verwaltungsroute: nur die Abteilungsleitung, die fremde Abteilung 404, alle anderen 403
 const admin = (erfolg: number) =>
   status({ abteilungsleitung: erfolg, fremdeAbteilung: 404 }, 403);
 

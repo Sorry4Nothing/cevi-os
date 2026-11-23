@@ -43,7 +43,7 @@ export const listeSchema = z.strictObject({
 export const dauerOk = (beginn: string, ende: string) =>
   Date.parse(ende) - Date.parse(beginn) <= MAX_TAGE * 864e5;
 
-// Wer über eine Anfrage entscheidet (Annahme, vom Nutzer zu bestätigen): Hat der Raum ein Team, wer den Tag des Teams trägt (eine Person genügt); hat er keines, die Abteilungsleitung (Admin mit zweitem Faktor: Die Route liegt nicht unter /admin und erbt ihn nicht). Die eigene Anfrage entscheidet nie dieselbe Person (die Route prüft es)
+// Wer über eine Anfrage entscheidet (Annahme, vom Nutzer zu bestätigen): Hat der Raum ein Team, wer den Tag des Teams trägt (eine Person genügt); hat er keines, die Abteilungsleitung (Abteilungsleitung mit zweitem Faktor: Die Route liegt nicht unter /admin und erbt ihn nicht). Die eigene Anfrage entscheidet nie dieselbe Person (die Route prüft es)
 export async function darfEntscheiden(
   db: Db,
   person: Pick<Person, "id" | "admin" | "zweiterFaktor">,
@@ -75,7 +75,7 @@ const ENTSCHEID_TEXT = {
   abgelehnt: "Deine Raumanfrage ist abgelehnt.",
 } as const;
 
-// Push «raum_anfrage» an die Entscheidenden: die aktiven Konten mit dem Team-Tag des Raums, ohne die anfragende Person; ohne Team die aktiven Admin-Konten mit zweitem Faktor. Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für die Empfänger, dann die von sendePush
+// Push «raum_anfrage» an die Entscheidenden: die aktiven Konten mit dem Team-Tag des Raums, ohne die anfragende Person; ohne Team die aktiven Konten der Abteilungsleitung mit zweitem Faktor. Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für die Empfänger, dann die von sendePush
 export async function pushNeueAnfrage(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   opt: {

@@ -262,7 +262,7 @@ describe("DELETE /api/v1/ich/bild und Löschen mit dem Konto", () => {
     expect(await zeilen(b.id)).toHaveLength(1);
   });
 
-  test("löscht ein Admin die Person, geht das Bild mit", async () => {
+  test("löscht eine Person der Abteilungsleitung die Person, geht das Bild mit", async () => {
     const [admin, ziel] = await Promise.all([
       person("admin"),
       person("elternA"),
@@ -277,7 +277,7 @@ describe("DELETE /api/v1/ich/bild und Löschen mit dem Konto", () => {
     expect(await zeilen(ziel.id)).toHaveLength(0);
   });
 
-  test("deaktiviert ein Admin die Person, geht das Bild mit; Aktivieren bringt es nicht zurück", async () => {
+  test("deaktiviert eine Person der Abteilungsleitung die Person, geht das Bild mit; Aktivieren bringt es nicht zurück", async () => {
     const [admin, ziel, leser] = await Promise.all([
       person("admin"),
       person("slA"),
@@ -351,7 +351,7 @@ describe("GET /api/v1/personen/:id/bild: wer es sieht", () => {
     expect(nein.headers.get("cache-control")).toBe("private, no-store");
   });
 
-  test("die SL sehen Eltern ihrer Stufe, Admin und Leitende der Stufe sehen die SL, Fremde nichts", async () => {
+  test("die SL sehen Eltern ihrer Stufe, Abteilungsleitung und Leitende der Stufe sehen die SL, Fremde nichts", async () => {
     const [slA, admin, leitendeA, elternA, slB, leitendeB, elternB, demo] =
       await Promise.all([
         person("slA"),
@@ -380,7 +380,7 @@ describe("GET /api/v1/personen/:id/bild: wer es sieht", () => {
     expect((await holen(elternA, "kein-uuid")).status).toBe(400);
   });
 
-  test("Admin sieht das Bild jeder Person der eigenen Abteilung, die Admin einer anderen Abteilung keines", async () => {
+  test("Abteilungsleitung sieht das Bild jeder Person der eigenen Abteilung, die Abteilungsleitung einer anderen Abteilung keines", async () => {
     const [admin, eltern, demoAdmin] = await Promise.all([
       person("admin"),
       person("elternA"),

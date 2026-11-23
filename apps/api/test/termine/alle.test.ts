@@ -161,7 +161,7 @@ describe("Alle Termine: wer welche Termine sieht", () => {
     ]);
   });
 
-  // Abteilungsleitung (Admin): jeder Termin der Abteilung, auch ohne Tag (#449), ausser «intern», alle mit meine=false (sie hat keinen eigenen Tag).
+  // Abteilungsleitung: jeder Termin der Abteilung, auch ohne Tag (#449), ausser «intern», alle mit meine=false (sie hat keinen eigenen Tag).
   // Alle anderen: genau «Mein Kalender» (meine=true). Ohne Tag nie.
   const ALLE_DER_ABTEILUNG = [
     "A",

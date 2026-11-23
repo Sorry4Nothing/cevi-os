@@ -36,7 +36,7 @@ export type Person = {
   admin: boolean;
   zweiterFaktor: boolean;
   rollen: { stufeId: string; typ: "leitung" | "stufenleitung" }[];
-  // Gesetzt, wenn das Konto das eigene Konto eines Kindes ist (#644): die ID dieses Kindes. Solche Konten haben nie eine Rolle und nie Adminrechte
+  // Gesetzt, wenn das Konto das eigene Konto eines Kindes ist (#644): die ID dieses Kindes. Solche Konten haben nie eine Rolle und nie die Abteilungsleitung
   kindId?: string;
 };
 
@@ -116,7 +116,7 @@ export function personAusSitzung(
   });
 }
 
-// Admin-Routen erst mit zweitem Faktor; eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
+// Verwaltungsrouten erst mit zweitem Faktor; eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
 export const zweiterFaktorPflicht = createMiddleware<{
   Variables: { person: Person };
 }>(async (c, next) => {
@@ -336,7 +336,7 @@ export function sichtbareNachrichten(
     .as("sichtbare_nachrichten");
 }
 
-// «stufenleitung» erfüllt nur die SL, «leitung» auch die SL derselben Stufe; Admin ist keine Stufenrolle
+// «stufenleitung» erfüllt nur die SL, «leitung» auch die SL derselben Stufe; die die Abteilungsleitung ist keine Stufenrolle
 export function hatRolle(
   person: Person,
   stufeId: string,
@@ -351,7 +351,7 @@ export function hatRolle(
 // Beginn des Programms; ganztägige beginnen um 00:00 Schweizer Zeit, nie über die Sitzungszone (tag_von::timestamptz)
 export const programmBeginn: SQL = sql`coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich')`;
 
-// Leitende und SL melden sich nur für Programme einer eigenen Stufe an; Admins ohne Stufenrolle und Eltern nie
+// Leitende und SL melden sich nur für Programme einer eigenen Stufe an; die Abteilungsleitung ohne Stufenrolle und Eltern nie
 export function darfLeitungAnmelden(
   person: Person,
   stufeIds: readonly string[],

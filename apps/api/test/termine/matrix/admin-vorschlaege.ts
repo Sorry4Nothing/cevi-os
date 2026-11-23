@@ -9,7 +9,7 @@ import type {
 } from "../matrix.js";
 
 // Matrix-Zeilen von TD2 (#440): Vorschläge entscheiden. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
-// Nur die Abteilungsleitung mit zweitem Faktor darf (jede andere Rolle 403, auch die Person, die den Vorschlag eingereicht hat, solange sie nicht Admin ist). Mit Vorschlag im Pfad ist ein fremder Vorschlag 404, auch für die Abteilungsleitung der anderen Abteilung; ohne Pfad-Parameter sieht sie ihre eigene (leere) Liste.
+// Nur die Abteilungsleitung mit zweitem Faktor darf (jede andere Rolle 403, auch die Person, die den Vorschlag eingereicht hat, solange sie nicht Abteilungsleitung ist). Mit Vorschlag im Pfad ist ein fremder Vorschlag 404, auch für die Abteilungsleitung der anderen Abteilung; ohne Pfad-Parameter sieht sie ihre eigene (leere) Liste.
 const status = (
   werte: Partial<Record<TerminePersona, number>>,
 ): Record<TerminePersona, number> => ({

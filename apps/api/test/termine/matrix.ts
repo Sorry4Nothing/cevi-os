@@ -37,7 +37,7 @@ export type TermineModul = (typeof TERMINE_MODULE)[number];
 
 // Die Personas der Rechte-Matrix unter Namen, die zur Fachsprache der Termine passen; jede ist ein Konto der 14 Personas (KONTO_FUER)
 export const TERMINE_PERSONAS = [
-  // Admin mit zweitem Faktor: die Abteilungsleitung
+  // Abteilungsleitung mit zweitem Faktor: die Abteilungsleitung
   "abteilungsleitung",
   "adminOhneFaktor",
   "stufenleitungA",

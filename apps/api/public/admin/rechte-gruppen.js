@@ -330,7 +330,7 @@ export function festePunkte(z) {
           el(
             "span",
             { class: "klein leise" },
-            `${r.erklaerung} ${r.art === "struktur" ? "Das folgt aus der Beziehung zur Person und bleibt immer so." : "Nur die Abteilungsleitung hat es, und es lässt sich nicht vergeben."}`,
+            `${r.erklaerung} ${r.art === "struktur" ? "Das folgt aus der Beziehung zur Person und bleibt immer so." : r.nurEntwickler ? "Nur der Entwickler hat es, und es lässt sich nicht vergeben." : "Nur die Abteilungsleitung hat es, und es lässt sich nicht vergeben."}`,
           ),
         ),
       ),

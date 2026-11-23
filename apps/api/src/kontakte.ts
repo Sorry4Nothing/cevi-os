@@ -28,7 +28,7 @@ export async function stufenMitKind(
   return new Set(zeilen.map((z) => z.stufeId));
 }
 
-// Eine Zeile pro SL; die Nummer liest die Datenbank nur, wenn die Person in einer Stufe dieser SL ein aktives Kind hat oder dort Leitung oder SL ist. Admins ohne Rolle in der Stufe und Eltern anderer Stufen bekommen sie nie: telefon bleibt für sie null
+// Eine Zeile pro SL; die Nummer liest die Datenbank nur, wenn die Person in einer Stufe dieser SL ein aktives Kind hat oder dort Leitung oder SL ist. Die Abteilungsleitung ohne Rolle in der Stufe und Eltern anderer Stufen bekommen sie nie: telefon bleibt für sie null
 export async function kontakteMitTelefon(
   db: Db,
   person: Person,

@@ -200,7 +200,7 @@ describe("Einstellungen speichern", () => {
     expect((await ladeEinstellung(db, welt.demoAbteilungId)).schnellDazu).toBe(
       true,
     );
-    // Ein anderer Admin ändert nur seine eigene Abteilung
+    // Eine andere Person der Abteilungsleitung ändert nur seine eigene Abteilung
     expect(
       (
         await aufruf(demoAdmin, "PUT", "/admin/laden/einstellungen", {

@@ -750,6 +750,13 @@
       "when": 1793556800000,
       "tag": "0148_aenderungsprotokoll",
       "breakpoints": true
+    },
+    {
+      "idx": 149,
+      "version": "7",
+      "when": 1793556900000,
+      "tag": "0149_abteilungsleitung_rechte",
+      "breakpoints": true
     }
   ]
 }

@@ -2625,18 +2625,42 @@ dialog.lichtkasten {
   overflow-wrap: anywhere;
 }
 
+/* Der Verweis zur Karte (#661): eine Nebenaktion im Maß der Tafel, ein Pill mit Rand in der Farbe der Tafel, vorn das Standort-Symbol, hinten das Zeichen für eine fremde Seite (aus rel). Ohne Strich im Ruhezustand; beim Zeigen füllt sich die Fläche und der Strich kommt dazu. Weiss auf Blau (Kontrast wie die Tafel selbst). 44 px hoch */
 .fakt dd p.fakt-karte {
-  margin: 0.125rem 0 0;
+  margin: 0.5rem 0 0;
   font-size: 1rem;
   line-height: 1.5rem;
   font-weight: 600;
 }
 
-.fakt-karte a {
+.fakt dd p.fakt-karte a {
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: 0.5rem;
   min-height: 2.75rem;
+  padding: 0 1rem 0 0.75rem;
+  border: 1px solid color-mix(in srgb, var(--on-secondary) 55%, transparent);
+  border-radius: var(--r-full);
+  color: var(--on-secondary);
+  text-decoration: none;
+}
+
+.fakt dd p.fakt-karte a:hover {
+  border-color: var(--on-secondary);
+  background: color-mix(in srgb, var(--on-secondary) 14%, transparent);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+.fakt dd p.fakt-karte a .i {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.fakt dd p.fakt-karte a::after {
+  margin-left: 0;
 }
 
 /* Auf der blauen Tafel wäre der Fokusring blau auf blau: Links in der Tafel (Eckdaten, Verweis zur Karte) zeigen ihn hell */

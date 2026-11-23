@@ -1,4 +1,4 @@
-import { el, knopf } from "./dom.js";
+import { el, icon, knopf } from "./dom.js";
 import { leerKarte } from "./zustaende.js";
 import { aendereRolle } from "./rechte-api.js";
 import {
@@ -17,7 +17,7 @@ import {
   rolleLoeschenFrage,
 } from "./rechte-rolle.js";
 
-// Reiter «Rollen» (#651): globale Rollen der Abteilung (Plattformrollen wie «Webmaster»). Sie gelten für die ganze Abteilung, nicht für eine Gruppe, und können alles tragen, was der Katalog vergebbar nennt: Website, Termine, Anlässe, Räume, Lädeli, Mitteilungen, Personen. Die Abteilungsleitung braucht keine Rolle: Sie hat immer alles.
+// Reiter «Rollen» (#651): globale Rollen der Abteilung (Plattformrollen wie «Webmaster»). Sie gelten für die ganze Abteilung, nicht für eine Gruppe, und können alles tragen, was der Katalog vergebbar nennt: Website, Termine, Anlässe, Räume, Lädeli, Mitteilungen, Personen. Die Abteilungsleitung steht als eingebaute Rolle in der Liste: Ihre Rechte stellt nur der Entwickler ein, sie selbst nie.
 // Rechte je Gruppe stellst du im Reiter «Gruppen» ein.
 
 export function zeigeRollen(inhalt, z, pfad) {
@@ -35,20 +35,35 @@ const neueRolle = (z) =>
 
 function zeigeUebersicht(inhalt, z) {
   const { ctx, globale } = z;
-  ctx.kopfAktion(
-    knopf("Neue Rolle", {
-      art: "haupt",
-      symbol: "plus",
-      onclick: () => neueRolle(z),
-    }),
-  );
+  const verwaltet = z.ich.rechteVerwalten;
+  if (verwaltet) {
+    ctx.kopfAktion(
+      knopf("Neue Rolle", {
+        art: "haupt",
+        symbol: "plus",
+        onclick: () => neueRolle(z),
+      }),
+    );
+  } else {
+    ctx.kopfAktion();
+  }
+  const al = globale.find((r) => r.abteilungsleitung);
   haenge(
     inhalt,
     el(
       "p",
       { class: "leise rr-erklaerung" },
-      "Eine globale Rolle bündelt Rechte für die ganze Abteilung, zum Beispiel «Webmaster». Du weist sie einzelnen Personen zu. Die Abteilungsleitung braucht keine Rolle: Sie hat immer alles.",
+      verwaltet
+        ? "Eine globale Rolle bündelt Rechte für die ganze Abteilung, zum Beispiel «Webmaster». Du weist sie einzelnen Personen zu. Die Rechte der Abteilungsleitung stellt der Entwickler ein: Du siehst sie in der Liste, kannst sie aber nicht ändern."
+        : "Hier stellst du die Rechte der Abteilungsleitung ein. Die übrigen Rollen siehst du nur zum Lesen, ohne Namen von Personen.",
     ),
+    al?.gesperrt &&
+      el(
+        "p",
+        { class: "hinweis", role: "note" },
+        icon("sperre"),
+        " Diese Rechte setzt der Entwickler. Du kannst sie nicht ändern.",
+      ),
   );
   if (globale.length === 0) {
     haenge(
@@ -82,7 +97,7 @@ function zeigeUebersicht(inhalt, z) {
           el(
             "span",
             { class: "klein leise" },
-            `${personenText(r.personen.length)} · ${r.rechte.length === 1 ? "1 Recht" : `${r.rechte.length} Rechte`}`,
+            `${r.abteilungsleitung ? "Jedes Konto der Abteilungsleitung" : personenText(r.personen.length)} · ${r.rechte.length === 1 ? "1 Recht" : `${r.rechte.length} Rechte`}`,
           ),
         ),
       ),
@@ -112,31 +127,40 @@ function zeigeRolle(inhalt, z, id) {
     );
     return;
   }
-  z.ctx.titel(rolle.name, "Globale Rolle");
+  z.ctx.titel(
+    rolle.name,
+    rolle.abteilungsleitung ? "Eingebaute Rolle" : "Globale Rolle",
+  );
   z.ctx.kopfAktion();
+  const verwaltet = z.ich.rechteVerwalten;
   const fragenOrt = el("div", { class: "rr-fragen" });
-  const bearbeiten = knopf("Umbenennen", {
-    symbol: "bearbeiten",
-    klein: true,
-    onclick: () =>
-      rolleBearbeitenSeite(z, rolle, {
-        aendere: (felder) => aendereRolle(rolle, felder),
-        danach: () => z.neu(),
-      }),
-  });
-  const loeschen = rolle.system
-    ? null
-    : knopf("Rolle löschen", {
-        art: "gefahr",
-        klein: true,
-        symbol: "papierkorb",
-        onclick: (e) =>
-          rolleLoeschenFrage(z, rolle, {
-            ort: fragenOrt,
-            ausloeser: e.currentTarget,
-            danach: () => (location.hash = adresse("rollen")),
-          }),
-      });
+  // Die Abteilungsleitung lässt sich weder umbenennen noch löschen; der Entwickler benennt keine Rollen um
+  const bearbeiten =
+    verwaltet && !rolle.abteilungsleitung
+      ? knopf("Umbenennen", {
+          symbol: "bearbeiten",
+          klein: true,
+          onclick: () =>
+            rolleBearbeitenSeite(z, rolle, {
+              aendere: (felder) => aendereRolle(rolle, felder),
+              danach: () => z.neu(),
+            }),
+        })
+      : null;
+  const loeschen =
+    rolle.system || !verwaltet
+      ? null
+      : knopf("Rolle löschen", {
+          art: "gefahr",
+          klein: true,
+          symbol: "papierkorb",
+          onclick: (e) =>
+            rolleLoeschenFrage(z, rolle, {
+              ort: fragenOrt,
+              ausloeser: e.currentTarget,
+              danach: () => (location.hash = adresse("rollen")),
+            }),
+        });
   haenge(
     inhalt,
     zurueckLink("Alle Rollen", adresse("rollen")),
@@ -149,11 +173,15 @@ function zeigeRolle(inhalt, z, id) {
       el(
         "p",
         { class: "klein leise" },
-        "Eine globale Rolle gilt für die ganze Abteilung: «An» heisst für alle Objekte. Änderungen bleiben im Entwurf, bis du unten speicherst.",
+        rolle.abteilungsleitung
+          ? rolle.gesperrt
+            ? "Diese Rechte setzt der Entwickler. Du kannst sie lesen, aber nicht ändern. Feste Rechte, zum Beispiel Rechte vergeben, hat die Abteilungsleitung immer."
+            : "Du stellst die Rechte der Abteilungsleitung ein. Was du wegnimmst, fehlt jedem Konto der Abteilungsleitung ab der nächsten Anfrage. Feste Rechte, zum Beispiel Rechte vergeben, bleiben ihr immer. Änderungen bleiben im Entwurf, bis du unten speicherst."
+          : "Eine globale Rolle gilt für die ganze Abteilung: «An» heisst für alle Objekte. Änderungen bleiben im Entwurf, bis du unten speicherst.",
       ),
       rechteRaster({ z, rollen: [rolle], art: "global", einzel: true }).wurzel,
     ),
-    personenBlock(z, rolle, {}),
+    !rolle.abteilungsleitung && verwaltet && personenBlock(z, rolle, {}),
     festePunkte(z),
   );
 }

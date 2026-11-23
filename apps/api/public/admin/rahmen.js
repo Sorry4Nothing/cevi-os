@@ -177,7 +177,7 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
         sichtbar && konto && suche?.(),
         sichtbar &&
           konto &&
-          knopf("Abmelden", {
+          knopf(el("span", { class: "abmelden-text" }, "Abmelden"), {
             symbol: "abmelden",
             klein: true,
             onclick: beiAbmelden,

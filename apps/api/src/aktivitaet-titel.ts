@@ -483,7 +483,8 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     gruppe: "geaendert",
   },
   "PATCH /api/v1/admin/personen/:p": {
-    titel: "Name, Admin-Recht, Stufenrollen und Kinder einer Person ändern",
+    titel:
+      "Name, Recht der Abteilungsleitung, Stufenrollen und Kinder einer Person ändern",
     objekt: "Person",
     aktion: "geändert",
     gruppe: "geaendert",
@@ -497,6 +498,12 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
   "PATCH /api/v1/admin/raeume/:p": {
     titel: "Raum ändern oder deaktivieren",
     objekt: "Raum",
+    aktion: "geändert",
+    gruppe: "geaendert",
+  },
+  "PATCH /api/v1/admin/rechte/abteilungsleitung": {
+    titel: "Rechte der Abteilungsleitung ändern",
+    objekt: "Rechte der Abteilungsleitung",
     aktion: "geändert",
     gruppe: "geaendert",
   },

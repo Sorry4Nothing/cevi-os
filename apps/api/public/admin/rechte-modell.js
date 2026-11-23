@@ -72,8 +72,8 @@ export const istGross = (recht) => markenVon(recht).some((m) => m.gross);
 // Was im Code fest steht und sich in keiner Matrix ändern lässt, mit Grund. Quelle: docs/rechte.md; die Rechte der Art «fest» im Katalog kommen dazu
 export const FESTE_PUNKTE = [
   {
-    titel: "Die Abteilungsleitung hat immer alles",
-    text: "Sie lässt sich nicht aussperren und nicht einschränken. Ohne diese Regel könnte sich die Abteilung selbst den Zugang nehmen.",
+    titel: "Die Rechte der Abteilungsleitung stellt der Entwickler ein",
+    text: "Die Abteilungsleitung kann ihre eigenen Rechte weder erweitern noch einschränken. Sie stellt die Rechte aller anderen Rollen ein. Standard sind alle vergebbaren Rechte; die festen Rechte bleiben ihr immer, damit sich die Abteilung nicht aussperrt.",
   },
   {
     titel: "Wer Rechte vergibt, hat sie selbst",
@@ -116,8 +116,24 @@ export function geltungenFuer(recht, art) {
 
 // ---------- Rollen ----------
 
-// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen
-export const globaleRolle = (r) => ({
+// Die Systemrolle «Abteilungsleitung» (#663) in die Form der globalen Rolle bringen. Sie hat keine Personen: Jedes Konto der Abteilungsleitung trägt sie. gesperrt: Die Person darf sie nicht ändern (nur der Entwickler)
+export const abteilungsleitungRolle = (al) => ({
+  id: "abteilungsleitung",
+  art: "global",
+  abteilungsleitung: true,
+  name: "Abteilungsleitung",
+  beschreibung: null,
+  system: true,
+  schluessel: null,
+  version: al.version,
+  rechte: al.rechte.map((recht) => ({ recht, geltung: "alle" })),
+  fest: [],
+  personen: [],
+  gesperrt: al.aenderbar !== true,
+});
+
+// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen. gesperrt: Der Entwickler liest sie nur (er ändert nur die Zeile «Abteilungsleitung»)
+export const globaleRolle = (r, gesperrt = false) => ({
   id: r.id,
   art: "global",
   name: r.name,
@@ -128,6 +144,7 @@ export const globaleRolle = (r) => ({
   rechte: r.rechte.map((recht) => ({ recht, geltung: "alle" })),
   fest: [],
   personen: r.personen,
+  gesperrt,
 });
 
 export const gruppenRolle = (r, gruppe) => ({
@@ -352,7 +369,14 @@ export function werDarf({ eintrag, admin, globale, gruppen }) {
     });
     return zeilen;
   }
-  if (!eintrag.nurEntwickler) {
+  // Die Abteilungsleitung hat jedes feste Recht und, was der Entwickler ihr nicht wegnimmt (#663)
+  const al = globale.find((r) => r.abteilungsleitung);
+  const alHat =
+    !eintrag.nurEntwickler &&
+    (eintrag.art !== "vergebbar" ||
+      !al ||
+      al.rechte.some((x) => x.recht === eintrag.id));
+  if (alHat) {
     zeilen.push({
       art: "abteilungsleitung",
       titel: "Abteilungsleitung",
@@ -372,6 +396,7 @@ export function werDarf({ eintrag, admin, globale, gruppen }) {
     });
   }
   for (const r of globale) {
+    if (r.abteilungsleitung) continue;
     const z = r.rechte.find((x) => x.recht === eintrag.id);
     if (z) {
       zeilen.push({
@@ -501,6 +526,16 @@ export function verlaufText(z, nachschlagen) {
           .join(". "),
       };
     }
+    case "abteilungsleitung_rechte_geaendert":
+      return {
+        titel: "Rechte der Abteilungsleitung geändert",
+        detail: [
+          d.hinzu?.length && `Dazu: ${liste(d.hinzu)}`,
+          d.weg?.length && `Weg: ${liste(d.weg)}`,
+        ]
+          .filter(Boolean)
+          .join(". "),
+      };
     case "plattform_rolle_geloescht":
       return {
         titel: "Plattformrolle gelöscht",
@@ -520,3 +555,55 @@ export function verlaufText(z, nachschlagen) {
       return { titel: z.aktion, detail: "" };
   }
 }
+
+// ---------- Personenliste von «Was darf wer?» (#661): reine Funktionen, damit gleiche Namen unterscheidbar sind; die Anzeige steht in rechte-uebersicht.js (ohne DOM, damit sie sich testen lässt) ----------
+
+const ROLLENNAME = { stufenleitung: "Stufenleitung", leitung: "Leitung" };
+
+// Rolle als Klartext: «Abteilungsleitung», «Stufenleitung Artemis», mehrere mit Komma. Ohne Rolle leer.
+// person: Eintrag aus GET /api/v1/admin/personen; stufenName: Map Stufen-ID nach Name
+export function rolleText(person, stufenName) {
+  const teile = [];
+  if (person.admin) teile.push("Abteilungsleitung");
+  for (const r of person.rollen ?? []) {
+    const name = ROLLENNAME[r.typ];
+    if (name) teile.push(`${name} ${stufenName.get(r.stufeId) ?? ""}`.trim());
+  }
+  return teile.join(", ");
+}
+
+// Namen, die mehr als eine aktive Person trägt (Gross- und Kleinschreibung gilt nicht)
+export function doppelteNamen(personen) {
+  const zaehler = new Map();
+  for (const p of personen) {
+    const k = p.name.trim().toLocaleLowerCase("de-CH");
+    zaehler.set(k, (zaehler.get(k) ?? 0) + 1);
+  }
+  return new Set([...zaehler].filter(([, n]) => n > 1).map(([k]) => k));
+}
+
+// Zeilen der Liste: Name, Rolle, und wo der Name doppelt vorkommt (oder der Cevi-Name es hergibt) der Benutzername zur Unterscheidung
+// Rückgabe: [{ person, rolle, zusatz }]
+export function listenZeilen(personen, stufenName) {
+  const doppelt = doppelteNamen(personen);
+  return personen.map((person) => ({
+    person,
+    rolle: rolleText(person, stufenName),
+    zusatz: doppelt.has(person.name.trim().toLocaleLowerCase("de-CH"))
+      ? [person.ceviName, person.benutzername].filter(Boolean).join(" · ")
+      : "",
+  }));
+}
+
+// Suchtext: Name, Cevi-Name, Benutzername und Rolle
+export const passtZurSuche = (zeile, suche) => {
+  const f = suche.trim().toLocaleLowerCase("de-CH");
+  if (!f) return true;
+  const p = zeile.person;
+  return `${p.name} ${p.ceviName ?? ""} ${p.benutzername ?? ""} ${zeile.rolle}`
+    .toLocaleLowerCase("de-CH")
+    .includes(f);
+};
+
+export const anzahlText = (n) =>
+  n === 0 ? "Keine Person gefunden" : n === 1 ? "1 Person" : `${n} Personen`;

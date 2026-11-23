@@ -1,6 +1,6 @@
 import type { LagerMatrix, LagerPersona } from "../matrix.js";
 
-// Matrix-Zeilen von #520: Mitglieder ohne Adminrecht. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
+// Matrix-Zeilen von #520: Mitglieder ohne Abteilungsleitung. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
 // Recht einteilung.lesen (Standard: Lagerleitung, Abteilungsleitung, Leitung, Team, Lesen); Nicht-Mitglied und fremde Abteilung 404. Was das Team sieht, steht in mitglieder.test.ts.
 const status = (
   werte: Partial<Record<LagerPersona, number>>,

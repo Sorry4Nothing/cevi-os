@@ -15,16 +15,16 @@ import {
   istPlattformRecht,
   PLATTFORM_RECHT_NAMEN,
   PLATTFORM_RECHTE,
-  plattformRechteVon,
   type PlattformRecht,
 } from "../../plattform.js";
 import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
-import { verlange } from "../../rechtemodell/darf.js";
+import { darf, verlange } from "../../rechtemodell/darf.js";
 import { pruefeEigeneRechte as pruefeEigeneRechteModell } from "../../rechtemodell/eskalation.js";
 import { istRecht, type RechtId } from "../../rechtemodell/katalog.js";
+import { verlangeEines } from "../../rechtemodell/tuer.js";
 
-// Plattformrollen der Abteilung (#423): anlegen, Rechte einstellen, einer Person zuweisen und entziehen. Nur die Abteilungsleitung (zweiter Faktor wie überall unter /admin).
+// Plattformrollen der Abteilung (#423): anlegen, Rechte einstellen, einer Person zuweisen und entziehen. Die Abteilungsleitung (zweiter Faktor wie überall unter /admin); die Rechte der Rollen (Liste ohne Namen, anlegen, ändern, löschen) seit #663 auch der Entwickler mit zweitem Faktor, einer Person zuweisen und entziehen nur die Abteilungsleitung. Die Rolle «Abteilungsleitung» steht hier nicht: Ihre Rechte ändert nur der Entwickler, über /admin/rechte/abteilungsleitung.
 // Der Entwickler ist nie hier: Ihn vergibt und entzieht nur die Kommandozeile. Die festen Rechte von Entwickler und Abteilungsleitung stehen im Code und nicht in der Datenbank, sie lassen sich darum nicht ändern.
 // Eine Rolle gibt nur Rechte des Katalogs (plattform.ts); weiter als die eigenen Rechte reicht keine Vergabe
 
@@ -40,6 +40,10 @@ const aendernSchema = z
   .refine((f) => f.name !== undefined || f.rechte !== undefined);
 const pfad = () => z.strictObject({ id: z.uuid() });
 const pfadPerson = () => z.strictObject({ id: z.uuid(), userId: z.uuid() });
+
+// Der Name der Systemrolle bleibt ihr (#663): keine zweite Rolle «Abteilungsleitung»
+const istSystemname = (name: string) =>
+  name.trim().toLowerCase() === "abteilungsleitung";
 
 const NAME_VERGEBEN = {
   code: "ROLLENNAME_VERGEBEN",
@@ -87,19 +91,27 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
     return rolle;
   }
 
-  // Rollen und ihre Rechte vergeben ist fest (rechte.verwalten): nur die Abteilungsleitung (#650)
+  // Rollen und ihre Rechte vergeben ist fest (rechte.verwalten): die Abteilungsleitung (#650); die Rechte der Rollen stellt seit #663 auch der Entwickler ein
+  const tuer = (person: Person) =>
+    verlangeEines(db, person, ["rechte.verwalten", "rechte.abteilungsleitung"]);
+  // Rollen zuweisen und entziehen: nur die Abteilungsleitung. Der Entwickler weist keiner Person Rechte zu, auch sich selbst nicht
   const nurAbteilungsleitung = (person: Person) =>
     verlange(db, person, "rechte.verwalten");
 
-  // Eskalationsschutz: Wer Rechte vergibt, hat sie selbst. Die Abteilungsleitung hat jedes Recht des Katalogs; die Prüfung steht trotzdem hier, damit eine spätere Rolle mit Verwaltungsrecht nie mehr vergeben kann, als sie hat
+  // Eskalationsschutz: Wer Rechte vergibt, hat sie selbst, und zwar so, wie das Rechtemodell sie der Person gibt: Hat der Entwickler der Abteilungsleitung ein Recht weggenommen, vergibt sie es nicht mehr (#663)
   async function pruefeEigeneRechte(
     person: Person,
     verlangt: readonly string[],
   ) {
-    const eigene = await plattformRechteVon(db, person);
-    if (!verlangt.every((r) => istPlattformRecht(r) && eigene.has(r))) {
-      throw new HTTPException(403);
-    }
+    if (!verlangt.every(istPlattformRecht)) throw new HTTPException(403);
+    await pruefeEigeneRechteModell(
+      db,
+      person,
+      verlangt.map((recht) => ({
+        recht: recht as RechtId,
+        geltung: "alle" as const,
+      })),
+    );
   }
 
   async function ladeZiel(person: Person, userId: string) {
@@ -119,8 +131,9 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      await nurAbteilungsleitung(person);
-      // Zwei Abfragen für die ganze Liste: Rollen mit ihren Rechten, dann alle Vergaben
+      await tuer(person);
+      const mitNamen = await darf(db, person, "rechte.verwalten");
+      // Zwei Abfragen für die ganze Liste: Rollen mit ihren Rechten, dann alle Vergaben (ohne Namen für den Entwickler: keine Abfrage)
       const [rollen, vergaben] = await Promise.all([
         db
           .select({
@@ -139,22 +152,24 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
           .where(eq(plattformRolle.abteilungId, person.abteilungId))
           .groupBy(plattformRolle.id)
           .orderBy(asc(plattformRolle.name), asc(plattformRolle.id)),
-        db
-          .select({
-            rolleId: personPlattformRolle.rolleId,
-            id: user.id,
-            name: user.name,
-          })
-          .from(personPlattformRolle)
-          .innerJoin(
-            plattformRolle,
-            and(
-              eq(plattformRolle.id, personPlattformRolle.rolleId),
-              eq(plattformRolle.abteilungId, person.abteilungId),
-            ),
-          )
-          .innerJoin(user, eq(user.id, personPlattformRolle.userId))
-          .orderBy(asc(user.name), asc(user.id)),
+        mitNamen
+          ? db
+              .select({
+                rolleId: personPlattformRolle.rolleId,
+                id: user.id,
+                name: user.name,
+              })
+              .from(personPlattformRolle)
+              .innerJoin(
+                plattformRolle,
+                and(
+                  eq(plattformRolle.id, personPlattformRolle.rolleId),
+                  eq(plattformRolle.abteilungId, person.abteilungId),
+                ),
+              )
+              .innerJoin(user, eq(user.id, personPlattformRolle.userId))
+              .orderBy(asc(user.name), asc(user.id))
+          : [],
       ]);
       return c.json({
         katalog: PLATTFORM_RECHT_NAMEN.map((recht) => ({
@@ -175,8 +190,9 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      await nurAbteilungsleitung(person);
+      await tuer(person);
       const eingang = c.req.valid("json");
+      if (istSystemname(eingang.name)) return c.json(NAME_VERGEBEN, 409);
       await pruefeEigeneRechte(person, eingang.rechte);
       try {
         const neu = await db.transaction(async (tx) => {
@@ -215,8 +231,11 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
       async (c) => {
         const person = c.get("person");
         const rolle = await ladeRolle(person, c.req.valid("param").id);
-        await nurAbteilungsleitung(person);
+        await tuer(person);
         const aenderung = c.req.valid("json");
+        if (aenderung.name !== undefined && istSystemname(aenderung.name)) {
+          return c.json(NAME_VERGEBEN, 409);
+        }
         // Die Vorgabe behält ihren Namen (#426 findet sie über den Schlüssel, die Oberfläche über den Namen)
         if (
           aenderung.name !== undefined &&
@@ -294,7 +313,7 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
     .delete("/:id", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const rolle = await ladeRolle(person, c.req.valid("param").id);
-      await nurAbteilungsleitung(person);
+      await tuer(person);
       if (rolle.schluessel !== null) return c.json(ROLLE_VORGEGEBEN, 409);
       await db.transaction(async (tx) => {
         // Rechte und Vergaben fallen mit (CASCADE): Der Entzug wirkt bei der nächsten Anfrage der Personen

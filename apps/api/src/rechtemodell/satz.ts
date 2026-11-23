@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import {
+  abteilungsleitungRecht,
   bearbeiter,
   gruppenRolle,
   gruppenRolleRecht,
@@ -64,7 +65,7 @@ export interface Herkunft {
 }
 
 interface Zeile {
-  quelle: "e" | "p" | "g" | "t" | "s";
+  quelle: "e" | "p" | "g" | "t" | "s" | "a";
   recht: string | null;
   geltung: string | null;
   tag_id: string | null;
@@ -87,9 +88,13 @@ export function ladeRechteSatz(
 ): Promise<RechteSatz> {
   let gespeichert = geladen.get(person);
   if (!gespeichert) {
-    // Eine gebündelte Abfrage mit fünf Zweigen. Jeder Zweig schränkt auf die Abteilung der Person ein: Eine Rolle, Gruppe oder Zeile einer anderen Abteilung gibt nie ein Recht
+    // Eine gebündelte Abfrage mit sechs Zweigen. Jeder Zweig schränkt auf die Abteilung der Person ein: Eine Rolle, Gruppe oder Zeile einer anderen Abteilung gibt nie ein Recht
     const abteilung = person.abteilungId;
     const abfrage = sql`
+      select 'a' as quelle, r as recht, null::text as geltung, null::uuid as tag_id, null::uuid as anlass_id, null::text as tag_typ, null::text as tag_name, null::text as rolle_name, false as raum_team, null::uuid as objekt_id
+        from ${abteilungsleitungRecht}, unnest(${abteilungsleitungRecht.ohne}) as r
+        where ${person.admin ? sql`true` : sql`false`} and ${abteilungsleitungRecht.abteilungId} = ${abteilung}
+      union all
       select 'e' as quelle, null::text as recht, null::text as geltung, null::uuid as tag_id, null::uuid as anlass_id, null::text as tag_typ, null::text as tag_name, null::text as rolle_name, false as raum_team, null::uuid as objekt_id
         from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${person.id}
       union all
@@ -143,6 +148,8 @@ export class RechteSatz {
     raumTeam: boolean;
   }[];
   private readonly sonder: { objektTyp: string; objektId: string }[];
+  // Die Rechte, die der Entwickler der Abteilungsleitung wegnimmt (#663); leer ist der Standard
+  private readonly alOhne: ReadonlySet<string>;
 
   constructor(
     readonly person: Person,
@@ -173,6 +180,19 @@ export class RechteSatz {
     this.sonder = zeilen
       .filter((z) => z.quelle === "s")
       .map((z) => ({ objektTyp: z.tag_typ!, objektId: z.objekt_id! }));
+    this.alOhne = new Set(
+      zeilen.filter((z) => z.quelle === "a").map((z) => z.recht!),
+    );
+  }
+
+  // Hat der Entwickler der Abteilungsleitung dieses Recht weggenommen? Nur vergebbare Rechte lassen sich wegnehmen; was fest oder strukturell ist, bleibt (Schutz vor dem Aussperren)
+  alVerzichtet(recht: string) {
+    return (
+      this.person.admin &&
+      istRecht(recht) &&
+      eintragVon(recht).art === "vergebbar" &&
+      this.alOhne.has(recht)
+    );
   }
 
   // Alle Quellen, die dieses Recht für dieses Objekt geben. Ohne objekt: Gibt es das Recht irgendwo («eigene» zählt dann überall), zum Beispiel für die Tür der Verwaltung. Ein unbekanntes Recht gibt nichts
@@ -192,7 +212,7 @@ export class RechteSatz {
     const irgendwo = objekt === undefined || abteilungsweit;
     const treffer: Herkunft[] = [];
 
-    if (p.admin && !e.nurEntwickler) {
+    if (p.admin && !e.nurEntwickler && !this.alVerzichtet(recht)) {
       treffer.push({ art: "abteilungsleitung", geltung: "alle" });
     }
     if (this.entwickler && e.entwickler) {

@@ -41,18 +41,18 @@ afterAll(() => sql.end());
 
 type Kopfzeilen = Record<string, string>;
 
-// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver Admins ihrer Abteilung
+// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver die Abteilungsleitung ihrer Abteilung
 async function eigeneWelt(persona: Persona = "admin") {
   const welt = await erstelleWelt(db, auth);
   return {
     welt,
     konto: await legePersonaAn(welt, persona),
-    // Mit zweitem Faktor: Ohne ihn sperrt die Admin-Sperre (#23) die Anfragen an /api/v1/admin/*
+    // Mit zweitem Faktor: Ohne ihn sperrt die Sperre der Abteilungsleitung (#23) die Anfragen an /api/v1/admin/*
     admin: await legePersonaAn(welt, "admin"),
   };
 }
 
-// Die Person löscht ihr Konto nicht selbst; das tut ein Admin (DELETE /api/v1/ich gibt es nicht mehr, #180)
+// Die Person löscht ihr Konto nicht selbst; das tut eine Person der Abteilungsleitung (DELETE /api/v1/ich gibt es nicht mehr, #180)
 const loesche = (aktor: PersonaKonto, zielId: string) =>
   app.request(`/api/v1/admin/personen/${zielId}`, {
     method: "DELETE",
@@ -115,7 +115,7 @@ async function treffer(werte: string[]) {
   return gefunden;
 }
 
-describe("Konto löschen durch einen Admin", () => {
+describe("Konto löschen durch eine Person der Abteilungsleitung", () => {
   test("nach dem Löschen zeigt keine Zeile mehr auf die Person, ausser dem Audit-Log", async () => {
     const { welt, konto: admin, admin: aktor } = await eigeneWelt();
     const id = admin.id!;

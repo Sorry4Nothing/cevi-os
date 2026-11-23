@@ -8,6 +8,11 @@
   display: contents;
 }
 
+/* Drei Leisten, eine Höhe (#661): Logozeile, Bereichsleiste und Unterleiste sind je 3.5rem hoch, Linien eingerechnet; dieselbe Schrift (1rem), dieselben Innenabstände, derselbe Strich unter dem aktiven Punkt. Marke und Knöpfe der Logozeile (44 px) haben darin Platz. */
+:root {
+  --leiste-hoehe: 3.5rem;
+}
+
 .breite {
   display: flex;
   align-items: center;
@@ -19,12 +24,24 @@
 
 /* Logozeile */
 
+.logozeile,
+.bereichsleiste,
+.unterleiste {
+  box-sizing: border-box;
+  height: var(--leiste-hoehe);
+}
+
 .logozeile {
   background: var(--surface-container-low);
 }
 
+.logozeile .breite,
+.bereichsleiste .breite,
+.unterleiste .breite {
+  height: 100%;
+}
+
 .logozeile .breite {
-  min-height: 4rem;
   column-gap: clamp(1rem, 2vw, 2.5rem);
 }
 
@@ -54,7 +71,7 @@
 
 .marke--logo {
   align-items: center;
-  min-height: 4rem;
+  min-height: var(--leiste-hoehe);
 }
 
 .logo {
@@ -206,7 +223,7 @@
   outline-offset: 3px;
 }
 
-/* Navigation: die Bereiche. Ruhige Wörter; der rote Strich zeigt, wo man ist, und wächst beim Zeigen von links (wie hauptnav auf der Website) */
+/* Navigation: die Bereiche. Ruhige Wörter; der rote Strich zeigt, wo man ist, und wächst beim Zeigen von links (wie hauptnav auf der Website). Die Unterleiste zeigt die Unterseiten des aktiven Bereichs auf der Fläche der Seite; sie scrollt mit dem Inhalt weg. Beide teilen Schrift, Abstände und Strich. */
 
 .bereichsleiste {
   position: sticky;
@@ -218,28 +235,36 @@
   color: var(--on-surface);
 }
 
+.unterleiste {
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface);
+}
+
+.bereichsleiste .breite,
+.unterleiste .breite {
+  gap: 0;
+  align-items: stretch;
+}
+
 .bereichsleiste ul,
 .unterleiste ul {
   display: flex;
-  margin: 0;
+  margin: 0 0 0 -0.75rem;
   padding: 0;
   list-style: none;
 }
 
-.bereichsleiste .breite {
-  gap: 0;
+.bereichsleiste li,
+.unterleiste li {
+  display: flex;
 }
 
-.bereichsleiste ul {
-  margin-inline: -0.75rem;
-}
-
-.bereichsleiste a {
+.bereichsleiste a,
+.unterleiste a {
   position: relative;
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
-  min-height: 3rem;
   padding: 0 0.75rem;
   color: var(--on-surface);
   font-size: 1rem;
@@ -249,7 +274,12 @@
   white-space: nowrap;
 }
 
-.bereichsleiste a::before {
+.unterleiste a {
+  font-weight: 500;
+}
+
+.bereichsleiste a::before,
+.unterleiste a::before {
   position: absolute;
   right: 0.75rem;
   bottom: -1px;
@@ -264,54 +294,17 @@
 
 .bereichsleiste a:hover::before,
 .bereichsleiste a:focus-visible::before,
-.bereichsleiste a[aria-current]::before {
+.bereichsleiste a[aria-current]::before,
+.unterleiste a:hover::before,
+.unterleiste a:focus-visible::before,
+.unterleiste a[aria-current="page"]::before {
   transform: scaleX(1);
 }
 
-.bereichsleiste a[aria-current] {
-  color: var(--titel);
-  font-weight: 800;
-}
-
-/* Unterleiste: die Unterseiten des aktiven Bereichs, eine leise Zeile unter der Navigation; sie scrollt mit dem Inhalt weg. Zähler als rote Pille */
-
-.unterleiste {
-  border-bottom: 1px solid var(--outline-variant);
-  background: var(--surface);
-}
-
-.unterleiste .breite {
-  gap: 0;
-}
-
-.unterleiste ul {
-  margin-left: -0.75rem;
-}
-
-.unterleiste a {
-  position: relative;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0 0.75rem;
-  color: var(--on-surface);
-  font-size: 0.9375rem;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
-}
-
-.unterleiste a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 4px;
-}
-
+.bereichsleiste a[aria-current],
 .unterleiste a[aria-current="page"] {
   color: var(--titel);
   font-weight: 800;
-  box-shadow: inset 0 -3px 0 var(--primary);
 }
 
 /* Zähler: roter Kreis mit weisser Zahl, Zahl mittig (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1). Ein- und zweistellig immer rund; die Zahl steht über line-height und grid in der Mitte (mehr als 99 offene Punkte kommen nicht vor) */
@@ -354,17 +347,31 @@
   }
 }
 
-@media (max-width: 760px) {
-  .logozeile .breite {
-    min-height: 3.5rem;
-    flex-wrap: wrap;
-    padding-block: 0.5rem;
-  }
-
+/* Wo die Bereichsauswahl übernimmt (bis 960 px), bleibt die Logozeile eine Zeile: Konto, Suche, «Abmelden» und Umschalter zeigen nur Symbole (Namen bleiben für Screenreader), «Verwaltung» entfällt. So ist sie ebenso hoch wie die Zeile der Bereichsauswahl darunter. */
+@media (max-width: 960px) {
   .bereichname {
     display: none;
   }
 
+  .abmelden-text,
+  .palette-knopf-text,
+  .palette-kuerzel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .logozeile .knopf {
+    justify-content: center;
+    min-width: 2.75rem;
+    padding-inline: 0;
+  }
+}
+
+@media (max-width: 760px) {
   .logo {
     height: 1.625rem;
   }
@@ -372,16 +379,26 @@
   .kopf-rechts {
     gap: 0.5rem;
   }
+}
 
-  /* Die Leisten laufen waagrecht: Ziele bleiben 44 px hoch und mit dem Daumen erreichbar */
-  .bereichsleiste .breite,
-  .unterleiste .breite {
-    overflow-x: auto;
+/* Schmal bleibt von der Marke das Wort «CEVI»; der Name der Abteilung steht in der Bereichsauswahl nicht, er ist für Screenreader noch da */
+@media (max-width: 520px) {
+  .marke:not(.marke--logo) span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
   }
 
-  .bereichsleiste ul,
-  .unterleiste ul {
-    flex: none;
+  .logozeile .breite {
+    column-gap: 0.5rem;
+  }
+
+  .marke b {
+    font-size: 1.5rem;
+    line-height: 1.5rem;
   }
 }
 
@@ -413,7 +430,7 @@
     align-items: center;
     gap: 0.75rem;
     width: 100%;
-    min-height: 3.25rem;
+    min-height: calc(var(--leiste-hoehe) - 2px);
     padding: 0 var(--seitenrand);
     border: 0;
     background: none;
@@ -563,24 +580,6 @@
   font-size: 0.75rem;
   font-weight: 600;
   line-height: 1.25;
-}
-
-@media (max-width: 760px) {
-  .palette-knopf-text,
-  .palette-kuerzel {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
-
-  .palette-knopf {
-    min-width: 2.75rem;
-    padding-inline: 0;
-    justify-content: center;
-  }
 }
 
 /* Suche (befehlspalette.js, Strg oder Cmd + K): eine Karte oben, so breit wie der Inhalt der Website (--seitenbreite und --seitenrand, die Werte von .wrap), über abgedunkeltem Grund. Oben das Feld, darunter Reiter mit Zahlen und die Treffer in Gruppen; jede Zeile trägt die Angaben, an denen man den Treffer erkennt (Aufbau nach Kokonut «Action Search Bar» und «Team Member List», eigene Klassen). */

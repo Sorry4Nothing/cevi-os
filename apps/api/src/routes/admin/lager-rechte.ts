@@ -15,7 +15,7 @@ import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
 import { antwortAufAenderung } from "../lager/rechte.js";
 
-// Admin-Pendant zu /api/v1/lager/{id}/rechte (#365): Rechte der Rollen eines Lagers, nur für die Abteilungsleitung. Reihenfolge wie bei /admin/lager: Pfad (400), Lager der eigenen Abteilung (404), Admin (403), dann der Zustand (409)
+// Gegenstück der Verwaltung zu /api/v1/lager/{id}/rechte (#365): Rechte der Rollen eines Lagers, nur für die Abteilungsleitung. Reihenfolge wie bei /admin/lager: Pfad (400), Lager der eigenen Abteilung (404), Abteilungsleitung (403), dann der Zustand (409)
 const pfad = () => z.strictObject({ id: z.uuid() });
 
 export function erstelleAdminLagerRechteRouten({ db }: { db: Db }) {

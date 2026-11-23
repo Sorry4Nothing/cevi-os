@@ -1,5 +1,5 @@
 // Rechtekatalog der Termine (Epic #430, Gerüst #431): die Namen der Rechte und wer sie standardmässig hat, als Daten. Entschieden wird im zentralen Katalog (rechtemodell/katalog.ts) mit verlange() (#649); diese Liste hält die Standardrolle fest, die docs/rechte.md Anhang B beschreibt.
-// wer: «abteilungsleitung» = Admin mit zweitem Faktor; «angemeldet» = jede Person mit Konto der Abteilung; «vorschlagende» = Annahme A9 (noch nicht bestätigt): Abteilungsleitung, Stufenleitung oder Leitung, Personen mit einem Tag vom Typ funktion oder team.
+// wer: «abteilungsleitung» = Abteilungsleitung mit zweitem Faktor; «angemeldet» = jede Person mit Konto der Abteilung; «vorschlagende» = Annahme A9 (noch nicht bestätigt): Abteilungsleitung, Stufenleitung oder Leitung, Personen mit einem Tag vom Typ funktion oder team.
 // «raumteam» = Raumanfragen (#447): wer das Team des Raums trägt, für Räume ohne Team die Abteilungsleitung; eine Gruppenrolle kann das Recht für die Räume ihres Teams haben.
 // «leitende» = Belegungsplan der Räume (#628, Wunsch des Nutzers, vom Nutzer zu bestätigen): Abteilungsleitung, Leitung oder Stufenleitung einer Stufe, Team-Verantwortliche und wer das Team eines Raums trägt (termine/raum.ts: darfBelegungSehen).
 // Annahmen A9 und A10 stehen im Plan Termine (Obsidian) und sind vom Nutzer zu bestätigen.

@@ -170,7 +170,7 @@ describe("Einrichten", () => {
     }
   });
 
-  test("die Admin-Routen antworten bis zum ersten Code 403 ZWEITER_FAKTOR_FEHLT, danach 200", async () => {
+  test("die Verwaltungsrouten antworten bis zum ersten Code 403 ZWEITER_FAKTOR_FEHLT, danach 200", async () => {
     const konto = await neuerAdmin();
     const gesperrt = await hole("/api/v1/admin/personen", konto.headers);
     expect(gesperrt.status).toBe(403);
@@ -312,7 +312,7 @@ describe("Zurücksetzen", () => {
       headers,
     );
 
-  test("ein anderer Admin setzt zurück: Zeilen weg, Flag aus, Audit-Zeile, Anmeldung ohne Code, enable geht wieder", async () => {
+  test("eine andere Person der Abteilungsleitung setzt zurück: Zeilen weg, Flag aus, Audit-Zeile, Anmeldung ohne Code, enable geht wieder", async () => {
     const konto = await neuerAdmin();
     const { headers } = await richteEin(konto);
     expect((await hole("/api/v1/admin/personen", headers)).status).toBe(200);
@@ -338,7 +338,7 @@ describe("Zurücksetzen", () => {
       details: null,
     });
 
-    // Die laufende Sitzung bleibt, aber die Admin-Routen sind wieder zu
+    // Die laufende Sitzung bleibt, aber die Verwaltungsrouten sind wieder zu
     const gesperrt = await hole("/api/v1/admin/personen", headers);
     expect(gesperrt.status).toBe(403);
     expect(await gesperrt.json()).toMatchObject({
@@ -360,7 +360,8 @@ describe("Zurücksetzen", () => {
     expect(antwort.status).toBe(409);
     expect(await antwort.json()).toEqual({
       code: "EIGENER_ZWEITER_FAKTOR",
-      message: "Den eigenen zweiten Faktor setzt ein anderer Admin zurück.",
+      message:
+        "Den eigenen zweiten Faktor setzt eine andere Person der Abteilungsleitung zurück.",
     });
     expect(await faktorZeilen(admin.id!)).toHaveLength(1);
     expect(await auditZeilen(admin.id!)).toEqual([]);

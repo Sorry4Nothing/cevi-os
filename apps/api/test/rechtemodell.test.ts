@@ -78,6 +78,10 @@ const FAELLE: Fall[] = [
   ["al", "mitteilung.senden", "gruppeStufeB", true],
   ["al", "konto.loeschen", undefined, true],
   ["al", "protokoll.lesen", undefined, false],
+  // Die Rechte der Abteilungsleitung ändert nur der Entwickler (#663)
+  ["al", "rechte.abteilungsleitung", undefined, false],
+  ["slA", "rechte.abteilungsleitung", undefined, false],
+  ["entwickler", "rechte.abteilungsleitung", undefined, true],
   ["al", "entwickler.vergeben", undefined, true],
   // Entwickler: nur Plattform und Website, nie das Verwalten von Rechten
   ["entwickler", "seiten.bearbeiten", "seiteFrei", true],

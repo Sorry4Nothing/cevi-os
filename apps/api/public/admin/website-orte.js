@@ -13,6 +13,7 @@ import { formularRaster } from "./formularraster.js";
 import { ansichtVonKnopf, zweiStufig } from "./rueckgaengig.js";
 import { sortierListe } from "./sortieren.js";
 import { sichererKartenLink } from "./orte-logik.js";
+import { symbol } from "./website-symbole.js";
 
 // Orte (#646): Treffpunkte und Schlussorte, die oft vorkommen, einmal angelegt und in den Samstagsangaben der Stufen per Auswahl gewählt.
 // Adresse: #website/stufenfakten/orte. Ein Standort ist nur ein Verweis «Auf Google Maps ansehen»: Die Website lädt keine Karte und kein Skript von Google. Gelesen und geprüft wird der Standort vom Server (POST /orte/vorschau); diese Datei baut keinen Link aus Eingaben.
@@ -35,15 +36,23 @@ const tagFormat = new Intl.DateTimeFormat("de-CH", {
 });
 const kurzDatum = (iso) => tagFormat.format(new Date(`${iso}T12:00:00Z`));
 
-// Der Verweis zur Karte, wie die Website ihn zeigt; hier in einem neuen Tab, damit das Formular offen bleibt
-export function kartenVerweis(link, text = "Auf Google Maps ansehen") {
+// Der Verweis zur Karte als kleiner Knopf mit Standort-Symbol und dem Zeichen für «fremde Seite» (#661); hier in einem neuen Tab, damit das Formular offen bleibt.
+// Nur ein Link: kein Skript, keine Karte, keine Verbindung zu Google vor dem Klick
+export function kartenVerweis(link, text = "Auf Karte ansehen") {
   const href = link ? sichererKartenLink(link) : null;
   if (!href) return null;
   return el(
     "a",
-    { class: "ort-karte", href, target: "_blank", rel: "noopener noreferrer" },
+    {
+      class: "knopf knopf--klein ort-karte",
+      href,
+      target: "_blank",
+      rel: "noopener noreferrer",
+    },
+    symbol("ort"),
     text,
-    el("span", { class: "nur-leser" }, " (öffnet in neuem Tab)"),
+    symbol("extern"),
+    el("span", { class: "nur-leser" }, " (Google Maps, öffnet in neuem Tab)"),
   );
 }
 
@@ -534,11 +543,11 @@ function zeile(o, ctx, neu) {
           : chip("Mit Standort", "ok"),
         !o.aktiv && chip("Ausgeblendet", "warn"),
       ),
-      kartenVerweis(o.kartenLink),
     ),
     el(
       "div",
       { class: "aktionen" },
+      kartenVerweis(o.kartenLink),
       knopf("Bearbeiten", {
         klein: true,
         kontext: o.name,

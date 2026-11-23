@@ -230,7 +230,7 @@ export function erstelleAdminVorschlaegeRouten({
           const { id } = c.req.valid("param");
           const b = c.req.valid("json");
           const ziel = await lade(person, id);
-          // Auch ein Admin entscheidet nie über den eigenen Vorschlag
+          // Auch eine Person der Abteilungsleitung entscheidet nie über den eigenen Vorschlag
           if (ziel.von === person.id) return c.json(EIGENER_VORSCHLAG, 403);
           const status =
             b.entscheid === "freigeben" ? "freigegeben" : "abgelehnt";

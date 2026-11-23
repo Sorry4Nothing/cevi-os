@@ -1,13 +1,13 @@
 import { asc, eq } from "drizzle-orm";
 import { Hono } from "hono";
-import { HTTPException } from "hono/http-exception";
 import type { Db } from "../../db/client.js";
 import { bearbeiter, personTag, seite, tag } from "../../db/schema.js";
 import { lager, lagerMitglied } from "../../db/schema-lager.js";
 import { raum } from "../../db/schema-raum.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
-// «Rollen und Rechte» der Verwaltung (#623): die Zuordnungen, aus denen die Seite zeigt, was Gruppen, Lager, Räume und Sonderrechte heute an Rechten tragen. Nur lesen, nur die Abteilungsleitung (Pfad /admin, zweiter Faktor). Es gibt kein neues Recht und keine neue Tabelle: Die Antwort fasst vorhandene Zeilen zusammen, damit die Oberfläche nicht je Gruppe und je Lager einzeln fragen muss.
+// «Rollen und Rechte» der Verwaltung (#623): die Zuordnungen, aus denen die Seite zeigt, was Gruppen, Lager, Räume und Sonderrechte heute an Rechten tragen. Nur lesen, nur die Abteilungsleitung (Pfad /admin, zweiter Faktor, Recht «rechte.verwalten»). Es gibt kein neues Recht und keine neue Tabelle: Die Antwort fasst vorhandene Zeilen zusammen, damit die Oberfläche nicht je Gruppe und je Lager einzeln fragen muss.
 // Plattformrollen und ihre Rechte kommen weiter aus /api/v1/admin/plattform/rollen, Personen und Stufenrollen aus /api/v1/admin/personen.
 // Nur Kennungen, Namen von Gruppen, Lagern, Räumen und Seiten, Rollenwerte; keine Kontaktdaten, nie Namen von Personen. Sieben Abfragen je Aufruf, unabhängig von der Datenmenge; jede auf die Abteilung der Sitzung gefiltert.
 export function erstelleRechteRouten({ db }: { db: Db }) {
@@ -15,7 +15,7 @@ export function erstelleRechteRouten({ db }: { db: Db }) {
     "/zuordnungen",
     async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "rechte.verwalten");
       const abteilungId = person.abteilungId;
       const [
         gruppen,

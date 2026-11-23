@@ -100,7 +100,7 @@ const auditZeilen = (zielId: string) =>
     .orderBy(schema.auditLog.erstelltAm);
 
 describe("POST /api/v1/admin/zeitregeln", () => {
-  test("legt die Regel in der Abteilung des Admins an, getrimmt, und schreibt das Audit-Log ohne Text", async () => {
+  test("legt die Regel in der Abteilung der Abteilungsleitung an, getrimmt, und schreibt das Audit-Log ohne Text", async () => {
     const id = await legeRegelAn(admin, {
       stufeId: welt.stufeAId,
       wochentag: 7,

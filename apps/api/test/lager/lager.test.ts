@@ -269,7 +269,7 @@ describe("GET /api/v1/admin/lager und /{id}", () => {
     expect(ids).not.toContain(fremdes);
   });
 
-  test("das Lager einer anderen Abteilung ist 404, auch für deren Admin; Nicht-Admins 403", async () => {
+  test("das Lager einer anderen Abteilung ist 404, auch für deren Abteilungsleitung; alle anderen 403", async () => {
     const id = await legeLager();
     expect((await anfrage(demoAdmin, "GET", `${ADMIN}/${id}`)).status).toBe(
       404,

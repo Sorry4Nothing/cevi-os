@@ -321,7 +321,7 @@ describe("POST /api/v1/admin/mitteilungen", () => {
     expect(JSON.stringify(zeilen)).not.toContain("Titeltext");
   });
 
-  test("Nicht-Admins bekommen 403, es geht nichts hinaus und nichts ins Audit-Log", async () => {
+  test("alle anderen bekommen 403, es geht nichts hinaus und nichts ins Audit-Log", async () => {
     for (const schluessel of ["slA", "leitendeA", "elternA"] as const) {
       const konto = await person(schluessel);
       expect((await senden(konto, ALLE)).status).toBe(403);
@@ -641,7 +641,7 @@ describe("Ziele: Gruppen mit passenden Rollen", () => {
     expect(antwort.status).toBe(400);
   });
 
-  test("Nicht-Admins bekommen 403", async () => {
+  test("alle anderen bekommen 403", async () => {
     for (const schluessel of ["slA", "leitendeA", "elternA"] as const) {
       const konto = await person(schluessel);
       const body = mitZielen([{ gruppeId: welt.stufeAId, rollen: ["eltern"] }]);
@@ -728,7 +728,7 @@ describe("POST /api/v1/admin/mitteilungen/vorschau", () => {
     expect((await senden(admin, { titel: "Hallo", ...body })).status).toBe(200);
   });
 
-  test("Nicht-Admins bekommen 403, fremde Gruppen, falsche Rollen und fehlende Wahl 400", async () => {
+  test("alle anderen bekommen 403, fremde Gruppen, falsche Rollen und fehlende Wahl 400", async () => {
     for (const schluessel of ["slA", "leitendeA", "elternA"] as const) {
       const konto = await person(schluessel);
       const antwort = await vorschau(konto, {
