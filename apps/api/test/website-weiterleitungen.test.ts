@@ -101,6 +101,7 @@ describe("Rückfallseite", () => {
       '<meta http-equiv="refresh" content="0; url=/stufen/woelfe">',
     );
     expect(html).toContain('<a class="btn p gross" href="/stufen/woelfe">');
+    expect(html).toContain('<a class="tafel" href="/stufen/woelfe">');
     expect(html).toContain('href="/website/fehler.css"');
     expect(html).toContain("<h1>");
     expect(html).toContain("<title>Seite umgezogen | ");

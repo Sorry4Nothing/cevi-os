@@ -1,96 +1,232 @@
 /* Fehler- und Wartungsseiten (#567): 404.html, 500.html, wartung.html und die Rückfallseite einer Weiterleitung. Nur diese Seiten laden die Datei.
-   Die Anlage ist die des Kopfs der Startseite (website.css: .hero, .teaser, .fahne): Wo dort das Titelbild steht, steht hier ein Feld mit der Nummer des Fehlers.
-   Kein Bild und kein Abruf: Die Seiten stehen auch, wenn die API nicht antwortet. Farben nur aus den Tokens von website.css. */
+   Die Idee ist ein Wegweiser am Wanderweg: links die Aussage mit der Hauptaktion, rechts ein Feld bis zum Fensterrand (auf der 404-Seite mit Foto),
+   darin ein Pfosten mit Tafeln, die auf die Ziele zeigen. Ohne Foto steht der Wegweiser auf der blauen Fläche. Farben nur aus den Tokens von website.css. */
 
-.fehler {
-  /* Die Seite füllt das Fenster über dem Fuss, auch wenn wenig Text da ist */
-  min-height: min(70vh, 48rem);
-  padding-bottom: var(--abstand);
+.irr {
+  display: grid;
+  /* Alles Wesentliche steht ohne Scrollen im Fenster: Die Bühne füllt es unter dem Kopf, höchstens 46rem */
+  min-height: min(100svh - 7.5rem, 46rem);
+  background: var(--surface-container-low);
 }
 
-/* Das Feld: getönte Fläche bis zum Fensterrand, darin die Ziffern rechts, unten angeschnitten */
-.fehler-feld {
+.irr-text {
   display: flex;
-  align-items: flex-end;
-  justify-content: flex-end;
-  height: clamp(13rem, 36vw, 30rem);
-  padding-inline: var(--rand);
+  flex-direction: column;
+  justify-content: center;
+  gap: 1.25rem;
+  padding: clamp(2rem, 5vw, 4rem) var(--rand);
+}
+
+.irr-text h1 {
+  color: var(--titel);
+  font-size: clamp(2.75rem, 1.2rem + 5.4vw, 6.5rem);
+  font-weight: 800;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.irr-satz {
+  max-width: 34ch;
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  line-height: 1.5;
+}
+
+.irr-text .knopfreihe {
+  margin-top: 0.25rem;
+}
+
+/* Das Feld: Cevi-Blau bis zum Fensterrand, auf der 404-Seite liegt ein Foto darüber */
+.irr-feld {
+  position: relative;
+  display: flex;
+  min-height: 19rem;
   overflow: hidden;
-  background: var(--surface-container-high);
+  background: var(--secondary);
 }
 
-.fehler-zeichen {
-  display: block;
-  margin-bottom: -0.085em;
-  color: var(--primary);
-  font-size: clamp(8rem, 31vw, 30rem);
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-  line-height: 0.74;
-  letter-spacing: -0.045em;
-  white-space: nowrap;
-  user-select: none;
+.irr-feld > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
 }
 
-.fehler .fahne h1 {
-  max-width: 13ch;
-  font-size: clamp(2.125rem, 1.4rem + 3vw, 4.25rem);
-  line-height: 1.02;
+/* Der Pfosten steht links im Feld und reicht bis zum Boden; die Tafeln hängen daran und zeigen nach rechts */
+.wegweiser {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: min(100% - 3.5rem, 29rem);
+  margin-left: clamp(1rem, 4vw, 3.5rem);
+  padding: clamp(2rem, 6vh, 4rem) 0 clamp(3rem, 12vh, 7rem) 0.75rem;
 }
 
-.fehler-text {
+.wegweiser::before {
+  position: absolute;
+  top: clamp(1rem, 3vh, 2rem);
+  bottom: 0;
+  left: 0;
+  width: 0.75rem;
+  border-radius: 0.25rem 0.25rem 0 0;
+  background: var(--on-secondary);
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 20%);
+  content: "";
+}
+
+.wegweiser ul {
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+  width: 100%;
 }
 
-/* Eine Adresse bricht als Ganzes auf die nächste Zeile, erst in sehr schmalen Fenstern in sich */
-.fehler-text a {
-  display: inline-block;
-  max-width: 100%;
-  overflow-wrap: anywhere;
+/* Wie am Wegweiser sind die Tafeln verschieden lang */
+.wegweiser li:nth-child(2) {
+  width: 84%;
 }
 
-/* Schmal: Die Fahne steht fast ganz unter dem Feld, damit die Ziffern lesbar bleiben */
-@media (max-width: 64em) {
-  .fehler .teaser--ueber-bild {
-    --ueberstand: 2rem;
-  }
-
-  .fehler-feld {
-    align-items: center;
-    height: clamp(11rem, 44vw, 22rem);
-    padding-bottom: 2rem;
-  }
-
-  .fehler-zeichen {
-    margin-bottom: 0;
-    line-height: 0.9;
-    font-size: clamp(7rem, 36vw, 18rem);
-  }
+.wegweiser li:nth-child(3) {
+  width: 93%;
 }
 
-/* Ohne Feld (Website vom Netz, Weiterleitung): die Fahne steht frei auf der Fläche */
-.fehler--ohne {
-  padding-top: clamp(3rem, 12vh, 8rem);
+/* Eine Tafel: Feld mit dem Ziel und rechts klein der «Weg» dahin, davor die rote Spitze */
+.tafel {
+  --spitze: 1.75rem;
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  min-height: 4rem;
+  margin-right: var(--spitze);
+  padding: 1.125rem 1.25rem;
+  background: var(--surface-container-low);
+  box-shadow: 0 1px 0 rgb(0 0 0 / 25%);
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+a.tafel {
+  color: var(--on-surface);
+}
+
+.tafel::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  /* ein Pixel Überlappung: keine Naht bei gebrochenen Pixelwerten */
+  left: calc(100% - 1px);
+  width: var(--spitze);
+  background: var(--primary);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  content: "";
+}
+
+.tafel-ziel {
+  font-size: clamp(1.1875rem, 1rem + 0.5vw, 1.375rem);
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+}
+
+.tafel-zusatz {
+  color: var(--on-surface-variant);
+  font-size: 0.9375rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+a.tafel:hover .tafel-ziel {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+/* Der Fokus liegt im Feld der Tafel: auf Foto und Blau immer sichtbar */
+a.tafel:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: -5px;
+  border-radius: 0;
+}
+
+/* Ein Schild ohne Ziel (Wartung) ist kein Link: grauer Keil statt roter Spitze */
+.tafel--schild::after {
+  background: var(--outline-variant);
 }
 
 @media (min-width: 64.0625em) {
-  .fehler--ohne .teaser-text {
-    padding-top: clamp(1.5rem, 1rem + 2vw, 3rem);
+  .irr {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .irr-text {
+    padding-right: clamp(2rem, 4vw, 5rem);
   }
 }
 
 @media screen and (prefers-reduced-motion: no-preference) {
-  /* Ein Auftritt beim Laden, wie auf der Startseite: Die Ziffern setzen sich, die Fahne kommt von links (website.css), der Text folgt */
-  .fehler-zeichen {
-    transform-origin: 100% 100%;
-    animation: bild-ein 1.2s var(--kurve) both;
+  /* Ein Auftritt beim Laden: Die Tafeln schwenken vom Pfosten her ein, eine nach der anderen */
+  @keyframes tafel-schwenk {
+    from {
+      opacity: 0;
+      rotate: -7deg;
+    }
+  }
+
+  .wegweiser li {
+    transform-origin: 0 50%;
+    animation: tafel-schwenk 0.6s var(--kurve) 0.15s both;
+  }
+
+  .wegweiser li:nth-child(2) {
+    animation-delay: 0.23s;
+  }
+
+  .wegweiser li:nth-child(3) {
+    animation-delay: 0.31s;
+  }
+
+  .irr-text {
+    animation: auf var(--dauer-lang) var(--kurve) both;
+  }
+
+  /* Zeigen: Die Tafel rückt in ihre Richtung */
+  a.tafel {
+    transition: translate var(--dauer) var(--kurve);
+  }
+
+  a.tafel:hover {
+    translate: 0.375rem 0;
   }
 }
 
 @media (forced-colors: active) {
-  .fehler-feld {
-    border-bottom: 1px solid CanvasText;
+  .tafel {
+    border: 1px solid CanvasText;
+  }
+
+  .tafel::after,
+  .wegweiser::before {
+    background: CanvasText;
+  }
+}
+
+/* Ohne Foto (Serverfehler, Wartung, Weiterleitung): Das Feld ist schmaler, die Tafeln sind grösser, damit der Wegweiser es füllt */
+.irr-feld:not(.irr-feld--bild) .tafel {
+  min-height: 4.75rem;
+  padding-block: 1.375rem;
+}
+
+.irr-feld:not(.irr-feld--bild) .tafel-ziel {
+  font-size: clamp(1.25rem, 1rem + 0.9vw, 1.75rem);
+}
+
+@media (min-width: 64.0625em) {
+  .irr:not(:has(.irr-feld--bild)) {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   }
 }

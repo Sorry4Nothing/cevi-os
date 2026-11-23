@@ -41,6 +41,7 @@ import {
   rendereFehlerseite,
   rendereServerfehler,
   rendereWartung,
+  stimmungsbild,
 } from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
 import {
@@ -644,7 +645,17 @@ export async function erzeugeWebsite(
       ),
     ],
     [ROBOTS, rendereRobots(basisUrl)],
-    [FEHLERSEITE, rendereFehlerseite(kontext)],
+    [
+      FEHLERSEITE,
+      rendereFehlerseite(
+        kontext,
+        stimmungsbild(
+          [...dokumente].find(([id]) => oeffentlich.get(id)!.pfad === "/")?.[1]
+            .dok,
+          kontext.daten,
+        ),
+      ),
+    ],
     [SERVERFEHLER, rendereServerfehler(kontext)],
     [WARTUNG, rendereWartung(kontext)],
     [STYLESHEET, opt.stylesheet],

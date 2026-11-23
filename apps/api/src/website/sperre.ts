@@ -15,7 +15,7 @@ const BLEIBT = new Set([
   "website/archivo-ofl.txt",
 ]);
 
-// Die Hinweisseite steht allein, ohne die Stilvorlage der Website (sie ist dann gelöscht): dieselbe Anlage wie die Fehlerseiten (#567, blaue Fahne vom linken Rand, Archivo), die Farben des Designs «Cevi Web» in Tag und Nacht
+// Die Hinweisseite steht allein, ohne die Stilvorlage der Website (sie ist dann gelöscht): dieselbe Handschrift wie die Fehlerseiten (#567, links die Aussage, rechts das blaue Feld mit Pfosten und Schild), die Farben des Designs «Cevi Web» in Tag und Nacht
 export const HINWEIS_STIL = `@font-face {
   font-family: Archivo;
   font-weight: 400 900;
@@ -28,9 +28,10 @@ export const HINWEIS_STIL = `@font-face {
   --flaeche: #ffffff;
   --text: #1a1a1a;
   --leise: #4d4d4d;
-  --fahne: #013974;
-  --auf-fahne: #ffffff;
+  --titel: #013974;
+  --feld: #013974;
   --knopf: #d50038;
+  --keil: #c9d5e1;
   --fokus: #013974;
   --rand: clamp(1rem, 4vw, 4.5rem);
 }
@@ -40,6 +41,8 @@ export const HINWEIS_STIL = `@font-face {
     --flaeche: #1c1c1a;
     --text: #f3f3ef;
     --leise: #bebeb6;
+    --titel: #f3f3ef;
+    --keil: #3b3b37;
     --fokus: #9dc0ea;
   }
 }
@@ -49,57 +52,48 @@ export const HINWEIS_STIL = `@font-face {
 }
 
 body {
-  min-height: 100vh;
   margin: 0;
   background: var(--flaeche);
   color: var(--text);
   font-family: Archivo, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  line-height: 1.55;
+  line-height: 1.5;
 }
 
 main {
   display: grid;
-  gap: 2rem clamp(2rem, 5vw, 6rem);
-  max-width: 105rem;
-  margin: 0 auto;
-  padding: clamp(3rem, 14vh, 9rem) var(--rand) 4rem;
+  min-height: 100vh;
+  min-height: 100svh;
 }
 
-.fahne {
-  position: relative;
-  width: fit-content;
-  max-width: min(100%, 48rem);
-  padding: clamp(1.5rem, 1rem + 2vw, 3rem) clamp(1.5rem, 1rem + 2.5vw, 3.5rem) clamp(1.5rem, 1rem + 2vw, 3rem) 0;
-  border-radius: 0 1rem 1rem 0;
-  background: var(--fahne);
-  color: var(--auf-fahne);
-}
-
-.fahne::before {
-  position: absolute;
-  top: 0;
-  right: calc(100% - 1px);
-  bottom: 0;
-  width: 100vw;
-  background: inherit;
-  content: "";
+.text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 1.25rem;
+  padding: clamp(2rem, 5vw, 4rem) var(--rand);
 }
 
 h1 {
-  max-width: 13ch;
   margin: 0;
-  font-size: clamp(2.125rem, 1.4rem + 3vw, 4.25rem);
+  color: var(--titel);
+  font-size: clamp(2.5rem, 1.2rem + 4.6vw, 5.5rem);
   font-weight: 800;
-  line-height: 1.02;
-  letter-spacing: -0.025em;
+  line-height: 0.98;
+  letter-spacing: -0.03em;
   text-wrap: balance;
+}
+
+p {
+  max-width: 34ch;
+  margin: 0;
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
 }
 
 a {
   display: inline-flex;
   align-items: center;
   min-height: 3.5rem;
-  margin-top: clamp(1.25rem, 2.5vw, 2.25rem);
   padding: 0 2rem;
   border-radius: 9999px;
   background: var(--knopf);
@@ -110,28 +104,65 @@ a {
 }
 
 a:focus-visible {
-  outline: 3px solid var(--auf-fahne);
+  outline: 3px solid var(--fokus);
   outline-offset: 3px;
 }
 
-p {
-  max-width: 62ch;
-  margin: 0;
-  color: var(--leise);
-  font-size: clamp(1.1875rem, 1.05rem + 0.55vw, 1.5rem);
+.feld {
+  position: relative;
+  display: flex;
+  align-items: center;
+  min-height: 16rem;
+  padding: 3rem 4rem 5rem calc(clamp(1rem, 4vw, 3.5rem) + 0.75rem);
+  background: var(--feld);
+}
+
+.feld::before {
+  position: absolute;
+  top: 2rem;
+  bottom: 0;
+  left: clamp(1rem, 4vw, 3.5rem);
+  width: 0.75rem;
+  border-radius: 0.25rem 0.25rem 0 0;
+  background: #ffffff;
+  content: "";
+}
+
+.schild {
+  position: relative;
+  width: min(100%, 24rem);
+  padding: 1.125rem 1.25rem;
+  background: var(--flaeche);
+  font-size: 1.25rem;
+  font-weight: 800;
+}
+
+.schild::after {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(100% - 1px);
+  width: 1.75rem;
+  background: var(--keil);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  content: "";
 }
 
 @media (min-width: 64.0625em) {
   main {
-    grid-template-columns: minmax(0, max-content) minmax(20rem, 1fr);
-    align-items: center;
+    grid-template-columns: 1fr 1fr;
   }
 }
 
 @media (forced-colors: active) {
-  .fahne,
-  a {
+  a,
+  .schild {
     border: 1px solid CanvasText;
+  }
+
+  .feld::before,
+  .schild::after {
+    background: CanvasText;
   }
 }
 `;
@@ -149,8 +180,12 @@ export const HINWEISSEITE = `<!doctype html>
 </head>
 <body>
 <main>
-<div class="fahne"><h1>Vorübergehend nicht erreichbar</h1><a href="">Nochmals versuchen</a></div>
+<div class="text">
+<h1>Vorübergehend nicht erreichbar</h1>
 <p>Diese Website ist im Moment nicht verfügbar. Versuche es später nochmals.</p>
+<a href="">Nochmals versuchen</a>
+</div>
+<div class="feld"><span class="schild">Im Moment geschlossen</span></div>
 </main>
 </body>
 </html>

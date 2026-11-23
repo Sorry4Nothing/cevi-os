@@ -105,11 +105,10 @@ export function rendereWeiterleitungsseite(
 <body>
 <main id="inhalt">
 ${fehlerBuehne({
-  titel: "Diese Seite ist umgezogen",
-  knoepfe: `<a class="btn p gross" href="${esc(u.zielPfad)}">Weiter zur neuen Adresse</a>`,
-  text: [
-    "Du wirst gleich weitergeleitet. Geht es nicht von selbst, nimm den Knopf.",
-  ],
+  titel: "Diese Seite ist umgezogen.",
+  satz: "Du wirst gleich weitergeleitet. Geht es nicht von selbst, nimm den Knopf.",
+  aktion: `<a class="btn p gross" href="${esc(u.zielPfad)}">Weiter zur neuen Adresse</a>`,
+  tafeln: [{ titel: "Neue Adresse", zusatz: "1 Klick", ziel: u.zielPfad }],
 })}
 </main>
 </body>
