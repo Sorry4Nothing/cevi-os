@@ -119,6 +119,34 @@
   font-weight: 700;
 }
 
+/* «Zur Website» (#669): neben dem Logo, Fläche mindestens 44 px; gleicher Rand und gleiches Zeigen wie «Abmelden» */
+.zur-website {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 1rem 0 0.75rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve),
+    border-color var(--dauer) var(--kurve);
+}
+
+.zur-website:hover {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
 .kopf-rechts {
   display: flex;
   align-items: center;
@@ -353,6 +381,19 @@
     display: none;
   }
 
+  .zur-website {
+    padding-inline: 0;
+  }
+
+  .zur-website-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
   .abmelden-text,
   .palette-knopf-text,
   .palette-kuerzel {
@@ -383,6 +424,10 @@
 
 /* Schmal bleibt von der Marke das Wort «CEVI»; der Name der Abteilung steht in der Bereichsauswahl nicht, er ist für Screenreader noch da */
 @media (max-width: 520px) {
+  .zur-website {
+    display: none;
+  }
+
   .marke:not(.marke--logo) span {
     position: absolute;
     width: 1px;

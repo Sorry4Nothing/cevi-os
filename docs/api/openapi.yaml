@@ -23408,6 +23408,43 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/website/konto:
+    get:
+      operationId: leseWebsiteKonto
+      summary: Konto-Menü im Kopf der Website
+      description: |
+        Für das Skript der öffentlichen Website (#669). Die Seiten der Website sind für alle gleich; nach dem Laden fragt der Kopf, ob eine Sitzung besteht, und zeigt dann anstelle von «Anmelden» ein Konto-Menü mit Namen, Bild und Abmelden.
+
+        Die Antwort hat nur drei Felder: `name` ist der Anzeigename wie sonst auf der Website (der Cevi-Name, sonst der Vorname; nie Benutzername, E-Mail oder Telefon), `bildUrl` der Pfad des eigenen Profilbilds mit Version (`null` ohne Bild; es ist das Bild der Person selbst und braucht dieselbe Sitzung) und `verwaltung`, ob die Person die Verwaltung unter `/admin` öffnen darf: die Abteilungsleitung oder jemand mit einem Bereich, der Belegung der Räume oder einem Recht bei Terminen, Räumen und Anlässen (dieselbe Regel wie beim Start der Verwaltung, nach `GET /api/v1/redaktion/ich`). Nur Anzeige; jede Route der Verwaltung prüft selbst.
+
+        Die Antwort ist `Cache-Control: private, no-store` und `Vary: Cookie`. Ohne Sitzung 401 mit dem üblichen neutralen Body: Dann bleibt «Anmelden» stehen.
+
+        Statuscodes: 200, 401, 403 (Pflichtwechsel des Passworts offen).
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Anzeigename, Bild und Zugang zur Verwaltung.
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                  - private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteKonto"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/website:
     get:
       operationId: leseRedaktionWebsiteEinstellungen
@@ -39019,6 +39056,27 @@ components:
                 description: ID des Bausteins; bei einer öffentlichen Seite die des Platzhalters `data-geschuetzt` im HTML.
               knoten:
                 $ref: "#/components/schemas/WebsiteKnoten"
+    WebsiteKonto:
+      type: object
+      required:
+        - name
+        - bildUrl
+        - verwaltung
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Anzeigename wie sonst auf der Website, der Cevi-Name, sonst der Vorname. Nie Benutzername, E-Mail oder Telefon.
+        bildUrl:
+          type:
+            - string
+            - "null"
+          pattern: "^/api/v1/personen/[0-9a-f-]{36}/bild\\?v=\\d+$"
+          description: Pfad des eigenen Profilbilds mit Version; `null` ohne Bild (der Kopf zeigt die Initiale).
+        verwaltung:
+          type: boolean
+          description: Die Person darf die Verwaltung öffnen. Nur Anzeige für den Eintrag «Verwaltung»; jede Route prüft selbst.
     WebsiteKnoten:
       description: Ein Text (Zeichenkette) oder ein Element. Das Skript setzt Text als Textknoten und lässt nur bekannte Elemente und Attribute mit geprüften Werten zu.
       oneOf:

@@ -43,6 +43,19 @@
 
   wende(lies());
 
+  // Merker von konto.js (#669): Gab es in diesem Tab eine Sitzung, verbirgt kopf.css «Anmelden», bis die Antwort da ist, damit der Knopf nicht kurz aufblitzt. Kein Name, nur «ja»
+  try {
+    if (window.sessionStorage.getItem("cevi-konto") === "1") {
+      wurzel.setAttribute("data-konto", "erwartet");
+      // Kommt keine Antwort (Netz, Skript fehlt), ist «Anmelden» nach zwei Sekunden wieder da
+      window.setTimeout(function () {
+        wurzel.removeAttribute("data-konto");
+      }, 2000);
+    }
+  } catch {
+    // Ohne Speicher gibt es keinen Merker
+  }
+
   // Die Verwaltung baut ihren Kopf erst nach dem Laden und ruft binde() danach selbst auf (#578); auf der Website läuft es einmal nach dem Laden der Seite
   var aktuell = wirksam();
   var beobachtet = false;

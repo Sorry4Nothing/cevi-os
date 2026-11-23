@@ -146,6 +146,13 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
       { class: "breite" },
       erstelleMarke(),
       el("span", { class: "bereichname" }, "Verwaltung"),
+      // Zur öffentlichen Website (#669): dieselbe Sitzung, dort steht das Konto-Menü. Das Logo bleibt die Übersicht der Verwaltung; schmal bleibt nur das Symbol, der Name steht im Text für Screenreader
+      el(
+        "a",
+        { class: "zur-website", href: "/" },
+        icon("website"),
+        el("span", { class: "zur-website-text" }, "Zur Website"),
+      ),
       el(
         "div",
         { class: "kopf-rechts" },
@@ -289,6 +296,17 @@ function erstelleBereichswahl({
           ),
       );
     }),
+    // Am schmalen Handy hat «Zur Website» in der Logozeile keinen Platz (geruest.css): Es steht dann als letzter Eintrag hier (#669)
+    el(
+      "li",
+      { class: "bereichswahl-website" },
+      link(
+        "/",
+        [icon("website"), el("span", {}, "Zur Website")],
+        false,
+        "bereichswahl-bereich",
+      ),
+    ),
   );
   const panel = el(
     "div",

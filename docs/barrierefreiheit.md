@@ -917,3 +917,21 @@ Gilt für die Zeile «Abteilungsleitung» (Reiter «Rollen», `rechte-rollen.js`
 ### Stand der Prüfung (#663)
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht, aus Sicht der Abteilungsleitung und des Entwicklers: 53.1 bis 53.5. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema, 53.6 mit der Tastatur über alle Bildschirmgrössen.
+
+## 56. Website und Verwaltung: Konto-Menü und «Zur Website» (#669)
+
+Gilt für das Konto-Menü im Kopf der öffentlichen Website (Vorlage in `src/website/kopf.ts`, `public/website/konto.js`, Stil im Abschnitt «Konto-Menü» von `kopf.css`) und für den Link «Zur Website» in der Logozeile der Verwaltung (`rahmen.js`, `geruest.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
+
+- [ ] **56.1** Ohne Skript, ohne Sitzung (401) und bei jedem Fehler bleibt «Anmelden» stehen; die Seite ist für alle gleich und trägt nichts über eine Person. Mit Sitzung ersetzt das Menü den Knopf, am Computer im Band, am Handy als ausgeklappte Liste im Menü.
+- [ ] **56.2** Der Knopf des Menüs (`summary`) zeigt Bild oder Initiale und den Anzeigenamen (Cevi-Name, sonst Vorname; nie Benutzername, Telefon, E-Mail); sein Name für Screenreader beginnt mit «Konto: » und enthält den sichtbaren Namen. Das Bild ist dekorativ (`alt=""`), bei einem Fehler bleibt die Initiale. Das Bild lädt nur das eigene Profilbild.
+- [ ] **56.3** Aufbau als Offenlegungsmenü: `details` mit Links («Verwaltung», «Mein Konto», nur mit Zugang zur Verwaltung) und einem Knopf «Abmelden», jeder Eintrag mit Symbol und Wort, kein ARIA-«menu». Zustand «offen» steht in Farbe, Dreieck (gedreht) und im Zustand des `details`.
+- [ ] **56.4** Tastatur: Tab und Umschalt-Tab gehen durch das Menü, Enter und Leertaste öffnen und lösen aus, Pfeil runter und hoch gehen durch die Einträge (und öffnen vom Knopf aus), Pos1 und Ende springen, Esc schliesst und gibt den Fokus an den Knopf zurück, Verlassen mit Tab und ein Klick daneben schliessen. Der Fokus ist sichtbar (Ring 3 Pixel, 3 : 1).
+- [ ] **56.5** Alle Ziele mindestens 44 Pixel hoch (Knopf, Einträge, «Zur Website» in der Logozeile der Verwaltung, 44 × 44 Pixel als Symbol).
+- [ ] **56.6** «Abmelden» zeigt «aria-busy», gibt bei einem Fehler eine Meldung als `role="status"` («Abmelden hat nicht geklappt. Versuche es nochmals.») und lädt bei Erfolg die Seite neu: Geschützte Inhalte verschwinden, der Kopf zeigt wieder «Anmelden».
+- [ ] **56.7** Kein Aufblitzen, kein Sprung: Der Platz im Band bleibt (gleiche Höhe 44 Pixel wie «Anmelden», Name auf 6,5 rem gekürzt); wer in diesem Tab schon angemeldet war, sieht «Anmelden» gar nicht erst blitzen (Merker, nach zwei Sekunden ohne Antwort ist der Knopf wieder da). Die Tafel fährt nur unter «Bewegung nicht reduzieren» kurz ein.
+- [ ] **56.8** Hell, Dunkel und erzwungene Farben (Tafel mit Rand, Bild mit Rand); Kontrast aller Texte mindestens 4,5 : 1. 390 bis 2560 Pixel: nichts läuft über, die Tafel bleibt im Fenster.
+- [ ] **56.9** Verwaltung: «Zur Website» steht neben dem Logo mit Symbol und sichtbarem Text (bis 960 Pixel nur das Symbol, der Name bleibt im Text für Screenreader; bis 520 Pixel steht der Link im Bereichsmenü). Das Logo bleibt die Übersicht der Verwaltung.
+
+### Stand der Prüfung (#669)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung gesehen: Menü der Leitung (mit «Verwaltung») und der Eltern (ohne) bei 1440 und 390 Pixel, Hell und Dunkel, «Zur Website» in der Verwaltung bei 1440, 800 und 390 Pixel. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), erzwungene Farben im Browser (nur der Quelltext), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug. Bekannt, nicht von diesem Abschnitt: Die Logozeile der Verwaltung läuft bei 390 Pixel schon ohne «Zur Website» über (Umschalter Hell und Dunkel).

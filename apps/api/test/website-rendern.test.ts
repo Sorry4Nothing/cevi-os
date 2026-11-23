@@ -359,13 +359,18 @@ describe("Aufbau und Barrierefreiheit", () => {
     expect(html).toContain('<script src="/website/theme.js"></script>');
     // Dazu das Skript für den Ladezustand der Bilder (#574), ebenfalls eine eigene Datei
     expect(html).toContain('<script src="/website/ladezustand.js"></script>');
+    // Und das Konto-Menü im Kopf (#669): ein Modul der eigenen Herkunft, das nach dem Laden fragt, wer angemeldet ist
+    expect(html).toContain(
+      '<script type="module" src="/website/konto.js"></script>',
+    );
     expect(
       html
         .replace('<script src="/website/theme.js"></script>', "")
-        .replace('<script src="/website/ladezustand.js"></script>', ""),
+        .replace('<script src="/website/ladezustand.js"></script>', "")
+        .replace('<script type="module" src="/website/konto.js"></script>', ""),
     ).not.toMatch(/<script|<iframe|<object|<embed|style=/i);
     expect(html).toContain("script-src &#39;self&#39;");
-    expect(html).not.toContain("connect-src");
+    expect(html).toContain("connect-src &#39;self&#39;");
     expect(html).not.toMatch(
       /(?:src|href)="(?:https?:)?\/\/(?!www\.example\.org)/,
     );
@@ -778,8 +783,8 @@ describe("Logo, Umschalter und Karussell (#550)", () => {
     expect(html).toContain(
       '<script src="/website/karussell.js" defer></script>',
     );
-    // Kein Inline-Skript, nur die eigenen Dateien (Thema, Ladezustand, Grossansicht, Karussell); keine Knöpfe ohne Skript
-    expect(zaehle(html, "<script")).toBe(4);
+    // Kein Inline-Skript, nur die eigenen Dateien (Thema, Ladezustand, Konto-Menü, Grossansicht, Karussell); keine Knöpfe ohne Skript
+    expect(zaehle(html, "<script")).toBe(5);
     expect(html).not.toContain('class="k-knoepfe"');
   });
 

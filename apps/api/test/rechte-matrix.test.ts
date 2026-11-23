@@ -2295,6 +2295,15 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Konto-Menü im Kopf der Website (#669): jede Person mit Sitzung bekommt Anzeigename, Bild und «verwaltung»; ohne Sitzung 401; die Wirkung steht in test/website-konto.test.ts
+  "GET /api/v1/website/konto": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({

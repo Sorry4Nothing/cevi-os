@@ -1180,16 +1180,18 @@ ${ordneZweispaltig(rumpf)}
 
 // Der Kopf (Marke, Navigation, Umschalter, Menü am Handy) steht in kopf.ts (#558)
 
-// Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile, Schrift und Bilder, keine Rahmen. Skripte und Verbindungen nur auf Seiten mit Skript (#354) und nur von der eigenen Herkunft, nie inline.
+// Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile, Schrift und Bilder, keine Rahmen. Skripte und Verbindungen nur von der eigenen Herkunft, nie inline; Verbindungen erlaubt jede Seite mit Kopf (Konto-Menü, #669), nur der Kopf der Wartung und der Serverfehler nicht.
 // Das Menü (menue.js) ist eine Verbesserung: ohne Skript öffnen sich die Untermenüs bei Hover und Fokus
 export const CSP =
   "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
-// Jede Seite lädt theme.js (#550) und ladezustand.js (#574), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf nur, wer ein Skript für Abrufe braucht
+// Jede Seite lädt theme.js (#550) und ladezustand.js (#574), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf, wer ein Skript für Abrufe braucht und jede Seite mit Kopf (konto.js, #669)
 const CSP_SEITE =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 export const SKRIPT_MENUE = "/website/menue.js";
+// Konto-Menü im Kopf (#669): fragt nach dem Laden GET /api/v1/website/konto und tauscht «Anmelden» bei gültiger Sitzung aus; darum darf jede Seite mit Kopf verbinden (nur zur eigenen Herkunft)
+export const SKRIPT_KONTO = "/website/konto.js";
 export const SKRIPT_THEMA = "/website/theme.js";
 export const SKRIPT_LADEZUSTAND = "/website/ladezustand.js";
 export { SKRIPT_KARUSSELL };
@@ -1244,6 +1246,7 @@ export function rahmen(
   const menue = !nurMarke && k.navigation.length > 0;
   const skripte = [
     ...(menue ? [SKRIPT_MENUE] : []),
+    ...(nurMarke ? [] : [SKRIPT_KONTO]),
     ...(skript ? [skript].flat() : []),
   ]
     .map((pfad) => `\n<script type="module" src="${pfad}"></script>`)
@@ -1263,7 +1266,7 @@ export function rahmen(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP_SEITE)}">
+<meta http-equiv="Content-Security-Policy" content="${esc(skript || !nurMarke ? CSP_MIT_SKRIPT : CSP_SEITE)}">
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
 <title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}${k.zeichen ? zeichenLinks(esc(k.zeichen)) : ""}
 ${THEMA_SKRIPT_TAG}

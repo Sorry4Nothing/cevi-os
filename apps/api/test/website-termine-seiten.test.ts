@@ -46,13 +46,14 @@ describe("Seiten für Termine und Anlässe", () => {
   );
 
   test.each(seiten)(
-    "%s: theme.js, ladezustand.js und ein Modul der eigenen Herkunft, nie inline",
+    "%s: theme.js, ladezustand.js, das Konto-Menü und ein Modul der eigenen Herkunft, nie inline",
     (datei, inhalt) => {
       const skripte = [...inhalt.matchAll(/<script([^>]*)>/g)];
-      expect(skripte).toHaveLength(3);
+      expect(skripte).toHaveLength(4);
       expect(skripte[0][1]).toBe(' src="/website/theme.js"');
       expect(skripte[1][1]).toBe(' src="/website/ladezustand.js"');
-      expect(skripte[2][1]).toMatch(
+      expect(skripte[2][1]).toBe(' type="module" src="/website/konto.js"');
+      expect(skripte[3][1]).toMatch(
         /^ type="module" src="\/website\/[a-z-]+\.js"$/,
       );
       expect(inhalt).not.toMatch(/<script[^>]*>[^<]+<\/script>/);

@@ -6,7 +6,7 @@ Das Gerüst der Verwaltung unter `/admin` ist Teil **eines** Designsystems mit d
 
 ```
 Kopf (header.kopfzeile, wie website/kopf.css)
-  Logozeile        Marke (Logo hell/dunkel oder Wortmarke «CEVI» mit Name), «Verwaltung», Konto, Umschalter Hell/Dunkel, Abmelden
+  Logozeile        Marke (Logo hell/dunkel oder Wortmarke «CEVI» mit Name), «Verwaltung», «Zur Website» (#669; bis 520 px im Bereichsmenü), Konto, Umschalter Hell/Dunkel, Abmelden
   Bereichsleiste   weisses Band, ein Eintrag je Bereich, roter Strich unter dem aktuellen; haftet beim Scrollen oben (unter 960 px: Bereichsauswahl)
   Unterleiste      die Unterseiten des aktiven Bereichs auf der Fläche der Seite, Zähler als roter Kreis; scrollt mit weg
 main#inhalt        .rahmen (max. 105 rem und Seitenrand clamp(1rem, 4vw, 4.5rem): dieselben Werte wie .wrap und --rand der Website, in der Verwaltung als --seitenbreite und --seitenrand, weil --rand hier die Randfarbe ist; Kopf, Leisten, Hinweisband, Seitenkopf und Inhalt haben exakt dieselben Kanten wie die Website)

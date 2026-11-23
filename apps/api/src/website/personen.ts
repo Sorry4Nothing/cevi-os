@@ -34,7 +34,7 @@ export function personenIn(dokumente: Iterable<Seitendokument>): string[] {
 }
 
 // Anzeigename: der Cevi-Name, sonst der Vorname (das erste Wort des Namens im Konto); nie der ganze Name
-const anzeigename = (ceviName: string | null, name: string) =>
+export const anzeigename = (ceviName: string | null, name: string) =>
   ceviName?.trim() || name.trim().split(/\s+/)[0] || "";
 
 const AKTIV = and(isNull(user.deaktiviertAm), sql`${user.banned} is not true`);
