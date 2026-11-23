@@ -29,6 +29,7 @@ import {
 import { personAusSitzung, zweiterFaktorPflicht } from "./rechte.js";
 import { erstelleBearbeiterRouten } from "./routes/admin/bearbeiter.js";
 import { erstellePlattformRollenRouten } from "./routes/admin/plattform-rollen.js";
+import { erstelleRechteRouten } from "./routes/admin/rechte.js";
 import { erstelleImportRouten } from "./routes/admin/import.js";
 import { erstelleKinderRouten } from "./routes/admin/kinder.js";
 import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
@@ -310,6 +311,7 @@ export function erstelleApp({
         erstelleAdminLagerDateiRouten({ db }),
       )
       .route("/api/v1/admin/bearbeiter", erstelleBearbeiterRouten({ db }))
+      .route("/api/v1/admin/rechte", erstelleRechteRouten({ db }))
       .route(
         "/api/v1/admin/plattform/rollen",
         erstellePlattformRollenRouten({ db }),
