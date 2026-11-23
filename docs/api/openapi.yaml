@@ -2092,10 +2092,70 @@ paths:
             text/javascript:
               schema:
                 type: string
-  /admin/rechte-logik.js:
+  /admin/rechte-api.js:
     get:
-      operationId: getAdminRechteLogikSkript
+      operationId: getAdminRechteApiSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Aufrufe der Matrix-API
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-matrix.js:
+    get:
+      operationId: getAdminRechteMatrixSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Rechte-Matrix
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-modell.js:
+    get:
+      operationId: getAdminRechteModellSkript
       summary: Skript der Verwaltung – Rollen und Rechte, Logik
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-rolle.js:
+    get:
+      operationId: getAdminRechteRolleSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Rollen anlegen und Personen zuordnen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-anlass.js:
+    get:
+      operationId: getAdminRechteAnlassSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, OK am Anlass anlegen
       tags:
         - Allgemein
       security: []

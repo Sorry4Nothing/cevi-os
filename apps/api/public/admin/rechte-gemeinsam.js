@@ -1,21 +1,12 @@
 import { avatar, el, icon, knopf } from "./dom.js";
 
-// Gemeinsames für die drei Reiter von «Rollen und Rechte» (#623)
+// Gemeinsames für die drei Reiter von «Rollen und Rechte» (#623, #651)
 
 export const ADRESSE = "#personen/rechte";
 export const adresse = (...teile) =>
   [ADRESSE, ...teile.filter(Boolean)].join("/");
 
-// Eine Meldung, die nach einer Navigation stehen soll (der Router leert die Rückmeldungen bei jedem Wechsel); die nächste Ansicht zeigt sie einmal
-let wartend = null;
-export const merkeMeldung = (text, art = "ok") => (wartend = { text, art });
-export function zeigeWartende(ctx) {
-  if (!wartend) return;
-  ctx.melde(wartend.text, wartend.art);
-  wartend = null;
-}
-
-// «← Alle Rollen» über dem Inhalt einer Unterseite
+// «← Alle Gruppen» über dem Inhalt einer Unterseite
 export const zurueckLink = (text, href) =>
   el(
     "a",
@@ -90,3 +81,13 @@ export const haenge = (ziel, ...kinder) =>
 
 // Anzeige für eine Anzahl: «1 Person», «3 Personen»
 export const personen = (n) => (n === 1 ? "1 Person" : `${n} Personen`);
+
+// Typ der Gruppe in Klartext (Tags heissen in der Oberfläche Gruppen)
+export const GRUPPENTYP = {
+  stufe: "Stufe",
+  funktion: "Funktion",
+  team: "Team",
+  lager: "Lager",
+  anlass: "Anlass",
+};
+export const typText = (typ) => GRUPPENTYP[typ] ?? typ;

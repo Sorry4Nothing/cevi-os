@@ -284,7 +284,7 @@ Neue Route oder geänderte Regel:
 4. **Matrixzeile:** `apps/api/test/rechte-matrix.test.ts` (Hauptmatrix), `test/lager/matrix/<modul>.ts` oder `test/termine/matrix/<modul>.ts`. Werte als Literale, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet. Die Tests prüfen, dass jede Route eine Zeile hat und jede Zeile eine Route.
 5. **Vertrag:** `docs/api/openapi.yaml` ergänzen (Antworten 401, 403, 404, 409 und, wo es gilt, `ZWEITER_FAKTOR_FEHLT`). Der Test `openapi.test.ts` hält Routen und Vertrag zusammen.
 6. **Dokumente:** `docs/api/endpunkte.md` und die Postman-Collection neu erzeugen (`docs/api/postman.md`). Diese Seite nachführen, wenn sich Rollen, Rechte oder Grundregeln ändern.
-7. **Oberfläche:** Wer ein Plattformrecht ergänzt, trägt Klartext, Bereich und Wirkung in `RECHT_INFO` (`apps/api/public/admin/rechte-logik.js`) ein; `admin-rechte.test.ts` schlägt sonst fehl. Ohne Eintrag erscheint das Recht unter «Weitere» mit dem Text des Servers.
+7. **Oberfläche:** Die Matrix liest Klartext, Erklärung, Risiko und Geltung aus `GET /admin/rechte/katalog`; ein neues Recht im Katalog erscheint ohne Änderung an der Oberfläche. Nur die Wirkungsmarken («Öffentlich», «Löscht», «Kinderdaten») stehen in `MARKEN` (`apps/api/public/admin/rechte-modell.js`); ohne Eintrag hat das Recht keine Marke und fragt beim Speichern nicht zusätzlich.
 8. **Bedrohungsmodell und Checkliste:** `~/.claude/security/security-checklist.md` für den Änderungstyp durchgehen, im PR Abweichungen von SR-Anforderungen nennen.
 
 Prüfen:

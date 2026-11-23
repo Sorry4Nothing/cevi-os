@@ -34,7 +34,7 @@ describe("Admin-Panel: Gruppentyp «Anlass»", () => {
     expect(lies("tags-anlass.js")).toContain("#anlaesse/");
     const anlass = lies("termine-anlaesse.js");
     expect(anlass).toContain("#personen/gruppen/");
-    expect(anlass).toContain("Gruppe anlegen");
+    expect(anlass).toContain("OK anlegen");
   });
 
   test("keine nativen Popups", () => {

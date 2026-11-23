@@ -721,32 +721,37 @@ function zeichneUebersicht(
           : `${a.felder.length}, bearbeiten`,
       ),
     ],
-    // Die Gruppe des Anlasses (zum Beispiel das OK, #626); sie gibt keine Rechte. Ein Lager hat keine
+    // Die Gruppe des Anlasses (zum Beispiel das OK, #626); ihre Rollen tragen die Rechte (#651). Ein Lager hat keine
     a.art === "anlass" && [
       "Gruppe",
       a.gruppe
         ? el(
-            "a",
-            {
-              class: "tm-tabellenlink",
-              href: `#personen/gruppen/${a.gruppe.id}`,
-            },
-            `${a.gruppe.name}, öffnen`,
+            "span",
+            { class: "tm-doppellink" },
+            el(
+              "a",
+              {
+                class: "tm-tabellenlink",
+                href: `#personen/gruppen/${a.gruppe.id}`,
+              },
+              `${a.gruppe.name}, öffnen`,
+            ),
+            el(
+              "a",
+              {
+                class: "tm-tabellenlink",
+                href: `#personen/rechte/gruppen/${a.gruppe.id}`,
+              },
+              "Rollen und Rechte",
+            ),
           )
-        : knopf("Gruppe anlegen", {
+        : knopf("OK anlegen", {
             klein: true,
             art: "still",
             symbol: "plus",
             onclick: async () => {
-              const { tagDialog } = await import("./tags-detail.js");
-              tagDialog({
-                ctx,
-                anlass: a,
-                neu: () => {
-                  vergiss(id);
-                  neu();
-                },
-              });
+              const { okAnlegen } = await import("./rechte-anlass.js");
+              okAnlegen({ ctx, anlass: a });
             },
           }),
     ],

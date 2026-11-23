@@ -724,6 +724,26 @@ Gilt für die Artikelliste und das Artikelblatt der Verwaltung (`public/admin/la
 
 Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 390 und 1440 px, Tag und Nacht: 39.1, 39.2, 39.3 (Umschalten, Toast, Rückgängig gegen die Datenbank geprüft), 39.4, 39.5 (Klick auf die gesperrte Grösse wählt nichts, `aria-pressed="false"`), 39.6 (Sperre und Freigabe nach dem Entfernen der Zeile). Nicht geprüft: Bildschirmleser (kein Gerät), 39.7 nicht gemessen mit dem Werkzeug des Skills `barrierefreiheit-pruefen`, Zoom 200 %.
 
+## 50. Verwaltung: Rechte-Matrix, Gruppenrollen und OK (#651)
+
+Gilt für «Rollen und Rechte» (`rechte*.js`, `rechte.css`) und «OK anlegen» am Anlass. Massstab WCAG 2.2 AA.
+
+- [ ] **50.1** Jede Zelle der Matrix ist eine Radiogruppe (`role="radiogroup"`, Segmente `role="radio"`, `aria-checked`) mit vollem Namen «Rolle: Recht»; ein Tabstopp je Zelle, Pfeiltasten wechseln und wählen, kein Zustand nur über Farbe (Wort «Aus», «Eigene», «Alle», Haken, Rand).
+- [ ] **50.2** Jedes Segment ist mindestens 44 px hoch und breit; der Fokusring (3 px) liegt innen und ist in Tag und Nacht sichtbar.
+- [ ] **50.3** Die Tabelle hat `caption` (für Leser), `th scope` für Spalten, Zeilen und Bereiche; der waagrecht scrollbare Bereich ist eine beschriftete Region mit Fokus. Kopf und erste Spalte bleiben beim Scrollen stehen.
+- [ ] **50.4** Am Telefon und bei grosser Schrift gibt es dieselben Rechte als Karten je Rolle (Matrix/Je Rolle umschaltbar); 200 % Zoom und 390 px ohne seitliches Scrollen der Seite.
+- [ ] **50.5** Geänderte Zellen zeigen den alten Stand als Text («war aus») und einen Rand; «N Änderungen» steht in einer Statusregion, jede Änderung wird angesagt.
+- [ ] **50.6** Die Speicherleiste ist erreichbar und verdeckt keinen Fokus; Speichern bei grosser Wirkung ist ein zweistufiger Knopf mit Ansage und Escape. Kein Popup, keine native Rückfrage: Löschen fragt in einer Zeile am Ort mit Folgenanzeige.
+- [ ] **50.7** Reihenfolge der Rollen per Ziehen, mit Leertaste und Pfeilen und mit den Knöpfen Hoch und Runter (WCAG 2.5.7).
+- [ ] **50.8** Feste Punkte sind als «Fest» gekennzeichnet und erklärt, nicht nur ausgegraut.
+- [ ] **50.9** Marken («2. Faktor», «Öffentlich», «Löscht») tragen Wort und Symbol; Kontrast der Marken mindestens 4.5:1 in Tag und Nacht (Tokens).
+- [ ] **50.10** Ladezustände sind Skelette in der Form der Seite; Fehler tragen «Nochmals versuchen»; Reduced Motion schaltet die Übergänge ab.
+- [ ] **50.11** «OK anlegen»: Seite im Fluss mit Zurück, Fehler am Feld, Rollenzeilen mit beschrifteten Haken und Namensfeldern; nach dem Anlegen führt die Seite zur neuen Gruppe.
+
+### Stand der Prüfung (#651)
+
+Geprüft im Browser (headless, Kopie der Demo-Datenbank) bei 1440 und 390 px, Tag und Nacht: 50.1 bis 50.5, 50.7 (Tasten), 50.8, 50.11. Mit Tastatur: Pfeil in der Zelle, Speichern zweistufig. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung, 2560 px, Kontrast-Thema.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:
