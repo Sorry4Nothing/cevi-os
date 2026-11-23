@@ -1571,3 +1571,14 @@ a.pe-bearbeiten:hover {
   width: 2.75rem;
   padding: 0;
 }
+
+/* Hinterlegtes Bild der Stufe oben in der Karte: breit, zugeschnitten, mit abgerundeten Ecken */
+.bild-box.st-foto {
+  width: 100%;
+  aspect-ratio: 16 / 7;
+  border-radius: var(--r-sm);
+}
+
+.bild-box.st-foto > img {
+  object-fit: cover;
+}
