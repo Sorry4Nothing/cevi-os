@@ -178,13 +178,14 @@ export function baumAnsicht(k, zustand) {
         "aria-expanded":
           kinder.length > 0 && !filtert() ? String(!zu) : undefined,
         "aria-labelledby": nameId,
+        "aria-describedby": `baum-werte-${seite.id}`,
         onkeydown: (e) => taste(e, z),
         onfocus: () => (aktivId = seite.id),
       },
       el("div", { class: "ws-baumfeld" }, griff, ...fuehrung, falten, link),
       el(
         "div",
-        { class: "ws-werte" },
+        { class: "ws-werte", id: `baum-werte-${seite.id}` },
         el(
           "ul",
           { class: "chips" },
