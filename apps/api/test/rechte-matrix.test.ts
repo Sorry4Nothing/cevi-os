@@ -1443,6 +1443,188 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Rechte-Matrix (#643): nur die Abteilungsleitung mit zweitem Faktor; fremde Abteilung 404 vor dem 403. Wirkung, Version, Vorschau und Eskalation stehen in test/rechte-matrix-api.test.ts
+  "GET /api/v1/admin/rechte/katalog": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/rechte/gruppen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/rechte/gruppen/:tagId/rollen": {
+    url: () => `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/rechte/gruppen/:tagId/rollen": {
+    url: () => `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen`,
+    // Ein Name je Anfrage: Namen sind je Gruppe eindeutig
+    body: () => ({
+      name: `Matrix ${randomUUID().slice(0, 8)}`,
+      rechte: [{ recht: "seiten.bearbeiten", geltung: "eigene" }],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PATCH /api/v1/admin/rechte/gruppen/:tagId/rollen/:rolleId": {
+    url: () =>
+      `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen/${matrixGruppenRolleId}`,
+    body: () => ({ version: 1, beschreibung: "Matrix" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/rechte/gruppen/:tagId/rollen/:rolleId": {
+    // Jede Anfrage loescht ihre Rolle
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen/${await wegwerfGruppenRolleId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/rechte/gruppen/:tagId/rollen/vorschau": {
+    url: () => `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen/vorschau`,
+    body: () => ({
+      rolleId: matrixGruppenRolleId,
+      rechte: [{ recht: "seiten.bearbeiten", geltung: "eigene" }],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/admin/rechte/gruppen/:tagId/personen/:userId/rolle": {
+    url: () =>
+      `/api/v1/admin/rechte/gruppen/${matrixTagId}/personen/${tagPersonId}/rolle`,
+    body: () => ({ rolleId: matrixGruppenRolleId }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/rechte/rollen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/rechte/rollen": {
+    // Ein Name je Anfrage: Namen sind je Abteilung eindeutig
+    body: () => ({
+      name: `Matrix ${randomUUID()}`,
+      rechte: ["mitteilung.senden"],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/rechte/rollen/:id": {
+    url: () => `/api/v1/admin/rechte/rollen/${matrixPlattformRolleId}`,
+    body: () => ({ version: 1, rechte: ["laden.ansehen"] }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/rechte/rollen/:id": {
+    // Jede Anfrage loescht ihre Rolle
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/rechte/rollen/${await wegwerfPlattformRolleId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/rechte/personen/:userId": {
+    url: () => `/api/v1/admin/rechte/personen/${tagPersonId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/rechte/aenderungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Seiten der Website (#348): Zugang für Admin, Stufenleitung und Webmaster, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
   "GET /api/v1/redaktion/seiten": {
     erwartet: {
@@ -1998,6 +2180,9 @@ let ladenArtikelId: string;
 let ladenArtikelDemoId: string;
 let ladenBestellungId: string;
 let plattformRolleId: string;
+let matrixTagId: string;
+let matrixGruppenRolleId: string;
+let matrixPlattformRolleId: string;
 let testBild: Buffer;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
@@ -2136,6 +2321,24 @@ async function wegwerfPlattformRolleId() {
   return zeile.id;
 }
 
+// Wegwerf-Gruppenrolle der Matrix-Gruppe (#643) mit einem Recht
+async function wegwerfGruppenRolleId() {
+  const [zeile] = await welt.db
+    .insert(schema.gruppenRolle)
+    .values({
+      abteilungId: welt.testabteilungId,
+      tagId: matrixTagId,
+      name: `Wegwerf ${randomUUID()}`,
+    })
+    .returning({ id: schema.gruppenRolle.id });
+  await welt.db.insert(schema.gruppenRolleRecht).values({
+    rolleId: zeile.id,
+    recht: "seiten.bearbeiten",
+    geltung: "eigene",
+  });
+  return zeile.id;
+}
+
 // Wegwerf-Seite der Testabteilung, oberste Ebene
 async function wegwerfSeiteId() {
   const [zeile] = await welt.db
@@ -2230,6 +2433,10 @@ beforeAll(async () => {
   patchTagId = await wegwerfTagId();
   tagPersonId = await wegwerfPersonId();
   plattformRolleId = await wegwerfPlattformRolleId();
+  matrixPlattformRolleId = await wegwerfPlattformRolleId();
+  // Eine Gruppe der Testabteilung mit einem Mitglied und einer Rolle fuer die Zeilen der Rechte-Matrix (#643)
+  matrixTagId = await wegwerfTagId(tagPersonId);
+  matrixGruppenRolleId = await wegwerfGruppenRolleId();
   testBild = await sharp({
     create: { width: 64, height: 64, channels: 3, background: "#3366cc" },
   })

@@ -5913,6 +5913,508 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/katalog:
+    get:
+      operationId: leseAdminRechteKatalog
+      summary: Rechtekatalog lesen
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Liefert den einen Katalog aller Rechte: Bereich, Klartext, Erklärung, Risiko (`normal`, `erweitert`, `fest`), Art (`vergebbar`, `struktur`, `fest`), Geltungen (`alle`, `eigene`), den Bezug, an dem «eigene» hängt, und ob das Recht den zweiten Faktor verlangt. Dazu den Modus, in dem das Rechtemodell läuft (`alt`, `schatten`, `neu`).
+
+        Nur Rechte mit Art `vergebbar` lassen sich einer Rolle geben; `fest` (Rechte vergeben, Entwickler vergeben, Konto löschen, Sperre, Protokoll) bleibt bei Abteilungsleitung und Entwickler, `struktur` folgt aus der Beziehung (jede angemeldete Person, Eltern des Kindes). Nichts im Katalog erlaubt etwas: Er beschreibt.
+
+        Statuscodes: 200 bei Erfolg. 403 für Personen ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Der Katalog.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteKatalog"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/gruppen:
+    get:
+      operationId: listeAdminRechteGruppen
+      summary: Gruppen mit Zahl ihrer Rollen und Mitglieder
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Alle Gruppen (Tags jedes Typs) der eigenen Abteilung mit der Zahl ihrer Rollen, Mitglieder und der Mitglieder mit einer Rolle. Eine Abfrage.
+
+        Statuscodes: 200 bei Erfolg. 403 wie beim Katalog.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Gruppen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteGruppenListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/gruppen/{tagId}/rollen:
+    get:
+      operationId: listeAdminRechteGruppenRollen
+      summary: Rollen einer Gruppe mit Rechten und Mitgliedern
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Die Rollen der Gruppe in ihrer Reihenfolge, je mit ihren Rechten und Geltungen, den festen Rechten im Code (nur Stufenrollen), der Versionsnummer und den Personen, die sie tragen (Kennung und Name). Systemrollen (`system: true`) legt das System an: «Stufenleitung» und «Leitung» an einer Stufe, «Verantwortliche/r» an jeder anderen Gruppe. Drei Abfragen für die ganze Gruppe.
+
+        Rechte der Rollen gelten, bis die Rolle, die Zuordnung oder die Gruppe gelöscht wird: Es gibt keine Frist.
+
+        Reihenfolge der Prüfungen: Pfad (400), Gruppe in der eigenen Abteilung (404), Recht (403).
+
+        Statuscodes: 200 bei Erfolg. 404, wenn die Gruppe unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteTagId"
+      responses:
+        "200":
+          description: Die Rollen der Gruppe.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteGruppenRollen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminRechteGruppenRolleAn
+      summary: Rolle in einer Gruppe anlegen
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Legt eine Rolle mit Name, Beschreibung, Kennzeichen «Verantwortliche/r», Reihenfolge und einer Menge von Rechten an. Jedes Recht trägt seine Geltung: `alle` (jedes Objekt der Abteilung) oder `eigene` (nur Objekte der Gruppe: Seite des Teams, Räume des Teams, Anlass des OK). Welche Geltungen ein Recht kennt, steht im Katalog. Wer Rechte vergibt, hat sie selbst, mindestens in der Geltung, die er vergibt. Höchstens 30 Rollen je Gruppe. Das Anlegen steht im Audit-Log (`gruppen_rolle_angelegt`, mit den Rechten, ohne den Namen).
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Gruppe in der eigenen Abteilung (404), Recht (403), eigene Rechte (403), Name und Zahl der Rollen (409).
+
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (ein Recht oder eine Geltung, die der Katalog nicht kennt, ein festes Recht, ein doppeltes Recht, unbekannte Felder). 409 mit Code `ROLLENNAME_VERGEBEN` oder `ZU_VIELE_ROLLEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteTagId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RechteGruppenRolleAnlegen"
+      responses:
+        "201":
+          description: Rolle angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Der Name ist in der Gruppe vergeben (`ROLLENNAME_VERGEBEN`) oder die Gruppe hat schon 30 Rollen (`ZU_VIELE_ROLLEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/gruppen/{tagId}/rollen/{rolleId}:
+    patch:
+      operationId: aendereAdminRechteGruppenRolle
+      summary: Rolle einer Gruppe ändern
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Ändert Name, Beschreibung, Kennzeichen, Reihenfolge oder die Rechte der Rolle; `rechte` ersetzt die Menge als Ganzes. `version` ist Pflicht: Gespeichert wird nur auf dem Stand, den die Matrix gelesen hat. Hat jemand die Rolle inzwischen geändert, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand, statt zu überschreiben. Die Änderung wirkt bei der nächsten Anfrage der Personen. Nur hinzukommende Rechte muss die handelnde Person selbst haben. Systemrollen behalten Name und Kennzeichen; ihre Rechte lassen sich ändern. Das Ändern steht im Audit-Log (`gruppen_rolle_geaendert`, mit den hinzugekommenen und weggefallenen Rechten, ohne Namen).
+
+        Reihenfolge der Prüfungen: Pfad und Body (400), Gruppe und Rolle in der eigenen Abteilung (404), Recht (403), Umbenennen einer Systemrolle (409), eigene Rechte (403), Version (409).
+
+        Statuscodes: 200 mit der neuen Version. 409 mit Code `ROLLENNAME_VERGEBEN`, `ROLLE_VORGEGEBEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteTagId"
+        - $ref: "#/components/parameters/RechteRolleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RechteGruppenRolleAendern"
+      responses:
+        "200":
+          description: Geändert; die neue Version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteVersion"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Name vergeben (`ROLLENNAME_VERGEBEN`), Systemrolle (`ROLLE_VORGEGEBEN`) oder gleichzeitig geändert (`VERSION_KONFLIKT`, mit dem Stand in `aktuell`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminRechteGruppenRolle
+      summary: Rolle einer Gruppe löschen
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Löscht die Rolle samt ihren Rechten. Die Personen behalten ihre Mitgliedschaft in der Gruppe und verlieren die Rolle; der Entzug wirkt bei der nächsten Anfrage. Systemrollen lassen sich nicht löschen. Mit `version` nur, wenn die Rolle noch diesen Stand hat. Das Löschen steht im Audit-Log (`gruppen_rolle_geloescht`, mit den Rechten).
+
+        Statuscodes: 204 bei Erfolg. 409 mit Code `ROLLE_VORGEGEBEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteTagId"
+        - $ref: "#/components/parameters/RechteRolleId"
+        - $ref: "#/components/parameters/RechteVersionAbfrage"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Systemrolle (`ROLLE_VORGEGEBEN`) oder gleichzeitig geändert (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/gruppen/{tagId}/rollen/vorschau:
+    post:
+      operationId: vorschauAdminRechteGruppenRolle
+      summary: Vorschau, wer betroffen ist
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Rechnet eine Änderung, ohne zu schreiben: wie viele Personen die Rolle heute tragen und welche Rechte sie mit den vorgeschlagenen Rechten gewinnen und verlieren. Ohne `rolleId` ist es eine neue Rolle (keine Personen). Nur Zahlen, nie Namen.
+
+        Statuscodes: 200 bei Erfolg. 404, wenn Gruppe oder Rolle unbekannt sind oder zu einer anderen Abteilung gehören.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteTagId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RechteVorschauAnfrage"
+      responses:
+        "200":
+          description: Die Zahlen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteVorschau"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/gruppen/{tagId}/personen/{userId}/rolle:
+    put:
+      operationId: ordneAdminRechteGruppenRolleZu
+      summary: Einer Person in der Gruppe eine Rolle zuordnen
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Setzt die Rolle der Person in dieser Gruppe (`rolleId`) oder entzieht sie (`null`). Die Person muss Mitglied der Gruppe sein, die Rolle muss zur Gruppe gehören. Wer eine Rolle zuordnet, hat ihre Rechte selbst. Das Zuordnen steht im Audit-Log (`gruppen_rolle_zugeordnet`, mit Gruppe, Rolle und der Rolle vorher). Die Mitglieder der Gruppe verwaltet weiter `/api/v1/admin/tags/{id}/personen/{userId}`.
+
+        Statuscodes: 204 bei Erfolg. 404, wenn Gruppe, Mitglied oder Rolle unbekannt sind oder zu einer anderen Abteilung gehören.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteTagId"
+        - $ref: "#/components/parameters/RechteUserId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RechteRolleZuordnen"
+      responses:
+        "204":
+          description: Zugeordnet.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/rollen:
+    get:
+      operationId: listeAdminRechteRollen
+      summary: Globale Rollen mit dem ganzen Katalog
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Die Rollen der Abteilung (Plattformrollen, zuerst «Webmaster»), die abteilungsweit gelten, mit allen vergebbaren Rechten des Katalogs, ihrer Version und den Personen, die sie tragen. Die ältere Route `/api/v1/admin/plattform/rollen` bleibt: Sie kennt nur die Rechte der Website und lässt die übrigen Rechte einer Rolle stehen. Personen ordnet weiter `/api/v1/admin/plattform/rollen/{id}/personen/{userId}` zu.
+
+        Statuscodes: 200 bei Erfolg.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Rollen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteGlobaleRollen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    post:
+      operationId: legeAdminRechteRolleAn
+      summary: Globale Rolle anlegen
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Legt eine Rolle mit Rechten aus dem ganzen Katalog an; sie gelten abteilungsweit. Wer Rechte vergibt, hat sie selbst. Audit-Log: `plattform_rolle_angelegt`.
+
+        Statuscodes: 201 bei Erfolg. 409 mit Code `ROLLENNAME_VERGEBEN`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RechteGlobaleRolleAnlegen"
+      responses:
+        "201":
+          description: Rolle angelegt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteAngelegt"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Der Name ist vergeben (`ROLLENNAME_VERGEBEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/rollen/{id}:
+    patch:
+      operationId: aendereAdminRechteRolle
+      summary: Globale Rolle ändern
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Ändert Name oder Rechte (als Ganzes) auf dem gelesenen Stand (`version` Pflicht, sonst 409 `VERSION_KONFLIKT`). Rechte, die der Katalog nicht kennt, bleiben unberührt. Die Vorgabe «Webmaster» behält ihren Namen. Audit-Log: `plattform_rolle_geaendert`.
+
+        Statuscodes: 200 mit der neuen Version. 409 mit Code `ROLLENNAME_VERGEBEN`, `ROLLE_VORGEGEBEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteGlobalRolleId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RechteGlobaleRolleAendern"
+      responses:
+        "200":
+          description: Geändert; die neue Version.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteVersion"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Name vergeben, Vorgabe oder gleichzeitig geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    delete:
+      operationId: loescheAdminRechteRolle
+      summary: Globale Rolle löschen
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Löscht die Rolle samt Rechten und Vergaben; der Entzug wirkt bei der nächsten Anfrage. Die Vorgabe lässt sich nicht löschen. Audit-Log: `plattform_rolle_geloescht`.
+
+        Statuscodes: 204 bei Erfolg. 409 mit Code `ROLLE_VORGEGEBEN` oder `VERSION_KONFLIKT`.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteGlobalRolleId"
+        - $ref: "#/components/parameters/RechteVersionAbfrage"
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Vorgabe oder gleichzeitig geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteKonflikt"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/personen/{userId}:
+    get:
+      operationId: leseAdminRechtePerson
+      summary: Was darf diese Person, und woher?
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Jedes Recht, das die Person hat, mit seinen Quellen (`herkunft`): Abteilungsleitung, Entwickler, Plattformrolle, Stufenrolle, Mitgliedschaft, Gruppenrolle (mit Gruppe und Rolle) oder Sonderrecht, je mit Geltung. Dazu die Gruppen der Person mit ihrer Rolle. Das ist die Diagnose für «Ich komme nicht in die Anmeldungen». Zwei Abfragen für die Person, eine für die Rechte.
+
+        Der Name der Person steht in der Antwort; nie Kontaktdaten.
+
+        Statuscodes: 200 bei Erfolg. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteUserId"
+      responses:
+        "200":
+          description: Die Rechte der Person.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechtePerson"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/aenderungen:
+    get:
+      operationId: listeAdminRechteAenderungen
+      summary: Änderungen an Rollen und Zuordnungen
+      description: |
+        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Die Zeilen des Audit-Logs zu Rollen und Zuordnungen (Gruppenrollen und Plattformrollen angelegt, geändert, gelöscht, zugeordnet, vergeben, entzogen), neueste zuerst, mit dem Namen der handelnden Person. Seitenweise: `nach` ist die Kennung der letzten Zeile der Vorseite.
+
+        Statuscodes: 200 bei Erfolg.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/RechteListeLimit"
+        - $ref: "#/components/parameters/RechteListeNach"
+      responses:
+        "200":
+          description: Die Änderungen.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RechteAenderungen"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/plattform/rollen:
     get:
       operationId: listeAdminPlattformRollen
@@ -5990,6 +6492,8 @@ paths:
       summary: Name oder Rechte einer Plattformrolle ändern
       description: |
         Nur die Abteilungsleitung, nur Rollen der eigenen Abteilung. `rechte` ersetzt die Rechte der Rolle als Ganzes; die Änderung wirkt bei der nächsten Anfrage der Personen. Nur hinzukommende Rechte muss die handelnde Person selbst haben. Die Vorgabe (`vorgabe: true`) behält ihren Namen, ihre Rechte lassen sich ändern. Das Ändern steht im Audit-Log (`plattform_rolle_geaendert`, mit den Rechten vorher und nachher, ohne Namen).
+
+        Jede Änderung zählt die Version der Rolle hoch (siehe `/api/v1/admin/rechte/rollen`), und `rechte` ersetzt nur die Rechte dieses Katalogs: Rechte, die die Matrix der Rolle zusätzlich gibt, bleiben (#643).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), Rolle in der eigenen Abteilung (404), Admin-Recht (403), Umbenennen der Vorgabe (409), eigene Rechte (403).
 
@@ -38082,6 +38586,516 @@ components:
             minLength: 1
             maxLength: 80
           description: Ohne Doppelte; ohne eigene Einstellung gilt «Abholung im Lädeli».
+    RechteKonflikt:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          enum:
+            [
+              ROLLENNAME_VERGEBEN,
+              ROLLE_VORGEGEBEN,
+              ZU_VIELE_ROLLEN,
+              VERSION_KONFLIKT,
+            ]
+        message:
+          type: string
+        aktuell:
+          type: object
+          description: Bei `VERSION_KONFLIKT` der Stand, der dazwischenkam.
+          properties:
+            version:
+              type: integer
+              nullable: true
+            rechte:
+              type: array
+              items:
+                $ref: "#/components/schemas/RechteZuteilung"
+    RechteZuteilung:
+      type: object
+      required: [recht, geltung]
+      properties:
+        recht:
+          type: string
+          description: Name aus dem Rechtekatalog (`/api/v1/admin/rechte/katalog`).
+          example: anlass.anmeldungen_sehen
+        geltung:
+          type: string
+          enum: [alle, eigene]
+    RechteKatalog:
+      type: object
+      required: [modus, bereiche, rechte]
+      properties:
+        modus:
+          type: string
+          enum: [alt, schatten, neu]
+          description: Welcher Weg Rechte durchsetzt (Umgebungsvariable `RECHTE_MODELL`).
+        bereiche:
+          type: array
+          items:
+            type: object
+            required: [id, name]
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+        rechte:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                id,
+                bereich,
+                klartext,
+                erklaerung,
+                risiko,
+                art,
+                geltungen,
+                bezug,
+                zweiterFaktor,
+                entwickler,
+                nurEntwickler,
+                gruppenrolle,
+              ]
+            properties:
+              id:
+                type: string
+              bereich:
+                type: string
+              klartext:
+                type: string
+              erklaerung:
+                type: string
+              risiko:
+                type: string
+                enum: [normal, erweitert, fest]
+              art:
+                type: string
+                enum: [vergebbar, struktur, fest]
+              geltungen:
+                type: array
+                items:
+                  type: string
+                  enum: [alle, eigene]
+              bezug:
+                type: string
+                nullable: true
+                enum: [seite, anlass, raum, gruppe]
+              zweiterFaktor:
+                type: boolean
+              entwickler:
+                type: boolean
+              nurEntwickler:
+                type: boolean
+              gruppenrolle:
+                type: boolean
+    RechteGruppenListe:
+      type: object
+      required: [gruppen]
+      properties:
+        gruppen:
+          type: array
+          items:
+            type: object
+            required: [id, typ, name, rollen, mitglieder, mitRolle]
+            properties:
+              id:
+                type: string
+                format: uuid
+              typ:
+                type: string
+                enum: [stufe, funktion, team, lager, anlass]
+              name:
+                type: string
+              rollen:
+                type: integer
+              mitglieder:
+                type: integer
+              mitRolle:
+                type: integer
+    RechteGruppenRollen:
+      type: object
+      required: [gruppe, rollen]
+      properties:
+        gruppe:
+          type: object
+          required: [id, typ, name]
+          properties:
+            id:
+              type: string
+              format: uuid
+            typ:
+              type: string
+            name:
+              type: string
+        rollen:
+          type: array
+          items:
+            type: object
+            required:
+              [
+                id,
+                name,
+                beschreibung,
+                verantwortlich,
+                reihenfolge,
+                system,
+                schluessel,
+                version,
+                rechte,
+                fest,
+                personen,
+              ]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              beschreibung:
+                type: string
+                nullable: true
+              verantwortlich:
+                type: boolean
+              reihenfolge:
+                type: integer
+              system:
+                type: boolean
+              schluessel:
+                type: string
+                nullable: true
+                enum: [leitung, stufenleitung, verantwortlich]
+              version:
+                type: integer
+              rechte:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RechteZuteilung"
+              fest:
+                type: array
+                description: Rechte, die im Code fest stehen und sich nicht abstellen lassen (Stufenrollen).
+                items:
+                  $ref: "#/components/schemas/RechteZuteilung"
+              personen:
+                type: array
+                items:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+    RechteGruppenRolleAnlegen:
+      type: object
+      additionalProperties: false
+      required: [name, rechte]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        beschreibung:
+          type: string
+          nullable: true
+          maxLength: 300
+        verantwortlich:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        rechte:
+          type: array
+          items:
+            $ref: "#/components/schemas/RechteZuteilung"
+    RechteGruppenRolleAendern:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        beschreibung:
+          type: string
+          nullable: true
+          maxLength: 300
+        verantwortlich:
+          type: boolean
+        reihenfolge:
+          type: integer
+          minimum: 1
+          maximum: 1000
+        rechte:
+          type: array
+          items:
+            $ref: "#/components/schemas/RechteZuteilung"
+    RechteAngelegt:
+      type: object
+      required: [id, version]
+      properties:
+        id:
+          type: string
+          format: uuid
+        version:
+          type: integer
+    RechteVersion:
+      type: object
+      required: [version]
+      properties:
+        version:
+          type: integer
+    RechteVorschauAnfrage:
+      type: object
+      additionalProperties: false
+      required: [rechte]
+      properties:
+        rolleId:
+          type: string
+          format: uuid
+        rechte:
+          type: array
+          items:
+            $ref: "#/components/schemas/RechteZuteilung"
+    RechteVorschau:
+      type: object
+      required: [personen, gewinnen, verlieren]
+      properties:
+        personen:
+          type: integer
+          description: Personen, die die Rolle heute tragen.
+        gewinnen:
+          type: array
+          items:
+            type: object
+            required: [recht, geltung, personen]
+            properties:
+              recht:
+                type: string
+              geltung:
+                type: string
+                enum: [alle, eigene]
+              personen:
+                type: integer
+        verlieren:
+          type: array
+          items:
+            type: object
+            required: [recht, geltung, personen]
+            properties:
+              recht:
+                type: string
+              geltung:
+                type: string
+                enum: [alle, eigene]
+              personen:
+                type: integer
+    RechteRolleZuordnen:
+      type: object
+      additionalProperties: false
+      required: [rolleId]
+      properties:
+        rolleId:
+          type: string
+          format: uuid
+          nullable: true
+    RechteGlobaleRollen:
+      type: object
+      required: [rollen]
+      properties:
+        rollen:
+          type: array
+          items:
+            type: object
+            required: [id, name, vorgabe, version, rechte, personen]
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              vorgabe:
+                type: boolean
+              version:
+                type: integer
+              rechte:
+                type: array
+                items:
+                  type: string
+              personen:
+                type: array
+                items:
+                  type: object
+                  required: [id, name]
+                  properties:
+                    id:
+                      type: string
+                      format: uuid
+                    name:
+                      type: string
+    RechteGlobaleRolleAnlegen:
+      type: object
+      additionalProperties: false
+      required: [name, rechte]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        rechte:
+          type: array
+          items:
+            type: string
+    RechteGlobaleRolleAendern:
+      type: object
+      additionalProperties: false
+      required: [version]
+      properties:
+        version:
+          type: integer
+          minimum: 1
+        name:
+          type: string
+          minLength: 1
+          maxLength: 50
+        rechte:
+          type: array
+          items:
+            type: string
+    RechtePerson:
+      type: object
+      required: [person, abteilungsleitung, entwickler, gruppen, rechte]
+      properties:
+        person:
+          type: object
+          required: [id, name]
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
+        abteilungsleitung:
+          type: boolean
+        entwickler:
+          type: boolean
+        gruppen:
+          type: array
+          items:
+            type: object
+            required: [id, typ, name, rolle]
+            properties:
+              id:
+                type: string
+                format: uuid
+              typ:
+                type: string
+              name:
+                type: string
+              rolle:
+                type: string
+                nullable: true
+        rechte:
+          type: array
+          items:
+            type: object
+            required:
+              [recht, bereich, klartext, risiko, zweiterFaktor, herkunft]
+            properties:
+              recht:
+                type: string
+              bereich:
+                type: string
+              klartext:
+                type: string
+              risiko:
+                type: string
+                enum: [normal, erweitert, fest]
+              zweiterFaktor:
+                type: boolean
+              herkunft:
+                type: array
+                items:
+                  type: object
+                  required: [art, geltung]
+                  properties:
+                    art:
+                      type: string
+                      enum:
+                        [
+                          abteilungsleitung,
+                          entwickler,
+                          struktur,
+                          plattformrolle,
+                          stufenrolle,
+                          mitgliedschaft,
+                          gruppenrolle,
+                          sonderrecht,
+                        ]
+                    geltung:
+                      type: string
+                      enum: [alle, eigene]
+                    rolle:
+                      type: string
+                    gruppe:
+                      type: string
+                    gruppeId:
+                      type: string
+                      format: uuid
+    RechteAenderungen:
+      type: object
+      required: [aenderungen, weitere, naechste]
+      properties:
+        aenderungen:
+          type: array
+          items:
+            type: object
+            required:
+              [id, zeit, akteurId, aktion, zielTyp, zielId, details, akteur]
+            properties:
+              id:
+                type: string
+                format: uuid
+              zeit:
+                type: string
+                format: date-time
+              akteurId:
+                type: string
+              aktion:
+                type: string
+              zielTyp:
+                type: string
+              zielId:
+                type: string
+                format: uuid
+              details:
+                type: object
+                nullable: true
+                additionalProperties: true
+              akteur:
+                type: object
+                nullable: true
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  name:
+                    type: string
+        weitere:
+          type: boolean
+        naechste:
+          type: string
+          format: uuid
+          nullable: true
   parameters:
     MedienLimit:
       name: limit
@@ -38375,6 +39389,64 @@ components:
       in: path
       required: true
       description: ID des Artikels (UUID).
+      schema:
+        type: string
+        format: uuid
+    RechteTagId:
+      name: tagId
+      in: path
+      required: true
+      description: Kennung der Gruppe (Tag).
+      schema:
+        type: string
+        format: uuid
+    RechteRolleId:
+      name: rolleId
+      in: path
+      required: true
+      description: Kennung der Rolle der Gruppe.
+      schema:
+        type: string
+        format: uuid
+    RechteUserId:
+      name: userId
+      in: path
+      required: true
+      description: Kennung der Person.
+      schema:
+        type: string
+        format: uuid
+    RechteGlobalRolleId:
+      name: id
+      in: path
+      required: true
+      description: Kennung der Rolle (Plattformrolle).
+      schema:
+        type: string
+        format: uuid
+    RechteVersionAbfrage:
+      name: version
+      in: query
+      required: false
+      description: Der gelesene Stand der Rolle; ohne Angabe wird ohne Versionsprüfung gelöscht.
+      schema:
+        type: integer
+        minimum: 1
+    RechteListeLimit:
+      name: limit
+      in: query
+      required: false
+      description: Anzahl Einträge je Seite (1 bis 100, Vorgabe 50).
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    RechteListeNach:
+      name: nach
+      in: query
+      required: false
+      description: Kennung der letzten Zeile der Vorseite.
       schema:
         type: string
         format: uuid

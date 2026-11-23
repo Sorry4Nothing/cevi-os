@@ -708,6 +708,20 @@
       "when": 1793555900000,
       "tag": "0139_aktivitaet",
       "breakpoints": true
+    },
+    {
+      "idx": 140,
+      "version": "7",
+      "when": 1793556000000,
+      "tag": "0140_gruppenrollen",
+      "breakpoints": true
+    },
+    {
+      "idx": 141,
+      "version": "7",
+      "when": 1793556100000,
+      "tag": "0141_gruppenrollen_nachtragen",
+      "breakpoints": true
     }
   ]
 }

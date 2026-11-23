@@ -726,7 +726,14 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     rollen: ["id", "abteilung_id", "typ", "name", "kuerzel", "anlass_id"],
   },
   person_tag: {
-    rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],
+    rollen: [
+      "user_id",
+      "tag_id",
+      "rolle",
+      "prioritaet",
+      "rolle_id",
+      "erstellt_am",
+    ],
   },
   // Das Lager hat keinen Personenbezug ausser seiner Adresse und den Mitgliedern
   lager: {
@@ -1333,7 +1340,32 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   plattform_rolle: {
-    rollen: ["id", "abteilung_id", "name", "schluessel", "erstellt_am"],
+    rollen: [
+      "id",
+      "abteilung_id",
+      "name",
+      "schluessel",
+      "version",
+      "erstellt_am",
+    ],
+  },
+  gruppen_rolle: {
+    rollen: [
+      "id",
+      "abteilung_id",
+      "tag_id",
+      "name",
+      "beschreibung",
+      "verantwortlich",
+      "reihenfolge",
+      "schluessel",
+      "version",
+      "erstellt_am",
+      "geaendert_am",
+    ],
+  },
+  gruppen_rolle_recht: {
+    rollen: ["rolle_id", "recht", "geltung"],
   },
   plattform_rolle_recht: {
     rollen: ["rolle_id", "recht"],
