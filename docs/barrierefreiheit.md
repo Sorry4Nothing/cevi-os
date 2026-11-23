@@ -404,20 +404,37 @@ Dieser Abschnitt gilt für `navigation.js`, `rahmen.js` (Marke, Bereichsauswahl,
 - [ ] **22.7** Zweispalter (Einstellungen, Stufenfelder, Mitteilungen, Artikel, Person): kein eigener Scrollbereich; die rechte Spalte (Vorschau, Bild) bleibt beim Scrollen stehen und ist nie höher als das Fenster; unter 1100 Pixeln steht alles in einer Spalte.
 - [ ] **22.8** Befehlspalette (Strg oder Cmd + K, auch der Knopf «Suchen» im Kopf): ein Dialog mit Namen, Suchfeld mit `role="combobox"`, Trefferliste mit `role="listbox"` und `aria-activedescendant`, Pfeiltasten, Enter öffnet, Escape schliesst und gibt den Fokus zurück; die Zahl der Treffer steht in einer Statusregion. Das Kürzel steht im Knopf und im Hinweis. «Neue Person» erscheint nur mit dem Recht, Personen erscheinen nur, wenn ihre Liste schon geladen ist.
 
-## 23. Website: Kontaktkarte und Fuss (#605)
+## 27. Verwaltung: System, Verlauf der Anfragen und Stufenfelder (#606)
+
+Dieser Abschnitt gilt für `system.js` (Kennzahlen, Verlauf, Streifen, Liste der letzten Fehler), `system.css` und den Einleitungstext in `website-stufenfakten.js`. Er ergänzt 17.6. Geprüft wird bei 390, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur.
+
+- [ ] **27.1** Der Umschalter «Letzte Stunde» und «Letzte 24 Stunden» ist eine Gruppe mit Namen («Zeitraum»); der gewählte Knopf trägt `aria-pressed`. Nach dem Wechsel liegt der Fokus auf dem gewählten Knopf, nicht im Nichts.
+- [ ] **27.2** Jede Kennzahl nennt Titel, Zahl und Veränderung als Text («Stunde davor: 380 (+8 %)»). «Erhöht» bei den Serverfehlern steht als Chip mit Wort, nie nur als Farbe. Ohne Vergleichsgrundlage (die API läuft erst kurz) steht der Satz «Noch kein Vergleich», nie eine erfundene Zahl. Einen Vergleich mit dem Vortag gibt es nicht: Die API behält nur 24 Stunden.
+- [ ] **27.3** Die Säulen haben einen Satz mit allen Werten (`role="img"`), eine Ablesung mit Zeiger und Pfeiltasten (Text darunter, `aria-live`) und eine Tabelle («Als Tabelle anzeigen», auch bei den Serverfehlern in der Spalte «Anteil 5xx»). Achsenwerte (0, Mitte, Höchstwert) und Zeitmarken sind Zierde; der Satz nennt alle Werte.
+- [ ] **27.4** Der Streifen «Serverfehler je Stunde» zeigt den Zustand nicht nur über die Farbe: Die Höhe trägt ihn mit (leer 2, ruhig 5, vereinzelt 10, erhöht 16), Legende und Ablesung nennen das Wort («keine Serverfehler», «vereinzelte Serverfehler», «Serverfehler erhöht» mit Zahl und Anteil). Er ist mit Tab erreichbar und mit Pfeiltasten lesbar.
+- [ ] **27.5** Alle Texte der Achsen erreichen 4.5:1 (Token `--leise` auf Karte), in Tag und Nacht; in erzwungenen Farben sind Fehler und «vereinzelt» umrandet, «erhöht» ist gefüllt.
+- [ ] **27.6** «Letzte Fehler» ist eine Liste: Status als Chip mit Wort und Zahl, Methode und Route, die Zeit als «vor 7 Minuten» in einem `time`-Element mit Datum im Titel. Die Tabelle mit allen Fehlern steht im Reiter «Anfragen».
+- [ ] **27.7** «Bewegung reduzieren»: Die Säulen und Zellen wachsen nur bei erlaubter Bewegung ein. 390 Pixel: Kennzahlen untereinander, die Achse zeigt Anfang und «jetzt», nichts scrollt waagrecht.
+- [ ] **27.8** Stufenfelder: Die Einleitung sagt in drei Sätzen, was die Seite ist (Treffzeit, Treffpunkt, Schlusszeit, Schlussort, Mitnehmen je Treffen), wo man die Wirkung sieht (Stufenseite der Website, Tafel zum nächsten Datum) und dass nichts veröffentlicht werden muss. Zeilenlänge höchstens 44 rem, Schrift 16 Pixel.
+
+### Stand der Prüfung (#606)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 27.1 bis 27.4 und 27.6 bis 27.8 bei 390, 1440 und 1920 Pixeln, Hell und Dunkel, Tastatur (Umschalter, Ablesung, Streifen, Tabelle). Die Verläufe über 24 Stunden mit nachgestellten Antworten der API (Beispieldaten), denn die Zahlen der API leben nur im Arbeitsspeicher und fangen nach jedem Neustart bei null an; die echten Zahlen der Kopie zeigen nur die letzten Minuten. **Nicht geprüft:** Screenreader (NVDA, VoiceOver), 200 Prozent Zoom am Gerät, 2560 Pixel, Kontrastwerte mit einem Messwerkzeug, erzwungene Farben im Browser.
+
+## 28. Website: Kontaktkarte und Fuss (#605)
 
 Gilt für die Kontaktkarte am Ende der Startseite und für den Fuss jeder Seite (`src/website/kontakt.ts`, `public/website/fuss.css`). Vorbereitung: Startseite mit Kontaktkarte öffnen, einmal mit und einmal ohne `KONTAKT_TELEFON`; Tag und Nacht, 320, 390, 768, 1024, 1440 und 2560 px.
 
-- [ ] **23.1** Die Kontaktkarte ist ein `section` mit einer Überschrift (`h2`); die Gruppe «Weitere Informationen» hat eine Überschrift eine Ebene tiefer. Die Angaben stehen in `address` als Liste (E-Mail, Telefon, Anschrift).
-- [ ] **23.2** Die Symbole der Zeilen (E-Mail, Telefon, Ort) sind `aria-hidden`; die Art («E-Mail», «Telefon», «Anschrift») steht als sichtbarer Text in derselben Zeile, ein Screenreader liest Art und Wert zusammen als Link.
-- [ ] **23.3** E-Mail und Telefon sind Links über die ganze Zeile (mindestens 44 px, tatsächlich 80 px hoch); «E-Mail schreiben», «Anrufen», «Nach oben», die Verweise und jede Zeile des Fusses sind mindestens 44 px hoch (gemessen bei 320 bis 2560 px). Die Anschrift ist kein Link.
-- [ ] **23.4** Fehlt die Telefonnummer, fehlen «Anrufen» und die Zeile Telefon ohne Lücke und ohne leeren Link; ohne Bild steht rechts eine getönte Fläche mit den Angaben; ohne Angaben und Person entfällt die Karte.
-- [ ] **23.5** Tastatur: Alle Links der Karte und des Fusses sind in Leserichtung erreichbar (Karte: Knöpfe, E-Mail, Telefon, Verweise; Fuss: Marke, Bereiche, Kontakt, Rechtliches, «Nach oben»), der Fokusring ist überall sichtbar (auf Blau in Weiss) und wird nie verdeckt.
-- [ ] **23.6** Kontrast hell und dunkel: Text mindestens 4.5:1 (Arten und Verweise auf getönter Fläche, Kontaktzeilen, Fuss auf Blau mit gedämpftem Weiss), Symbol-Kacheln und Pfeile mindestens 3:1; Zustand (Hover) nie nur über Farbe, die Zeile ist ein Link mit Pfeil.
-- [ ] **23.7** Der Fuss hat sichtbare Überschriften für Bereiche, Kontakt und Rechtliches; die beiden Navigationen («Bereiche», «Rechtliches») tragen `aria-labelledby`, es gibt genau ein `footer`.
-- [ ] **23.8** Bewegung nur ohne «Bewegung reduzieren»: Hintergrund der Zeile, Pfeile der Kontaktzeilen und der Bereiche, Pfeil von «Nach oben»; ohne Bewegung bleibt alles sichtbar und benutzbar.
-- [ ] **23.9** Reflow: bei 320 px und bei 200 Prozent Zoom kein seitliches Scrollen; die lange E-Mail-Adresse bricht um, statt abzuschneiden; das Bild hat ein `alt` (Alt-Text des Mediums) oder ist Zierde.
-- [ ] **23.10** Erzwungene Farben: der Fuss hat eine Kante, Text und Links bleiben lesbar; der Pfeil der Bereiche ist redundant (die ganze Zeile ist der Link).
+- [ ] **28.1** Die Kontaktkarte ist ein `section` mit einer Überschrift (`h2`); die Gruppe «Weitere Informationen» hat eine Überschrift eine Ebene tiefer. Die Angaben stehen in `address` als Liste (E-Mail, Telefon, Anschrift).
+- [ ] **28.2** Die Symbole der Zeilen (E-Mail, Telefon, Ort) sind `aria-hidden`; die Art («E-Mail», «Telefon», «Anschrift») steht als sichtbarer Text in derselben Zeile, ein Screenreader liest Art und Wert zusammen als Link.
+- [ ] **28.3** E-Mail und Telefon sind Links über die ganze Zeile (mindestens 44 px, tatsächlich 80 px hoch); «E-Mail schreiben», «Anrufen», «Nach oben», die Verweise und jede Zeile des Fusses sind mindestens 44 px hoch (gemessen bei 320 bis 2560 px). Die Anschrift ist kein Link.
+- [ ] **28.4** Fehlt die Telefonnummer, fehlen «Anrufen» und die Zeile Telefon ohne Lücke und ohne leeren Link; ohne Bild steht rechts eine getönte Fläche mit den Angaben; ohne Angaben und Person entfällt die Karte.
+- [ ] **28.5** Tastatur: Alle Links der Karte und des Fusses sind in Leserichtung erreichbar (Karte: Knöpfe, E-Mail, Telefon, Verweise; Fuss: Marke, Bereiche, Kontakt, Rechtliches, «Nach oben»), der Fokusring ist überall sichtbar (auf Blau in Weiss) und wird nie verdeckt.
+- [ ] **28.6** Kontrast hell und dunkel: Text mindestens 4.5:1 (Arten und Verweise auf getönter Fläche, Kontaktzeilen, Fuss auf Blau mit gedämpftem Weiss), Symbol-Kacheln und Pfeile mindestens 3:1; Zustand (Hover) nie nur über Farbe, die Zeile ist ein Link mit Pfeil.
+- [ ] **28.7** Der Fuss hat sichtbare Überschriften für Bereiche, Kontakt und Rechtliches; die beiden Navigationen («Bereiche», «Rechtliches») tragen `aria-labelledby`, es gibt genau ein `footer`.
+- [ ] **28.8** Bewegung nur ohne «Bewegung reduzieren»: Hintergrund der Zeile, Pfeile der Kontaktzeilen und der Bereiche, Pfeil von «Nach oben»; ohne Bewegung bleibt alles sichtbar und benutzbar.
+- [ ] **28.9** Reflow: bei 320 px und bei 200 Prozent Zoom kein seitliches Scrollen; die lange E-Mail-Adresse bricht um, statt abzuschneiden; das Bild hat ein `alt` (Alt-Text des Mediums) oder ist Zierde.
+- [ ] **28.10** Erzwungene Farben: der Fuss hat eine Kante, Text und Links bleiben lesbar; der Pfeil der Bereiche ist redundant (die ganze Zeile ist der Link).
 
 ## Im PR angeben
 
