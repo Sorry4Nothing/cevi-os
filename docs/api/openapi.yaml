@@ -1762,6 +1762,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/tags-anlass.js:
+    get:
+      operationId: getAdminTagsAnlassSkript
+      summary: Skript der Verwaltung – Gruppen zu einem Anlass
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-detail.js:
     get:
       operationId: getAdminTagsDetailSkript
@@ -4855,7 +4870,7 @@ paths:
       operationId: listeAdminTags
       summary: Tags der Abteilung
       description: |
-        Nur Admins. Liefert alle Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name.
+        Nur Admins. Liefert alle Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name. Bei Typ `anlass` steht der Anlass mit Titel und Termin dabei.
 
         Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
@@ -4881,9 +4896,9 @@ paths:
       operationId: legeAdminTagAn
       summary: Tag anlegen
       description: |
-        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
+        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`, `anlass`) bleibt danach fest. Der Typ `anlass` (#626) braucht `anlassId`: Die Gruppe gehört zu diesem Anlass (zum Beispiel das OK), es gibt höchstens eine je Anlass; sie hat keine Seite auf der Website und vergibt keine Rechte. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen). 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen, `anlassId` ohne Typ `anlass` oder umgekehrt) oder mit Code `ANLASS_UNBEKANNT`, wenn der Anlass nicht besteht, zu einer anderen Abteilung gehört oder ein Lager ist. 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist, oder `ANLASS_HAT_GRUPPE`, wenn der Anlass schon eine Gruppe hat.
       tags:
         - Verwaltung
       parameters:
@@ -4908,7 +4923,7 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "409":
-          description: Es gibt in der Abteilung schon einen Tag mit diesem Namen (`TAGNAME_VERGEBEN`).
+          description: Es gibt in der Abteilung schon einen Tag mit diesem Namen (`TAGNAME_VERGEBEN`) oder der Anlass hat schon eine Gruppe (`ANLASS_HAT_GRUPPE`).
           content:
             application/json:
               schema:
@@ -4922,7 +4937,7 @@ paths:
       operationId: holeAdminTag
       summary: Tag mit Verwendung
       description: |
-        Nur Admins, nur Tags der eigenen Abteilung. Zeigt den Tag und wo er verwendet wird: `verwendung.personen` zählt die Personen, die ihn tragen, `personen` nennt sie mit Rolle und Priorität. Weitere Verwendungen (Sichtbarkeit, Rechte) kommen mit späteren Issues dazu.
+        Nur Admins, nur Tags der eigenen Abteilung. Zeigt den Tag und wo er verwendet wird: `verwendung.personen` zählt die Personen, die ihn tragen, `personen` nennt sie mit Rolle und Priorität. Bei Typ `anlass` nennt `anlass` den Anlass mit Titel und Termin (`null`, wenn er gelöscht wurde). Weitere Verwendungen (Sichtbarkeit, Rechte) kommen mit späteren Issues dazu.
 
         Reihenfolge der Prüfungen: Pfad (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403).
 
@@ -23795,6 +23810,7 @@ components:
             - BEARBEITER_VORHANDEN
             - ROLLENNAME_VERGEBEN
             - ROLLE_VORGEGEBEN
+            - ANLASS_HAT_GRUPPE
         message:
           type: string
           example: Der letzte Admin lässt sich nicht entfernen.
@@ -24212,11 +24228,55 @@ components:
             $ref: "#/components/schemas/AdminZeitregel"
     AdminTagTyp:
       type: string
+      description: |
+        `anlass` (#626): eine Gruppe, die zu einem Anlass gehört, zum Beispiel das OK. Der Typ vergibt keine Rechte und erscheint nie auf der Website. Ein Client, der den Typ nicht kennt, behandelt die Gruppe wie einen Namen ohne Besonderheit.
       enum:
         - stufe
         - funktion
         - team
         - lager
+        - anlass
+    AdminTagAnlass:
+      type:
+        - object
+        - "null"
+      description: Der Anlass einer Gruppe vom Typ `anlass` mit den Angaben seines Termins. `null` bei allen anderen Typen und bei einer Gruppe, deren Anlass gelöscht wurde.
+      required:
+        - id
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
     AdminTagAnlegen:
       type: object
       required:
@@ -24236,6 +24296,10 @@ components:
           minLength: 1
           maxLength: 20
           description: Optional; leer, wenn es fehlt.
+        anlassId:
+          type: string
+          format: uuid
+          description: Pflicht bei Typ `anlass`, bei allen anderen Typen nicht erlaubt (400). Der Anlass muss zur Abteilung gehören und die Art «anlass» haben (kein Lager) und darf noch keine Gruppe haben.
     AdminTagAendern:
       type: object
       additionalProperties: false
@@ -24283,6 +24347,7 @@ components:
               - name
               - kuerzel
               - anzahlPersonen
+              - anlass
             properties:
               id:
                 type: string
@@ -24296,6 +24361,8 @@ components:
               anzahlPersonen:
                 type: integer
                 minimum: 0
+              anlass:
+                $ref: "#/components/schemas/AdminTagAnlass"
     AdminTag:
       type: object
       required:
@@ -24303,6 +24370,7 @@ components:
         - typ
         - name
         - kuerzel
+        - anlass
         - verwendung
         - personen
       properties:
@@ -24315,6 +24383,8 @@ components:
           type: string
         kuerzel:
           type: string
+        anlass:
+          $ref: "#/components/schemas/AdminTagAnlass"
         verwendung:
           type: object
           required:
@@ -33984,7 +34054,7 @@ components:
           type: string
         tagTyp:
           type: string
-          enum: [stufe, funktion, team, lager]
+          enum: [stufe, funktion, team, lager, anlass]
     KategorieZuordnungSetzen:
       type: object
       additionalProperties: false
@@ -34273,7 +34343,7 @@ components:
           type: string
         typ:
           type: string
-          enum: [stufe, funktion, team, lager]
+          enum: [stufe, funktion, team, lager, anlass]
     TerminVorschlagOptionen:
       type: object
       required: [darfVorschlagen, tags]
@@ -34676,6 +34746,7 @@ components:
         - frist
         - sichtbarkeit
         - seiteId
+        - gruppe
         - erstelltAm
       properties:
         id:
@@ -34733,6 +34804,20 @@ components:
             - string
             - "null"
           format: uuid
+        gruppe:
+          type:
+            - object
+            - "null"
+          description: Die Gruppe vom Typ `anlass` zu diesem Anlass (zum Beispiel das OK), höchstens eine; `null` ohne Gruppe (#626).
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
         erstelltAm:
           type: string
           format: date-time

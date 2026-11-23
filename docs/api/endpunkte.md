@@ -43,6 +43,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/anwesenheit.css`                  | Stilvorlage der Verwaltung – Bereich Anwesenheit                                     | **200** alle      |
 | `GET /admin/liste-hilfen.js`                  | Skript der Verwaltung – Hilfen für Listen                                            | **200** alle      |
 | `GET /admin/personen-blatt.js`                | Skript der Verwaltung – Seitenblatt einer Person                                     | **200** alle      |
+| `GET /admin/tags-anlass.js`                   | Skript der Verwaltung – Gruppen zu einem Anlass                                      | **200** alle      |
 | `GET /admin/tags-detail.js`                   | Skript der Verwaltung – Gruppe und ihre Dialoge                                      | **200** alle      |
 | `GET /admin/personen.css`                     | Stilvorlage der Verwaltung – Personen, Gruppen und Tags                              | **200** alle      |
 | `GET /admin/import.js`                        | Skript der Verwaltung – Bereich Import                                               | **200** alle      |

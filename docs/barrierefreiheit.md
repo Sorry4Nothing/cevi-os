@@ -530,6 +530,17 @@ Dieser Abschnitt gilt für `sortieren.js` (`zieheMitBewegung`, `sortierListe`), 
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 26.1 bis 26.6 mit Maus (Artikel im Lädeli, Seitenbaum, Beispielliste, Bausteine einer Seite, Aufgaben-Vorlage) und mit Finger (CDP-Touch: Artikel, Beispielliste), 26.2 mit `reducedMotion: reduce`, 26.3 mit Tastatur und Menü, 26.7 und 26.8 bei 1440 und 390 Pixeln, Tag und Nacht. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), ein echtes Touch-Gerät, 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, die Sortierliste der Stufenleitung und der Zusatzfelder im Browser (gleicher Code, keine Demo-Daten dafür).
 
+## 34. Verwaltung: Gruppentyp «Anlass» (#626)
+
+Dieser Abschnitt gilt für «Gruppen und Tags» (`tags.js`, `tags-detail.js`, `tags-anlass.js`) und den Verweis auf die Gruppe in der Übersicht eines Anlasses (`termine-anlaesse.js`). Geprüft wird im Browser mit der Abteilungsleitung, bei 1440 und 390 Pixeln, in Tag und Nacht, mit Tastatur.
+
+- [ ] **34.1** «Neue Gruppe»: Typ und Anlass sind eigene Auswahlfelder (`role="combobox"` mit Namen «Typ» und «Anlass», Tastatur: Pfeile, Eingabe, Escape). Das Feld «Anlass» erscheint erst beim Typ «Anlass»; die Anlässe kommen mit einer Abfrage und stehen als «Titel · Datum», kommende zuerst. Hat kein Anlass mehr Platz, steht der Hinweis als Text im Feld (`role="status"`).
+- [ ] **34.2** Fehlt der Anlass, steht «Wähle einen Anlass.» am Feld (nicht nur Farbe, `aria-invalid`, Symbol), die Zusammenfassung oben nennt «Anlass» und führt mit dem Fokus dorthin. Ein zweiter Versuch für denselben Anlass sagt «Zu diesem Anlass gibt es schon eine Gruppe.» und verlangt einen anderen Anlass.
+- [ ] **34.3** Liste: Der Typ steht als Chip mit Wort und Symbol («Anlass»), nie nur als Farbe; unter dem Namen steht der Anlass mit Datum als Link (Trefferfläche mindestens 44 Pixel hoch). Ist der Anlass gelöscht, steht «Der Anlass ist gelöscht». «Anlass» ist im Typfilter und in der Suche der Befehlspalette.
+- [ ] **34.4** Gruppe: Die Karte «Anlass» nennt Titel (Link «<Titel>, öffnen») und Termin als Definitionsliste und sagt, dass die Gruppe keine zusätzlichen Rechte gibt und nie auf der Website erscheint. Mitglieder und Rollen verhalten sich wie bei einem Team.
+- [ ] **34.5** Anlass, Übersicht: Die Zeile «Gruppe» in «Angaben» ist ein Link auf die Gruppe oder der Knopf «Gruppe anlegen» (Seite im Fluss, der Anlass steht in der Beschreibung, Typ und Anlass entfallen). Nach dem Erstellen steht die Meldung in der Statusregion und die Zeile zeigt die Gruppe.
+- [ ] **34.6** Bei 390 Pixeln stehen die Felder untereinander, Ziele sind mindestens 44 Pixel hoch, nichts scrollt ausser der Tabelle der Gruppen in ihrem beschrifteten Bereich; bei 200 % Zoom bleibt alles lesbar. Es gibt keine neue Bewegung.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:
