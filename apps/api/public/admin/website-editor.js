@@ -180,7 +180,8 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     geloescht: null,
   };
   if (gepuffert)
-    ctx.melde("Deine ungespeicherten Änderungen sind wieder da.", "info");
+    // «warn», damit sie bleibt: Die Änderungen sind noch nicht gespeichert
+    ctx.melde("Deine ungespeicherten Änderungen sind wieder da.", "warn");
 
   const wurzel = el("div", { class: "ws-editor-seite" });
   bereich.append(wurzel);

@@ -152,6 +152,40 @@ export function seitenkopf({ titel, untertitel }) {
 export const BLEIBT_MS = 6000;
 // So lange blendet die Meldung aus (geruest.css, nur bei erlaubter Bewegung sichtbar)
 const AUSBLENDEN_MS = 300;
+export const vergehtVonSelbst = (art, aktion) =>
+  (art === "ok" || art === "info") && !aktion;
+
+// Blendet einen Hinweis nach BLEIBT_MS aus und entfernt ihn. Zeiger oder Fokus darauf halten die Zeit an; nach dem Verlassen beginnt sie neu.
+// Die Statusregion hat den Text schon beim Einfügen vorgelesen, das Entfernen sagt nichts an. Mit «Bewegung reduzieren» verschwindet der Hinweis ohne Übergang
+function vergehe(hinweis) {
+  hinweis.dataset.vergeht = "";
+  let warte;
+  let weg;
+  let zeiger = false;
+  let fokus = false;
+  const halte = () => {
+    window.clearTimeout(warte);
+    window.clearTimeout(weg);
+    hinweis.classList.remove("hinweis--geht");
+  };
+  const starte = () => {
+    halte();
+    warte = window.setTimeout(() => {
+      const still = window.matchMedia(
+        "(prefers-reduced-motion: reduce)",
+      ).matches;
+      if (still) return hinweis.remove();
+      hinweis.classList.add("hinweis--geht");
+      weg = window.setTimeout(() => hinweis.remove(), AUSBLENDEN_MS);
+    }, BLEIBT_MS);
+  };
+  const pruefe = () => (zeiger || fokus ? halte() : starte());
+  hinweis.addEventListener("pointerenter", () => ((zeiger = true), pruefe()));
+  hinweis.addEventListener("pointerleave", () => ((zeiger = false), pruefe()));
+  hinweis.addEventListener("focusin", () => ((fokus = true), pruefe()));
+  hinweis.addEventListener("focusout", () => ((fokus = false), pruefe()));
+  starte();
+}
 export function erstelleRueckmeldungen() {
   const wurzel = el("div", {
     id: "rueckmeldung",
@@ -195,22 +229,7 @@ export function erstelleRueckmeldungen() {
       ),
     );
     wurzel.append(hinweis);
-    if ((art === "ok" || art === "info") && !aktion) {
-      let timer;
-      const halte = () => window.clearTimeout(timer);
-      const starte = () => {
-        halte();
-        timer = window.setTimeout(() => {
-          hinweis.classList.add("hinweis--geht");
-          window.setTimeout(() => hinweis.remove(), AUSBLENDEN_MS);
-        }, BLEIBT_MS);
-      };
-      hinweis.addEventListener("pointerenter", halte);
-      hinweis.addEventListener("pointerleave", starte);
-      hinweis.addEventListener("focusin", halte);
-      hinweis.addEventListener("focusout", starte);
-      starte();
-    }
+    if (vergehtVonSelbst(art, aktion)) vergehe(hinweis);
   }
   return { wurzel, melde };
 }

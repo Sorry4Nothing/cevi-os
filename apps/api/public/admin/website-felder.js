@@ -71,7 +71,7 @@ export const FELDNAMEN = {
   anzahl: "Die Anzahl",
   symbol: "Das Symbol",
   bild: "Das Bild",
-  alter: "Das Alter",
+  alter: "Das Etikett",
   sichtbarkeit: "Die Sichtbarkeit",
   tagIds: "Die Gruppen",
   bezeichnung: "Die Bezeichnung",
