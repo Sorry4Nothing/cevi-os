@@ -1147,6 +1147,201 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-detail.js:
+    get:
+      operationId: getAdminLagerDetailSkript
+      summary: Skript der Verwaltung – Bereich Lager, Detailansicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-ereignisse.js:
+    get:
+      operationId: getAdminLagerEreignisseSkript
+      summary: Skript der Verwaltung – Bereich Lager, Ereignisse
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-konflikt.js:
+    get:
+      operationId: getAdminLagerKonfliktSkript
+      summary: Skript der Verwaltung – Bereich Lager, Konflikte
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-benachrichtigungen.js:
+    get:
+      operationId: getAdminLagerBenachrichtigungenSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Benachrichtigungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-check.js:
+    get:
+      operationId: getAdminLagerCheckSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Check
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-heute.js:
+    get:
+      operationId: getAdminLagerHeuteSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Heute
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-ressorts.js:
+    get:
+      operationId: getAdminLagerRessortsSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Ressorts
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-suche.js:
+    get:
+      operationId: getAdminLagerSucheSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Suche
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-woche.js:
+    get:
+      operationId: getAdminLagerWocheSkript
+      summary: Skript der Verwaltung – Bereich Lager, Modul Woche
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-module.js:
+    get:
+      operationId: getAdminLagerModuleSkript
+      summary: Skript der Verwaltung – Bereich Lager, Register der Module
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-rahmen.css:
+    get:
+      operationId: getAdminLagerRahmenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Lager, Arbeitsbereich
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/lager-rahmen.js:
+    get:
+      operationId: getAdminLagerRahmenSkript
+      summary: Skript der Verwaltung – Bereich Lager, Rahmen des Arbeitsbereichs
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-start-teile.js:
+    get:
+      operationId: getAdminLagerStartTeileSkript
+      summary: Skript der Verwaltung – Bereich Lager, Teile der Startseite
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kalenderhilfen.js:
     get:
       operationId: getAdminKalenderhilfenSkript
