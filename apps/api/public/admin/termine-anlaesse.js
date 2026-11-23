@@ -721,6 +721,35 @@ function zeichneUebersicht(
           : `${a.felder.length}, bearbeiten`,
       ),
     ],
+    // Die Gruppe des Anlasses (zum Beispiel das OK, #626); sie gibt keine Rechte. Ein Lager hat keine
+    a.art === "anlass" && [
+      "Gruppe",
+      a.gruppe
+        ? el(
+            "a",
+            {
+              class: "tm-tabellenlink",
+              href: `#personen/gruppen/${a.gruppe.id}`,
+            },
+            `${a.gruppe.name}, öffnen`,
+          )
+        : knopf("Gruppe anlegen", {
+            klein: true,
+            art: "still",
+            symbol: "plus",
+            onclick: async () => {
+              const { tagDialog } = await import("./tags-detail.js");
+              tagDialog({
+                ctx,
+                anlass: a,
+                neu: () => {
+                  vergiss(id);
+                  neu();
+                },
+              });
+            },
+          }),
+    ],
     a.seiteId && [
       "Seite",
       el(

@@ -1282,10 +1282,70 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/konto.js:
+    get:
+      operationId: getAdminKontoSkript
+      summary: Skript der Verwaltung – Seite Mein Konto
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/konto.css:
+    get:
+      operationId: getAdminKontoStilvorlage
+      summary: Stilvorlage der Verwaltung – Seite Mein Konto
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/uebersicht-kacheln.js:
     get:
       operationId: getAdminUebersichtKachelnSkript
-      summary: Skript der Verwaltung – Kacheln der Übersicht
+      summary: Skript der Verwaltung – Aufgaben, Kennzahlen und Zustand der Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht-verlauf.js:
+    get:
+      operationId: getAdminUebersichtVerlaufSkript
+      summary: Skript der Verwaltung – Hauptdiagramm der Übersicht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/uebersicht-kommend.js:
+    get:
+      operationId: getAdminUebersichtKommendSkript
+      summary: Skript der Verwaltung – Kommendes, Aktivität und Teilnahme der Übersicht
       tags:
         - Allgemein
       security: []
@@ -1807,6 +1867,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/tags-anlass.js:
+    get:
+      operationId: getAdminTagsAnlassSkript
+      summary: Skript der Verwaltung – Gruppen zu einem Anlass
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-detail.js:
     get:
       operationId: getAdminTagsDetailSkript
@@ -1835,6 +1910,111 @@ paths:
           description: Datei (`text/css; charset=UTF-8`).
           content:
             text/css:
+              schema:
+                type: string
+  /admin/rechte.js:
+    get:
+      operationId: getAdminRechteSkript
+      summary: Skript der Verwaltung – Rollen und Rechte
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte.css:
+    get:
+      operationId: getAdminRechteStilvorlage
+      summary: Stilvorlage der Verwaltung – Rollen und Rechte
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/rechte-rollen.js:
+    get:
+      operationId: getAdminRechteRollenSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Reiter Rollen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-gruppen.js:
+    get:
+      operationId: getAdminRechteGruppenSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Reiter Gruppen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-uebersicht.js:
+    get:
+      operationId: getAdminRechteUebersichtSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Reiter «Was darf wer»
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-gemeinsam.js:
+    get:
+      operationId: getAdminRechteGemeinsamSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, gemeinsame Bausteine
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/rechte-logik.js:
+    get:
+      operationId: getAdminRechteLogikSkript
+      summary: Skript der Verwaltung – Rollen und Rechte, Logik
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
               schema:
                 type: string
   /admin/import.js:
@@ -4040,19 +4220,19 @@ paths:
       operationId: holeAdminUebersicht
       summary: Übersicht der Verwaltung in einem Abruf
       description: |
-        Liefert alles, was die Übersicht der Verwaltung zeigt, in EINER Antwort: offene Aufgaben mit Zahl, Kennzahlen mit kleinen Verläufen, Kommendes (Termine und Lager der nächsten acht Wochen), Zustand (Website, Medien, Kalender, Datenbank) und Betriebszahlen der API. Jeder Teil hängt an seinem eigenen Recht; **was die Person nicht sehen darf, fehlt** (der Schlüssel ist nicht in der Antwort). Die Oberfläche blendet die Kachel dann aus, verlässt sich aber nie darauf.
+        Liefert alles, was die Übersicht der Verwaltung zeigt, in EINER Antwort: offene Aufgaben mit Zahl, Kennzahlen mit Verläufen über ein Jahr, Anlässe mit Anmeldungen, Zeitpunkte der letzten Aktivität, Kommendes (Termine und Lager der nächsten acht Wochen), Zustand (Website, Medien, Kalender, Datenbank) und Betriebszahlen der API. Jeder Teil hängt an seinem eigenen Recht; **was die Person nicht sehen darf, fehlt** (der Schlüssel ist nicht in der Antwort). Die Oberfläche blendet die Kachel dann aus, verlässt sich aber nie darauf.
 
         | Teil | Wer ihn bekommt |
         | --- | --- |
-        | `aufgaben` (Vorschläge, Termine ohne Kategorie, Bestellungen, Konten ohne zweiten Faktor, Anmeldefristen, Kalenderfehler), `kennzahlen`, `betrieb`, `zustand.kalender`, `zustand.datenbank` | Abteilungsleitung |
+        | `aufgaben` (Vorschläge, Termine ohne Kategorie, Bestellungen, Konten ohne zweiten Faktor, Anmeldefristen, Kalenderfehler), `kennzahlen`, `anlaesse`, `aktivitaet`, `betrieb`, `zustand.kalender`, `zustand.datenbank` | Abteilungsleitung |
         | `aufgaben.raumanfragen` | Abteilungsleitung oder wer den Team-Tag eines Raums trägt |
         | `aufgaben.websiteEntwuerfe`, `aufgaben.websiteAenderungen`, `zustand.website`, `zustand.medien` | wer Seiten bearbeiten darf; gezählt werden nur die Seiten, die die Person bearbeiten darf (Stufenleitung: ihre Stufenseite) |
         | `kinderJeStufe` | Abteilungsleitung alle Stufen, Stufenleitung die eigenen; sonst fehlt der Teil |
         | `kommend` | Termine wie «Alle Termine» (nur, was die Person sehen darf), Lager wie «Meine Lager» (ohne Mitgliedschaft nur die Abteilungsleitung) |
 
-        Die Antwort enthält nur Zahlen, Daten und feste Texte: nie Namen von Personen, Adressen oder Fehlertexte. Scheitert ein Teil in der Datenbank, steht sein Name in `fehlt` und die übrigen Teile kommen trotzdem. Die Verläufe zählen acht Fenster zu je sieben Tagen, das letzte endet jetzt (`erzeugtAm`).
+        Die Antwort enthält nur Zahlen, Daten und feste Texte: nie Namen von Personen, Adressen oder Fehlertexte. Scheitert ein Teil in der Datenbank, steht sein Name in `fehlt` und die übrigen Teile kommen trotzdem. Die Verläufe zählen 52 Fenster zu je sieben Tagen, das letzte endet jetzt (`erzeugtAm`). `anlaesse` nennt nur Titel, Zeiten und Zahlen der Anmeldungen, nie Personen; `aktivitaet` nur zwei Zeitpunkte.
 
-        Zwischenspeicher: Die Antwort gilt je Person 45 Sekunden im Arbeitsspeicher der API (höchstens neun Abfragen je Neuaufbau). `frisch=1` baut sie neu, aber nie öfter als alle zehn Sekunden je Person. Es gibt kein Polling: Die Oberfläche lädt beim Öffnen und auf «Aktualisieren».
+        Zwischenspeicher: Die Antwort gilt je Person 45 Sekunden im Arbeitsspeicher der API (höchstens elf Abfragen je Neuaufbau). `frisch=1` baut sie neu, aber nie öfter als alle zehn Sekunden je Person. Es gibt kein Polling: Die Oberfläche lädt beim Öffnen und auf «Aktualisieren».
 
         Statuscodes: 200 bei Erfolg. 401. 403 ohne Zugang zur Verwaltung (Eltern, Leitende ohne Stufenleitung) und, mit dem Code `ZWEITER_FAKTOR_FEHLT`, für Abteilungsleitung und Personen mit einem erweiterten Recht ohne zweiten Faktor. 426. 429.
       tags:
@@ -4088,13 +4268,13 @@ paths:
       description: |
         Nur Admins. Löst einen Push aus mit `typ` `mitteilung`, leerer `id` und dem Android-Kanal `mitteilungen`; der Push trägt den Titel und, wenn angegeben, die Beschreibung als Text. Beide dürfen keine Namen enthalten: Sie laufen über Apple und Google.
 
-        Empfänger `alle`: alle aktiven Konten der Abteilung. Empfänger `stufen`: die Eltern aktiver Kinder und die Leitenden der gewählten Stufen. Voraussetzung ist in beiden Fällen ein aktives Konto mit eingeschalteter Option «Mitteilungen» (`pushProgramme`). Die absendende Person bekommt den Push auch, sofern ihre Option an ist.
+        Die Empfänger gibt es in zwei Formen, die sich nicht mischen lassen. **Ziele** (`ziele`): eine Liste von Gruppen (jeder Tag der Abteilung: Stufe, Funktion, Team, Lager, Anlass), je mit den Rollen, die zur Gruppe passen. Bei einer Stufe sind es `eltern` (die Eltern aktiver Kinder; Kinder haben kein Konto), `leitung` und `stufenleitung`; bei jeder anderen Gruppe `alle` (alle Mitglieder) und `verantwortliche` (Mitglieder mit der Rolle «verantwortlich» an der Zuordnung). Eine Rolle, die nicht zum Typ der Gruppe passt, ist ungültig. Eine Person, die mehrere Ziele trifft, bekommt den Push einmal; die absendende Person bekommt ihn nur, wenn sie selbst zu einem Ziel gehört. **Bisherige Form** (`empfaenger` mit `stufeIds` und `rollen`): `alle` erreicht alle aktiven Konten der Abteilung, `stufen` die gewählten Stufen; hier bekommt die absendende Person den Push auch, wenn alle Rollen gelten. Voraussetzung ist in jedem Fall ein aktives Konto mit eingeschalteter Option «Mitteilungen» (`pushProgramme`).
 
-        Der Versand steht im Audit-Log (`mitteilung_gesendet`, Ziel ist die Abteilung): wer, wann, Empfängergruppe (`alle` oder die Stufen-IDs) und Zahl der Empfänger, nie der Text.
+        Der Versand steht im Audit-Log (`mitteilung_gesendet`, Ziel ist die Abteilung): wer, wann, `empfaenger` (`alle`, `stufen` oder `ziele`), die Gruppen-IDs mit ihren Rollen und die Zahl der Empfänger, nie der Text und nie Namen.
 
-        Limit: höchstens 10 Mitteilungen pro Abteilung und Stunde.
+        Limit: höchstens 10 Mitteilungen pro Abteilung und Stunde, höchstens 30 Ziele je Mitteilung. Wie viele Konten eine Wahl trifft, zeigt vorab `POST /api/v1/admin/mitteilungen/vorschau`.
 
-        Statuscodes: 200 mit der Zahl der Konten, an deren Geräte der Push ging (auch 0). 400 bei ungültiger Eingabe oder wenn eine Stufe unbekannt ist oder zu einer anderen Abteilung gehört. 403 für Nicht-Admins. 429 beim Limit. 503 mit Code `PUSH_NICHT_EINGERICHTET`, wenn der Server keinen Schlüssel für den Push-Dienst hat; dann geht nichts hinaus und nichts ins Audit-Log.
+        Statuscodes: 200 mit der Zahl der Konten, an deren Geräte der Push ging (auch 0). 400 bei ungültiger Eingabe, wenn eine Gruppe unbekannt ist oder zu einer anderen Abteilung gehört, wenn eine Rolle nicht zum Typ der Gruppe passt oder wenn dieselbe Gruppe oder Rolle doppelt steht. 403 für Nicht-Admins. 429 beim Limit. 503 mit Code `PUSH_NICHT_EINGERICHTET`, wenn der Server keinen Schlüssel für den Push-Dienst hat; dann geht nichts hinaus und nichts ins Audit-Log.
       tags:
         - Verwaltung
       parameters:
@@ -4128,6 +4308,41 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fehler"
+  /api/v1/admin/mitteilungen/vorschau:
+    post:
+      operationId: zaehleAdminMitteilungEmpfaenger
+      summary: Empfänger einer Mitteilung zählen
+      description: |
+        Nur Admins. Löst dieselbe Wahl wie `POST /api/v1/admin/mitteilungen` auf, ohne zu senden: Die Antwort nennt nur Zahlen, nie Namen oder Konten. `empfaenger` ist die Zahl der Konten, die der Push erreichen würde (eine Person in mehreren Zielen zählt einmal); `ziele` nennt je Ziel die Zahl der Konten, in der Reihenfolge der Anfrage (leer bei `alle`). Die Zahlen der Ziele zusammengezählt können grösser sein als `empfaenger`, weil Personen in mehreren Zielen vorkommen.
+
+        Kein Audit-Eintrag, kein Versand und kein Teil des Limits; es braucht den Push-Dienst nicht. Die Abfragen sind dieselben wie beim Senden (höchstens vier, unabhängig von der Zahl der Ziele); die Verwaltung fragt nach jeder Änderung der Wahl einmal, nie in einer Schleife.
+
+        Statuscodes: 200. 400 wie beim Senden. 403 für Nicht-Admins.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMitteilungWahl"
+      responses:
+        "200":
+          description: Gezählt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMitteilungVorschau"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/admin/stufen:
     post:
       operationId: legeAdminStufeAn
@@ -4900,7 +5115,7 @@ paths:
       operationId: listeAdminTags
       summary: Tags der Abteilung
       description: |
-        Nur Admins. Liefert alle Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name.
+        Nur Admins. Liefert alle Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name. Bei Typ `anlass` steht der Anlass mit Titel und Termin dabei.
 
         Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
@@ -4926,9 +5141,9 @@ paths:
       operationId: legeAdminTagAn
       summary: Tag anlegen
       description: |
-        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`) bleibt danach fest. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
+        Nur Admins. Legt einen Tag in der eigenen Abteilung an. Der Typ (`stufe`, `funktion`, `team`, `lager`, `anlass`) bleibt danach fest. Der Typ `anlass` (#626) braucht `anlassId`: Die Gruppe gehört zu diesem Anlass (zum Beispiel das OK), es gibt höchstens eine je Anlass; sie hat keine Seite auf der Website und vergibt keine Rechte. Der Name ist in der Abteilung eindeutig, über alle Typen und ohne Gross-/Kleinschreibung. Das Kürzel ist optional und leer, wenn es fehlt. Das Anlegen steht im Audit-Log (nur der Typ, nie der Name). Ein Tag vom Typ `stufe` ist eine Stufe: Er erscheint in `GET /api/v1/stufen` unter derselben ID, und sein Gruppenchat entsteht gleich mit.
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen). 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, fehlender Typ, Längen, `anlassId` ohne Typ `anlass` oder umgekehrt) oder mit Code `ANLASS_UNBEKANNT`, wenn der Anlass nicht besteht, zu einer anderen Abteilung gehört oder ein Lager ist. 403 für Nicht-Admins. 409 mit Code `TAGNAME_VERGEBEN`, wenn der Name schon vergeben ist, oder `ANLASS_HAT_GRUPPE`, wenn der Anlass schon eine Gruppe hat.
       tags:
         - Verwaltung
       parameters:
@@ -4953,7 +5168,7 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "409":
-          description: Es gibt in der Abteilung schon einen Tag mit diesem Namen (`TAGNAME_VERGEBEN`).
+          description: Es gibt in der Abteilung schon einen Tag mit diesem Namen (`TAGNAME_VERGEBEN`) oder der Anlass hat schon eine Gruppe (`ANLASS_HAT_GRUPPE`).
           content:
             application/json:
               schema:
@@ -4967,7 +5182,7 @@ paths:
       operationId: holeAdminTag
       summary: Tag mit Verwendung
       description: |
-        Nur Admins, nur Tags der eigenen Abteilung. Zeigt den Tag und wo er verwendet wird: `verwendung.personen` zählt die Personen, die ihn tragen, `personen` nennt sie mit Rolle und Priorität. Weitere Verwendungen (Sichtbarkeit, Rechte) kommen mit späteren Issues dazu.
+        Nur Admins, nur Tags der eigenen Abteilung. Zeigt den Tag und wo er verwendet wird: `verwendung.personen` zählt die Personen, die ihn tragen, `personen` nennt sie mit Rolle und Priorität. Bei Typ `anlass` nennt `anlass` den Anlass mit Titel und Termin (`null`, wenn er gelöscht wurde). Weitere Verwendungen (Sichtbarkeit, Rechte) kommen mit späteren Issues dazu.
 
         Reihenfolge der Prüfungen: Pfad (400), dann Tag in der eigenen Abteilung (404), dann Admin-Recht (403).
 
@@ -5232,6 +5447,35 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/rechte/zuordnungen:
+    get:
+      operationId: listeAdminRechteZuordnungen
+      summary: Zuordnungen für «Rollen und Rechte»
+      description: |
+        Nur Admins, nur lesen (#623). Fasst vorhandene Zeilen der eigenen Abteilung zusammen, damit die Seite «Rollen und Rechte» der Verwaltung nicht je Gruppe und je Lager einzeln fragen muss: Gruppen mit ihren Mitgliedern und deren Rolle (bei einem Team gibt die Rolle «verantwortlich» das Recht an der Seite des Teams), Lager mit ihren Mitgliedern und Rollen, Räume mit dem Team, das über Anfragen entscheidet, Sonderrechte an Seiten (`bearbeiter`) und die Seiten mit Titel. Es gibt kein neues Recht: Die Antwort erlaubt nichts, sie zeigt, was heute gilt. Plattformrollen kommen aus `/api/v1/admin/plattform/rollen`, Personen aus `/api/v1/admin/personen`.
+
+        Nur Kennungen und Namen von Gruppen, Lagern, Räumen und Seiten sowie Rollenwerte; nie Namen oder Kontaktdaten von Personen. Sieben Abfragen je Aufruf, jede auf die Abteilung der Sitzung gefiltert.
+
+        Statuscodes: 200 bei Erfolg. 403 für Nicht-Admins (und für Admins ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Zuordnungen der Abteilung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRechteZuordnungen"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -22597,6 +22841,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/mitglieder.js:
+    get:
+      operationId: getAdminMitgliederSkript
+      summary: Skript der Verwaltung – Mitglieder-Darstellung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/laedeli.css:
     get:
       operationId: getAdminLaedeliStilvorlage
@@ -23902,6 +24161,7 @@ components:
             - BEARBEITER_VORHANDEN
             - ROLLENNAME_VERGEBEN
             - ROLLE_VORGEGEBEN
+            - ANLASS_HAT_GRUPPE
         message:
           type: string
           example: Der letzte Admin lässt sich nicht entfernen.
@@ -24319,11 +24579,55 @@ components:
             $ref: "#/components/schemas/AdminZeitregel"
     AdminTagTyp:
       type: string
+      description: |
+        `anlass` (#626): eine Gruppe, die zu einem Anlass gehört, zum Beispiel das OK. Der Typ vergibt keine Rechte und erscheint nie auf der Website. Ein Client, der den Typ nicht kennt, behandelt die Gruppe wie einen Namen ohne Besonderheit.
       enum:
         - stufe
         - funktion
         - team
         - lager
+        - anlass
+    AdminTagAnlass:
+      type:
+        - object
+        - "null"
+      description: Der Anlass einer Gruppe vom Typ `anlass` mit den Angaben seines Termins. `null` bei allen anderen Typen und bei einer Gruppe, deren Anlass gelöscht wurde.
+      required:
+        - id
+        - titel
+        - ganztaegig
+        - beginn
+        - ende
+        - tagVon
+        - tagBis
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+        ganztaegig:
+          type: boolean
+        beginn:
+          type:
+            - string
+            - "null"
+          format: date-time
+        ende:
+          type:
+            - string
+            - "null"
+          format: date-time
+        tagVon:
+          type:
+            - string
+            - "null"
+          format: date
+        tagBis:
+          type:
+            - string
+            - "null"
+          format: date
     AdminTagAnlegen:
       type: object
       required:
@@ -24343,6 +24647,10 @@ components:
           minLength: 1
           maxLength: 20
           description: Optional; leer, wenn es fehlt.
+        anlassId:
+          type: string
+          format: uuid
+          description: Pflicht bei Typ `anlass`, bei allen anderen Typen nicht erlaubt (400). Der Anlass muss zur Abteilung gehören und die Art «anlass» haben (kein Lager) und darf noch keine Gruppe haben.
     AdminTagAendern:
       type: object
       additionalProperties: false
@@ -24390,6 +24698,7 @@ components:
               - name
               - kuerzel
               - anzahlPersonen
+              - anlass
             properties:
               id:
                 type: string
@@ -24403,6 +24712,8 @@ components:
               anzahlPersonen:
                 type: integer
                 minimum: 0
+              anlass:
+                $ref: "#/components/schemas/AdminTagAnlass"
     AdminTag:
       type: object
       required:
@@ -24410,6 +24721,7 @@ components:
         - typ
         - name
         - kuerzel
+        - anlass
         - verwendung
         - personen
       properties:
@@ -24422,6 +24734,8 @@ components:
           type: string
         kuerzel:
           type: string
+        anlass:
+          $ref: "#/components/schemas/AdminTagAnlass"
         verwendung:
           type: object
           required:
@@ -24532,6 +24846,156 @@ components:
                   - string
                   - "null"
                 format: uuid
+    AdminRechteZuordnungen:
+      type: object
+      required:
+        - gruppen
+        - lager
+        - raeume
+        - sonderrechte
+        - seiten
+      properties:
+        gruppen:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - typ
+              - name
+              - mitglieder
+            properties:
+              id:
+                type: string
+                format: uuid
+              typ:
+                type: string
+                enum:
+                  - stufe
+                  - funktion
+                  - team
+                  - lager
+              name:
+                type: string
+              mitglieder:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - userId
+                    - rolle
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                    rolle:
+                      type:
+                        - string
+                        - "null"
+                      description: Freitext; bei einem Team gibt der Wert «verantwortlich» (Gross- und Kleinschreibung egal) das Recht an der Seite des Teams.
+        lager:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - titel
+              - status
+              - mitglieder
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
+              status:
+                type: string
+                enum:
+                  - entwurf
+                  - aktiv
+                  - abgeschlossen
+                  - archiviert
+              mitglieder:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - userId
+                    - rolle
+                  properties:
+                    userId:
+                      type: string
+                      format: uuid
+                    rolle:
+                      type: string
+                      enum:
+                        - lagerleitung
+                        - leitung
+                        - team
+                        - lesen
+        raeume:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - teamTagId
+              - aktiv
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              teamTagId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+                description: Die Gruppe, deren Mitglieder über Anfragen für den Raum entscheiden.
+              aktiv:
+                type: boolean
+        sonderrechte:
+          type: array
+          description: Zeilen aus `bearbeiter` für Seiten der Abteilung.
+          items:
+            type: object
+            required:
+              - id
+              - seiteId
+              - userId
+              - tagId
+            properties:
+              id:
+                type: string
+                format: uuid
+              seiteId:
+                type: string
+                format: uuid
+              userId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+              tagId:
+                type:
+                  - string
+                  - "null"
+                format: uuid
+        seiten:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - titel
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
     AdminAngelegt:
       type: object
       required:
@@ -24640,28 +25104,24 @@ components:
                       format: uuid
                     name:
                       type: string
-    AdminMitteilung:
+    AdminMitteilungWahl:
       type: object
-      required:
-        - titel
-        - empfaenger
-      additionalProperties: false
+      description: |
+        Die Wahl der Empfänger. Entweder `ziele` oder die bisherige Form (`empfaenger`, bei `stufen` mit `stufeIds`, dazu `rollen`); beides zusammen ist ungültig.
       properties:
-        titel:
-          type: string
-          minLength: 1
-          maxLength: 100
-          description: Der Titel des Push. Leerraum am Rand wird entfernt. Keine Namen.
-        beschreibung:
-          type: string
-          minLength: 1
-          maxLength: 300
-          description: Optionaler Text unter dem Titel. Leerraum am Rand wird entfernt. Keine Namen.
+        ziele:
+          type: array
+          minItems: 1
+          maxItems: 30
+          items:
+            $ref: "#/components/schemas/AdminMitteilungZiel"
+          description: Jede Gruppe höchstens einmal.
         empfaenger:
           type: string
           enum:
             - alle
             - stufen
+          description: Bisherige Form. Pflicht ohne `ziele`.
         stufeIds:
           type: array
           minItems: 1
@@ -24669,7 +25129,7 @@ components:
           items:
             type: string
             format: uuid
-          description: Pflicht bei `stufen`, verboten bei `alle`.
+          description: Bisherige Form. Pflicht bei `stufen`, verboten bei `alle`.
         rollen:
           type: array
           minItems: 1
@@ -24680,7 +25140,75 @@ components:
               - stufenleitung
               - leitung
               - eltern
-          description: Nur diese Rollen bekommen den Push, einzeln oder kombiniert. `eltern` sind die Teilnehmenden. Ohne Angabe gelten alle Rollen. Bei `alle` mit einem Teil der Rollen zählen alle Stufen der Abteilung.
+          description: Bisherige Form. Nur diese Rollen bekommen den Push, einzeln oder kombiniert. `eltern` sind die Teilnehmenden. Ohne Angabe gelten alle Rollen. Bei `alle` mit einem Teil der Rollen zählen alle Stufen der Abteilung.
+    AdminMitteilungZiel:
+      type: object
+      required:
+        - gruppeId
+        - rollen
+      additionalProperties: false
+      properties:
+        gruppeId:
+          type: string
+          format: uuid
+          description: ID eines Tags der eigenen Abteilung (`GET /api/v1/admin/tags`), jeder Typ.
+        rollen:
+          type: array
+          minItems: 1
+          maxItems: 3
+          uniqueItems: true
+          items:
+            type: string
+            enum:
+              - eltern
+              - leitung
+              - stufenleitung
+              - alle
+              - verantwortliche
+          description: |
+            Bei einer Stufe: `eltern` (Eltern aktiver Kinder), `leitung`, `stufenleitung`. Bei jedem anderen Typ: `alle` (alle Mitglieder), `verantwortliche` (Mitglieder mit der Rolle «verantwortlich»). Gemischt oder für den falschen Typ ist die Eingabe ungültig (400).
+    AdminMitteilung:
+      allOf:
+        - $ref: "#/components/schemas/AdminMitteilungWahl"
+        - type: object
+          required:
+            - titel
+          properties:
+            titel:
+              type: string
+              minLength: 1
+              maxLength: 100
+              description: Der Titel des Push. Leerraum am Rand wird entfernt. Keine Namen.
+            beschreibung:
+              type: string
+              minLength: 1
+              maxLength: 300
+              description: Optionaler Text unter dem Titel. Leerraum am Rand wird entfernt. Keine Namen.
+    AdminMitteilungVorschau:
+      type: object
+      required:
+        - empfaenger
+        - ziele
+      properties:
+        empfaenger:
+          type: integer
+          minimum: 0
+          description: Zahl der Konten, die der Push insgesamt erreichen würde; jede Person einmal.
+        ziele:
+          type: array
+          description: Je Ziel die Zahl der Konten, in der Reihenfolge der Anfrage. Leer bei `alle` mit allen Rollen.
+          items:
+            type: object
+            required:
+              - gruppeId
+              - anzahl
+            properties:
+              gruppeId:
+                type: string
+                format: uuid
+              anzahl:
+                type: integer
+                minimum: 0
     AdminMitteilungErgebnis:
       type: object
       required:
@@ -24913,6 +25441,7 @@ components:
               [
                 aufgaben,
                 kennzahlen,
+                anlaesse,
                 kinderJeStufe,
                 raumanfragen,
                 website,
@@ -24967,7 +25496,7 @@ components:
           properties:
             fenster:
               type: integer
-              description: Zahl der Verlaufspunkte (Fenster zu je sieben Tagen, das letzte endet jetzt).
+              description: Zahl der Verlaufspunkte (52 Fenster zu je sieben Tagen, das letzte endet jetzt).
             personen:
               type: object
               additionalProperties: false
@@ -25018,6 +25547,60 @@ components:
                 kommend:
                   type: integer
                   description: Kommende Termine der Abteilung (ohne abgesagte und interne).
+        anlaesse:
+          type: array
+          description: Kommende Anlässe (höchstens sechs) und Anlässe, deren Anmeldefrist im letzten Jahr lag (höchstens acht); nur Titel, Zeiten und Zahlen.
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              [
+                titel,
+                kommend,
+                beginn,
+                tagVon,
+                frist,
+                angemeldet,
+                neu7,
+                letzteAm,
+              ]
+            properties:
+              titel:
+                type: string
+              kommend:
+                type: boolean
+              beginn:
+                type: [string, "null"]
+                format: date-time
+              tagVon:
+                type: [string, "null"]
+                format: date
+              frist:
+                type: [string, "null"]
+                format: date-time
+              angemeldet:
+                type: integer
+                minimum: 0
+                description: Anmeldungen mit Status «angemeldet».
+              neu7:
+                type: integer
+                minimum: 0
+                description: Davon in den letzten sieben Tagen angemeldet.
+              letzteAm:
+                type: [string, "null"]
+                format: date-time
+        aktivitaet:
+          type: object
+          additionalProperties: false
+          required: [letzteBestellungAm, letzterVorschlagAm]
+          description: Zeitpunkt der letzten Bestellung und des letzten offenen Terminvorschlags; die Oberfläche zeigt daraus «Zuletzt passiert».
+          properties:
+            letzteBestellungAm:
+              type: [string, "null"]
+              format: date-time
+            letzterVorschlagAm:
+              type: [string, "null"]
+              format: date-time
         kinderJeStufe:
           type: array
           items:
@@ -34091,7 +34674,7 @@ components:
           type: string
         tagTyp:
           type: string
-          enum: [stufe, funktion, team, lager]
+          enum: [stufe, funktion, team, lager, anlass]
     KategorieZuordnungSetzen:
       type: object
       additionalProperties: false
@@ -34380,7 +34963,7 @@ components:
           type: string
         typ:
           type: string
-          enum: [stufe, funktion, team, lager]
+          enum: [stufe, funktion, team, lager, anlass]
     TerminVorschlagOptionen:
       type: object
       required: [darfVorschlagen, tags]
@@ -34783,6 +35366,7 @@ components:
         - frist
         - sichtbarkeit
         - seiteId
+        - gruppe
         - erstelltAm
       properties:
         id:
@@ -34840,6 +35424,20 @@ components:
             - string
             - "null"
           format: uuid
+        gruppe:
+          type:
+            - object
+            - "null"
+          description: Die Gruppe vom Typ `anlass` zu diesem Anlass (zum Beispiel das OK), höchstens eine; `null` ohne Gruppe (#626).
+          required:
+            - id
+            - name
+          properties:
+            id:
+              type: string
+              format: uuid
+            name:
+              type: string
         erstelltAm:
           type: string
           format: date-time

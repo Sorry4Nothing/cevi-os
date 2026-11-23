@@ -35,6 +35,7 @@ const TYPEN = {
   funktion: "Funktion",
   team: "Team",
   lager: "Lager",
+  anlass: "Anlass",
 };
 const TEXTE = {
   PLAETZE_UNGUELTIG: "Gib eine Zahl von 1 bis 1000 ein.",

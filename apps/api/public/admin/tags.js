@@ -2,6 +2,7 @@ import { anfrage } from "./api.js";
 import { flussOffen } from "./fluss.js";
 import { aktionenZelle, chip, el, icon, knopf, tabelle } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
+import { anlassZeile } from "./tags-anlass.js";
 import {
   aktionenKopfVerstecken,
   macheSortierbar,
@@ -70,6 +71,7 @@ function zeile(tag, ctx, neu) {
         el("span", { class: "name" }, tag.name),
         tag.kuerzel &&
           el("span", { class: "klein leise" }, `Kürzel ${tag.kuerzel}`),
+        anlassZeile(tag),
       ),
       el(
         "td",
@@ -80,7 +82,7 @@ function zeile(tag, ctx, neu) {
           chip(
             typName(tag.typ),
             tag.typ === "stufe" ? "stufe" : undefined,
-            "tag",
+            tag.typ === "anlass" ? "kalender" : "tag",
           ),
         ),
       ),

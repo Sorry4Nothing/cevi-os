@@ -1,26 +1,18 @@
-// Kacheln der Übersicht (#583, neu gestaltet in #607): jede Kachel eine Funktion, die aus der Antwort von GET /api/v1/admin/uebersicht einen Knoten baut. Fehlt ein Teil in der Antwort, fehlt die Kachel (kein Recht, siehe docs/rechte.md); steht er in «fehlt», zeigt die Kachel für sich «Nochmals versuchen», der Rest bleibt stehen.
-// Vorlagen für Aufbau und Zustände (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben nach dem, was sie von dir brauchen), «status-footer» (Streifen mit Ablesung per Zeiger und Pfeiltasten), «clinic-dashboard» (Tagesschiene für das Kommende), «stats-feature» und «clinic-dashboard» (Kennzahlen: Zahl gross, Veränderung als Marke mit Pfeil, kleine Grafik).
+// Bausteine der Übersicht (#583, neu gebaut in #620 als Dashboard): Karte, Aufgabenliste, Kennzahlenband und Zustandsstreifen. Jede Funktion baut aus der Antwort von GET /api/v1/admin/uebersicht einen Knoten. Fehlt ein Teil in der Antwort, fehlt der Baustein (kein Recht, siehe docs/rechte.md); steht er in «fehlt», zeigt die Karte für sich «Nochmals versuchen», der Rest bleibt stehen. Das Hauptdiagramm steht in uebersicht-verlauf.js, Kommendes, Aktivität und Teilnahme in uebersicht-kommend.js.
+// Vorlagen für Aufbau und Zustände (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben als kompakte Liste nach dem, was sie von dir brauchen, mit Gruppen und Zahl), «stats-headline» und «stats-feature» (Kennzahlen in einem Band, durch feine Linien geteilt, Zahl gross, Veränderung, kleine Grafik) und «status-footer» (schmaler Streifen mit Zustand als Wort und Symbol).
 import { chip, el, icon, knopf } from "./dom.js";
 import { BEREICHE, darfSehen } from "./navigation.js";
 import {
+  deltaMarke,
   fmt,
   pfeil,
-  rangBalken,
-  saeulen,
-  svg,
-  verlaufLinie,
-  vorzeichen,
+  spur,
+  zahlAnzeige,
 } from "./uebersicht-diagramme.js";
 
 const ZONE = "Europe/Zurich";
 const de = (optionen) =>
   new Intl.DateTimeFormat("de-CH", { timeZone: ZONE, ...optionen });
-const fKurz = de({ day: "numeric", month: "numeric" });
-const fTag = de({ weekday: "short" });
-const fTagMonat = de({ day: "numeric", month: "short" });
-const fZahl = de({ day: "numeric" });
-const fMonat = de({ month: "short" });
-const fUhr = de({ hour: "2-digit", minute: "2-digit" });
 const fDatumZeit = de({
   day: "numeric",
   month: "numeric",
@@ -28,12 +20,6 @@ const fDatumZeit = de({
   hour: "2-digit",
   minute: "2-digit",
 });
-const heuteIso = () =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: ZONE }).format(new Date());
-
-// Ein Kalendertag «2026-12-05» ohne Zeitzonensprung
-const tagDatum = (iso) => new Date(`${iso}T12:00:00Z`);
-const MS_TAG = 86_400_000;
 
 // «vor 5 Minuten», «vor 3 Stunden», «vor 4 Tagen»
 export function vor(iso, jetzt = Date.now()) {
@@ -49,8 +35,8 @@ export function vor(iso, jetzt = Date.now()) {
   return `vor ${tage} Tagen`;
 }
 
-// Wohin ein Verweis führt: [Bereich, Unterseite]. Die Kachel ist nur dann ein Link, wenn die Person die Seite sehen darf (sonst zeigt sie nur die Zahl)
-function ziel(ctx, [bereich, unter]) {
+// Wohin ein Verweis führt: [Bereich, Unterseite]. Der Eintrag ist nur dann ein Link, wenn die Person die Seite sehen darf
+export function ziel(ctx, [bereich, unter]) {
   const b = BEREICHE.find((x) => x.schluessel === bereich);
   const u = b?.unter.find((x) => x.schluessel === unter);
   if (!u) return null;
@@ -67,29 +53,38 @@ function ziel(ctx, [bereich, unter]) {
 }
 
 let zaehlerId = 0;
-const neueId = (v) => `ub-${v}-${++zaehlerId}`;
+export const neueId = (v) => `ud-${v}-${++zaehlerId}`;
 
-// Eine Fläche mit Überschrift (h3 in einem Abschnitt mit h2); das Skelett der Kachel hat dieselbe Form (uebersicht.js)
-function kachel({ titel, klasse = "", inhalt, aktion }) {
+export const verweisZeile = (href, text) =>
+  href && el("a", { class: "ub-verweis", href }, text, pfeil());
+
+// Eine Karte: Kopfzeile mit Titel (h2) und optionalem Verweis, darunter der Inhalt. Das Skelett in uebersicht.js hat dieselbe Form.
+export function karte({ titel, untertitel, klasse = "", inhalt, aktion }) {
   const id = neueId("k");
   return el(
     "section",
-    { class: `ub-kachel ${klasse}`.trim(), "aria-labelledby": id },
+    { class: `ud-karte ${klasse}`.trim(), "aria-labelledby": id },
     el(
       "div",
-      { class: "ub-kachel-kopf" },
-      el("h3", { id, class: "ub-kachel-titel" }, titel),
+      { class: "ud-kopf" },
+      el(
+        "div",
+        { class: "ud-kopf-text" },
+        el("h2", { id, class: "ud-titel" }, titel),
+        untertitel &&
+          el("p", { class: "ud-untertitel leise klein" }, untertitel),
+      ),
       aktion,
     ),
     inhalt,
   );
 }
 
-// Fehler einer einzelnen Kachel: Der Rest der Seite bleibt, «Nochmals versuchen» lädt die Übersicht neu
-export function fehlerKachel(titel, nochmals) {
-  return kachel({
+// Fehler einer einzelnen Karte: Der Rest der Seite bleibt, «Nochmals versuchen» lädt die Übersicht neu
+export function fehlerKarte(titel, nochmals) {
+  return karte({
     titel,
-    klasse: "ub-kachel--fehler",
+    klasse: "ud-karte--fehler",
     inhalt: el(
       "div",
       { class: "ub-zustand", role: "status" },
@@ -104,80 +99,73 @@ export function fehlerKachel(titel, nochmals) {
   });
 }
 
-const verweisZeile = (href, text) =>
-  href && el("a", { class: "ub-verweis", href }, text, pfeil());
-
 // 1. Jetzt zu tun --------------------------------------------------------------------------
+// Eine kompakte Liste in zwei Gruppen (agent-inbox): was von dir einen Entscheid braucht, und was aufzuräumen ist. Jede Zeile ist ein Link, wenn die Person die Zielseite sehen darf. Störungen und Sicherheit tragen ein Symbol und ein Wort, nie nur Farbe.
 
-// Reihenfolge: erst Störungen, dann was auf eine Entscheidung wartet, dann Website und Aufräumarbeit
 const AUFGABEN = [
   {
     schluessel: "kalenderFehler",
+    gruppe: "dich",
     art: "stoerung",
-    text: [
-      "Der Kalender-Abgleich ist fehlgeschlagen",
-      "Der Kalender-Abgleich ist fehlgeschlagen",
-    ],
+    titel: ["Kalender-Abgleich", "Kalender-Abgleich"],
+    satz: ["ist fehlgeschlagen", "ist fehlgeschlagen"],
     kurz: "Kalender-Abgleich",
     aktion: "Prüfen",
     ziel: ["termine", "outlook"],
   },
   {
     schluessel: "kontenOhneZweitenFaktor",
+    gruppe: "dich",
     art: "sicher",
-    text: [
-      "Konto mit Verwaltungsrechten hat keinen zweiten Faktor",
-      "Konten mit Verwaltungsrechten haben keinen zweiten Faktor",
-    ],
+    titel: ["Konto", "Konten"],
+    satz: ["hat keinen zweiten Faktor", "haben keinen zweiten Faktor"],
     kurz: "Zweiter Faktor",
     aktion: "Ansehen",
     ziel: ["personen", "personen"],
   },
   {
     schluessel: "terminVorschlaege",
-    text: [
-      "Terminvorschlag wartet auf deinen Entscheid",
-      "Terminvorschläge warten auf deinen Entscheid",
-    ],
+    gruppe: "dich",
+    titel: ["Terminvorschlag", "Terminvorschläge"],
+    satz: ["wartet auf deinen Entscheid", "warten auf deinen Entscheid"],
     kurz: "Terminvorschläge",
     aktion: "Prüfen",
     ziel: ["termine", "vorschlaege"],
   },
   {
     schluessel: "raumanfragen",
-    text: [
-      "Raumanfrage wartet auf deinen Entscheid",
-      "Raumanfragen warten auf deinen Entscheid",
-    ],
+    gruppe: "dich",
+    titel: ["Raumanfrage", "Raumanfragen"],
+    satz: ["wartet auf deinen Entscheid", "warten auf deinen Entscheid"],
     kurz: "Raumanfragen",
     aktion: "Entscheiden",
     ziel: ["raeume", "anfragen"],
   },
   {
     schluessel: "bestellungenBereit",
-    text: [
-      "Bestellung liegt bereit und wartet auf die Übergabe",
-      "Bestellungen liegen bereit und warten auf die Übergabe",
-    ],
+    gruppe: "dich",
+    titel: ["Bestellung", "Bestellungen"],
+    satz: ["liegt bereit zur Übergabe", "liegen bereit zur Übergabe"],
     kurz: "Bestellungen zur Übergabe",
     aktion: "Übergeben",
     ziel: ["laedeli", "bestellungen"],
   },
   {
     schluessel: "bestellungenOffen",
-    text: [
-      "Bestellung ist neu und noch nicht bearbeitet",
-      "Bestellungen sind neu und noch nicht bearbeitet",
-    ],
+    gruppe: "dich",
+    titel: ["Bestellung", "Bestellungen"],
+    satz: ["ist neu und noch offen", "sind neu und noch offen"],
     kurz: "Neue Bestellungen",
     aktion: "Bearbeiten",
     ziel: ["laedeli", "bestellungen"],
   },
   {
     schluessel: "websiteAenderungen",
-    text: [
-      "Seite hat Änderungen, die noch nicht veröffentlicht sind",
-      "Seiten haben Änderungen, die noch nicht veröffentlicht sind",
+    gruppe: "raeumen",
+    titel: ["Seite", "Seiten"],
+    satz: [
+      "hat Änderungen, die nicht veröffentlicht sind",
+      "haben Änderungen, die nicht veröffentlicht sind",
     ],
     kurz: "Unveröffentlichte Änderungen",
     aktion: "Prüfen",
@@ -185,16 +173,20 @@ const AUFGABEN = [
   },
   {
     schluessel: "websiteEntwuerfe",
-    text: ["Seite ist noch ein Entwurf", "Seiten sind noch Entwürfe"],
+    gruppe: "raeumen",
+    titel: ["Seite", "Seiten"],
+    satz: ["ist noch ein Entwurf", "sind noch Entwürfe"],
     kurz: "Entwürfe",
     aktion: "Ansehen",
     ziel: ["website", "seiten"],
   },
   {
     schluessel: "termineOhneKategorie",
-    text: [
-      "Termin hat keine Kategorie und ist für niemanden sichtbar",
-      "Termine haben keine Kategorie und sind für niemanden sichtbar",
+    gruppe: "raeumen",
+    titel: ["Termin", "Termine"],
+    satz: [
+      "hat keine Kategorie, niemand sieht ihn",
+      "haben keine Kategorie, niemand sieht sie",
     ],
     kurz: "Termine ohne Kategorie",
     aktion: "Zuordnen",
@@ -202,14 +194,18 @@ const AUFGABEN = [
   },
   {
     schluessel: "anmeldefristen",
-    text: [
-      "Anmeldefrist endet in den nächsten 7 Tagen",
-      "Anmeldefristen enden in den nächsten 7 Tagen",
-    ],
+    gruppe: "raeumen",
+    titel: ["Anmeldefrist", "Anmeldefristen"],
+    satz: ["endet in 7 Tagen", "enden in 7 Tagen"],
     kurz: "Anmeldefristen",
     aktion: "Ansehen",
     ziel: ["anlaesse", "anlaesse"],
   },
+];
+
+const GRUPPEN = [
+  ["dich", "Braucht dich"],
+  ["raeumen", "Aufräumen und im Blick"],
 ];
 
 const ARTEN = {
@@ -217,50 +213,45 @@ const ARTEN = {
   sicher: ["Sicherheit", "schild"],
 };
 
-// Jede Kachel hat denselben Aufbau, damit alle gleich gross und gleich bedienbar sind: oben Zahl und Marke, in der Mitte der Satz, unten die Zeile mit der Aktion (feste Höhe; ohne Recht auf die Zielseite bleibt die Zeile leer)
-function aufgabe(def, wert, ctx) {
+function aufgabe(def, wert, ctx, i) {
   const n = typeof wert === "boolean" ? (wert ? 1 : 0) : wert;
   const href = ziel(ctx, def.ziel);
+  const marke = def.art
+    ? el(
+        "span",
+        { class: "ud-marke ud-marke--" + def.art },
+        icon(ARTEN[def.art][1]),
+        el("span", { class: "nur-leser" }, `${ARTEN[def.art][0]}: `),
+      )
+    : el("span", { class: "ud-marke" }, fmt(n));
   const inhalt = [
+    marke,
     el(
       "span",
-      { class: "ub-aufgabe-kopf" },
-      typeof wert === "boolean"
-        ? el("span", { class: "ub-zahl ub-zahl--wort" }, "Fehler")
-        : el("span", { class: "ub-zahl" }, fmt(n)),
-      def.art &&
-        el(
-          "ul",
-          { class: "chips ub-art" },
-          chip(ARTEN[def.art][0], "warn", ARTEN[def.art][1]),
-        ),
+      { class: "ud-aufgabe-text" },
+      el("span", { class: "ud-aufgabe-titel" }, def.titel[n === 1 ? 0 : 1]),
+      el("span", { class: "ud-aufgabe-satz" }, def.satz[n === 1 ? 0 : 1]),
     ),
-    el("span", { class: "ub-aufgabe-text" }, def.text[n === 1 ? 0 : 1]),
-    el("span", { class: "ub-aufgabe-aktion" }, href && [def.aktion, pfeil()]),
+    href
+      ? el("span", { class: "ud-aufgabe-aktion" }, def.aktion, pfeil())
+      : null,
   ];
-  return el(
+  const zeile = el(
     "li",
     {},
     href
-      ? el("a", { class: "ub-aufgabe", href }, inhalt)
-      : el("div", { class: "ub-aufgabe ub-aufgabe--still" }, inhalt),
+      ? el("a", { class: "ud-aufgabe", href }, inhalt)
+      : el("div", { class: "ud-aufgabe ud-aufgabe--still" }, inhalt),
   );
+  zeile.style.setProperty("--i", String(i));
+  return zeile;
 }
 
-// Das Band: nur was offen ist, als Kacheln mit Zahl und Sprung; was erledigt ist, steht in einem Satz darunter
-export function aufgabenBand(daten, ctx, nochmals) {
+export function aufgabenKarte(daten, ctx, nochmals) {
   const a = daten.aufgaben;
-  const id = neueId("h");
-  const abschnitt = (inhalt) =>
-    el(
-      "section",
-      { class: "ub-abschnitt ub-band", "aria-labelledby": id },
-      el("h2", { id }, "Jetzt zu tun"),
-      inhalt,
-    );
   if (!a) {
     return daten.fehlt.some((f) => ["aufgaben", "website"].includes(f))
-      ? abschnitt(fehlerKachel("Aufgaben", nochmals))
+      ? fehlerKarte("Jetzt zu tun", nochmals)
       : null;
   }
   const offen = AUFGABEN.filter(
@@ -273,15 +264,30 @@ export function aufgabenBand(daten, ctx, nochmals) {
     (d) => a[d.schluessel] === 0 || a[d.schluessel] === false,
   );
   const teile = [];
-  if (offen.length > 0) {
+  let i = 0;
+  for (const [schluessel, name] of GRUPPEN) {
+    const liste = offen.filter((d) => d.gruppe === schluessel);
+    if (liste.length === 0) continue;
+    const id = neueId("g");
     teile.push(
       el(
-        "ul",
-        { class: "ub-aufgaben" },
-        offen.map((d) => aufgabe(d, a[d.schluessel], ctx)),
+        "div",
+        { class: "ud-gruppe", role: "group", "aria-labelledby": id },
+        el(
+          "p",
+          { id, class: "ud-gruppe-name" },
+          name,
+          el("span", { class: "ud-gruppe-zahl" }, String(liste.length)),
+        ),
+        el(
+          "ul",
+          { class: "ud-aufgaben" },
+          liste.map((d) => aufgabe(d, a[d.schluessel], ctx, i++)),
+        ),
       ),
     );
-  } else {
+  }
+  if (offen.length === 0) {
     teile.push(
       el(
         "div",
@@ -291,21 +297,13 @@ export function aufgabenBand(daten, ctx, nochmals) {
       ),
     );
   }
-  if (erledigt.length > 0 && offen.length > 0) {
+  if (erledigt.length > 0) {
     teile.push(
       el(
         "p",
         { class: "ub-erledigt klein leise" },
         icon("haken"),
-        `Nichts offen bei: ${erledigt.map((d) => d.kurz).join(", ")}.`,
-      ),
-    );
-  } else if (erledigt.length > 0) {
-    teile.push(
-      el(
-        "p",
-        { class: "ub-erledigt klein leise" },
-        `Geprüft: ${erledigt.map((d) => d.kurz).join(", ")}.`,
+        `${offen.length > 0 ? "Nichts offen bei" : "Geprüft"}: ${erledigt.map((d) => d.kurz).join(", ")}.`,
       ),
     );
   }
@@ -319,338 +317,188 @@ export function aufgabenBand(daten, ctx, nochmals) {
       ),
     );
   }
-  return abschnitt(teile);
-}
-
-// 2. Kennzahlen ----------------------------------------------------------------------------
-// Aufbau nach den Statistikkacheln von Kokonut UI Pro («stats-feature»: Zahl gross und tabellarisch, Bezeichnung darunter; «clinic-dashboard»: Veränderung als Marke mit Pfeil): Titel, grosse Zahl mit Einheit, Veränderung gegenüber dem Zeitraum davor, kleine Grafik. Nur Zahlen, die für die Abteilung etwas sagen und die die Route schon liefert.
-
-const wochenNamen = (erzeugtAm, n) =>
-  Array.from({ length: n }, (_, i) => {
-    const ende = new Date(
-      new Date(erzeugtAm).getTime() - (n - 1 - i) * 7 * MS_TAG,
-    );
-    return i === n - 1 ? "Letzte 7 Tage" : `7 Tage bis ${fKurz.format(ende)}`;
+  return karte({
+    titel: "Jetzt zu tun",
+    untertitel:
+      offen.length === 0
+        ? "Nichts offen"
+        : offen.length === 1
+          ? "1 Punkt offen"
+          : `${offen.length} Punkte offen`,
+    klasse: "ud-aufgabenkarte",
+    inhalt: teile,
   });
-
-function wert(zahlText, einheitText) {
-  return el(
-    "p",
-    { class: "ub-wert" },
-    el("span", { class: "ub-wert-zahl" }, zahlText),
-    einheitText && el("span", { class: "ub-wert-einheit" }, einheitText),
-  );
 }
 
-// Pfeil der Veränderung: hoch, runter oder gleich (Zustand nie nur über Farbe: Pfeil und Vorzeichen)
-const PFEIL_PFAD = {
-  hoch: "M12 19V5M6 11l6-6 6 6",
-  runter: "M12 5v14M6 13l6 6 6-6",
-  gleich: "M5 12h14",
-};
+// Anzahl offener Punkte für den Satz oben auf der Seite
+export function offeneAufgaben(daten) {
+  const a = daten.aufgaben;
+  if (!a) return 0;
+  return AUFGABEN.filter(
+    (d) =>
+      a[d.schluessel] !== undefined &&
+      a[d.schluessel] !== false &&
+      a[d.schluessel] !== 0,
+  ).length;
+}
 
-// Veränderung als Marke mit Pfeil und Vorzeichen, daneben der Vergleich in Worten
-function veraenderung(unterschied, text) {
-  const richtung =
-    unterschied > 0 ? "hoch" : unterschied < 0 ? "runter" : "gleich";
+// 2. Kennzahlenband ------------------------------------------------------------------------
+// Ein Band mit einer Zelle je Kennzahl (stats-headline): Bezeichnung, Zahl hochzählend, Veränderung, kleine Grafik. Nur Zahlen, die für die Abteilung etwas sagen und die die Route schon liefert.
+
+const letzte = (reihe, n) => reihe.slice(-n);
+
+function zelle({ name, wert, einheit, vergleich, grafik }) {
+  const z = zahlAnzeige(wert);
+  const id = neueId("z");
   return el(
-    "p",
-    { class: "ub-delta" },
+    "li",
+    { class: "ud-zelle", "aria-labelledby": id },
+    el("p", { id, class: "ud-lbl" }, name),
     el(
-      "span",
-      { class: "ub-marke-delta" },
-      svg(
-        "svg",
-        {
-          class: "ub-pfeil",
-          viewBox: "0 0 24 24",
-          "aria-hidden": "true",
-          focusable: "false",
-        },
-        svg("path", { d: PFEIL_PFAD[richtung] }),
-      ),
-      vorzeichen(unterschied),
+      "p",
+      { class: "ud-gross ud-gross--mittel" },
+      z.wurzel,
+      el("span", { class: "ud-einheit" }, einheit),
     ),
-    el("span", {}, text),
+    el("p", { class: "ud-delta" }, vergleich),
+    grafik,
   );
 }
-const vergleichText = (text) => el("p", { class: "ub-delta" }, text);
 
-// Eine Kennzahl: Titel, Zahl, Veränderung und Grafik; die Grafik trägt Satz und Ablesung (uebersicht-diagramme.js)
-function kennzahl({ titel, wertText, einheit, vergleich, grafik }) {
-  return kachel({
-    titel,
-    klasse: "ub-stat",
-    inhalt: [
-      wert(wertText, einheit),
-      vergleich,
-      el("div", { class: "ub-diagramm" }, grafik),
-    ],
-  });
-}
-
-export function kennzahlen(daten, ctx, { nochmals }) {
+export function kennzahlenBand(daten, ctx, nochmals) {
   const k = daten.kennzahlen;
-  const id = neueId("h");
-  const kacheln = [];
-  if (k) {
-    const n = k.fenster;
-    const namen = wochenNamen(daten.erzeugtAm, n);
-    const an = k.anmeldungen;
-    const neu = an.verlauf[n - 1];
-    const davor = an.verlauf[n - 2];
-    kacheln.push(
-      kennzahl({
-        titel: "Anmeldungen zu Anlässen",
-        wertText: fmt(an.kommend),
-        einheit: "bei kommenden Anlässen",
-        vergleich: veraenderung(
-          neu - davor,
-          `${fmt(neu)} neu in den letzten 7 Tagen, ${fmt(davor)} in den 7 Tagen davor`,
-        ),
-        grafik: saeulen({
-          titel: "Neue Anmeldungen je 7 Tage",
-          einheit: "Anmeldungen",
-          punkte: an.verlauf.map((w, i) => ({ name: namen[i], wert: w })),
-        }),
+  if (!k) {
+    return daten.fehlt.includes("kennzahlen")
+      ? fehlerKarte("Kennzahlen", nochmals)
+      : null;
+  }
+  const n = k.fenster;
+  const zellen = [];
+  const kurzSatz = (titel, werte, einheit) =>
+    `${titel}, ${werte.length} Wochen bis heute: ${werte.map((w) => fmt(w)).join(", ")} ${einheit}.`;
+
+  const p = k.personen;
+  const pSpur = letzte(p.verlauf, 12);
+  zellen.push(
+    zelle({
+      name: "Konten",
+      wert: p.jetzt,
+      einheit: "aktiv",
+      vergleich: [
+        deltaMarke(p.verlauf[n - 1] - p.verlauf[n - 5]),
+        el("span", {}, "seit 4 Wochen"),
+      ],
+      grafik: spur({
+        werte: pSpur,
+        satz: kurzSatz("Aktive Konten", pSpur, "Konten"),
       }),
-    );
-    const p = k.personen;
-    const seit = p.verlauf[n - 1] - p.verlauf[n - 5];
-    kacheln.push(
-      kennzahl({
-        titel: "Konten",
-        wertText: fmt(p.jetzt),
-        einheit: "aktive Konten",
-        vergleich: veraenderung(seit, "seit vier Wochen"),
-        grafik: verlaufLinie({
-          titel: "Aktive Konten",
-          einheit: "Konten",
-          punkte: p.verlauf.map((w, i) => ({
-            name:
-              i === n - 1 ? "Heute" : namen[i].replace("7 Tage bis", "Stand"),
-            wert: w,
-          })),
-        }),
-      }),
-    );
-    // Bestellungen nur, wenn das Lädeli in den letzten Wochen überhaupt benutzt wurde
-    const be = k.bestellungen.verlauf;
-    if (be.some((w) => w > 0)) {
-      kacheln.push(
-        kennzahl({
-          titel: "Bestellungen im Lädeli",
-          wertText: fmt(be[n - 1]),
-          einheit: "in den letzten 7 Tagen",
-          vergleich: veraenderung(
-            be[n - 1] - be[n - 2],
-            "gegenüber den 7 Tagen davor",
+    }),
+  );
+
+  const stufen = daten.kinderJeStufe;
+  if (k.kinder && stufen && stufen.length > 0) {
+    zellen.push(
+      zelle({
+        name: "Kinder",
+        wert: k.kinder.jetzt,
+        einheit: "in der Abteilung",
+        vergleich: [
+          el(
+            "span",
+            {},
+            stufen.length === 1
+              ? "in einer Stufe"
+              : `verteilt auf ${stufen.length} Stufen`,
           ),
-          grafik: saeulen({
-            titel: "Neue Bestellungen je 7 Tage",
-            einheit: "Bestellungen",
-            punkte: be.map((w, i) => ({ name: namen[i], wert: w })),
-          }),
-        }),
-      );
-    }
-  } else if (daten.fehlt.includes("kennzahlen")) {
-    kacheln.push(fehlerKachel("Kennzahlen", nochmals));
-  }
-  // Termine der nächsten Wochen: dieselbe Sicht wie «Kommendes», ohne Termine keine Kachel
-  const wochen = daten.kommend?.termineProWoche;
-  const summe = wochen ? wochen.reduce((s, w) => s + w, 0) : 0;
-  if (wochen && summe > 0) {
-    const woche = (i) =>
-      i === 0 ? "Diese Woche" : i === 1 ? "Nächste Woche" : `In ${i} Wochen`;
-    kacheln.push(
-      kennzahl({
-        titel: "Termine",
-        wertText: fmt(summe),
-        einheit: `in den nächsten ${daten.kommend.wochen} Wochen`,
-        vergleich: vergleichText(
-          `Diese Woche ${fmt(wochen[0])}, nächste Woche ${fmt(wochen[1] ?? 0)}`,
-        ),
-        grafik: saeulen({
-          titel: "Termine je Woche",
-          einheit: "Termine",
-          punkte: wochen.map((w, i) => ({ name: woche(i), wert: w })),
+        ],
+        grafik: spur({
+          art: "saeulen",
+          werte: stufen.map((s) => s.kinder),
+          satz: `Kinder je Stufe: ${stufen.map((s) => `${s.name} ${s.kinder}`).join(", ")}.`,
         }),
       }),
     );
   }
-  if (kacheln.length === 0) return null;
+
+  const an = k.anmeldungen;
+  const neu = an.verlauf[n - 1];
+  const davor = an.verlauf[n - 2];
+  const aSpur = letzte(an.verlauf, 12);
+  zellen.push(
+    zelle({
+      name: "Anmeldungen",
+      wert: an.kommend,
+      einheit: "bei kommenden Anlässen",
+      vergleich: [
+        deltaMarke(neu - davor),
+        el("span", {}, `${fmt(neu)} neu in 7 Tagen`),
+      ],
+      grafik: spur({
+        art: "saeulen",
+        werte: aSpur,
+        satz: kurzSatz("Neue Anmeldungen je 7 Tage", aSpur, "Anmeldungen"),
+      }),
+    }),
+  );
+
+  const wochen = daten.kommend?.termineProWoche;
+  if (wochen && wochen.some((w) => w > 0)) {
+    const summe = wochen.reduce((s, w) => s + w, 0);
+    zellen.push(
+      zelle({
+        name: "Termine",
+        wert: summe,
+        einheit: `in den nächsten ${daten.kommend.wochen} Wochen`,
+        vergleich: [
+          el(
+            "span",
+            {},
+            `Diese Woche ${fmt(wochen[0])}, nächste ${fmt(wochen[1] ?? 0)}`,
+          ),
+        ],
+        grafik: spur({
+          art: "saeulen",
+          werte: wochen,
+          satz: `Termine je Woche, ab dieser Woche: ${wochen.map((w) => fmt(w)).join(", ")}.`,
+        }),
+      }),
+    );
+  }
+
+  const be = k.bestellungen.verlauf;
+  if (be.some((w) => w > 0)) {
+    const bSpur = letzte(be, 12);
+    zellen.push(
+      zelle({
+        name: "Bestellungen",
+        wert: be[n - 1],
+        einheit: "in 7 Tagen",
+        vergleich: [
+          deltaMarke(be[n - 1] - be[n - 2]),
+          el("span", {}, "gegenüber davor"),
+        ],
+        grafik: spur({
+          art: "saeulen",
+          werte: bSpur,
+          satz: kurzSatz("Neue Bestellungen je 7 Tage", bSpur, "Bestellungen"),
+        }),
+      }),
+    );
+  }
+  const id = neueId("h");
+  zellen.forEach((z, i) => z.style.setProperty("--i", String(i)));
+  const liste = el("ul", { class: "ud-band-liste" }, zellen);
+  liste.style.setProperty("--n", String(zellen.length));
   return el(
     "section",
-    { class: "ub-abschnitt", "aria-labelledby": id },
-    el("h2", { id }, "Kennzahlen"),
-    el("div", { class: "ub-raster" }, kacheln),
+    { class: "ud-karte ud-band", "aria-labelledby": id },
+    el("h2", { id, class: "nur-leser" }, "Kennzahlen"),
+    liste,
   );
 }
 
-// 3. Kommendes -----------------------------------------------------------------------------
-
-// Beginn als Zeitpunkt für das Sortieren
-const beginnVon = (t) => (t.beginn ? new Date(t.beginn) : tagDatum(t.tagVon));
-
-function datumsblock(d, heute) {
-  const istHeute = fKurz.format(d) === fKurz.format(tagDatum(heute));
-  return el(
-    "span",
-    {
-      class: "ub-datum" + (istHeute ? " ub-datum--heute" : ""),
-      "aria-hidden": "true",
-    },
-    el("span", { class: "ub-datum-tag" }, fTag.format(d).replace(".", "")),
-    el("span", { class: "ub-datum-zahl" }, fZahl.format(d)),
-    el("span", { class: "ub-datum-monat" }, fMonat.format(d).replace(".", "")),
-  );
-}
-
-function zeitText(t) {
-  if (t.ganztaegig) {
-    if (t.tagBis && t.tagBis !== t.tagVon) {
-      return `Ganztägig, bis ${fTagMonat.format(tagDatum(t.tagBis))}`;
-    }
-    return "Ganztägig";
-  }
-  return `${fUhr.format(new Date(t.beginn))}–${fUhr.format(new Date(t.ende))} Uhr`;
-}
-
-function lesbarerTag(d) {
-  return new Intl.DateTimeFormat("de-CH", {
-    timeZone: ZONE,
-    weekday: "long",
-    day: "numeric",
-    month: "long",
-  }).format(d);
-}
-
-export function kommendes(daten, ctx, { nochmals }) {
-  const k = daten.kommend;
-  if (!k) {
-    return daten.fehlt.includes("kommend")
-      ? fehlerKachel("Kommendes", nochmals)
-      : null;
-  }
-  const heute = heuteIso();
-  const zeilen = [
-    ...k.termine.map((t) => ({
-      art: "termin",
-      titel: t.titel,
-      von: beginnVon(t),
-      t,
-    })),
-    ...k.lager.map((l) => ({
-      art: "lager",
-      titel: l.titel,
-      von: tagDatum(l.von),
-      l,
-    })),
-  ]
-    .sort((a, b) => a.von - b.von)
-    .slice(0, 6);
-  const ist = ctx.ich.role === "admin";
-  const liste =
-    zeilen.length === 0
-      ? el(
-          "div",
-          { class: "ub-zustand", role: "status" },
-          el(
-            "p",
-            { class: "ub-leer-satz" },
-            `In den nächsten ${k.wochen} Wochen steht nichts an.`,
-          ),
-        )
-      : el(
-          "ol",
-          { class: "ub-zeitleiste" },
-          zeilen.map((z) => {
-            const meta =
-              z.art === "lager"
-                ? `${fTagMonat.format(tagDatum(z.l.von))} bis ${fTagMonat.format(tagDatum(z.l.bis))}`
-                : zeitText(z.t);
-            const chips = [];
-            if (z.art === "lager") chips.push(chip("Lager", "", false));
-            if (z.art === "lager" && z.l.status === "entwurf")
-              chips.push(chip("Entwurf", "warn"));
-            if (fKurz.format(z.von) === fKurz.format(tagDatum(heute)))
-              chips.push(chip("Heute", "", false));
-            return el(
-              "li",
-              {},
-              datumsblock(z.von, heute),
-              el(
-                "span",
-                { class: "ub-zeile-text" },
-                el("span", { class: "nur-leser" }, `${lesbarerTag(z.von)}: `),
-                el("span", { class: "ub-zeile-titel" }, z.titel),
-                el("span", { class: "ub-zeile-meta klein leise" }, meta),
-              ),
-              chips.length > 0 && el("ul", { class: "chips" }, chips),
-            );
-          }),
-        );
-  return kachel({
-    titel: "Kommendes",
-    klasse: "ub-kommend",
-    aktion:
-      ist && ziel(ctx, ["termine", "kalender"])
-        ? verweisZeile(ziel(ctx, ["termine", "kalender"]), "Alle Termine")
-        : undefined,
-    inhalt: [
-      daten.fehlt.includes("lager") &&
-        el(
-          "div",
-          { class: "hinweis hinweis--warn", role: "status" },
-          el("span", {}, "Die Lager konnten nicht geladen werden."),
-          knopf("Nochmals versuchen", { klein: true, onclick: nochmals }),
-        ),
-      liste,
-    ],
-  });
-}
-
-// 4. Kinder je Stufe -----------------------------------------------------------------------
-
-export function kinderJeStufe(daten, ctx, { nochmals }) {
-  const s = daten.kinderJeStufe;
-  if (!s)
-    return daten.fehlt.includes("kinderJeStufe")
-      ? fehlerKachel("Kinder je Stufe", nochmals)
-      : null;
-  const summe = s.reduce((x, y) => x + y.kinder, 0);
-  return kachel({
-    titel: "Kinder je Stufe",
-    klasse: "ub-stufen",
-    aktion:
-      ctx.ich.role === "admin" && ziel(ctx, ["personen", "kinder"])
-        ? verweisZeile(ziel(ctx, ["personen", "kinder"]), "Kinder")
-        : undefined,
-    inhalt:
-      s.length === 0
-        ? el(
-            "div",
-            { class: "ub-zustand", role: "status" },
-            el("p", { class: "ub-leer-satz" }, "Noch keine Stufe angelegt."),
-          )
-        : [
-            wert(
-              fmt(summe),
-              s.length === 1
-                ? "Kind in dieser Stufe"
-                : `Kinder in ${s.length} Stufen`,
-            ),
-            rangBalken({
-              zeilen: s.map((x) => ({ name: x.name, wert: x.kinder })),
-              einheit: "Kinder",
-            }),
-          ],
-  });
-}
-
-// 5. Zustand -------------------------------------------------------------------------------
-// Nur, was die Abteilung wissen muss: läuft die Website (Wartung, Sperre), läuft der Kalender-Abgleich. Dateien, Speicher und Antwortzeiten der Datenbank sind Sache des Systems und stehen dort. Aufbau wie der Streifen «Status» von Kokonut UI Pro (status-footer): ein Band, je Punkt Name, Zustand als Wort mit Symbol und ein Satz.
+// 3. Zustand -------------------------------------------------------------------------------
+// Ein schmaler Streifen am Ende (status-footer): nur, was die Abteilung wissen muss. Läuft die Website (Wartung, Sperre), läuft der Kalender-Abgleich. Dateien, Speicher und Antwortzeiten der Datenbank stehen im System.
 
 const chips = (...c) => el("ul", { class: "chips" }, c.filter(Boolean));
 
@@ -658,20 +506,16 @@ function punkt({ titel, zustandChips, satz, href, verweis, extra }) {
   const id = neueId("p");
   return el(
     "li",
-    { class: "ub-punkt-betrieb", "aria-labelledby": id },
-    el(
-      "div",
-      { class: "ub-betrieb-kopf" },
-      el("h3", { id, class: "ub-kachel-titel" }, titel),
-      href && verweisZeile(href, verweis),
-    ),
+    { class: "ud-streifen-punkt", "aria-labelledby": id },
+    el("h3", { id, class: "ud-streifen-name" }, titel),
     zustandChips,
-    el("p", { class: "ub-delta" }, satz),
+    el("p", { class: "ud-streifen-satz leise klein" }, satz),
     extra,
+    href && verweisZeile(href, verweis),
   );
 }
 
-export function zustand(daten, ctx, { nochmals }) {
+export function zustandStreifen(daten, ctx, nochmals) {
   const z = daten.zustand ?? {};
   const punkte = [];
   if (z.website) {
@@ -751,8 +595,8 @@ export function zustand(daten, ctx, { nochmals }) {
   const id = neueId("h");
   return el(
     "section",
-    { class: "ub-abschnitt", "aria-labelledby": id },
-    el("h2", { id }, "Zustand"),
-    el("ul", { class: "ub-betrieb" }, punkte),
+    { class: "ud-karte ud-streifen", "aria-labelledby": id },
+    el("h2", { id, class: "ud-streifen-titel" }, "Zustand"),
+    el("ul", { class: "ud-streifen-liste" }, punkte),
   );
 }
