@@ -98,6 +98,15 @@ export const SYMBOLE: Record<string, HtmlKnoten[]> = {
     { tag: "path", attr: { d: "M12 21.5 6 13.5a7.5 7.5 0 1 1 12 0z" } },
     { tag: "circle", attr: { cx: "12", cy: "9", r: "2.5" } },
   ],
+  // Briefumschlag und Telefon für die Zeilen der Kontaktkarte (#605); das Telefon ist ein Handgerät aus Rechteck und Gerade
+  mail: [
+    { tag: "path", attr: { d: "M3 5.5h18v13H3z" } },
+    { tag: "path", attr: { d: "M3 6l9 7.5L21 6" } },
+  ],
+  telefon: [
+    { tag: "path", attr: { d: "M7 2.5h10v19H7z" } },
+    { tag: "path", attr: { d: "M10.5 18.5h3" } },
+  ],
   // Kleines Dreieck nach unten: zeigt ein Untermenü an (Kopf, #558)
   dreieck: [{ tag: "path", attr: { class: "f", d: "M6.5 9.5h11L12 16z" } }],
   pfeil: [

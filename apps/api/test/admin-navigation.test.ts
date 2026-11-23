@@ -96,16 +96,24 @@ describe("Verwaltung: navigation.js", () => {
       .find((b) => b.schluessel === bereich)
       ?.unter.map((u) => u.schluessel);
 
-  test("«Komponenten» sieht nur der Entwickler, auch nicht die Abteilungsleitung", () => {
-    expect(unterVon(admin, "system")).not.toContain("komponenten");
-    expect(unterVon({ ...admin, entwickler: true }, "system")).toContain(
-      "komponenten",
+  test("«Komponenten» und «Anmeldungen» stehen für niemanden im Menü (#607)", () => {
+    const personen = [
+      admin,
+      { ...admin, entwickler: true },
+      redaktion,
+      { ...redaktion, entwickler: true },
+    ];
+    for (const person of personen) {
+      expect(unterVon(person, "system")).not.toContain("komponenten");
+      expect(unterVon(person, "anlaesse") ?? []).not.toContain("anmeldungen");
+    }
+  });
+
+  test("Die alte Adresse der Anmeldungen führt zum Anlass, ohne Kennung zur Liste (#607)", () => {
+    expect(nav.neueAdresse("#anlaesse/anmeldungen")).toBe("#anlaesse/anlaesse");
+    expect(nav.neueAdresse("#anlaesse/anmeldungen/abc")).toBe(
+      "#anlaesse/anlaesse/abc",
     );
-    // Ohne Abteilungsleitung zählt allein das Signal «nameAenderbar»
-    expect(unterVon({ ...redaktion, entwickler: true }, "system")).toContain(
-      "komponenten",
-    );
-    expect(unterVon(redaktion, "system")).not.toContain("komponenten");
   });
 
   test("Einstellungen der Website nur mit dem Recht «Seiten veröffentlichen»", () => {

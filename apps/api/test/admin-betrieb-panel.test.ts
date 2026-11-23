@@ -6,6 +6,7 @@ import { beforeAll, describe, expect, test, vi } from "vitest";
 type Modul = Record<string, (...a: any[]) => any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 let zeitregeln: Modul;
 let band: Modul;
+let system: Modul;
 
 beforeAll(async () => {
   vi.stubGlobal("document", { addEventListener: () => {} });
@@ -14,6 +15,7 @@ beforeAll(async () => {
     import(/* @vite-ignore */ `../public/admin/${name}`) as Promise<Modul>;
   zeitregeln = await lade("zeitregeln.js");
   band = await lade("hinweisband.js");
+  system = await lade("system.js");
   vi.unstubAllGlobals();
 });
 
@@ -125,6 +127,83 @@ describe("hinweisband.js: zeilenVon", () => {
     expect(quelle("plattform.js")).toContain(
       'import { BEREICHE, GEAENDERT } from "./hinweisband.js"',
     );
+  });
+});
+
+describe("system.js: Kennzahlen der Anfragen (#606)", () => {
+  const MIN = 60_000;
+  const jetzt = Date.parse("2026-11-23T12:00:00Z");
+  // 24 Stunden, ab = Anfang des Fensters; je Stunde 10 Anfragen, davon 1 mit 4xx; die letzte Stunde 40 mit 4 mal 5xx
+  const stunden = Array.from({ length: 24 }, (_, i) => ({
+    ab: new Date(jetzt - (24 - i) * 60 * MIN).toISOString(),
+    anzahl: i === 23 ? 40 : 10,
+    fehler4xx: 1,
+    fehler5xx: i === 23 ? 4 : 0,
+  }));
+  const minuten = Array.from({ length: 60 }, (_, i) => ({
+    ab: new Date(jetzt - (60 - i) * MIN).toISOString(),
+    anzahl: i === 30 ? 9 : 1,
+    fehler4xx: 0,
+    fehler5xx: 0,
+  }));
+  const lang = (seit: number) => ({
+    seit: new Date(seit).toISOString(),
+    stunden,
+    minuten,
+  });
+
+  test("24 Stunden: Summe, Spitze und Vergleich der letzten Stunde mit dem Schnitt davor", () => {
+    const w = system.auswerten!(lang(jetzt - 30 * 60 * MIN), "stunden");
+    expect(w.gesamt).toEqual({ anzahl: 270, fehler4xx: 24, fehler5xx: 4 });
+    expect(w.spitze.anzahl).toBe(40);
+    expect(w.letzte.anzahl).toBe(40);
+    expect(w.basis.anzahl).toBe(230);
+    expect(w.stundenImVergleich).toBe(23);
+  });
+
+  test("letzte Stunde: verglichen wird mit der Stunde davor", () => {
+    const w = system.auswerten!(lang(jetzt - 30 * 60 * MIN), "minuten");
+    expect(w.gesamt.anzahl).toBe(68);
+    expect(w.spitze.anzahl).toBe(9);
+    expect(w.basis.anzahl).toBe(10);
+    expect(w.stundenImVergleich).toBe(1);
+  });
+
+  test("lief die API erst kurz, gibt es keinen Vergleich und keine Erfindung", () => {
+    const w = system.auswerten!(lang(jetzt - 30 * MIN), "stunden");
+    expect(w.basis).toBeNull();
+    const leer = system.auswerten!(
+      {
+        seit: new Date(jetzt).toISOString(),
+        stunden: stunden.map((s) => ({
+          ...s,
+          anzahl: 0,
+          fehler4xx: 0,
+          fehler5xx: 0,
+        })),
+        minuten,
+      },
+      "stunden",
+    );
+    expect(leer.spitze).toBeNull();
+  });
+
+  test("Veränderung in Prozent und in Prozentpunkten", () => {
+    expect(system.veraenderung!(112, 100)).toBe("+12 %");
+    expect(system.veraenderung!(90, 100)).toBe("−10 %");
+    expect(system.veraenderung!(5, 5)).toBe("±0 %");
+    expect(system.veraenderung!(0, 0)).toBe("±0");
+    expect(system.veraenderung!(3, 0)).toBe("neu");
+    expect(system.punkteVon!(0.014, 0.01)).toBe("+0.4 Prozentpunkte");
+    expect(system.punkteVon!(0.01, 0.01)).toBe("±0 Prozentpunkte");
+  });
+
+  test("Zustand je Zeitraum: Schwelle 1 % wie in der Lage", () => {
+    const z = system.zustandVon!;
+    expect(z({ anzahl: 0, fehler4xx: 0, fehler5xx: 0 })).toBe("leer");
+    expect(z({ anzahl: 50, fehler4xx: 3, fehler5xx: 0 })).toBe("ruhig");
+    expect(z({ anzahl: 200, fehler4xx: 0, fehler5xx: 2 })).toBe("vereinzelt");
+    expect(z({ anzahl: 100, fehler4xx: 0, fehler5xx: 2 })).toBe("erhoeht");
   });
 });
 

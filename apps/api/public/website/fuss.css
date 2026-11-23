@@ -1,26 +1,46 @@
-/* Der Abschluss der Seiten (#580): die Kontaktkarte am Ende der Startseite und der Fuss auf jeder Seite. Jede Seite lädt die Datei nach website.css und kopf.css.
-   Nur Tokens der Website; Links und Knöpfe folgen dem Repertoire aus website.css (.btn.p, .btn.s, a.verweis, Textlink), hier steht nur, was dem Abschluss eigen ist. Aufbau und Gründe: docs/website-design.md, «Kontaktkarte und Fuss (#580)» */
+/* Der Abschluss der Seiten (#580, neu gestaltet in #605): die Kontaktkarte am Ende der Startseite und der Fuss auf jeder Seite. Jede Seite lädt die Datei nach website.css und kopf.css.
+   Nur Tokens der Website; Links und Knöpfe folgen dem Repertoire aus website.css (.btn.p, .btn.s, a.verweis), hier steht nur, was dem Abschluss eigen ist. Aufbau und Gründe: docs/website-design.md, «Kontaktkarte und Fuss (#605)» */
 
-/* ===== Kontaktkarte ===== */
+/* ===== Kontaktkarte: ein Abschnitt über die ganze Breite, das Bild läuft rechts bis zum Fensterrand ===== */
 
-/* Am Handy steht alles untereinander: Frage und Knöpfe, Bild, Angaben, Verweise */
+/* Der Abschnitt bringt seinen Abstand selbst mit: Das Bild reicht bis oben und unten an den Rand. Die Spalten halten die Linie der fliessenden Spalte (105 rem), auch auf sehr breiten Fenstern;
+   am Handy steht alles untereinander: Frage und Knöpfe, Bild von Rand zu Rand, Angaben, Verweise */
+.sektion--kontaktkarte {
+  padding-block: 0;
+}
+
+.sektion--kontaktkarte > .wrap {
+  max-width: none;
+  padding: 0;
+}
+
 .kontaktkarte {
+  --ka: clamp(3rem, 2rem + 4vw, 6.5rem);
+  --halb: calc(52.5rem - var(--rand));
   display: grid;
-  gap: clamp(1.75rem, 4vw, 2.5rem) var(--spalt);
+  grid-template-columns:
+    [voll-start] var(--rand) [text-start] minmax(0, 1fr)
+    [text-ende] var(--rand) [voll-ende];
+}
+
+.kontaktkarte > * {
+  grid-column: text-start / text-ende;
+  min-width: 0;
 }
 
 .kontakt-haupt {
   display: flex;
-  min-width: 0;
   flex-direction: column;
   align-items: flex-start;
   gap: 1rem;
+  padding-top: var(--ka);
 }
 
 .kontaktkarte h2 {
-  font-size: clamp(2.125rem, 1.4rem + 3.4vw, 4.25rem);
+  font-size: clamp(2.5rem, 1.5rem + 3.6vw, 5.5rem);
   line-height: 1;
-  letter-spacing: -0.025em;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
 }
 
 .kontakt-person {
@@ -38,7 +58,7 @@
 
 .kontakt-haupt .aktionen {
   width: 100%;
-  margin-top: 0.5rem;
+  margin-top: 0.75rem;
 }
 
 .kontakt-haupt .aktionen .btn {
@@ -47,9 +67,10 @@
 
 .kontakt-bild {
   position: relative;
+  grid-column: voll-start / voll-ende;
   aspect-ratio: 3 / 2;
+  margin-top: clamp(2rem, 6vw, 3rem);
   overflow: hidden;
-  border-radius: var(--r-md);
   background: var(--surface-container);
 }
 
@@ -62,40 +83,96 @@
   object-fit: cover;
 }
 
-/* Die Angaben zum Nachlesen und Kopieren: Zeilen mit Linie, links die Bezeichnung */
 .kontakt-angaben {
-  min-width: 0;
+  margin-top: 2.5rem;
+  font-style: normal;
 }
 
-.kontakt-angaben > div {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0.125rem 1.5rem;
-  padding: 1rem 0;
+.kontakt-angaben ul,
+.kontakt-verweise ul {
+  list-style: none;
+}
+
+.kontakt-angaben li {
   border-top: 1px solid var(--outline-variant);
 }
 
-.kontakt-angaben dt {
+.kontakt-angaben li:last-child {
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.kontakt-zeile {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0 1.125rem;
+  min-height: 5rem;
+  margin-inline: -0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--r-sm);
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+a.kontakt-zeile {
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+a.kontakt-zeile:hover {
+  background: var(--surface-container);
+}
+
+.kontakt-symbol {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.kontakt-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.kontakt-art {
   color: var(--on-surface-variant);
   font-size: 0.9375rem;
-  line-height: 1.5rem;
+  line-height: 1.25rem;
   font-weight: 700;
 }
 
-.kontakt-angaben dd {
-  font-size: 1.125rem;
-  line-height: 1.5rem;
+.kontakt-wert {
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.5rem);
+  line-height: 1.35;
+  font-weight: 700;
   overflow-wrap: anywhere;
 }
 
-/* Weiterführende Verweise: eine ruhige Zeile, die Bezeichnung vorn, die Verweise dahinter */
+.kontakt-pfeil {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+/* Der letzte Block der Karte lässt unten Raum */
+.kontakt-haupt:last-child,
+.kontakt-angaben:last-child {
+  padding-bottom: var(--ka);
+}
+
 .kontakt-verweise {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 0 2rem;
-  padding-top: 1.25rem;
-  border-top: 1px solid var(--outline-variant);
+  padding-top: 1rem;
+  padding-bottom: var(--ka);
 }
 
 .kontakt-verweise h3 {
@@ -112,64 +189,69 @@
 }
 
 @media (min-width: 30em) {
-  .kontakt-angaben > div {
-    grid-template-columns: minmax(6.5rem, 9rem) minmax(0, 1fr);
-  }
-}
-
-@media (min-width: 47.5625em) {
-  .kontakt-bild {
-    aspect-ratio: 2 / 1;
-    max-height: 26rem;
-  }
-}
-
-/* Breit: links die Frage mit den Knöpfen, rechts Angaben (ohne Bild) oder Bild und darunter die Angaben */
-@media (min-width: 64.0625em) {
-  .kontaktkarte {
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-    align-items: start;
-  }
-
-  .kontakt-haupt {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .kontakt-angaben {
-    grid-column: 2;
-    grid-row: 1;
-    align-self: end;
-  }
-
-  .kontakt-verweise {
-    grid-column: 1 / -1;
-  }
-
   .kontakt-haupt .aktionen .btn {
     flex: 0 1 auto;
   }
+}
 
-  .kontaktkarte--bild .kontakt-angaben {
-    grid-column: 1;
-    grid-row: 2;
-    align-self: start;
-  }
-
-  .kontaktkarte--bild .kontakt-bild {
-    grid-column: 2;
-    grid-row: 1 / span 2;
-    align-self: stretch;
-    aspect-ratio: auto;
-    min-height: 22rem;
-    max-height: none;
+/* Auf dem Tablet ist das Bild ein breiter Streifen von Rand zu Rand */
+@media (min-width: 47.5625em) {
+  .kontakt-bild {
+    aspect-ratio: 2 / 1;
+    max-height: 30rem;
   }
 }
 
-/* ===== Fuss: ein Band in drei Stufen ===== */
+@media (min-width: 64.0625em) {
+  .kontaktkarte {
+    grid-template-columns:
+      [voll-start] minmax(var(--rand), 1fr) [text-start] minmax(0, var(--halb))
+      [mitte] minmax(0, var(--halb)) [text-ende] minmax(var(--rand), 1fr)
+      [voll-ende];
+  }
+
+  .kontakt-haupt,
+  .kontakt-angaben,
+  .kontakt-verweise {
+    grid-column: text-start / mitte;
+    padding-right: min(var(--spalt), 4rem);
+  }
+
+  .kontakt-bild {
+    grid-column: mitte / voll-ende;
+    grid-row: 1 / span 3;
+    aspect-ratio: auto;
+    min-height: 26rem;
+    max-height: none;
+    margin-top: 0;
+  }
+
+  /* Ohne Bild füllt eine getönte Fläche die rechte Hälfte, mit den Angaben darauf */
+  .kontaktkarte:not(.kontaktkarte--bild)::before {
+    grid-column: mitte / voll-ende;
+    grid-row: 1 / span 3;
+    background: var(--surface-container);
+    content: "";
+  }
+
+  .kontaktkarte:not(.kontaktkarte--bild) .kontakt-angaben {
+    grid-column: mitte / text-ende;
+    grid-row: 1 / span 3;
+    align-self: center;
+    margin-top: 0;
+    padding: var(--ka) 0 var(--ka) min(var(--spalt), 4rem);
+  }
+
+  .kontaktkarte:not(.kontaktkarte--bild) a.kontakt-zeile:hover {
+    background: var(--surface-container-high);
+  }
+}
+
+/* ===== Fuss: ein Band in der Markenfarbe über die ganze Breite ===== */
+/* Links Marke, Kontakt und Rechtliches, rechts die Hauptbereiche als Verzeichnis mit grosser Schrift und Linien; unten «©» und «Nach oben». Am Handy steht alles untereinander */
 .fuss {
   --fuss-linie: color-mix(in srgb, var(--on-secondary) 24%, transparent);
-  padding: clamp(1.75rem, 3vw, 2.75rem) 0 1rem;
+  padding: clamp(2.5rem, 2rem + 2vw, 4.5rem) 0 1rem;
   background: var(--secondary);
   color: var(--on-secondary);
 }
@@ -182,15 +264,22 @@
   outline-color: var(--on-secondary);
 }
 
-/* Oben: Marke und Hauptbereiche */
-.fuss-kopf {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem 2.5rem;
-  padding-bottom: 1.25rem;
-  border-bottom: 1px solid var(--fuss-linie);
+.fuss-raster {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.25rem;
+}
+
+.fuss ul {
+  list-style: none;
+}
+
+.fuss h2 {
+  margin-bottom: 0.5rem;
+  color: var(--on-secondary-muted);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 700;
 }
 
 .fuss-marke {
@@ -206,94 +295,130 @@
 }
 
 .fuss-marke b {
-  font-size: 1.75rem;
-  line-height: 1.75rem;
+  font-size: 2.25rem;
+  line-height: 2.25rem;
   font-weight: 900;
   letter-spacing: 0.02em;
 }
 
 .fuss-marke span:not(.nur-sr) {
   color: var(--on-secondary-muted);
-  font-size: 1.125rem;
+  font-size: 1.25rem;
   font-weight: 700;
 }
 
 .fuss-logo {
   display: block;
   width: auto;
-  height: 2.5rem;
+  height: 3.25rem;
 }
 
 /* Nur die Fassung mit dunkler Schrift: sie sitzt auf einem hellen Feld (Weiss in Tag und Nacht, wie die Schrift auf Blau) */
 .fuss-logo--feld {
   box-sizing: content-box;
-  height: 2rem;
-  padding: 0.375rem 0.625rem;
+  height: 2.5rem;
+  padding: 0.5rem 0.75rem;
   border-radius: 0.5rem;
   background: var(--on-secondary);
-}
-
-.fuss-seiten ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 clamp(1.25rem, 2.4vw, 2.5rem);
-}
-
-.fuss-seiten a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-.fuss-seiten a:hover,
-.fuss-recht a:hover {
-  text-decoration: underline;
-  text-decoration-thickness: 2px;
-  text-underline-offset: 0.25em;
-}
-
-/* Mitte: Anschrift, E-Mail und Telefon, am Ende «Nach oben» */
-.fuss-mitte {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1.25rem 2rem;
-  padding-block: 1.5rem;
 }
 
 .fuss address {
   font-style: normal;
 }
 
-.fuss-angaben {
+.fuss-kontakt li,
+.fuss-recht li a {
   display: flex;
-  flex-wrap: wrap;
-  gap: 1rem clamp(2rem, 5vw, 4.5rem);
-}
-
-.fuss-angaben dt {
-  color: var(--on-secondary-muted);
-  font-size: 0.9375rem;
-  line-height: 1.375rem;
-  font-weight: 700;
-}
-
-.fuss-angaben dd {
-  font-size: 1.0625rem;
+  align-items: center;
+  min-height: 2.75rem;
+  font-size: 1.125rem;
   line-height: 1.5rem;
   overflow-wrap: anywhere;
 }
 
-.fuss-angaben a {
+.fuss-kontakt a {
   display: inline-flex;
   align-items: center;
   min-height: 2.75rem;
-  margin-block: -0.625rem;
   font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.fuss-recht a {
+  text-decoration: none;
+}
+
+.fuss-kontakt a:hover,
+.fuss-recht a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+/* Die Hauptbereiche: Zeilen mit Linie, die ganze Zeile ist das Ziel; der Pfeil steht gedämpft da und leuchtet beim Zeigen auf */
+.fuss-seiten ul {
+  border-top: 1px solid var(--fuss-linie);
+}
+
+.fuss-seiten li {
+  border-bottom: 1px solid var(--fuss-linie);
+}
+
+.fuss-seiten li a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.75rem;
+  font-size: clamp(1.25rem, 1rem + 0.9vw, 2rem);
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+}
+
+.fuss-seiten li a::after {
+  flex: none;
+  width: 1.5rem;
+  height: 1rem;
+  background: currentcolor;
+  clip-path: polygon(
+    0 41.7%,
+    59.5% 41.7%,
+    59.5% 0,
+    100% 50%,
+    59.5% 100%,
+    59.5% 58.3%,
+    0 58.3%
+  );
+  content: "";
+  opacity: 0.55;
+}
+
+.fuss-seiten li a:hover::after,
+.fuss-seiten li a:focus-visible::after {
+  opacity: 1;
+}
+
+.fuss-unten {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--fuss-linie);
+}
+
+.fuss-copy {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--on-secondary-muted);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
 }
 
 /* «Nach oben» ist eine Nebenaktion (.btn.s); auf Blau hat sie einen hellen Rand, beim Zeigen füllt sie sich */
@@ -312,55 +437,40 @@
   rotate: -90deg;
 }
 
-/* Unten: «©» und Rechtliches */
-.fuss-recht {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0 2rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--fuss-linie);
-  color: var(--on-secondary-muted);
-  font-size: 0.9375rem;
-  line-height: 1.375rem;
-}
-
-.fuss-recht ul {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 1.5rem;
-}
-
-.fuss-recht a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 2.75rem;
-  color: var(--on-secondary-muted);
-  text-decoration: none;
-}
-
-/* Handy: die Bereiche in zwei Spalten, Marke und Angaben untereinander */
-@media (max-width: 47.5em) {
-  .fuss-kopf {
-    align-items: stretch;
-    flex-direction: column;
-    flex-wrap: nowrap;
+@media (min-width: 48em) {
+  .fuss-raster {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: min(var(--spalt), 5rem);
+    align-items: start;
   }
 
-  .fuss-seiten ul {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+  .fuss-marke-feld {
+    grid-column: 1;
+    grid-row: 1;
   }
 
-  .fuss-angaben {
-    flex-direction: column;
+  .fuss-kontakt {
+    grid-column: 1;
+    grid-row: 2;
   }
-}
 
-@media (min-width: 64.0625em) {
-  .fuss-seiten ul {
-    justify-content: flex-end;
+  .fuss-recht {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .fuss-seiten {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+
+  .fuss-unten {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  .fuss-seiten li a {
+    min-height: 4.25rem;
   }
 }
 
@@ -376,10 +486,29 @@
   }
 }
 
-/* Bewegung: nur am Bildschirm und ohne «Bewegung reduzieren»; der Pfeil von «Nach oben» rückt beim Zeigen nach oben */
+/* Bewegung: nur am Bildschirm und ohne «Bewegung reduzieren». Die Zeilen der Kontaktkarte füllen sich beim Zeigen, ihr Pfeil rückt vor; die Pfeile der Bereiche rücken vor, der von «Nach oben» nach oben */
 @media screen and (prefers-reduced-motion: no-preference) {
+  a.kontakt-zeile {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+
+  .kontakt-pfeil .i,
   .fuss-oben .i {
     transition: translate var(--dauer) var(--kurve);
+  }
+
+  .fuss-seiten li a::after {
+    transition:
+      opacity var(--dauer) var(--kurve),
+      translate var(--dauer) var(--kurve);
+  }
+
+  a.kontakt-zeile:hover .kontakt-pfeil .i {
+    translate: 0.25rem 0;
+  }
+
+  .fuss-seiten li a:hover::after {
+    translate: 0.25rem 0;
   }
 
   .fuss-oben:hover .i {

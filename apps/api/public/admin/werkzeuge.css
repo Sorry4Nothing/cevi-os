@@ -138,9 +138,19 @@ body.sortieren-aktiv {
   min-width: 12rem;
 }
 
+/* Auswahlfelder oben wie auf der Website (Termine, #607): 220 px breit, Beschriftung 16 px mit 8 px Abstand zum Feld, Pfeil in der leisen Textfarbe */
 .filterleiste-feld {
-  flex: 0 1 14rem;
+  flex: 0 1 13.75rem;
   min-width: 10rem;
+}
+
+.filterleiste-feld .feld {
+  gap: 0.5rem;
+}
+
+.filterleiste-feld .feld > label {
+  font-size: 1rem;
+  line-height: 1.4;
 }
 
 .filterleiste-gesetzt {

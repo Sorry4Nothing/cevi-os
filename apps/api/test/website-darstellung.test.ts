@@ -169,15 +169,28 @@ describe("Kontaktkarte", () => {
     expect(html).toContain(
       '<div class="knopfreihe aktionen"><a href="mailto:info@example.org" class="btn p gross">E-Mail schreiben</a><a href="tel:+41435439682" class="btn s gross">Anrufen</a></div>',
     );
-    expect(html).toContain(
-      '<dl class="kontakt-angaben"><div><dt>Anschrift</dt><dd>Beispielweg 1, 8000 Beispielstadt</dd></div>',
+    // Die Angaben sind ganze Zeilen mit Symbol, Art und Wert: E-Mail und Telefon als Link, die Anschrift ohne Link; in dieser Reihenfolge (#605)
+    expect(html).toContain('<address class="kontakt-angaben"><ul>');
+    expect(html).toMatch(
+      /<a href="mailto:info@example.org" class="kontakt-zeile"><span class="kontakt-symbol"><svg class="i"[^>]*aria-hidden="true">.*?<\/svg><\/span><span class="kontakt-text"><span class="kontakt-art">E-Mail<\/span> <span class="kontakt-wert">info@example\.org<\/span><\/span><span class="kontakt-pfeil">/,
     );
     expect(html).toContain(
-      '<dt>E-Mail</dt><dd><a href="mailto:info@example.org">info@example.org</a></dd>',
+      '<span class="kontakt-art">Telefon</span> <span class="kontakt-wert">043 543 96 82</span>',
+    );
+    expect(html).toContain('<a href="tel:+41435439682" class="kontakt-zeile">');
+    expect(html).toContain(
+      '<div class="kontakt-zeile"><span class="kontakt-symbol">',
     );
     expect(html).toContain(
-      '<dt>Telefon</dt><dd><a href="tel:+41435439682">043 543 96 82</a></dd>',
+      '<span class="kontakt-art">Anschrift</span> <span class="kontakt-wert">Beispielweg 1, 8000 Beispielstadt</span>',
     );
+    const reihenfolge = [
+      "E-Mail</span>",
+      "Telefon</span>",
+      "Anschrift</span>",
+    ].map((w) => html.indexOf(`kontakt-art">${w}`));
+    expect(reihenfolge).toEqual([...reihenfolge].sort((x, y) => x - y));
+    expect(reihenfolge.every((i) => i > 0)).toBe(true);
     // Hinweis, Bild und Verweise sind freiwillig
     expect(html).not.toContain("kontakt-hinweis");
     expect(html).not.toContain("kontakt-bild");
@@ -198,6 +211,18 @@ describe("Kontaktkarte", () => {
     });
     expect(nurAdresse).toContain('class="kontakt-angaben"');
     expect(nurAdresse).not.toContain('class="knopfreihe aktionen"');
+  });
+
+  test("ohne Telefonnummer steht die Karte mit E-Mail und Anschrift, ohne «Anrufen» und ohne leere Zeile (#605)", () => {
+    const html = seite(dok("T", b("kontaktkarte", {})), {
+      ...keineDaten(),
+      kontakt: { email: "info@example.org", adresse: "Beispielweg 1" },
+    });
+    expect(html).toContain("E-Mail schreiben");
+    expect(html).not.toContain("Anrufen");
+    expect(html).not.toContain("Telefon");
+    expect(html).not.toContain("tel:");
+    expect(html.match(/class="kontakt-zeile"/g)).toHaveLength(2);
   });
 
   test("Hinweis zur Erreichbarkeit, Bild und Verweise: der fremde Link trägt Pfeil-Zusatz und rel, die Seite der Website nicht (#580)", () => {
@@ -510,7 +535,7 @@ describe("Fuss (#580)", () => {
       '<footer class="fuss">',
     )[1]!;
 
-  test("drei Stufen: Marke und Hauptbereiche, Anschrift, E-Mail und Telefon mit «Nach oben», «©» und Rechtliches", () => {
+  test("ein Raster: Marke, Hauptbereiche, Kontakt und Rechtliches als Spalten, dazu «©» und «Nach oben»", () => {
     const html = fuss({
       ...keineDaten(),
       kontakt: {
@@ -526,19 +551,28 @@ describe("Fuss (#580)", () => {
       '<a class="fuss-marke" href="/"><b>CEVI</b><span>Beispielstadt</span></a>',
     );
     expect(html).toContain(
-      "<dt>Anschrift</dt><dd>Cevi Beispielstadt<br>Beispielweg 1, 8000 Beispielstadt</dd>",
+      '<div class="fuss-kontakt"><h2>Kontakt</h2><address><ul>',
     );
     expect(html).toContain(
-      '<dt>Telefon</dt><dd><a href="tel:+41000000000">+41 00 000 00 00</a></dd>',
+      '<li><a href="mailto:info@example.org">info@example.org</a></li><li><a href="tel:+41000000000">+41 00 000 00 00</a></li><li>Cevi Beispielstadt<br>Beispielweg 1, 8000 Beispielstadt</li>',
     );
     expect(html).toContain(
-      '<dt>E-Mail</dt><dd><a href="mailto:info@example.org">info@example.org</a></dd>',
+      '<nav class="fuss-recht" aria-labelledby="fuss-recht"><h2 id="fuss-recht">Rechtliches</h2><ul><li><a href="/impressum">Impressum</a></li><li><a href="/datenschutz-website">Datenschutz</a></li></ul></nav>',
     );
-    // «Nach oben» ist eine Nebenaktion des Repertoires
-    expect(html).toContain('<a class="btn s fuss-oben" href="#">Nach oben');
-    expect(html).toContain('<a href="/impressum">Impressum</a>');
-    expect(html).toContain('<a href="/datenschutz-website">Datenschutz</a>');
-    expect(html).toMatch(/© \d{4} Cevi Beispielstadt/);
+    // «Nach oben» ist eine Nebenaktion des Repertoires, «©» und «Nach oben» stehen in einer Zeile
+    expect(html).toMatch(
+      /<div class="fuss-unten"><p class="fuss-copy">© \d{4} Cevi Beispielstadt<\/p><a class="btn s fuss-oben" href="#">Nach oben/,
+    );
+  });
+
+  test("ohne Telefon fehlt es im Fuss, ohne Angaben fehlt die ganze Spalte Kontakt", () => {
+    const ohneTelefon = fuss({
+      ...keineDaten(),
+      kontakt: { email: "info@example.org" },
+    });
+    expect(ohneTelefon).toContain("info@example.org");
+    expect(ohneTelefon).not.toContain("tel:");
+    expect(fuss(keineDaten())).not.toContain("fuss-kontakt");
   });
 
   test("nur die oberste Ebene der Navigation steht im Fuss, nie die Unterseiten", () => {
@@ -549,7 +583,7 @@ describe("Fuss (#580)", () => {
       ],
     });
     expect(html).toContain(
-      '<nav class="fuss-seiten" aria-label="Seiten"><ul><li><a href="/gruppen">Unsere Gruppen</a></li><li><a href="/mitmachen">Mitmachen</a></li></ul></nav>',
+      '<nav class="fuss-seiten" aria-labelledby="fuss-seiten"><h2 id="fuss-seiten">Bereiche</h2><ul><li><a href="/gruppen">Unsere Gruppen</a></li><li><a href="/mitmachen">Mitmachen</a></li></ul></nav>',
     );
     expect(html).not.toContain("Bienli");
   });
@@ -585,7 +619,7 @@ describe("Fuss (#580)", () => {
     expect(html).not.toContain("Impressum");
     expect(html).toContain('<a href="/datenschutz">Datenschutz</a>');
     expect(html).not.toContain("<address>");
-    expect(html).not.toContain("<dt>");
+    expect(html).not.toContain("fuss-kontakt");
   });
 });
 
@@ -946,7 +980,7 @@ describe("Abgleich", () => {
     const fuss = start.split('<footer class="fuss">')[1]!;
     expect(fuss).toContain('<a href="/impressum">Impressum</a>');
     expect(fuss).toContain('<a href="/datenschutz-website">Datenschutz</a>');
-    expect(fuss).toContain("<dd>Cevi Testabteilung<br>Beispielweg 1</dd>");
+    expect(fuss).toContain("<li>Cevi Testabteilung<br>Beispielweg 1</li>");
     const leiste = start.slice(
       start.indexOf('<nav class="hauptnav"'),
       start.indexOf("</nav>"),

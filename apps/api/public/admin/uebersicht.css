@@ -1,4 +1,4 @@
-/* Übersicht (#583). Farben nur aus den Tokens in admin.css (Tag und Nacht), keine Verläufe, keine Schatten, keine Glows. Abstände aus der Skala 4 · 8 · 12 · 16 · 24 · 32. Klassenvorsatz «ub-». */
+/* Übersicht (#583, neu in #607: gleich grosse Aufgabenkacheln, Kennzahlen im Stil von Statistikkacheln, ein Streifen für den Zustand). Farben nur aus den Tokens in admin.css (Tag und Nacht), keine Verläufe, keine Schatten, keine Glows. Abstände aus der Skala 4 · 8 · 12 · 16 · 24 · 32. Klassenvorsatz «ub-». */
 
 .ub-seite {
   display: flex;
@@ -111,10 +111,11 @@ a.ub-aufgabe:focus-visible,
   stroke-linejoin: round;
 }
 
-/* 1. Jetzt zu tun: je offener Punkt eine Kachel mit Zahl, Satz und Sprung */
+/* 1. Jetzt zu tun: je offener Punkt eine Kachel mit Zahl, Satz und Sprung. Alle Kacheln sind gleich gross (Zeilen gleich hoch, mindestens 11 rem) und gleich aufgebaut: Kopf mit Zahl und Marke, Satz, unten die Aktionszeile mit fester Höhe */
 .ub-aufgaben {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  grid-auto-rows: 1fr;
   gap: 16px;
   margin: 0;
   padding: 0;
@@ -127,17 +128,25 @@ a.ub-aufgabe:focus-visible,
 }
 
 .ub-aufgabe {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  display: grid;
+  grid-template-rows: 2.5rem 1fr 2.75rem;
   gap: 8px;
   width: 100%;
-  padding: 20px 24px;
+  min-height: 11rem;
+  padding: 20px 24px 0;
   color: var(--text);
   background: var(--karte);
   border: 1px solid var(--rand);
   border-radius: 12px;
   text-decoration: none;
+}
+
+.ub-aufgabe-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
 }
 
 .ub-aufgabe--still {
@@ -150,7 +159,8 @@ a.ub-aufgabe:hover {
 }
 
 .ub-art {
-  margin-bottom: 4px;
+  flex: none;
+  margin: 0;
 }
 
 .ub-zahl {
@@ -166,19 +176,25 @@ a.ub-aufgabe:hover {
 }
 
 .ub-aufgabe-text {
-  flex: 1;
   font-size: 0.9375rem;
   line-height: 1.375rem;
 }
 
+/* Aktionszeile: immer 44 px hoch, mit feiner Linie darüber; ohne Recht auf die Seite bleibt sie leer und ohne Linie */
 .ub-aufgabe-aktion {
-  display: inline-flex;
+  display: flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 4px;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  margin-inline: -24px;
+  padding-inline: 24px;
   color: var(--akzent);
   font-size: 0.875rem;
   font-weight: 700;
+}
+
+.ub-aufgabe-aktion:not(:empty) {
+  border-top: 1px solid var(--rand-leise);
 }
 
 a.ub-aufgabe:hover .ub-aufgabe-aktion {
@@ -216,7 +232,7 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
   height: 24px;
 }
 
-/* 2. Kennzahlen und 4. Zustand: gleichmässiges Raster über die volle Breite; wenige Kacheln werden breiter, nie schmal */
+/* 2. Kennzahlen: gleichmässiges Raster über die volle Breite; wenige Kacheln werden breiter, nie schmal */
 .ub-raster {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -232,13 +248,15 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
   flex-wrap: wrap;
   align-items: baseline;
   gap: 0 8px;
+  margin: 0;
 }
 
 .ub-wert-zahl {
-  font-size: 2.25rem;
-  line-height: 2.5rem;
-  font-weight: 700;
+  font-size: 2.5rem;
+  line-height: 3rem;
+  font-weight: 800;
   font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
 .ub-wert-einheit {
@@ -247,10 +265,36 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
   line-height: 1.25rem;
 }
 
+/* Veränderung: Marke mit Pfeil und Vorzeichen, daneben der Vergleich in Worten (nie nur Farbe: Pfeil und Vorzeichen tragen die Richtung) */
 .ub-delta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
   color: var(--leise);
   font-size: 0.875rem;
   line-height: 1.25rem;
+}
+
+.ub-marke-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 24px;
+  padding: 0 8px 0 6px;
+  color: var(--text);
+  background: var(--leiste);
+  border: 1px solid var(--rand-leise);
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ub-marke-delta .ub-pfeil {
+  width: 14px;
+  height: 14px;
 }
 
 .ub-diagramm {
@@ -326,91 +370,45 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
   fill: var(--fe);
 }
 
-.ub-legende {
+/* Zustand: ein Streifen mit einem Punkt je Dienst, dazwischen feine Linien (Vorlage: Streifen «Status» in status-footer) */
+.ub-betrieb {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.ub-punkt-betrieb {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+  padding: 20px 24px;
+}
+
+.ub-punkt-betrieb + .ub-punkt-betrieb {
+  border-top: 1px solid var(--rand-leise);
+}
+
+.ub-betrieb-kopf {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 8px;
-  margin-top: 8px;
-}
-
-.ub-schluessel {
-  display: inline-block;
-  width: 10px;
-  height: 10px;
-  border-radius: 2px;
-  background: var(--rand);
-}
-
-.ub-schluessel--fehler {
-  margin-left: 8px;
-  background: var(--fe);
-}
-
-/* Tabellen statt Diagramme: ein Schalter für die ganze Seite; die Tabellen gibt es immer, nur eine der beiden Formen ist zu sehen */
-.ub-tabelle {
-  display: none;
-  overflow-x: auto;
-}
-
-.ub--tabellen .ub-tabelle {
-  display: block;
-}
-
-.ub--tabellen .ub-diagramm {
-  display: none;
-}
-
-/* Eigene kleine Tabelle: Die allgemeine .tabelle ist für Listen gebaut (Mindestbreite, Kopfzeile als Pille) */
-.ub-tabelle-t {
+  justify-content: space-between;
+  gap: 4px 12px;
   width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8125rem;
-  line-height: 1.125rem;
 }
 
-.ub-tabelle-t caption {
-  padding-bottom: 8px;
-  text-align: left;
-}
-
-.ub-tabelle-t th,
-.ub-tabelle-t td {
-  padding: 4px 0;
-  border-top: 1px solid var(--rand-leise);
-  text-align: left;
-  font-weight: 400;
-}
-
-.ub-tabelle-t thead th {
-  color: var(--leise);
-  font-weight: 700;
-  border-top: 0;
-  border-bottom: 1px solid var(--rand);
-}
-
-.ub-tabelle-t tbody th {
-  color: var(--text);
-}
-
-.ub-tabelle-t .zahl {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-}
-
-.ub-schalter[aria-pressed="true"] {
-  color: var(--auf-akzent);
-  background: var(--akzent);
-  border-color: var(--akzent);
-}
-
-.ub-schalter[aria-pressed="true"]::before {
-  content: "";
-  width: 16px;
-  height: 16px;
-  margin-right: 4px;
-  background: currentColor;
-  mask: var(--ic-ok) center / contain no-repeat;
+@media (min-width: 640px) {
+  .ub-punkt-betrieb + .ub-punkt-betrieb {
+    border-top: 0;
+    border-left: 1px solid var(--rand-leise);
+  }
 }
 
 /* 3. Kommendes und Kinder je Stufe */
@@ -584,6 +582,19 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
       opacity: 0;
     }
   }
+
+  /* Die grosse Zahl schiebt sich beim Laden und Aktualisieren kurz von unten ein (Vorlage: laufende Zahl in clinic-dashboard) */
+  .ub-wert-zahl,
+  .ub-zahl {
+    animation: ub-zahl-ein 300ms ease-out;
+  }
+
+  @keyframes ub-zahl-ein {
+    from {
+      transform: translateY(40%);
+      opacity: 0;
+    }
+  }
 }
 
 /* Mittlere Breiten: zwei Spalten statt drei und einer einzelnen Kachel in der letzten Zeile */
@@ -615,9 +626,18 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
   }
 
   .ub-kachel,
-  .ub-aufgabe,
+  .ub-punkt-betrieb,
   .ub-leer {
     padding: 16px;
+  }
+
+  .ub-aufgabe {
+    padding: 16px 16px 0;
+  }
+
+  .ub-aufgabe-aktion {
+    margin-inline: -16px;
+    padding-inline: 16px;
   }
 
   .ub-zahl,
@@ -667,15 +687,6 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
     stroke-width: 1.5;
   }
 
-  .ub-schluessel {
-    background: CanvasText;
-  }
-
-  .ub-schluessel--fehler {
-    background: Canvas;
-    border: 1.5px solid CanvasText;
-  }
-
   .ub-rang-wert {
     fill: Highlight;
   }
@@ -696,7 +707,14 @@ a.ub-aufgabe:hover .ub-aufgabe-aktion {
 
   .ub-aufgabe,
   .ub-kachel,
-  .ub-leer {
+  .ub-leer,
+  .ub-betrieb,
+  .ub-marke-delta {
+    border-color: CanvasText;
+  }
+
+  .ub-aufgabe-aktion:not(:empty),
+  .ub-punkt-betrieb + .ub-punkt-betrieb {
     border-color: CanvasText;
   }
 

@@ -15,7 +15,7 @@ const css = readFileSync(
   "utf8",
 );
 
-describe("fuss.css (#580)", () => {
+describe("fuss.css (#580, #605)", () => {
   test("jede Seite lädt die Datei nach dem Grundstil und dem Stil des Kopfs", () => {
     const html = rahmen(kontext(), {
       titel: "T",
@@ -42,6 +42,7 @@ describe("fuss.css (#580)", () => {
     );
     expect(ruhe).not.toMatch(/transition|animation/);
     expect(bewegt).toContain("transition: translate var(--dauer)");
+    expect(bewegt).toContain("a.kontakt-zeile {");
   });
 
   test("Links und Knöpfe bekommen hier keine eigene Fassung: nur Zusätze für Blau und Pfeile", () => {
@@ -49,5 +50,34 @@ describe("fuss.css (#580)", () => {
     expect(css).not.toMatch(/^\.verweis(:hover)? \{/m);
     // «Nach oben» ist eine Nebenaktion des Repertoires, auf Blau mit hellem Rand
     expect(css).toContain(".fuss a.btn.s {");
+  });
+});
+
+describe("Kontaktkarte und Fuss füllen die Breite (#605)", () => {
+  test("das Bild der Karte läuft bis zum Fensterrand, die Spalten halten die Linie der fliessenden Spalte", () => {
+    expect(css).toContain("grid-column: mitte / voll-ende;");
+    expect(css).toContain("[voll-start] minmax(var(--rand), 1fr) [text-start]");
+    expect(css).toContain("calc(52.5rem - var(--rand))");
+    expect(css).toMatch(
+      /\.sektion--kontaktkarte > \.wrap \{\s+max-width: none;/,
+    );
+  });
+
+  test("Zeilen und Ziele sind mindestens 44 px hoch", () => {
+    for (const regel of [
+      ".kontakt-zeile {",
+      ".fuss-kontakt a {",
+      ".fuss-seiten li a {",
+      ".fuss a.btn.s {",
+    ]) {
+      const block = css.slice(css.indexOf(regel)).split("}")[0]!;
+      expect(block, regel).toMatch(/min-height: (2.75|3.5|3.75|4.25|5)rem/);
+    }
+  });
+
+  test("die verworfene Fassung ist weg: keine Wortmarke, kein Band in drei Stufen", () => {
+    expect(css).not.toContain("fuss-wortmarke");
+    expect(css).not.toContain(".fuss-mitte");
+    expect(css).not.toContain(".fuss-angaben");
   });
 });
