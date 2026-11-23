@@ -2,6 +2,7 @@ import { anfrage } from "./api.js";
 import { ankreuzen, auswahl, el, icon, knopf, menue, neueId } from "./dom.js";
 import { fehlertext } from "./api.js";
 import { zweiStufig } from "./rueckgaengig.js";
+import { ersetzeMitBewegung } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { istKonflikt, konfliktZeilen } from "./lager-menschen-logik.js";
 import { ziehGriff } from "./lager-ziehen.js";
@@ -68,8 +69,7 @@ export const kopfAktion = (ctx, knoten) =>
   ctx.kopfAktion(...[knoten].filter(Boolean));
 
 // Ersetzt die Kinder und lässt false und undefined weg (replaceChildren schriebe sie als Text)
-export const fuelle = (ziel, ...kinder) =>
-  ziel.replaceChildren(...kinder.flat().filter(Boolean));
+export const fuelle = (ziel, ...kinder) => ersetzeMitBewegung(ziel, ...kinder);
 
 // Kein Leserecht: erklären, wer es vergeben kann
 export function keinLeserecht(bereich, was) {

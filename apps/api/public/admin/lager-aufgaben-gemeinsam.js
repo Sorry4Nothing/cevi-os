@@ -1,5 +1,6 @@
 import { anfrage } from "./api.js";
 import { avatar, el, knopf } from "./dom.js";
+import { ersetzeMitBewegung } from "./lager-anim.js";
 import { symbol } from "./lager-gemeinsam.js";
 import {
   istGeschlossen,
@@ -20,7 +21,7 @@ import {
 
 // Ersetzt den Inhalt und lässt false, null und undefined weg (replaceChildren schriebe sie als Text)
 export const ersetzeKinder = (ziel, ...kinder) =>
-  ziel.replaceChildren(...kinder.filter(Boolean));
+  ersetzeMitBewegung(ziel, ...kinder);
 
 export const API = (lagerId) => `/api/v1/lager/${lagerId}`;
 export const ADRESSE_LAGER = "#lager/lager";
