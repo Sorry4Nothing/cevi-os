@@ -316,3 +316,7 @@
   white-space: pre-wrap;
   overflow-wrap: anywhere;
 }
+
+.lg-suchformular .suche .eingabe {
+  padding-left: 48px;
+}
