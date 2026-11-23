@@ -29,6 +29,7 @@ import { erstelleMitteilungenRouten } from "./routes/admin/mitteilungen.js";
 import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
+import { erstelleUebersichtRouten } from "./routes/admin/uebersicht.js";
 import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
 import { erstelleAdminLagerDateiRouten } from "./routes/admin/lager-dateien.js";
@@ -317,6 +318,11 @@ export function erstelleApp({
       .route(
         "/api/v1/admin/system",
         erstelleSystemRouten({ db, sql, metriken, syncs }),
+      )
+      // Übersicht der Verwaltung (#583): ein gebündelter Abruf, Rechte je Teil
+      .route(
+        "/api/v1/admin/uebersicht",
+        erstelleUebersichtRouten({ db, metriken, schalter }),
       )
       .route("/api/v1/stufen", erstelleStufenRouten({ db }))
       .route("/api/v1/push-token", erstellePushTokenRouten({ db }))
