@@ -2601,3 +2601,8 @@ dialog.lichtkasten {
   gap: 0.25rem;
   min-height: 2.75rem;
 }
+
+/* Auf der blauen Tafel wäre der Fokusring blau auf blau: Links in der Tafel (Eckdaten, Verweis zur Karte) zeigen ihn hell */
+.fakten.karte :focus-visible {
+  outline-color: var(--on-secondary);
+}

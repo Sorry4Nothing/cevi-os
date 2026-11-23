@@ -192,6 +192,9 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
+  "GET /admin/website-orte.js": { erwartet: alle(200) },
+  "GET /admin/website-orte.css": { erwartet: alle(200) },
+  "GET /admin/orte-logik.js": { erwartet: alle(200) },
   "GET /admin/bildwahl.js": { erwartet: alle(200) },
   "GET /admin/bildwahl.css": { erwartet: alle(200) },
   "GET /admin/website-einstellungen.css": { erwartet: alle(200) },
@@ -1328,6 +1331,81 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Orte der Abteilung (#646): Abteilungsleitung und jede Stufenleitung pflegen sie (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, Orte einer fremden Abteilung 404. Die Wirkung steht in test/redaktion-orte.test.ts
+  "GET /api/v1/redaktion/orte": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/orte": {
+    body: () => ({ name: `Matrix ${randomUUID()}`, standort: "47.2, 8.7" }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 201,
+      slB: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/orte/vorschau": {
+    body: () => ({ standort: "47.2, 8.7" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/redaktion/orte/reihenfolge": {
+    body: () => ({ ids: [ortId] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/redaktion/orte/:id": {
+    url: () => `/api/v1/redaktion/orte/${ortId}`,
+    body: () => ({ aktiv: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      demoEltern: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/redaktion/orte/:id": {
+    urlJeAnfrage: async () => `/api/v1/redaktion/orte/${await wegwerfOrtId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      demoEltern: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "POST /api/v1/admin/bearbeiter": {
     // Sonderrecht auf eine Seite f�r eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
     body: () => ({
@@ -1994,6 +2072,7 @@ let bildZielId: string;
 let mediumId: string;
 let seiteId: string;
 let weiterleitungId: string;
+let ortId: string;
 let ladenArtikelId: string;
 let ladenArtikelDemoId: string;
 let ladenBestellungId: string;
@@ -2177,6 +2256,15 @@ async function wegwerfWeiterleitungId() {
   return zeile.id;
 }
 
+// Wegwerf-Ort der Testabteilung (#646)
+async function wegwerfOrtId() {
+  const [zeile] = await welt.db
+    .insert(schema.ort)
+    .values({ abteilungId: welt.testabteilungId, name: `Matrix ${randomUUID()}` })
+    .returning({ id: schema.ort.id });
+  return zeile.id;
+}
+
 // Promise.all geht: Die Fabrik teilt keinen veränderlichen Zustand (zufällige Namen, eigene Inserts)
 async function personasAnlegen() {
   return Object.fromEntries(
@@ -2269,6 +2357,7 @@ beforeAll(async () => {
     })
     .returning({ id: schema.seite.id });
   weiterleitungId = await wegwerfWeiterleitungId();
+  ortId = await wegwerfOrtId();
   ladenArtikelId = await wegwerfLadenArtikelId();
   ladenArtikelDemoId = await wegwerfLadenArtikelId(welt.demoAbteilungId);
   // Eine offene Bestellung einer Wegwerf-Person der Testabteilung

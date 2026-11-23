@@ -38,8 +38,7 @@ const MAX_BESCHREIBUNG = 200;
 const MAX_NUTZUNG_ANZEIGE = 5;
 
 // Steuerzeichen sind verboten; Leerraum an den Rändern fällt weg (wie bei den Samstagsangaben)
-// eslint-disable-next-line no-control-regex
-const OHNE_STEUERZEICHEN = /^[^\u0000-\u001F\u007F-\u009F​-‏‪-‮⁦-⁩]*$/;
+const OHNE_STEUERZEICHEN = /^[^\p{Cc}\p{Cf}]*$/u;
 const name = z.string().trim().min(1).max(MAX_NAME).regex(OHNE_STEUERZEICHEN);
 // Leer heisst «nicht gesetzt»
 const leerZuNull = (v: unknown) =>

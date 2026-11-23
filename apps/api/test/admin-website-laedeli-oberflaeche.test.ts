@@ -11,6 +11,7 @@ const MODULE = [
   "website-medien.js",
   "website-einstellungen.js",
   "website-stufenfakten.js",
+  "website-orte.js",
   "laedeli.js",
 ];
 

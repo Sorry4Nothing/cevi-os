@@ -130,14 +130,14 @@ describe("Eingaben, die abgelehnt werden", () => {
     ["nur Benutzer", "https://user@www.google.com/maps/@47,8,1z"],
     ["Port", "https://www.google.com:8443/maps/@47,8,1z"],
     ["IP-Adresse", "https://142.250.1.1/maps/@47,8,1z"],
-    ["Backslash", "https://www.google.com\@evil.example/maps/"],
+    ["Backslash", "https://www.google.com\\@evil.example/maps/"],
     ["Leerraum im Link", "https://www.google.com/maps/ @47,8,1z"],
     [
       "Zeilenumbruch",
       "https://www.google.com/maps/@47,8,1z\nhttps://evil.example",
     ],
     ["Steuerzeichen in Adresse", "Dorf\u0000platz 3"],
-    ["Bidi-Zeichen", "Dorf‮platz 3"],
+    ["Bidi-Zeichen", "Dorf\u202Eplatz 3"],
     ["Koordinaten ausser Bereich", "95.0, 8.0"],
     ["Länge ausser Bereich", "47.0, 190.0"],
   ])("%s", (_name, roh) => {

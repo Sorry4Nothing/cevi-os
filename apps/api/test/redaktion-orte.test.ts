@@ -32,6 +32,7 @@ import {
 } from "../src/website/stufenfakten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
+import { antwortVerletzungen } from "./hilfen/vertrag.js";
 import {
   erstelleWelt,
   legePersonaAn,
@@ -233,6 +234,52 @@ describe("Rechte", () => {
         })
       ).status,
     ).toBe(404);
+  });
+});
+
+describe("Vertrag", () => {
+  test("die Antworten entsprechen openapi.yaml", async () => {
+    const s = await neueStufe("Vertrag");
+    const id = await legeAn(admin, {
+      beschreibung: "Eingang",
+      standort: "47.2, 8.7",
+    });
+    await anfrage(admin, "PUT", eckdaten(s.stufeId, tagIn(14)), {
+      treffpunktOrtId: id,
+    });
+    const l = await anfrage(admin, "GET", ORTE);
+    expect(
+      antwortVerletzungen("/api/v1/redaktion/orte", "get", 200, await l.json()),
+    ).toEqual([]);
+    const v = await anfrage(admin, "POST", `${ORTE}/vorschau`, {
+      standort: "Seestrasse 1",
+    });
+    expect(
+      antwortVerletzungen(
+        "/api/v1/redaktion/orte/vorschau",
+        "post",
+        200,
+        await v.json(),
+      ),
+    ).toEqual([]);
+    const e = await anfrage(admin, "GET", eckdaten(s.stufeId, tagIn(14)));
+    expect(
+      antwortVerletzungen(
+        "/api/v1/redaktion/stufen/{stufeId}/eckdaten/{tag}",
+        "get",
+        200,
+        await e.json(),
+      ),
+    ).toEqual([]);
+    const a = await anfrage(admin, "POST", ORTE, { name: neuerName() });
+    expect(
+      antwortVerletzungen(
+        "/api/v1/redaktion/orte",
+        "post",
+        201,
+        await a.json(),
+      ),
+    ).toEqual([]);
   });
 });
 

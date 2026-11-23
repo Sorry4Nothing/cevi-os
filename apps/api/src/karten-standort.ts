@@ -28,8 +28,7 @@ export type StandortErgebnis =
 const SUCH_LINK = "https://www.google.com/maps/search/?api=1&query=";
 
 // Steuerzeichen (auch Tab und Zeilenumbruch) und Bidi-Zeichen haben in einer Adresse nichts verloren
-// eslint-disable-next-line no-control-regex
-const VERBOTEN = /[\u0000-\u001F\u007F-\u009F​-‏‪-‮⁦-⁩]/;
+const VERBOTEN = /[\p{Cc}\p{Cf}]/u;
 const KOORDINATEN = /^(-?\d{1,2}(?:\.\d+)?)\s*[,;]\s*(-?\d{1,3}(?:\.\d+)?)$/;
 // «javascript:alert(1)», «data:…», «ftp://…»: ein Schema ohne Leerzeichen dahinter ist ein Linkversuch, keine Adresse
 const SCHEMA = /^[a-z][a-z0-9+.-]*:\S/i;
