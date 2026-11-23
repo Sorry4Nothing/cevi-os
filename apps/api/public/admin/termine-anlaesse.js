@@ -1,6 +1,8 @@
 import { anfrage, fehlertext } from "./api.js";
 import { mitRueckgaengig } from "./rueckgaengig.js";
-import { gehe } from "./verlauf.js";
+import { gehe, zurueckKlick } from "./verlauf.js";
+import { datumZeitFeld } from "./datumsfeld.js";
+import { sortierListe } from "./sortieren.js";
 import {
   ankreuzen,
   auswahl,
@@ -26,6 +28,7 @@ import {
   zaehlwort,
   zeitraumText,
   ersetze,
+  speicherLeiste,
   termineTabelle,
 } from "./kalenderhilfen.js";
 import { skeletonDetail, skeletonFormular, skeletonTabelle } from "./lader.js";
@@ -283,9 +286,8 @@ function einstellungsFelder(tags, start) {
     gewaehlt: start.anmeldungOffen,
     wert: "1",
   });
-  const frist = feld({
+  const frist = datumZeitFeld({
     label: "Anmeldeschluss (optional)",
-    typ: "datetime-local",
     hilfe:
       "Ohne Anmeldeschluss ist die Anmeldung bis zum Ende des Termins möglich.",
     wert: start.frist ? lokal(start.frist) : "",
@@ -548,7 +550,10 @@ function zeichneAnlass(bereich, ctx, pfad, a, neu) {
       "Anlassseite",
       el(
         "a",
-        { href: `#website/seiten/${a.seiteId}` },
+        {
+          class: "knopf knopf--klein",
+          href: `#website/seiten/${a.seiteId}`,
+        },
         "Im Bereich «Website» öffnen",
       ),
     ],
@@ -559,7 +564,12 @@ function zeichneAnlass(bereich, ctx, pfad, a, neu) {
       {},
       el(
         "a",
-        { class: "knopf knopf--klein", href: "#anlaesse/anlaesse" },
+        {
+          class: "knopf knopf--still knopf--klein",
+          href: "#anlaesse/anlaesse",
+          onclick: zurueckKlick,
+        },
+        icon("zurueck"),
         "Alle Anlässe",
       ),
     ),
@@ -700,7 +710,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
   let geaendert = false;
   let bearbeite = null;
 
-  const status = el("p", { class: "klein", role: "status" });
+  const status = el("p", { class: "nur-leser", role: "status" });
   const meldungen = el("div", {});
   const liste = el("div", {});
   const editor = el("div", {});
@@ -709,12 +719,22 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     { class: "hinweis hinweis--warn", role: "status" },
     "Keine Gesundheitsdaten abfragen.",
   );
-  const speichernKnopf = knopf("Speichern", {
-    art: "haupt",
-    symbol: "haken",
-    onclick: () => speichern(),
+  // Kein Speichern-Knopf im Kopf: Die Leiste unten erscheint erst, wenn etwas geändert ist
+  const leiste = speicherLeiste({
+    beiSpeichern: () => speichern(),
+    beiVerwerfen: () => {
+      felder = alsArbeitskopie(basis);
+      geaendert = false;
+      bearbeite = null;
+      ersetze(editor);
+      ersetze(meldungen);
+      leiste.verstecke();
+      sage("");
+      zeichneListe();
+      fokusAuf(liste.querySelector("h2"));
+    },
   });
-  ctx.kopfAktion(speichernKnopf);
+  const speichernKnopf = leiste.speichern;
 
   const sage = (text) => {
     status.textContent = text;
@@ -722,7 +742,10 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
   function markiere() {
     if (geaendert) return;
     geaendert = true;
-    sage("Änderungen sind noch nicht gespeichert.");
+    leiste.zeige(
+      "Änderungen an den Zusatzfeldern sind noch nicht gespeichert.",
+    );
+    sage("");
   }
   const rundKnopf = (symbol, label, aktion, onclick) =>
     el(
@@ -738,37 +761,23 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     );
 
   function zeichneListe() {
-    const zeilen = felder.map((f, i) =>
-      el(
-        "li",
-        { "data-id": f._id },
-        el(
-          "div",
-          { class: "text" },
-          el("span", { class: "name" }, f.beschriftung),
-          el("span", { class: "klein leise" }, beschreibung(f)),
-        ),
-        i > 0
-          ? rundKnopf("hoch", `Nach oben: ${f.beschriftung}`, "hoch", () =>
-              verschiebe(f, -1),
-            )
-          : el("span", { class: "tm-platz" }),
-        i < felder.length - 1
-          ? rundKnopf("runter", `Nach unten: ${f.beschriftung}`, "runter", () =>
-              verschiebe(f, 1),
-            )
-          : el("span", { class: "tm-platz" }),
-        knopf("Bearbeiten", {
-          klein: true,
-          symbol: "bearbeiten",
-          kontext: f.beschriftung,
-          onclick: () => oeffneEditor(f),
-        }),
-        rundKnopf("papierkorb", `Entfernen: ${f.beschriftung}`, "weg", () =>
-          entferne(f),
-        ),
-      ),
-    );
+    // Griff und Knöpfe «Nach oben» und «Nach unten» kommen aus der Sortierliste (sortieren.js); Bearbeiten und Entfernen stehen in der Zeile
+    const sortierung =
+      felder.length > 1
+        ? sortierListe({
+            beschriftung: "Zusatzfelder",
+            eintraege: felder.map((f) => ({
+              id: f._id,
+              text: f.beschriftung,
+              inhalt: zeilenInhalt(f),
+            })),
+            beiNeu: (ids) => {
+              const nach = new Map(felder.map((f) => [f._id, f]));
+              felder = ids.map((id) => nach.get(id));
+              markiere();
+            },
+          })
+        : null;
     ersetze(
       liste,
       el(
@@ -781,7 +790,20 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
               { class: "leise" },
               "Noch keine Zusatzfragen. Die Anmeldung fragt dann nur nach der Person oder dem Kind.",
             )
-          : el("ul", { class: "liste-zeilen" }, zeilen),
+          : sortierung
+            ? [
+                el(
+                  "p",
+                  { class: "klein leise" },
+                  "Ordne die Fragen per Ziehen am Griff oder mit den Pfeilknöpfen. Die Reihenfolge gilt erst nach «Speichern».",
+                ),
+                sortierung.wurzel,
+              ]
+            : el(
+                "ul",
+                { class: "liste-zeilen" },
+                el("li", {}, zeilenInhalt(felder[0])),
+              ),
         felder.length >= MAX_FELDER
           ? el("p", { class: "hilfe" }, `Höchstens ${MAX_FELDER} Felder.`)
           : knopf("Feld hinzufügen", {
@@ -792,21 +814,30 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     );
   }
 
-  function verschiebe(f, richtung) {
-    const i = felder.indexOf(f);
-    const j = i + richtung;
-    if (j < 0 || j >= felder.length) return;
-    [felder[i], felder[j]] = [felder[j], felder[i]];
-    markiere();
-    zeichneListe();
-    // Der Knopf wurde neu gezeichnet; am Rand fehlt die Richtung, dann folgt die andere
-    const li = liste.querySelector(`[data-id="${f._id}"]`);
-    (
-      li.querySelector(`[data-aktion="${richtung < 0 ? "hoch" : "runter"}"]`) ??
-      li.querySelector('[data-aktion="runter"], [data-aktion="hoch"]')
-    ).focus();
-    sage(
-      `«${f.beschriftung}» steht jetzt an Stelle ${j + 1} von ${felder.length}.`,
+  // Name, Typ und die beiden Aktionen eines Feldes
+  function zeilenInhalt(f) {
+    return el(
+      "div",
+      { class: "tm-feldzeile", "data-id": f._id },
+      el(
+        "div",
+        { class: "text" },
+        el("span", { class: "name" }, f.beschriftung),
+        el("span", { class: "klein leise" }, beschreibung(f)),
+      ),
+      el(
+        "div",
+        { class: "tm-feldaktionen" },
+        knopf("Bearbeiten", {
+          klein: true,
+          symbol: "bearbeiten",
+          kontext: f.beschriftung,
+          onclick: () => oeffneEditor(f),
+        }),
+        rundKnopf("papierkorb", `Entfernen: ${f.beschriftung}`, "weg", () =>
+          entferne(f),
+        ),
+      ),
     );
   }
 
@@ -1011,6 +1042,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     basis = antwort.felder.map((f) => ({ ...f }));
     felder = alsArbeitskopie(antwort.felder);
     geaendert = false;
+    leiste.verstecke();
     sage("");
     ersetze(meldungen);
     ersetze(editor);
@@ -1126,6 +1158,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
               basis = aktuell.map((f) => ({ ...f }));
               felder = alsArbeitskopie(aktuell);
               geaendert = false;
+              leiste.verstecke();
               sage("");
               ersetze(editor);
               zeichneListe();
@@ -1165,6 +1198,7 @@ function zeichneFelder(bereich, ctx, pfad, anlass) {
     editor,
     hinweisGesundheit,
     status,
+    leiste.wurzel,
   );
   zeichneListe();
 }

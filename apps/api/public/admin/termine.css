@@ -220,3 +220,644 @@ th[aria-sort] .tm-sortknopf {
   padding-block: 11px;
   margin-block: -11px;
 }
+
+/* ---------- Kalender: Monatsansicht (#590, termine-monat.js) ---------- */
+
+.tm-monat {
+  display: grid;
+  gap: 16px;
+}
+
+.tm-monatskopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.tm-monatsnav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tm-monatstitel {
+  min-width: 11rem;
+  margin: 0;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+  text-align: center;
+}
+
+.tm-ansichtswahl {
+  margin-left: auto;
+}
+
+.tm-meldungsplatz:empty {
+  display: none;
+}
+
+.tm-monatslayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 70rem) {
+  .tm-monatslayout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tm-raster {
+  overflow: hidden;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: 16px;
+}
+
+.tm-woche {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+
+.tm-woche + .tm-woche {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.tm-woche--kopf {
+  background: var(--surface-container);
+}
+
+.tm-wochentag {
+  padding: 10px 0;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.tm-wochentag abbr {
+  text-decoration: none;
+}
+
+.tm-zelle {
+  min-width: 0;
+  border-left: 1px solid var(--outline-variant);
+}
+
+.tm-zelle:first-child {
+  border-left: 0;
+}
+
+.tm-tag {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 6px;
+  width: 100%;
+  min-height: 7.5rem;
+  padding: 6px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color var(--dauer) var(--kurve);
+}
+
+.tm-tag:hover {
+  background: var(--surface-container);
+}
+
+.tm-tag:focus-visible {
+  z-index: 1;
+  outline: 3px solid var(--fokus);
+  outline-offset: -3px;
+}
+
+.tm-tag--ausserhalb {
+  color: var(--on-surface-variant);
+  background: var(--surface-container-low);
+}
+
+.tm-tag--gewaehlt,
+.tm-tag--gewaehlt:hover {
+  background: var(--secondary-container);
+  box-shadow: inset 0 0 0 2px var(--focus);
+}
+
+.tm-tagzahl {
+  display: inline-grid;
+  place-items: center;
+  align-self: flex-start;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding-inline: 4px;
+  border-radius: 999px;
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.tm-tag--heute .tm-tagzahl {
+  color: var(--on-secondary);
+  background: var(--secondary);
+}
+
+.tm-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.tm-ereignis {
+  display: block;
+  height: 1.375rem;
+  padding: 0 6px;
+  overflow: hidden;
+  color: var(--on-stufe-container);
+  background: var(--stufe-container);
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tm-ereignis--leer {
+  background: transparent;
+}
+
+/* Über mehrere Tage: ohne Rand und Rundung zum Nachbartag, damit ein Balken entsteht (Zelle: 6 px Innenabstand und 1 px Rand) */
+.tm-ereignis--fort {
+  margin-left: -7px;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.tm-ereignis--weiter {
+  margin-right: -7px;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+/* Zustand nie nur über Farbe: abgesagt ist durchgestrichen, ohne Gruppe gestrichelt */
+.tm-ereignis--abgesagt {
+  color: var(--on-error-container);
+  background: var(--error-container);
+  text-decoration: line-through;
+}
+
+.tm-ereignis--pruefen,
+.tm-ereignis--ohne {
+  color: var(--on-warning-container);
+  background: var(--warning-container);
+  outline: 1px dashed currentcolor;
+  outline-offset: -2px;
+}
+
+.tm-mehr-zahl {
+  padding-inline: 6px;
+  color: var(--on-surface-variant);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.tm-punkte {
+  display: none;
+  align-items: center;
+  gap: 3px;
+}
+
+.tm-punkt {
+  width: 8px;
+  height: 8px;
+  background: var(--focus);
+  border-radius: 50%;
+}
+
+.tm-punkt--abgesagt {
+  background: transparent;
+  box-shadow: inset 0 0 0 2px var(--on-error-container);
+}
+
+.tm-punkt--ohne,
+.tm-punkt--pruefen {
+  background: var(--on-warning-container);
+  border-radius: 2px;
+}
+
+.tm-punkt-zahl {
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+@media (max-width: 40rem) {
+  .tm-tag {
+    align-items: center;
+    min-height: 3.75rem;
+    padding: 4px 2px;
+  }
+
+  .tm-tagzahl {
+    align-self: center;
+  }
+
+  .tm-chips {
+    display: none;
+  }
+
+  .tm-punkte {
+    display: flex;
+  }
+
+  .tm-monatstitel {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .tm-monatsnav {
+    flex: 1 1 100%;
+  }
+
+  .tm-ansichtswahl {
+    margin-left: 0;
+  }
+}
+
+.tm-tagesliste {
+  display: grid;
+  gap: 4px;
+  padding: 16px 20px;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: 16px;
+}
+
+@media (min-width: 70.0625rem) {
+  .tm-tagesliste {
+    position: sticky;
+    top: 8rem;
+    max-height: calc(100vh - 10rem);
+    overflow: auto;
+  }
+}
+
+.tm-tageskopf h3 {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.tm-tageskopf p {
+  margin: 2px 0 0;
+}
+
+.tm-tagesleer {
+  margin: 8px 0 0;
+  color: var(--on-surface-variant);
+}
+
+.tm-tagesliste-eintraege {
+  display: grid;
+  gap: 0;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tm-eintrag {
+  display: grid;
+  gap: 2px;
+  padding: 12px 0 12px 12px;
+  border-top: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--focus);
+}
+
+.tm-eintrag p {
+  margin: 0;
+}
+
+.tm-eintrag--abgesagt {
+  border-left-color: var(--on-error-container);
+}
+
+.tm-eintrag--abgesagt .tm-eintrag-titel {
+  text-decoration: line-through;
+}
+
+.tm-eintrag--ohne,
+.tm-eintrag--pruefen {
+  border-left-color: var(--on-warning-container);
+  border-left-style: dashed;
+}
+
+.tm-eintrag-zeit {
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.tm-eintrag-titel {
+  font-weight: 700;
+}
+
+.tm-eintrag-link {
+  justify-self: start;
+  padding-block: 11px;
+  margin-block: -6px -11px;
+  font-weight: 700;
+}
+
+.tm-quelle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 16px 0 0;
+}
+
+.tm-quelle .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.tm-listenkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 24px;
+  margin-bottom: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tm-raster .tm-woche:not(.tm-woche--kopf) {
+    animation: tm-ein 0.28s var(--kurve) both;
+  }
+
+  .tm-raster .tm-woche:nth-child(3) {
+    animation-delay: 0.03s;
+  }
+
+  .tm-raster .tm-woche:nth-child(4) {
+    animation-delay: 0.06s;
+  }
+
+  .tm-raster .tm-woche:nth-child(5) {
+    animation-delay: 0.09s;
+  }
+
+  .tm-raster .tm-woche:nth-child(6) {
+    animation-delay: 0.12s;
+  }
+
+  .tm-raster .tm-woche:nth-child(7) {
+    animation-delay: 0.15s;
+  }
+
+  .tm-monat--laedt .tm-raster {
+    opacity: 0.55;
+    transition: opacity var(--dauer) var(--kurve);
+  }
+
+  @keyframes tm-ein {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .tm-tag--gewaehlt {
+    outline: 3px solid Highlight;
+    outline-offset: -3px;
+  }
+
+  .tm-ereignis {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* ---------- Anlässe und Anmeldungen (#590) ---------- */
+
+/* Zusatzfelder: Name und Typ links, Aktionen rechts in der Sortierliste */
+.tm-feldzeile {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  min-width: 0;
+}
+
+.tm-feldzeile .text {
+  display: grid;
+  min-width: 0;
+}
+
+.tm-feldaktionen {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Anmeldungen: Rückmeldungen und Export nebeneinander, schmal untereinander */
+.tm-anmeldekopf {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+  align-items: stretch;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 56rem) {
+  .tm-anmeldekopf {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tm-anmeldekopf > div > .flaeche {
+  height: 100%;
+}
+
+.tm-balkenzeile {
+  display: grid;
+  gap: 6px;
+}
+
+.tm-balkentext {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tm-balken-svg {
+  display: block;
+  width: 100%;
+  height: 12px;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
+.tm-balken-spur {
+  fill: var(--surface-container);
+}
+
+.tm-balken-fuell--ja {
+  fill: var(--focus);
+}
+
+/* Abgemeldet ist keine Warnung: ruhiges Grau, die Beschriftung trägt die Bedeutung */
+.tm-balken-fuell--nein {
+  fill: var(--outline);
+}
+
+.tm-frist {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.tm-frist .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.tm-datei {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.tm-datei .text {
+  display: grid;
+  min-width: 0;
+}
+
+.tm-dateisymbol {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--on-secondary-container);
+  background: var(--secondary-container);
+  border-radius: 12px;
+}
+
+.tm-dateisymbol .i {
+  width: 22px;
+  height: 22px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tm-balken-fuell {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: tm-wachse 0.6s var(--kurve) both;
+  }
+
+  @keyframes tm-wachse {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: none;
+    }
+  }
+}
+
+/* Leiste «Nicht gespeicherte Änderungen»: haftet unten, erst sichtbar, wenn etwas geändert ist */
+.tm-speicherleiste {
+  position: sticky;
+  bottom: 16px;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  color: var(--inverse-on-surface);
+  background: var(--inverse-surface);
+  border-radius: 16px;
+}
+
+.tm-speicherleiste > .i {
+  flex: none;
+  width: 20px;
+  height: 20px;
+}
+
+.tm-speichertext {
+  flex: 1 1 16rem;
+  margin: 0;
+  font-weight: 600;
+}
+
+.tm-speicherleiste .knopf:not(.knopf--haupt) {
+  color: var(--inverse-on-surface);
+  background: transparent;
+  border-color: currentcolor;
+}
+
+.tm-speicherknoepfe {
+  display: flex;
+  gap: 8px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tm-speicherleiste:not([hidden]) {
+    animation: tm-hoch 0.24s var(--kurve) both;
+  }
+
+  @keyframes tm-hoch {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+/* Raumanfragen: Liste und Detail nebeneinander, schmal untereinander */
+.tm-anfragen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 24rem;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 70rem) {
+  .tm-anfragen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.tm-anfragen > .flaeche {
+  position: sticky;
+  top: 8rem;
+}
+
+@media (max-width: 70rem) {
+  .tm-anfragen > .flaeche {
+    position: static;
+  }
+}

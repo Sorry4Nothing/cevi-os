@@ -298,7 +298,14 @@ function zeichne(bereich, ctx, erste, neu) {
     }
   }
 
-  bereich.append(liste, meldung, el("div", { class: "tm-mehr" }, mehr), detail);
+  bereich.append(
+    el(
+      "div",
+      { class: "tm-anfragen" },
+      el("div", {}, liste, meldung, el("div", { class: "tm-mehr" }, mehr)),
+      detail,
+    ),
+  );
   meldeZaehler();
   zeichneAlles();
 }

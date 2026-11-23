@@ -25,16 +25,39 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 
 ## Dateien (alle flach in `apps/api/public/admin/`)
 
-## Hinweisband, System, Plattform, Erinnerungen, Mitteilungen (#593)
-
-- **Hinweisband** (`hinweisband.js`): Solange ein Bereich in Wartung oder durch eine Informationssperre gesperrt ist, steht unter dem Kopf jeder Seite ein Band (Sperre rot, Wartung gelb, immer mit Wort und Symbol) mit Bereich, Zeitpunkt, Hinweistext und Verweis auf `#system/plattform`. Es erscheint nur für Personen, die die Plattform sehen (Abteilungsleitung, Plattformrecht `wartungsmodus.website`); wer nicht schalten darf, bekommt auch keinen Abruf. Quelle ist `GET /api/v1/plattform/schalter` (Speicher der API, keine Datenbankabfrage). Der Abruf läuft beim Öffnen der Verwaltung, nach jeder Schaltung auf der Plattform (Ereignis `plattform:geaendert`) und bei einer Navigation höchstens einmal je Minute, nie im Takt.
-- **System** lädt nur beim Öffnen und auf «Aktualisieren», kein Polling (`aufWunsch` statt des früheren Takts von 15 Sekunden). Auf der Übersicht steht der Verlauf der Anfragen der letzten 24 Stunden als Säulen je Stunde mit Fehleranteil (`saeulen` aus `uebersicht-diagramme.js`, Tabelle dahinter).
-- **Plattform** zeigt je Bereich eine Zeile mit Zustand (Chip), Einzelheiten und Aktionen; auf dem Handy stehen die Aktionen unter dem Text, es gibt keine Tabelle zum Seitwärtsscrollen. Das geplante Ende der Wartung ist ein `datumZeitFeld` (kein natives `datetime-local`); ein Datum ohne Uhrzeit wird beim Speichern gemeldet.
-- **Erinnerungen** bauen den Zeitplan aus Wochentag (Segment mit Radioknöpfen), Uhrzeit (`zeitfeld`) und zeigen darunter die nächsten sechs Termine als Streifen (`naechsteTermine`, gerechnet in Schweizer Zeit). Die Liste nennt je Regel das nächste Mal.
-- **Mitteilungen**: Formular links, Vorschau rechts (so sieht der Push aus, an wen er geht); die Rückfrage vor dem Senden bleibt ein zweistufiger Knopf. Die Spalten haben keine eigenen Scrollbereiche (`formularRaster` passt für ein so kurzes Formular nicht).
-- **Komponenten** zeigt Personen ohne Entwicklerrolle eine Karte statt der Galerie; das Signal ist `nameAenderbar` in `GET /api/v1/redaktion/website`. Die Navigation blendet den Eintrag noch nicht aus.
-  | `bildwahl.js`, `bildwahl.css` | Bildwahl in der Seite (Bilder der Medienbibliothek unter dem Feld) und `bildMitLader` (Platzhalter bis das Bild da ist) (#591) |
-  | `website-einstellungen.css` | Vorschau der Website-Einstellungen (Klassen `ws-einst-`, `ws-v-`) (#591) |
+| Datei                                 | Aufgabe                                                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `index.html`                          | lädt die Stilvorlagen und `admin.js`                                                                                           |
+| `admin.js`                            | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                                               |
+| `navigation.js`                       | **Bereiche und Unterseiten.** Hier meldet sich ein Modul an                                                                    |
+| `rahmen.js`                           | Logozeile, Leisten, Seitenkopf, Rückmeldungen                                                                                  |
+| `lader.js`                            | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                                                |
+| `zustaende.js`                        | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                                          |
+| `platzhalter.js`                      | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                                        |
+| `komponenten.js`                      | System, Komponenten: Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen                                    |
+| `dom.js`                              | Bausteine: `el`, `knopf`, `chip`, `feld`, `auswahl`, `tabelle`, `dialogFormular`, `seitenblatt` …                              |
+| `api.js`                              | `anfrage`, `ApiFehler`, `fehlertext`                                                                                           |
+| `tokens.css`                          | **Gemeinsame Tokens und Schrift** (Kopie von `public/website/tokens.css`, vor `admin.css` geladen)                             |
+| `theme.js`                            | Umschalter Hell/Dunkel (Kopie von `public/website/theme.js`)                                                                   |
+| `auswahl.js`, `auswahl.css`           | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                                                |
+| `fluss.js`, `fluss.css`, `verlauf.js` | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                                             |
+| `rueckgaengig.js`, `toast.css`        | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                                    |
+| `admin.css`                           | Verweise auf die Tokens und die Bausteine der Verwaltung                                                                       |
+| `geruest.css`                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                                   |
+| `komponenten.css`                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                                       |
+| `liste-hilfen.js`                     | Listen: `macheSortierbar`, `seitenleiste` (25/50/100 Zeilen), `feldFehler`, `pruefHinweis`, `mitFehlertitel`                   |
+| `uebersicht.js`                       | Übersicht: ein Abruf, Skelett, Aufbau der Seite aus den Kacheln (#583)                                                         |
+| `uebersicht-kacheln.js`               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                                      |
+| `uebersicht-diagramme.js`             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten                          |
+| `uebersicht.css`                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                                     |
+| `termine-monat.js`                    | Monatsansicht des Kalenders: reine Funktionen und Knoten (Klassenvorsatz `tm-`, Stile in `termine.css`)                        |
+| `hinweisband.js`                      | Hinweisband unter dem Kopf bei Wartung oder Informationssperre (#593); `BEREICHE` der Plattform                                |
+| `system.js`, `plattform.js`           | System (Übersicht, Anfragen, Abrufe) und Plattform (Wartung, Sperre) (#593)                                                    |
+| `zeitregeln.js`, `mitteilungen.js`    | Erinnerungen mit Zeitplan-Vorschau, Mitteilungen mit Vorschau (#593)                                                           |
+| `system.css`                          | Stile dieser Seiten und des Hinweisbands (Vorsätze `hinweisband-`, `sch-`, `zr-`, `mt-`)                                       |
+| `bildwahl.js`, `bildwahl.css`         | Bildwahl in der Seite (Bilder der Medienbibliothek unter dem Feld) und `bildMitLader` (Platzhalter bis das Bild da ist) (#591) |
+| `website-einstellungen.css`           | Vorschau der Website-Einstellungen (Klassen `ws-einst-`, `ws-v-`) (#591)                                                       |
+| `<bereich>-*.js/css`                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                                                |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
 
@@ -130,6 +153,17 @@ Die Übersicht ist ein Dashboard: Sie zeigt je Rolle, was jetzt zu tun ist und w
 - **Ladezustände:** Bilder haben einen Platzhalter bis zum Laden (`bildMitLader`), Karten laden als Skeleton (Raster, Nachladen, Suche), Einstellungen, Bestellungen und Artikel haben ein Skeleton in ihrer Form.
 - **Stufenfelder:** Stufen als Pillen, Datum und Zeit mit `datumsfeld.js`, rechts im Formular «So steht es auf der Stufenseite».
 - **Lädeli:** Bestellungen sind Karten mit einer Statusschiene Offen, Bereit, Übergeben (`aria-current="step"`, erledigt mit Haken) und einem geteilten Knopf (nächster Schritt, im Menü die übrigen Wechsel). Artikel öffnen als Seite mit dem Bild gross neben den Feldern und der Bildwahl; die Reihenfolge der Artikel bleibt unverändert (Griff, Tastatur, Menü «Mehr»).
+
+## Termine, Räume, Anlässe (#590)
+
+Der Kalender ist eine **Monatsansicht** (`termine-monat.js`): Raster mit Terminchips (über mehrere Tage als verbundener Balken, höchstens drei Bahnen je Tag und «+N weitere»), rechts die Tagesliste des gewählten Tages, darunter die Filterleiste (Suche und Gruppe, Trefferzahl). Die Tabelle bleibt als Ansicht «Liste» (3 oder 12 Monate). Adressen: `#termine/kalender` (dieser Monat), `…/2027-01`, `…/2027-01-16` (Tag gewählt), `…/liste`, `…/liste/12` (die alte Adresse `…/12` gilt weiter). Reine Funktionen (Wochen eines Monats, Tage eines Termins, Bahnen, Tastatursprünge, Filter, Speicher je Monat) stehen oben in der Datei und sind in `test/admin-termine-monat.test.ts` geprüft.
+
+- **Abfragen:** ein Abruf der Gruppen für den Filter; je Monat eine Seite von bis zu 100 Terminen (weitere Seiten nur, wenn die API `weitere` meldet, höchstens 5); die Monate liegen 2 Minuten im Speicher. Filtern, Suchen und Sortieren läuft im Browser. Kein Polling.
+- **Raster:** `role="grid"`, Roving Tabindex, Pfeile, Pos1/Ende, Bild auf/ab. Die Chips sind nur Zierde (`aria-hidden`); der Name des Tages nennt Datum und Zahl der Termine. Farben nur über Tokens: Auswahl und Balken in `--focus`, Abgesagt in der Fehlerfarbe und durchgestrichen, ohne Gruppe in der Warnfarbe und gestrichelt.
+- **Speicherleiste** (`speicherLeiste` in `kalenderhilfen.js`): Statt «Speichern» im Seitenkopf erscheint unten eine Leiste, sobald etwas geändert ist (Zusatzfelder eines Anlasses, Kategorien). Ohne Änderung gibt es keinen Speichern-Knopf.
+- **Anlässe:** Zusatzfelder ordnet man mit der Sortierliste (`sortieren.js`: Griff, Tastatur, Knöpfe); der Anmeldeschluss ist ein `datumZeitFeld`; die Plätze eines Raums ein `zahlfeld`.
+- **Anmeldungen:** «Rückmeldungen» als Balken (SVG, Breite als Attribut, Wachstum nur bei erlaubter Bewegung) und der Export als Karte nach dem Muster «Download-Knopf» (bereit, läuft, fertig, fehlgeschlagen). Die API kennt kein «Offen», darum zeigt die Karte nur Angemeldet und Abgemeldet.
+- **Räume:** Die Liste zeigt je Raum die offenen Anfragen (eine Abfrage, bis 50, sonst «Mindestens»); eine Belegungsansicht gibt es nicht, weil die API bestätigte Buchungen nicht auflistet. Die Anfragen stehen ab 70 rem Breite neben dem Detail.
 
 ## Hinweisband, System, Plattform, Erinnerungen, Mitteilungen (#593)
 
