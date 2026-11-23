@@ -287,3 +287,39 @@ export function meldungsDialog({ titel, hinweis, text, ok, beiOk }) {
   dialog.querySelector(".knopf").focus();
   return dialog;
 }
+
+// Leiste «Nicht gespeicherte Änderungen» (#590): erscheint unten, sobald etwas geändert ist, mit «Verwerfen» und «Speichern»; sonst gibt es keinen Speichern-Knopf. Der Text sagt, was offen ist (Statusregion).
+// beiSpeichern(knopf) und beiVerwerfen() liefert der Aufrufer; zeige(text) blendet die Leiste ein, verstecke() aus
+export function speicherLeiste({ beiSpeichern, beiVerwerfen }) {
+  const text = el("p", { class: "tm-speichertext", role: "status" });
+  const speichern = knopf("Speichern", {
+    art: "haupt",
+    symbol: "haken",
+    onclick: () => beiSpeichern(speichern),
+  });
+  const verwerfen = knopf("Verwerfen", { onclick: () => beiVerwerfen() });
+  const wurzel = el(
+    "div",
+    {
+      class: "tm-speicherleiste",
+      role: "region",
+      "aria-label": "Ungespeicherte Änderungen",
+      hidden: true,
+    },
+    icon("warnung"),
+    text,
+    el("div", { class: "tm-speicherknoepfe" }, verwerfen, speichern),
+  );
+  return {
+    wurzel,
+    speichern,
+    zeige(t) {
+      wurzel.hidden = false;
+      text.textContent = t;
+    },
+    verstecke() {
+      wurzel.hidden = true;
+      text.textContent = "";
+    },
+  };
+}

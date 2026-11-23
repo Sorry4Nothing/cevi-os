@@ -52,6 +52,7 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `uebersicht.css`                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                   |
 | `lager-personenwahl.js`               | Personen für ein Lager wählen (Suche, Gesichter, Rolle, mehrere auf einmal; Assistent und Mitglieder)        |
 | `lager-rechte.js`                     | Rechte der Rollen eines Lagers in Klartext (Bereiche, Filter, Leiste mit Änderungen)                         |
+| `termine-monat.js`                    | Monatsansicht des Kalenders: reine Funktionen und Knoten (Klassenvorsatz `tm-`, Stile in `termine.css`)      |
 | `hinweisband.js`                      | Hinweisband unter dem Kopf bei Wartung oder Informationssperre (#593); `BEREICHE` der Plattform              |
 | `system.js`, `plattform.js`           | System (Übersicht, Anfragen, Abrufe) und Plattform (Wartung, Sperre) (#593)                                  |
 | `zeitregeln.js`, `mitteilungen.js`    | Erinnerungen mit Zeitplan-Vorschau, Mitteilungen mit Vorschau (#593)                                         |
@@ -142,6 +143,17 @@ Die Übersicht ist ein Dashboard: Sie zeigt je Rolle, was jetzt zu tun ist und w
 - **Diagramme** (`uebersicht-diagramme.js`): Inline-SVG, Farben nur über Klassen aus den Tokens (Randfarbe für die Vergangenheit, Akzent für den aktuellen Zeitraum, Fehlerfarbe für Fehler), Säulen immer ab 0, Fehleranteil als zweiter Teil mit 2 px Luft. Jede Grafik hat einen Satz mit allen Werten für Screenreader (`role="img"`), eine Ablesung mit Zeiger oder Pfeiltasten (Text darunter, `aria-live`) und eine Entsprechung als Tabelle; der Schalter «Tabellen statt Diagramme» tauscht beide für die ganze Seite. In erzwungenen Farben tragen Form und Umriss die Information (der Fehleranteil wird zum Umriss).
 - **Neue Kachel:** eine Funktion in `uebersicht-kacheln.js`, die aus der Antwort einen Knoten baut (`kachel({ titel, inhalt })`) und `null` liefert, wenn der Teil fehlt; ein Eintrag in `zeichne` von `uebersicht.js`. Der Teil gehört zuerst in die Route (`routes/admin/uebersicht.ts`) mit seinem eigenen Recht, Eintrag in OpenAPI und Test.
 - **Zähler der Unterleiste** (Vorschläge, Ohne Kategorie, Anfragen) kommen aus denselben Zahlen (`ctx.zaehler`), ohne eigene Abfrage; sie sind jetzt exakt statt «100+».
+
+## Termine, Räume, Anlässe (#590)
+
+Der Kalender ist eine **Monatsansicht** (`termine-monat.js`): Raster mit Terminchips (über mehrere Tage als verbundener Balken, höchstens drei Bahnen je Tag und «+N weitere»), rechts die Tagesliste des gewählten Tages, darunter die Filterleiste (Suche und Gruppe, Trefferzahl). Die Tabelle bleibt als Ansicht «Liste» (3 oder 12 Monate). Adressen: `#termine/kalender` (dieser Monat), `…/2027-01`, `…/2027-01-16` (Tag gewählt), `…/liste`, `…/liste/12` (die alte Adresse `…/12` gilt weiter). Reine Funktionen (Wochen eines Monats, Tage eines Termins, Bahnen, Tastatursprünge, Filter, Speicher je Monat) stehen oben in der Datei und sind in `test/admin-termine-monat.test.ts` geprüft.
+
+- **Abfragen:** ein Abruf der Gruppen für den Filter; je Monat eine Seite von bis zu 100 Terminen (weitere Seiten nur, wenn die API `weitere` meldet, höchstens 5); die Monate liegen 2 Minuten im Speicher. Filtern, Suchen und Sortieren läuft im Browser. Kein Polling.
+- **Raster:** `role="grid"`, Roving Tabindex, Pfeile, Pos1/Ende, Bild auf/ab. Die Chips sind nur Zierde (`aria-hidden`); der Name des Tages nennt Datum und Zahl der Termine. Farben nur über Tokens: Auswahl und Balken in `--focus`, Abgesagt in der Fehlerfarbe und durchgestrichen, ohne Gruppe in der Warnfarbe und gestrichelt.
+- **Speicherleiste** (`speicherLeiste` in `kalenderhilfen.js`): Statt «Speichern» im Seitenkopf erscheint unten eine Leiste, sobald etwas geändert ist (Zusatzfelder eines Anlasses, Kategorien). Ohne Änderung gibt es keinen Speichern-Knopf.
+- **Anlässe:** Zusatzfelder ordnet man mit der Sortierliste (`sortieren.js`: Griff, Tastatur, Knöpfe); der Anmeldeschluss ist ein `datumZeitFeld`; die Plätze eines Raums ein `zahlfeld`.
+- **Anmeldungen:** «Rückmeldungen» als Balken (SVG, Breite als Attribut, Wachstum nur bei erlaubter Bewegung) und der Export als Karte nach dem Muster «Download-Knopf» (bereit, läuft, fertig, fehlgeschlagen). Die API kennt kein «Offen», darum zeigt die Karte nur Angemeldet und Abgemeldet.
+- **Räume:** Die Liste zeigt je Raum die offenen Anfragen (eine Abfrage, bis 50, sonst «Mindestens»); eine Belegungsansicht gibt es nicht, weil die API bestätigte Buchungen nicht auflistet. Die Anfragen stehen ab 70 rem Breite neben dem Detail.
 
 ## Hinweisband, System, Plattform, Erinnerungen, Mitteilungen (#593)
 

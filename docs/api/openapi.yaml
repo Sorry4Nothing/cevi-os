@@ -1042,6 +1042,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/termine-monat.js:
+    get:
+      operationId: getAdminTermineMonatSkript
+      summary: Skript der Verwaltung – Bereich Termine, Monatsansicht des Kalenders
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/termine-outlook.js:
     get:
       operationId: getAdminTermineOutlookSkript
