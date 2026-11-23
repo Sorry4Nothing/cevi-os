@@ -309,3 +309,170 @@ export function pfeil() {
     svg("path", { d: "M5 12h14M13 6l6 6-6 6" }),
   );
 }
+
+// ---------------------------------------------------------------------------------------------
+// Bausteine des Dashboards (#620): Bewegung, hochzählende Zahl, Veränderungsmarke, Verlaufslinie
+// ---------------------------------------------------------------------------------------------
+
+// Bewegung nur, wenn die Person sie nicht abgewählt hat; geprüft im Moment des Zeichnens
+export const bewegt = () =>
+  window.matchMedia?.("(prefers-reduced-motion: no-preference)").matches ??
+  false;
+
+const sanft = (t) => 1 - (1 - t) ** 3;
+
+// Zählt den Text eines Knotens von «von» auf «bis»; bricht ab, wenn der Knoten aus der Seite genommen wird oder ein neuer Lauf startet
+function zaehle(knoten, von, bis, format, dauer) {
+  const lauf = (knoten.lauf = (knoten.lauf ?? 0) + 1);
+  const start = window.performance.now();
+  const schritt = (jetzt) => {
+    if (knoten.lauf !== lauf || !knoten.isConnected) return;
+    const t = Math.min(1, (jetzt - start) / dauer);
+    knoten.textContent = format(Math.round(von + (bis - von) * sanft(t)));
+    if (t < 1) window.requestAnimationFrame(schritt);
+  };
+  window.requestAnimationFrame(schritt);
+}
+
+// Eine Zahl, die beim Erscheinen hochzählt. Screenreader bekommen sofort den Endwert (versteckter Text), die sichtbare Zahl ist für sie stumm.
+export function zahlAnzeige(ziel, { format = fmt, dauer = 900 } = {}) {
+  const sichtbar = el("span", { "aria-hidden": "true" }, format(ziel));
+  const leser = el("span", { class: "nur-leser" }, format(ziel));
+  const wurzel = el("span", { class: "ud-zahl" }, sichtbar, leser);
+  let aktuell = ziel;
+  const setze = (neu, animiert = true) => {
+    leser.textContent = format(neu);
+    if (animiert && bewegt() && neu !== aktuell) {
+      zaehle(sichtbar, aktuell, neu, format, dauer);
+    } else {
+      sichtbar.lauf = (sichtbar.lauf ?? 0) + 1;
+      sichtbar.textContent = format(neu);
+    }
+    aktuell = neu;
+  };
+  // Beim ersten Erscheinen von 0 aufwärts
+  if (bewegt() && ziel > 0) {
+    sichtbar.textContent = format(0);
+    aktuell = 0;
+    window.requestAnimationFrame(() => setze(ziel));
+  }
+  return { wurzel, setze };
+}
+
+// Pfeil der Veränderung: hoch, runter oder gleich (Zustand nie nur über Farbe: Pfeil und Vorzeichen)
+const PFEIL_PFAD = {
+  hoch: "M12 19V5M6 11l6-6 6 6",
+  runter: "M12 5v14M6 13l6 6 6-6",
+  gleich: "M5 12h14",
+};
+export function deltaMarke(unterschied) {
+  const richtung =
+    unterschied > 0 ? "hoch" : unterschied < 0 ? "runter" : "gleich";
+  return el(
+    "span",
+    { class: "ub-marke-delta" },
+    svg(
+      "svg",
+      {
+        class: "ub-pfeil",
+        viewBox: "0 0 24 24",
+        "aria-hidden": "true",
+        focusable: "false",
+      },
+      svg("path", { d: PFEIL_PFAD[richtung] }),
+    ),
+    vorzeichen(unterschied),
+  );
+}
+
+// Weiche Linie durch die Punkte ohne Überschwingen (monoton, kubische Kurven); pts: [[x, y], …]
+export function weichePfad(pts) {
+  const r = (v) => Math.round(v * 10) / 10;
+  const n = pts.length;
+  if (n === 0) return "";
+  if (n === 1) return `M${r(pts[0][0])},${r(pts[0][1])}`;
+  const dx = [];
+  const m = [];
+  for (let i = 0; i < n - 1; i++) {
+    dx[i] = pts[i + 1][0] - pts[i][0];
+    m[i] = (pts[i + 1][1] - pts[i][1]) / (dx[i] || 1);
+  }
+  const t = [m[0]];
+  for (let i = 1; i < n - 1; i++) {
+    t[i] = m[i - 1] * m[i] <= 0 ? 0 : (m[i - 1] + m[i]) / 2;
+  }
+  t[n - 1] = m[n - 2];
+  for (let i = 0; i < n - 1; i++) {
+    if (m[i] === 0) {
+      t[i] = 0;
+      t[i + 1] = 0;
+      continue;
+    }
+    const a = t[i] / m[i];
+    const b = t[i + 1] / m[i];
+    const s = a * a + b * b;
+    if (s > 9) {
+      const tau = 3 / Math.sqrt(s);
+      t[i] = tau * a * m[i];
+      t[i + 1] = tau * b * m[i];
+    }
+  }
+  let d = `M${r(pts[0][0])},${r(pts[0][1])}`;
+  for (let i = 0; i < n - 1; i++) {
+    const [x0, y0] = pts[i];
+    const [x1, y1] = pts[i + 1];
+    d += `C${r(x0 + dx[i] / 3)},${r(y0 + (t[i] * dx[i]) / 3)} ${r(x1 - dx[i] / 3)},${r(y1 - (t[i + 1] * dx[i]) / 3)} ${r(x1)},${r(y1)}`;
+  }
+  return d;
+}
+
+// Kleine Linie oder Säulen ohne Achsen für die Kennzahlen; zeichnet sich beim Erscheinen von links ein (CSS, nur mit erlaubter Bewegung). Der Satz trägt die Werte für Screenreader.
+export function spur({ werte, art = "linie", satz }) {
+  const B = 160;
+  const H = 40;
+  const max = Math.max(1, ...werte);
+  const n = werte.length;
+  const x = (i) => 3 + (i * (B - 6)) / Math.max(1, n - 1);
+  const y = (w) => H - 3 - (w / max) * (H - 8);
+  let inhalt;
+  if (art === "saeulen") {
+    const schritt = (B - 2) / n;
+    const breite = Math.max(2, Math.min(10, schritt - 4));
+    inhalt = werte.map((w, i) =>
+      svg("path", {
+        class: "ub-saeule" + (i === n - 1 ? " ist-jetzt" : ""),
+        d: saeule(
+          1 + i * schritt + (schritt - breite) / 2,
+          y(w),
+          breite,
+          Math.max(w > 0 ? 2 : 0, H - 2 - y(w)),
+          2,
+        ),
+      }),
+    );
+  } else {
+    const pts = werte.map((w, i) => [x(i), y(w)]);
+    inhalt = [
+      svg("path", { class: "ub-linie", d: weichePfad(pts) }),
+      // Endpunkt als Strich der Länge null mit runder Kappe: bleibt rund, auch wenn die Grafik gestreckt wird
+      svg("path", {
+        class: "ud-spur-punkt",
+        d: `M${pts.at(-1)[0]},${pts.at(-1)[1]}h0.01`,
+      }),
+    ];
+  }
+  const grafik = svg(
+    "svg",
+    {
+      class: "ud-spur-svg",
+      viewBox: `0 0 ${B} ${H}`,
+      preserveAspectRatio: "none",
+      role: "img",
+      "aria-label": satz,
+      focusable: "false",
+    },
+    svg("line", { class: "ub-achse", x1: 0, x2: B, y1: H - 0.5, y2: H - 0.5 }),
+    ...inhalt,
+  );
+  return el("div", { class: "ud-spur" }, grafik);
+}

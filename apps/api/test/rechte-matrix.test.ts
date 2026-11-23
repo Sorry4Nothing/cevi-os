@@ -147,11 +147,16 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
   "GET /admin/uebersicht-kacheln.js": { erwartet: alle(200) },
   "GET /admin/uebersicht-diagramme.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht-verlauf.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht-kommend.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.css": { erwartet: alle(200) },
   "GET /admin/hinweisband.js": { erwartet: alle(200) },
   "GET /admin/system.css": { erwartet: alle(200) },
+  "GET /admin/konto.js": { erwartet: alle(200) },
+  "GET /admin/konto.css": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
   "GET /admin/laedeli.js": { erwartet: alle(200) },
+  "GET /admin/mitglieder.js": { erwartet: alle(200) },
   "GET /admin/laedeli.css": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
   "GET /admin/anwesenheit.js": { erwartet: alle(200) },
@@ -842,6 +847,18 @@ const MATRIX: Record<string, Zeile> = {
   // Mitteilung per Push (#240): nur Admins; Inhalt, Empfänger, Audit-Log und Limit in test/admin-mitteilungen.test.ts
   "POST /api/v1/admin/mitteilungen": {
     body: () => ({ titel: "Matrix-Mitteilung", empfaenger: "alle" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Empfänger einer Mitteilung zählen (#625): nur Admins, nur Zahlen; Auflösung und Grenzen in test/admin-mitteilungen.test.ts
+  "POST /api/v1/admin/mitteilungen/vorschau": {
+    body: () => ({ empfaenger: "alle" }),
     erwartet: {
       ...alle(403),
       admin: 200,

@@ -12,12 +12,24 @@ import {
   knopf,
   neueId,
   seitenwahl,
-  tabelle,
 } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import { oeffneFluss } from "./fluss.js";
 import { formularRaster } from "./formularraster.js";
 import { suchWahl } from "./personen-wahl.js";
+import { skeletonTabelle } from "./lader.js";
+import {
+  abschnitte,
+  ansichtsleiste,
+  gespeicherteAnsicht,
+  gliedere,
+  marke,
+  mitgliedKarte,
+  mitgliedKopf,
+  skeletonKarten,
+  stufenKennzeichen,
+  zeichneAnsicht,
+} from "./mitglieder.js";
 import { leerKarte } from "./zustaende.js";
 
 export function zeige(bereich, ctx) {
@@ -35,6 +47,12 @@ export function zeige(bereich, ctx) {
       };
     },
     (daten, neu) => zeichne(bereich, ctx, daten, neu),
+    {
+      skeleton: () =>
+        gespeicherteAnsicht() === "liste"
+          ? skeletonTabelle({ spalten: 4 })
+          : skeletonKarten(),
+    },
   );
 }
 
@@ -56,9 +74,6 @@ const zugangChip = (mitEltern) =>
   mitEltern
     ? chip("Eltern verknüpft", "ok")
     : chip("Kein Zugang", undefined, "info");
-
-// In der Liste steht ohne Eltern nur ruhiger Text: Dutzende gleiche Chips untereinander wirken wie ein Alarm
-const keinZugangText = () => el("span", { class: "leise" }, "Kein Zugang");
 
 // Eine Seite im Fluss zum Anlegen (kind = null) und Bearbeiten, aufgebaut wie die Seite einer Person: Karten links, das Kind mit seinem Zustand rechts
 function oeffneKind({ kind, daten, ctx, neu }) {
@@ -271,25 +286,24 @@ function oeffneKind({ kind, daten, ctx, neu }) {
   vorname.eingabe.focus();
 }
 
-function elternZelle(kind, personen) {
-  if (kind.eltern.length === 0) {
-    return keinZugangText();
-  }
-  return el(
-    "ul",
-    { class: "zeilen" },
-    kind.eltern.map((id) => {
+// Eltern als Text: Wer als Elternteil verknüpft ist, steht mit Namen da; ein deaktiviertes Konto trägt den Zusatz
+function elternText(kind, personen) {
+  return kind.eltern
+    .map((id) => {
       const person = personen.get(id);
-      return el(
-        "li",
-        { class: "eltern-zeile" },
-        person?.name ?? "Person",
-        person?.deaktiviert &&
-          el("ul", { class: "chips" }, chip("Konto deaktiviert", "fehler")),
-      );
-    }),
-  );
+      return `${person?.name ?? "Person"}${person?.deaktiviert ? " (Konto deaktiviert)" : ""}`;
+    })
+    .join(", ");
 }
+
+// Ansicht und Gruppierung bleiben beim Neuladen nach einer Aktion; die Ansicht merkt sich mitglieder.js im Browser
+const zustand = { gruppierung: "stufe" };
+
+const GRUPPIERUNGEN = [
+  ["stufe", "Stufe"],
+  ["zugang", "Zugang"],
+  ["keine", "Keine"],
+];
 
 function zeichne(bereich, ctx, daten, neu) {
   const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
@@ -314,59 +328,89 @@ function zeichne(bereich, ctx, daten, neu) {
     );
     return;
   }
+  // Steht das Kind schon unter dem Titel seiner Stufe, nennt die Karte sie nicht nochmals
+  const stufeChips = (kind, mitStufe = true) =>
+    mitStufe || !kind.aktiv
+      ? el(
+          "ul",
+          { class: "chips" },
+          mitStufe &&
+            chip(stufenname.get(kind.stufeId) ?? "Ohne Stufe", "stufe", false),
+          !kind.aktiv && chip("Inaktiv", undefined, "schliessen"),
+        )
+      : null;
+  // Zugang als ruhige Marke: Ein Kind ohne Elternteil ist für die App unsichtbar, aber kein Fehler
+  const zugang = (kind) =>
+    kind.eltern.length > 0
+      ? marke("Eltern verknüpft", "haken", "ok")
+      : marke("Kein Zugang", "sperre");
   const eintraege = daten.kinder.map((kind) => {
     const name = `${kind.vorname} ${kind.nachname}`;
     return {
       kind,
+      name,
       suche: `${name} ${kind.ceviName ?? ""}`.toLowerCase(),
-      tr: el(
-        "tr",
-        { class: kind.aktiv ? undefined : "inaktiv" },
-        el(
-          "th",
-          { scope: "row" },
-          el("span", { class: "name" }, name),
-          kind.ceviName && el("span", { class: "leise" }, kind.ceviName),
-        ),
-        el(
-          "td",
-          {},
-          el(
-            "ul",
-            { class: "chips" },
-            chip(stufenname.get(kind.stufeId) ?? "Ohne Stufe", "stufe"),
-          ),
-        ),
-        el("td", {}, elternZelle(kind, personen)),
-        el(
-          "td",
-          {},
-          el(
-            "ul",
-            { class: "chips" },
-            kind.aktiv
-              ? chip("Aktiv", "ok")
-              : chip("Inaktiv", undefined, "schliessen"),
-          ),
-        ),
-        aktionenZelle(
-          knopf("Bearbeiten", {
-            klein: true,
-            symbol: "bearbeiten",
-            kontext: name,
-            onclick: () => oeffneKind({ kind, daten, ctx, neu }),
-          }),
-        ),
-      ),
     };
   });
-  const { wurzel, koerper } = tabelle({
-    beschriftung: "Kinder",
-    spalten: ["Kind", "Stufe", "Zugang", "Zustand", "Aktionen"],
-    zeilen: [],
-  });
+  const bearbeiten = (e) =>
+    knopf("Bearbeiten", {
+      klein: true,
+      symbol: "bearbeiten",
+      kontext: e.name,
+      onclick: () => oeffneKind({ kind: e.kind, daten, ctx, neu }),
+    });
+  const karte = (e) =>
+    mitgliedKarte({
+      id: e.kind.id,
+      aus: !e.kind.aktiv,
+      kopf: mitgliedKopf({
+        name: e.name,
+        ceviName: e.kind.ceviName,
+        gross: true,
+        ton: "stufe",
+        zusatz: zugang(e.kind),
+      }),
+      rollen: stufeChips(e.kind, ansicht.stand().gruppierung !== "stufe"),
+      hinweis:
+        e.kind.eltern.length > 0 &&
+        el(
+          "p",
+          { class: "mg-hinweis" },
+          `Eltern: ${elternText(e.kind, personen)}`,
+        ),
+      aktionen: bearbeiten(e),
+    });
+  const zeile = (e) =>
+    el(
+      "tr",
+      { class: e.kind.aktiv ? undefined : "inaktiv" },
+      el(
+        "th",
+        { scope: "row" },
+        mitgliedKopf({
+          name: e.name,
+          ceviName: e.kind.ceviName,
+          ton: "stufe",
+        }),
+      ),
+      el("td", {}, stufeChips(e.kind)),
+      el(
+        "td",
+        {},
+        el(
+          "div",
+          { class: "mg-text" },
+          zugang(e.kind),
+          e.kind.eltern.length > 0 &&
+            el("span", { class: "mg-zweit" }, elternText(e.kind, personen)),
+        ),
+      ),
+      aktionenZelle(bearbeiten(e)),
+    );
+
   const ohneZugang = daten.kinder.filter((k) => k.eltern.length === 0).length;
   const keine = el("div");
+  const liste = el("div", { class: "mg-ansicht" });
   const seiten = seitenwahl({ beiWechsel: () => aktualisiere() });
   const leiste = filterleiste({
     suche: { label: "Name oder Cevi-Name" },
@@ -394,8 +438,44 @@ function zeichne(bereich, ctx, daten, neu) {
       aktualisiere();
     },
   });
-  function aktualisiere() {
+  const ansicht = ansichtsleiste({
+    gruppierungen: GRUPPIERUNGEN,
+    gruppierung: zustand.gruppierung,
+    beiAenderung: (neuerStand) => {
+      zustand.gruppierung = neuerStand.gruppierung;
+      seiten.anfang();
+      aktualisiere(true);
+    },
+  });
+
+  // Abschnitte nach Stufe (mit Kennzeichen) oder nach Zugang; «keine» zeigt alles in einem Raster
+  const gruppenFuer = (art) =>
+    art === "stufe"
+      ? {
+          gruppen: [
+            ...daten.stufen.map((s) => ({
+              schluessel: s.id,
+              titel: s.name,
+              kennzeichen: stufenKennzeichen(s),
+            })),
+            { schluessel: "", titel: "Ohne Stufe" },
+          ],
+          schluesselVon: (e) =>
+            stufenname.has(e.kind.stufeId) ? e.kind.stufeId : "",
+        }
+      : art === "zugang"
+        ? {
+            gruppen: [
+              { schluessel: "mit", titel: "Mit Zugang" },
+              { schluessel: "ohne", titel: "Ohne Zugang" },
+            ],
+            schluesselVon: (e) => (e.kind.eltern.length > 0 ? "mit" : "ohne"),
+          }
+        : { gruppen: null, schluesselVon: () => "" };
+
+  function aktualisiere(animiert = false) {
     const { suche, filter } = leiste.stand();
+    const { ansicht: art, gruppierung } = ansicht.stand();
     const frage = suche.trim().toLowerCase();
     const treffer = eintraege.filter(
       (e) =>
@@ -403,9 +483,24 @@ function zeichne(bereich, ctx, daten, neu) {
         (!filter.stufe || e.kind.stufeId === filter.stufe) &&
         (filter.zugang !== "ohne" || e.kind.eltern.length === 0),
     );
-    const [von, bis] = seiten.fenster(treffer.length);
-    koerper.replaceChildren(...treffer.slice(von, bis).map((e) => e.tr));
-    wurzel.hidden = treffer.length === 0;
+    const { gruppen, schluesselVon } = gruppenFuer(gruppierung);
+    const { geordnet, gesamt } = gliedere(treffer, gruppen, schluesselVon);
+    const [von, bis] = seiten.fenster(geordnet.length);
+    zeichneAnsicht(liste, {
+      ansicht: art,
+      beschriftung: "Kinder",
+      spalten: ["Kind", "Stufe", "Zugang", "Aktionen"],
+      abschnitte: abschnitte(
+        geordnet.slice(von, bis),
+        gruppen,
+        schluesselVon,
+        gesamt,
+      ),
+      karte,
+      zeile,
+      animiert,
+    });
+    liste.hidden = treffer.length === 0;
     leiste.setzeTreffer(treffer.length, daten.kinder.length);
     keine.replaceChildren(
       treffer.length === 0
@@ -417,7 +512,7 @@ function zeichne(bereich, ctx, daten, neu) {
         : [],
     );
   }
-  aktualisiere();
+  aktualisiere(true);
   bereich.append(
     ...[
       ohneZugang > 0 &&
@@ -429,8 +524,9 @@ function zeichne(bereich, ctx, daten, neu) {
             : `${ohneZugang} Kinder haben keinen Zugang: Ohne verknüpften Elternteil kann niemand sie in der App sehen.`,
         ),
       leiste.wurzel,
+      ansicht.wurzel,
       keine,
-      wurzel,
+      liste,
       seiten.wurzel,
     ].filter(Boolean),
   );

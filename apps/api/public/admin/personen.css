@@ -1039,3 +1039,535 @@ a.pe-bearbeiten:hover {
 .tabellenrahmen {
   position: relative;
 }
+
+/* ===== Mitglieder-Darstellung (#624, mitglieder.js): Karten und Liste für Personen, Kinder und Gruppen ===== */
+
+/* Leiste: links «Alle wählen», rechts Gruppieren und Ansicht */
+.mg-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+}
+
+.mg-leiste-links,
+.mg-leiste-rechts {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+}
+
+.mg-leiste-rechts {
+  margin-left: auto;
+}
+
+.mg-leistenfeld {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.mg-leistentext {
+  color: var(--leise);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+/* Umschalter (Muster «view-toggle-toolbar»): Schieber unter der gewählten Option, Pfeiltasten wechseln */
+.mg-umschalter {
+  position: relative;
+  display: inline-flex;
+  padding: 2px;
+  background: var(--surface-container);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-full);
+  isolation: isolate;
+}
+
+.mg-umschalter-wahl {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  color: var(--leise);
+  border-radius: var(--r-full);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.mg-umschalter-wahl .i {
+  width: 18px;
+  height: 18px;
+}
+
+.mg-umschalter-wahl:hover,
+.mg-umschalter-wahl:has(:checked) {
+  color: var(--text);
+}
+
+.mg-umschalter-wahl:has(:focus-visible) {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+/* Die echte Eingabe liegt unsichtbar über der Option: Fokus und Klick bleiben bei ihr */
+.mg-umschalter-eingabe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.mg-umschalter-schieber {
+  position: absolute;
+  z-index: 0;
+  top: 2px;
+  bottom: 2px;
+  left: 0;
+  width: var(--mg-b, 0);
+  background: var(--karte);
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  opacity: 0;
+  transform: translateX(var(--mg-x, 0));
+}
+
+.mg-umschalter--bereit .mg-umschalter-schieber {
+  opacity: 1;
+}
+
+/* Ohne gemessenen Schieber trägt die gewählte Option selbst die Fläche */
+.mg-umschalter:not(.mg-umschalter--bereit) .mg-umschalter-wahl:has(:checked) {
+  background: var(--karte);
+  box-shadow: inset 0 0 0 1px var(--outline);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mg-umschalter-wahl {
+    transition: color var(--dauer) var(--kurve);
+  }
+
+  .mg-umschalter--gleitet .mg-umschalter-schieber {
+    transition:
+      transform var(--dauer) var(--kurve),
+      width var(--dauer) var(--kurve);
+  }
+}
+
+/* Abschnitte (Muster «team-members»: Titel, daneben die Zahl) */
+.mg-abschnitt + .mg-abschnitt {
+  margin-top: 2.25rem;
+}
+
+.mg-abschnittkopf {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.5rem;
+}
+
+.mg-abschnitt > .mg-abschnittkopf {
+  margin-bottom: 0.5rem;
+}
+
+.mg-abschnittname {
+  margin: 0;
+  color: var(--titel);
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+  font-weight: 700;
+}
+
+.mg-anzahl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.75rem;
+  height: 1.75rem;
+  padding: 0 0.5rem;
+  color: var(--leise);
+  background: var(--surface-container);
+  border-radius: var(--r-full);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.mg-kennzeichen {
+  flex: none;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.5rem;
+  object-fit: contain;
+}
+
+.mg-kennzeichen--buchstabe {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--on-stufe-container);
+  background: var(--stufe-container);
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+/* Karten (Muster «profile-card»: Bild gross, Name, Kennzeichen unter einer Linie) */
+.mg-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: 1rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mg-karte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  min-width: 0;
+  padding: 1.25rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+.mg-karte:hover {
+  border-color: var(--outline);
+}
+
+.mg-karte.gewaehlt {
+  background: var(--secondary-container);
+  border-color: var(--accent);
+}
+
+.mg-karte--aus .mg-titel,
+.mg-karte--aus .mg-bild {
+  opacity: 0.75;
+}
+
+.mg-wer {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.mg-wer--gross {
+  align-items: center;
+  gap: 1rem;
+}
+
+.mg-bild {
+  flex: none;
+}
+
+.mg-bild .ava {
+  width: 2.75rem;
+  height: 2.75rem;
+  font-size: 0.9375rem;
+}
+
+.mg-wer--gross .mg-bild .ava {
+  width: 4rem;
+  height: 4rem;
+  border-radius: var(--r-sm);
+  font-size: 1.375rem;
+}
+
+/* Kinder tragen die Stufenfarbe: Das Bild sagt schon, zu welcher Stufe sie gehören */
+.mg-bild--stufe .ava {
+  color: var(--st);
+  background: var(--st-f);
+}
+
+.mg-bild--blau .ava {
+  color: var(--auf-blau-f);
+  background: var(--blau-f);
+}
+
+.mg-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.mg-titel {
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.mg-wer--gross .mg-titel {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.mg-du {
+  color: var(--leise);
+  font-weight: 600;
+}
+
+.mg-zweit {
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.mg-karte:has(.mg-wahl) .mg-wer--gross .mg-text {
+  padding-right: 1.75rem;
+}
+
+.mg-wahl {
+  position: absolute;
+  top: 0.875rem;
+  right: 0.875rem;
+  z-index: 1;
+}
+
+.mg-wahl .wahl {
+  min-height: 0;
+}
+
+/* Die Fläche zum Treffen ist grösser als das Kästchen (44 px) */
+.mg-wahl .wahl input {
+  position: relative;
+}
+
+.mg-wahl .wahl input::before {
+  content: "";
+  position: absolute;
+  inset: -10px;
+}
+
+.mg-karte .chips,
+.mg-liste .chips {
+  align-items: center;
+}
+
+.mg-karte .chips {
+  min-width: 0;
+}
+
+.chip--leise {
+  color: var(--leise);
+  background: var(--surface-container);
+}
+
+.mg-hinweis {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.mg-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 0.75rem;
+  margin-top: auto;
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.mg-zustand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.875rem;
+  min-width: 0;
+  margin-top: 0.25rem;
+}
+
+.mg-liste .mg-zustand {
+  margin-top: 0;
+}
+
+.mg-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
+/* Ruhige Marken: Symbol und Wort, leise; Chips bleiben dem, was Aufmerksamkeit verlangt */
+.mg-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--leise);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.125rem;
+}
+
+.mg-marke .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.2;
+}
+
+.mg-marke--ok {
+  color: var(--ok);
+}
+
+/* Liste: dieselbe Tabelle wie überall, dazu Abschnittszeilen und grössere Bilder */
+.mg-liste .mg-wer .ava {
+  width: 2.75rem;
+  height: 2.75rem;
+}
+
+.tabelle .mg-gruppenzeile th {
+  padding: 1.25rem 1rem 0.5rem;
+  color: var(--text);
+  background: var(--surface);
+  border-top: 0;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.tabelle tbody tr.mg-gruppenzeile:hover > * {
+  background: var(--surface);
+}
+
+.tabelle tbody tr.mg-gruppenzeile:first-child th {
+  padding-top: 0.75rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .mg-karte {
+    transition:
+      border-color var(--dauer) var(--kurve),
+      background-color var(--dauer) var(--kurve);
+  }
+
+  /* Nur beim Wechsel von Ansicht oder Gruppierung: Die Karten blenden gestaffelt ein, ein Tippen im Filter lässt sie in Ruhe */
+  .mg-ein .mg-karte,
+  .mg-ein .mg-liste tbody tr {
+    animation: mg-ein var(--dauer-lang) var(--kurve) both;
+  }
+
+  .mg-ein .mg-karte:nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .mg-ein .mg-karte:nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .mg-ein .mg-karte:nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  .mg-ein .mg-karte:nth-child(5) {
+    animation-delay: 160ms;
+  }
+
+  .mg-ein .mg-karte:nth-child(6) {
+    animation-delay: 200ms;
+  }
+
+  .mg-ein .mg-karte:nth-child(n + 7) {
+    animation-delay: 240ms;
+  }
+
+  @keyframes mg-ein {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+  }
+}
+
+@media (max-width: 40rem) {
+  .mg-leiste,
+  .mg-leiste-rechts {
+    align-items: stretch;
+    flex-direction: column;
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .mg-leistenfeld {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+
+  .mg-umschalter {
+    display: flex;
+  }
+}
+
+@media (forced-colors: active) {
+  .mg-umschalter-schieber {
+    border-color: Highlight;
+  }
+
+  .mg-karte.gewaehlt {
+    border-color: Highlight;
+  }
+}
+
+/* Liste als Zeilen (Gruppe): Bild und Name links, Funktion und Aktionen rechts, Trennlinien dazwischen */
+.mg-zeilen {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mg-zeilen > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding: 0.75rem 0;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.mg-zeilen > li:first-child {
+  border-top: 0;
+}
+
+.mg-zeilen > li > .mg-wer {
+  flex: 1 1 13rem;
+}
+
+.mg-zeilen .pe-rolle {
+  flex: 1 1 14rem;
+}
+
+.mg-karte .pe-rolle {
+  flex: none;
+}
+
+.mg-ansicht .mg-abschnitt > .mg-abschnittkopf {
+  margin-top: 0.5rem;
+}
+
+/* Anrufen: Symbol allein, quadratisch auf die Höhe der Knöpfe; der Name steht im aria-label */
+.knopf.mg-anruf {
+  width: 2.75rem;
+  padding: 0;
+}
