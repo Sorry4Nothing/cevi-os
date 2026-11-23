@@ -280,21 +280,25 @@ function zeichne(bereich, ctx, stand) {
   const formular = el(
     "form",
     { class: "formular ws-einstellungen", novalidate: true },
-    formularRaster({
-      felder: [
-        name.wurzel,
-        ...BILDER.map(bildFeld),
-        meldung,
-        el("div", { class: "ws-einst-leiste" }, status, speichern),
-      ],
-      seiteTitel: "So sieht es aus",
-      seite: [
-        vorschauKarte("Kopf am Tag", kopfHell),
-        vorschauKarte("Kopf in der Nacht", kopfDunkel),
-        vorschauKarte("Tab im Browser", tab),
-        vorschauKarte("Fehlerseite", fehlerseite),
-      ],
-    }),
+    el(
+      "div",
+      { class: "ws-frei" },
+      formularRaster({
+        felder: [
+          name.wurzel,
+          ...BILDER.map(bildFeld),
+          meldung,
+          el("div", { class: "ws-einst-leiste" }, status, speichern),
+        ],
+        seiteTitel: "So sieht es aus",
+        seite: [
+          vorschauKarte("Kopf am Tag", kopfHell),
+          vorschauKarte("Kopf in der Nacht", kopfDunkel),
+          vorschauKarte("Tab im Browser", tab),
+          vorschauKarte("Fehlerseite", fehlerseite),
+        ],
+      }),
+    ),
   );
   zeichneVorschau();
   zeigeStatus();

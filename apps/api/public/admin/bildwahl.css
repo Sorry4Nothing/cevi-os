@@ -168,3 +168,29 @@
 .bw .suche .eingabe {
   padding-left: 48px;
 }
+
+/* Formularraster ohne feste Höhe (#591): Es wächst mit seinem Inhalt, nur die Vorschau bleibt beim Scrollen stehen. Gilt für Seiten mit Kopf und für Formulare mit Knöpfen unter dem Raster; das Raster der Querschnitt-Komponenten füllt sonst die Höhe des Fensters. */
+@media (min-width: 68.8125em) {
+  .ws-frei .formularraster {
+    height: auto;
+    min-height: 0;
+    align-items: start;
+  }
+
+  .ws-frei .formularraster-felder {
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+  }
+
+  .ws-frei .formularraster-seite {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+  }
+}
+
+/* Eine Flussseite mit Zweispalter ist so breit wie die breiten Seiten (die Formularseiten sind schmal) */
+.fluss-seite:has(.ws-frei) {
+  max-width: 64rem;
+}

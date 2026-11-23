@@ -237,23 +237,3 @@
   }
 }
 
-/* Die Seite hat einen Kopf über dem Formular: Das Raster wächst mit, nur die Vorschau bleibt beim Scrollen stehen (das Formularraster der Flussseiten füllt sonst die Höhe des Fensters) */
-@media (min-width: 68.8125em) {
-  .ws-einstellungen .formularraster {
-    height: auto;
-    min-height: 0;
-    align-items: start;
-  }
-
-  .ws-einstellungen .formularraster-felder {
-    margin: 0;
-    padding: 0;
-    overflow: visible;
-  }
-
-  .ws-einstellungen .formularraster-seite {
-    position: sticky;
-    top: 1rem;
-    max-height: calc(100dvh - 2rem);
-  }
-}
