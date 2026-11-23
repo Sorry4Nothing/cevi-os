@@ -145,8 +145,13 @@ export function seitenkopf({ titel, untertitel }) {
   return { wurzel, h1, unter, aktion };
 }
 
-// Rückmeldungen: eine Live-Region, in die Hinweise gestapelt werden. Keine Meldung verschwindet von selbst: Jede hat «Hinweis schliessen».
+// Rückmeldungen: eine Live-Region, in die Hinweise gestapelt werden. Jede hat «Hinweis schliessen».
 // art: «ok», «info», «warn» oder «fehler» (Alert); aktion: { text, onclick } für «Beheben», «Nochmals versuchen» u. ä.
+// Erfolg und Info ohne Aktion gehen nach BLEIBT_MS von selbst (#570, Entscheid des Nutzers); Zeigen und Fokus halten die Zeit an, danach beginnt sie neu.
+// Warnungen, Fehler und alles mit einer Aktion bleiben, bis die Person sie schliesst: Dort gibt es etwas zu lesen oder zu entscheiden
+export const BLEIBT_MS = 6000;
+// So lange blendet die Meldung aus (geruest.css, nur bei erlaubter Bewegung sichtbar)
+const AUSBLENDEN_MS = 300;
 export function erstelleRueckmeldungen() {
   const wurzel = el("div", {
     id: "rueckmeldung",
@@ -190,6 +195,22 @@ export function erstelleRueckmeldungen() {
       ),
     );
     wurzel.append(hinweis);
+    if ((art === "ok" || art === "info") && !aktion) {
+      let timer;
+      const halte = () => window.clearTimeout(timer);
+      const starte = () => {
+        halte();
+        timer = window.setTimeout(() => {
+          hinweis.classList.add("hinweis--geht");
+          window.setTimeout(() => hinweis.remove(), AUSBLENDEN_MS);
+        }, BLEIBT_MS);
+      };
+      hinweis.addEventListener("pointerenter", halte);
+      hinweis.addEventListener("pointerleave", starte);
+      hinweis.addEventListener("focusin", halte);
+      hinweis.addEventListener("focusout", starte);
+      starte();
+    }
   }
   return { wurzel, melde };
 }
