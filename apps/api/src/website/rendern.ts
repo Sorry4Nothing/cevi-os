@@ -848,10 +848,37 @@ function rendereEintraege(
   }));
 }
 
+const istKnopf = (k: HtmlKnoten | undefined, klasse: string) =>
+  typeof k === "object" && k.attr?.class === klasse;
+
+// Schaltflächen, die unmittelbar aufeinander folgen, bilden eine Gruppe in einer Zeile (#555): Hauptaktion und Nebenaktionen gehören sichtbar zusammen.
+// Eine einzelne Schaltfläche bleibt ein Absatz
+function gruppiereAktionen(knoten: HtmlKnoten[]): HtmlKnoten[] {
+  const aus: HtmlKnoten[] = [];
+  for (const k of knoten) {
+    const vor = aus.at(-1);
+    if (
+      typeof k === "object" &&
+      typeof vor === "object" &&
+      istKnopf(k, "knopf") &&
+      (istKnopf(vor, "knopf") || istKnopf(vor, AKTIONEN))
+    ) {
+      aus[aus.length - 1] = el(
+        "div",
+        { class: AKTIONEN },
+        ...(vor.kinder ?? []),
+        ...(k.kinder ?? []),
+      );
+    } else {
+      aus.push(k);
+    }
+  }
+  return aus;
+}
+const AKTIONEN = "knopfreihe aktionen";
+
 const alsHtml = (liste: Eintrag[]) =>
-  liste
-    .map((e) => e.knoten)
-    .filter((k) => k !== null)
+  gruppiereAktionen(liste.map((e) => e.knoten).filter((k) => k !== null))
     .map(serialisiere)
     .join("\n");
 
