@@ -532,6 +532,51 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/bildwahl.js:
+    get:
+      operationId: getAdminBildwahlSkript
+      summary: Skript der Verwaltung – Bildwahl im Fluss
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/bildwahl.css:
+    get:
+      operationId: getAdminBildwahlStilvorlage
+      summary: Stilvorlage der Verwaltung – Bildwahl im Fluss
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-einstellungen.css:
+    get:
+      operationId: getAdminWebsiteEinstellungenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Einstellungen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/werkzeuge.css:
     get:
       operationId: getAdminWerkzeugeStilvorlage

@@ -2,14 +2,16 @@ import { anfrage, fehlertext } from "./api.js";
 import { zustandsKarte } from "./zustaende.js";
 import {
   aktionenZelle,
-  auswahl,
   chip,
   dialogFormular,
   el,
   feld,
+  filterGruppe,
   knopf,
   tabelle,
 } from "./dom.js";
+import { datumsfeld, zeitfeld } from "./datumsfeld.js";
+import { formularRaster } from "./formularraster.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 
 // Stufenfelder (#355): Datum, Treffzeit, Treffpunkt, Schlusszeit, Schlussort und Mitnehmen je Stufe und Datum.
@@ -91,13 +93,14 @@ function zeichne(bereich, ctx, daten, neu) {
     return;
   }
   const { gewaehlt, stufen, eckdaten } = daten;
-  const stufenwahl = auswahl({
-    label: "Stufe",
-    optionen: stufen.map((s) => [s.id, s.name]),
+  // Die Stufen als Pillen: ein Tipp wechselt, alle sind auf einen Blick da
+  const stufenwahl = filterGruppe({
+    beschriftung: "Stufe",
     wert: gewaehlt.id,
-  });
-  stufenwahl.eingabe.addEventListener("change", () => {
-    location.hash = `#website/stufenfakten/${stufenwahl.eingabe.value}`;
+    eintraege: stufen.map((s) => ({ text: s.name, wert: s.id })),
+    beiAenderung: (id) => {
+      location.hash = `#website/stufenfakten/${id}`;
+    },
   });
   ctx.kopfAktion(
     knopf("Neues Datum", {
@@ -182,19 +185,22 @@ function zeile(z, stufe, ctx, neu) {
   );
 }
 
+// Neues Datum oder Angaben bearbeiten: links die Felder, rechts die Angaben so, wie die Stufenseite sie ordnet (die Vorschau geht beim Tippen mit)
 function formular({ stufe, ctx, neu, zeile }) {
   const neuesDatum = zeile === undefined;
-  const tag = feld({
-    label: "Datum",
-    typ: "date",
-    wert: zeile?.tag ?? "",
-    required: true,
-    min: heute(),
-    readOnly: !neuesDatum,
-  });
-  const treffZeit = feld({
+  // Das Datum eines bestehenden Eintrags bleibt, wie es ist: Ein anderes Datum wäre ein neuer Eintrag
+  const tag = neuesDatum
+    ? datumsfeld({ label: "Datum", required: true, min: heute() })
+    : feld({
+        label: "Datum",
+        wert: datumText(zeile.tag),
+        readOnly: true,
+        hilfe:
+          "Das Datum lässt sich nicht ändern. Lege dafür ein neues Datum an.",
+      });
+  const datumWert = () => (neuesDatum ? tag.eingabe.value : zeile.tag);
+  const treffZeit = zeitfeld({
     label: "Treffzeit",
-    typ: "time",
     wert: zeile?.treffZeit ?? "",
   });
   const treffpunkt = feld({
@@ -202,9 +208,8 @@ function formular({ stufe, ctx, neu, zeile }) {
     wert: zeile?.treffpunkt ?? "",
     maxlength: MAX_ORT,
   });
-  const schlussZeit = feld({
+  const schlussZeit = zeitfeld({
     label: "Schlusszeit",
-    typ: "time",
     wert: zeile?.schlussZeit ?? "",
   });
   const schlussOrt = feld({
@@ -221,10 +226,71 @@ function formular({ stufe, ctx, neu, zeile }) {
     hilfe: "Ein Gegenstand pro Zeile.",
   });
   const alle = [tag, treffZeit, treffpunkt, schlussZeit, schlussOrt, mitnehmen];
+
+  const vorschau = el("dl", { class: "ws-stufenvorschau" });
+  const zeigeVorschau = () => {
+    const wert = datumWert();
+    const mitZeit = (zeit, ort) =>
+      [zeit && `${zeit} Uhr`, ort.trim()].filter(Boolean).join(", ");
+    const dinge = mitnehmen.eingabe.value
+      .split("\n")
+      .map((d) => d.trim())
+      .filter(Boolean);
+    const leer = el("dd", { class: "leise" }, "noch leer");
+    const text = (t) => (t ? el("dd", {}, t) : leer.cloneNode(true));
+    const reihe = (name, inhalt) =>
+      el(
+        "div",
+        { class: "ws-stufenvorschau-zeile" },
+        el("dt", {}, name),
+        inhalt,
+      );
+    vorschau.replaceChildren(
+      reihe("Datum", text(wert ? datumText(wert) : "")),
+      reihe(
+        "Treffen",
+        text(mitZeit(treffZeit.eingabe.value, treffpunkt.eingabe.value)),
+      ),
+      reihe(
+        "Schluss",
+        text(mitZeit(schlussZeit.eingabe.value, schlussOrt.eingabe.value)),
+      ),
+      reihe(
+        "Mitnehmen",
+        dinge.length > 0
+          ? el(
+              "dd",
+              {},
+              el(
+                "ul",
+                {},
+                dinge.map((d) => el("li", {}, d)),
+              ),
+            )
+          : leer.cloneNode(true),
+      ),
+    );
+  };
+  for (const f of alle) {
+    f.eingabe.addEventListener("input", zeigeVorschau);
+    f.eingabe.addEventListener("change", zeigeVorschau);
+  }
+  zeigeVorschau();
+
   dialogFormular({
     titel: neuesDatum ? "Neues Datum" : "Angaben bearbeiten",
     beschreibung: `Stufe ${stufe.name}. Wirkt sofort, ohne Veröffentlichen.`,
-    felder: alle.map((f) => f.wurzel),
+    felder: [
+      el(
+        "div",
+        { class: "ws-frei" },
+        formularRaster({
+          felder: alle.map((f) => f.wurzel),
+          seiteTitel: "So steht es auf der Stufenseite",
+          seite: vorschau,
+        }),
+      ),
+    ],
     ok: "Speichern",
     senden: () => {
       const werte = {
@@ -237,7 +303,20 @@ function formular({ stufe, ctx, neu, zeile }) {
       if (Object.values(werte).every((w) => w.trim() === "")) {
         throw new Error("leer");
       }
-      return anfrage("PUT", url(stufe.id, tag.eingabe.value), werte);
+      return anfrage("PUT", url(stufe.id, datumWert()), werte);
+    },
+    // Ein neues Datum ohne Wahl: Meldung beim Feld, Fokus dorthin
+    pruefe: () => {
+      if (!neuesDatum || tag.eingabe.value !== "") return false;
+      const m = el(
+        "p",
+        { class: "feld-fehler", role: "alert" },
+        "Wähle ein Datum.",
+      );
+      tag.wurzel.append(m);
+      tag.eingabe.focus();
+      tag.eingabe.addEventListener("input", () => m.remove(), { once: true });
+      return true;
     },
     fehlertext: (f) =>
       f.message === "leer"
