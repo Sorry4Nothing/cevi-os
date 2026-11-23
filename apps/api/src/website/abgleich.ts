@@ -253,6 +253,8 @@ export async function ladeDaten(
   const personen: Map<string, Mitglied> = new Map();
   const teams: Map<string, { name: string; mitglieder: Mitglied[] }> =
     new Map();
+  // Stufen-Tags unter den Tags der Bausteine «leitungsteam»: Ihr Team zeigt Porträts mit Bild (#610)
+  const stufenIds: string[] = [];
 
   // Nur öffentliche Medien der Abteilung: Ein anderes Medium in einem öffentlichen Baustein erscheint nicht
   if (medienIds.size > 0) {
@@ -319,11 +321,12 @@ export async function ladeDaten(
 
   if (tagIds.size > 0) {
     const tags = await db
-      .select({ id: tag.id, name: tag.name })
+      .select({ id: tag.id, name: tag.name, typ: tag.typ })
       .from(tag)
       .where(
         and(eq(tag.abteilungId, abteilungId), inArray(tag.id, [...tagIds])),
       );
+    stufenIds.push(...tags.filter((t) => t.typ === "stufe").map((t) => t.id));
     const mitglieder = await db
       .select({
         tagId: personTag.tagId,
@@ -352,11 +355,12 @@ export async function ladeDaten(
       });
     }
   }
-  // Freigegebene Personen und ihre Profilbilder für den Baustein «personen» (#560)
+  // Personen mit einer Rolle mit Aussenwirkung und ihre Profilbilder für den Baustein «personen» (#560) und das Leitungsteam der Stufen (#610)
   const frei = await ladeWebsitePersonen(
     db,
     abteilungId,
     personenIn(dokumente),
+    stufenIds,
   );
   return {
     ...keineDaten(),
@@ -364,6 +368,7 @@ export async function ladeDaten(
     personen,
     teams,
     websitePersonen: frei.personen,
+    stufenteams: frei.stufenteams,
     personenDateien: frei.dateien,
   };
 }

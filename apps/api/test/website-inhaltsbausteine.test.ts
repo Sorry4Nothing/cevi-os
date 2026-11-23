@@ -188,7 +188,7 @@ describe("Renderer", () => {
     );
   });
 
-  test("Personen: Name und Profilbild von der Person, ohne Freigabe gar nicht; die Adresse ist ein mailto-Link", () => {
+  test("Personen: Name und Profilbild von der Person, ohne Rolle mit Aussenwirkung (nicht in den Daten) gar nicht; die Adresse ist ein mailto-Link", () => {
     const [frei, ohneBild, gesperrt] = [id(), id(), id()];
     const html = seite(
       dok(
@@ -201,7 +201,7 @@ describe("Renderer", () => {
               email: "flink@example.org",
             },
             { personId: ohneBild, funktion: BOESE },
-            { personId: gesperrt, funktion: "Nicht freigegeben" },
+            { personId: gesperrt, funktion: "Ohne Rolle" },
           ],
         }),
       ),
@@ -224,7 +224,7 @@ describe("Renderer", () => {
       `<span class="portraet portraet--leer" aria-hidden="true">XA</span>`,
     );
     // Wer nicht freigegeben ist, erscheint nicht, auch nicht mit der Funktion
-    expect(html).not.toContain("Nicht freigegeben");
+    expect(html).not.toContain("Ohne Rolle");
     expect(html).not.toContain("<x-boese");
   });
 

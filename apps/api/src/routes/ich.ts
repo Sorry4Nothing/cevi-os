@@ -1,22 +1,14 @@
-import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import {
-  auditLog,
-  kind,
-  kindEltern,
-  profilbild,
-  stufe,
-  user,
-} from "../db/schema.js";
+import { kind, kindEltern, profilbild, stufe, user } from "../db/schema.js";
 import { bildUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import type { Person } from "../rechte.js";
 import { erstelleLagerBenachrichtigungEinstellungRouten } from "./lager/benachrichtigungen.js";
 import { telefonSchema } from "../telefon.js";
-import { meldeWebsiteEreignis } from "../website/ereignisse.js";
 
 // Mindestens ein Feld: Ein leeres set() wirft in Drizzle («No values to set»)
 const profilSchema = z
@@ -25,8 +17,6 @@ const profilSchema = z
     pushProgramme: z.boolean(),
     pushAnmeldungen: z.boolean(),
     telefon: telefonSchema,
-    // Freigabe für die öffentliche Website (#560): Die Person entscheidet selbst; false widerruft
-    websiteFreigabe: z.boolean(),
   })
   .partial()
   .refine((b) => Object.values(b).some((wert) => wert !== undefined));
@@ -50,7 +40,6 @@ export function erstelleIchRouten({ db }: { db: Db }) {
             pushChat: user.pushChat,
             pushProgramme: user.pushProgramme,
             pushAnmeldungen: user.pushAnmeldungen,
-            websiteFreigabe: sql<boolean>`${user.websiteFreigabeAm} is not null`,
             bildUrl,
           })
           .from(user)
@@ -138,42 +127,7 @@ export function erstelleIchRouten({ db }: { db: Db }) {
         ) {
           throw new HTTPException(403);
         }
-        const { websiteFreigabe, ...felder } = daten;
-        await db.transaction(async (tx) => {
-          if (Object.keys(felder).length > 0) {
-            await tx.update(user).set(felder).where(eq(user.id, person.id));
-          }
-          if (websiteFreigabe === undefined) return;
-          // Nur ein Wechsel schreibt und steht im Audit-Log (ohne Personendaten)
-          const geaendert = await tx
-            .update(user)
-            .set({ websiteFreigabeAm: websiteFreigabe ? sql`now()` : null })
-            .where(
-              and(
-                eq(user.id, person.id),
-                websiteFreigabe
-                  ? isNull(user.websiteFreigabeAm)
-                  : isNotNull(user.websiteFreigabeAm),
-              ),
-            )
-            .returning({ id: user.id });
-          if (geaendert.length === 0) return;
-          await tx.insert(auditLog).values({
-            abteilungId: person.abteilungId,
-            akteurId: person.id,
-            aktion: "website_freigabe_geaendert",
-            zielTyp: "person",
-            zielId: person.id,
-            details: { websiteFreigabe },
-          });
-        });
-        // Die Website zeigt oder vergisst die Person beim nächsten Abgleich
-        if (websiteFreigabe !== undefined) {
-          meldeWebsiteEreignis({
-            art: "seite_geaendert",
-            abteilungId: person.abteilungId,
-          });
-        }
+        await db.update(user).set(daten).where(eq(user.id, person.id));
         return c.body(null, 204);
       })
       // Schalter der Lager-Benachrichtigungen je Art (#369)

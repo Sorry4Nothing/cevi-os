@@ -100,6 +100,30 @@ describe("Admin-Panel: Personen, Gruppen, Kinder, Stufen, Import (#594)", () => 
     expect(kinder).not.toContain("hinweis--warn");
   });
 
+  test("Website nach Rolle (#610): kein Schalter, nur ein Hinweis; Stufen werden zugewiesen, nicht vorab gezeigt", () => {
+    const blatt = lies("personen-blatt.js");
+    // Der Schalter und sein Feld im Aufruf sind weg
+    expect(blatt).not.toContain("websiteFreigabe");
+    expect(blatt).not.toContain("auf der Website zeigen");
+    // Der Hinweis nennt die Regel und die Rollen
+    expect(blatt).toContain("keine Auswahl, es folgt der Rolle");
+    expect(blatt).toContain("Leitung oder Stufenleitung");
+    // Stufe hinzufügen mit Rolle, Entfernen mit Rückgängig; «Teilnehmer» gibt es im Rechtemodell nicht
+    expect(blatt).toContain('"Stufe hinzufügen"');
+    expect(blatt).toContain('"Rückgängig"');
+    expect(blatt).toContain("Rolle in der Stufe");
+    expect(blatt).not.toContain('"Teilnehmer"');
+    // Die Karte «Gruppen und Tags» bietet keine Stufen-Tags an, sie nennt sie nur
+    expect(blatt).toContain('tag.typ !== "stufe"');
+    expect(blatt).toContain("über «Rechte und Rollen»");
+  });
+
+  test("Gruppe einer Stufe: Leitung und Stufenleitung ändert man nur bei der Person", () => {
+    const detail = lies("tags-detail.js");
+    expect(detail).toContain("istStufenrolle");
+    expect(detail).toContain("Bei der Person ändern");
+  });
+
   test("die Telefonnummer wird in einer eigenen reinen Datei geschrieben", () => {
     expect(lies("telefon.js")).toContain("normalisiereTelefon");
   });

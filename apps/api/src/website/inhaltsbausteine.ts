@@ -38,6 +38,61 @@ function foto(
   });
 }
 
+// Die Porträtliste der Personen und der Leitung einer Stufe (#560, #610); null ohne Einträge. letzte.ebene: siehe rendereInhaltsBaustein
+export function personenListe(
+  eintraege: {
+    name: string;
+    bild?: string;
+    funktion?: string;
+    email?: string;
+  }[],
+  letzte: { ebene: number },
+): HtmlKnoten | null {
+  if (eintraege.length === 0) return null;
+  const ebene = Math.min(3, letzte.ebene + 1);
+  return el(
+    "ul",
+    { class: "personen" },
+    ...eintraege.map((e) => {
+      // Das Profilbild trägt keinen Inhalt, den der Name daneben nicht nennt; der Rahmen schneidet es zu, damit es beim Zeigen wachsen kann. «einblenden» ist die Bewegung der Grundlage (#555)
+      return el(
+        "li",
+        { class: "einblenden" },
+        el(
+          "span",
+          { class: "portraet-rahmen" },
+          e.bild
+            ? el("img", {
+                class: "portraet",
+                src: e.bild,
+                alt: "",
+                width: "256",
+                height: "256",
+                loading: "lazy",
+                decoding: "async",
+              })
+            : el(
+                "span",
+                { class: "portraet portraet--leer", "aria-hidden": "true" },
+                initialen(e.name),
+              ),
+        ),
+        el(`h${ebene}`, { class: "titel" }, e.name),
+        ...(e.funktion ? [el("p", undefined, e.funktion)] : []),
+        ...(e.email
+          ? [
+              el(
+                "p",
+                { class: "adresse" },
+                ...verlinke(`mailto:${e.email}`, [e.email]),
+              ),
+            ]
+          : []),
+      );
+    }),
+  );
+}
+
 // letzte.ebene: Ebene der letzten Überschrift der Seite; Namen von Personen und Artikeln liegen eine darunter
 export function rendereInhaltsBaustein(
   b: InhaltsBaustein,
@@ -48,53 +103,12 @@ export function rendereInhaltsBaustein(
   switch (b.typ) {
     // Der Anzeigename (Cevi-Name oder Vorname) ist die Hauptzeile, Funktion und Adresse stehen klein darunter
     case "personen": {
-      // Nur freigegebene Personen (#560): Wer nicht in den Daten steht, erscheint gar nicht, auch nicht mit Namen
+      // Nur Personen mit einer Rolle mit Aussenwirkung (#610): Wer nicht in den Daten steht, erscheint gar nicht, auch nicht mit Namen
       const eintraege = b.daten.eintraege.flatMap((e) => {
         const p = daten.websitePersonen.get(e.personId.toLowerCase());
         return p ? [{ ...e, ...p }] : [];
       });
-      if (eintraege.length === 0) return null;
-      return el(
-        "ul",
-        { class: "personen" },
-        ...eintraege.map((e) => {
-          // Das Profilbild trägt keinen Inhalt, den der Name daneben nicht nennt; der Rahmen schneidet es zu, damit es beim Zeigen wachsen kann. «einblenden» ist die Bewegung der Grundlage (#555)
-          return el(
-            "li",
-            { class: "einblenden" },
-            el(
-              "span",
-              { class: "portraet-rahmen" },
-              e.bild
-                ? el("img", {
-                    class: "portraet",
-                    src: e.bild,
-                    alt: "",
-                    width: "256",
-                    height: "256",
-                    loading: "lazy",
-                    decoding: "async",
-                  })
-                : el(
-                    "span",
-                    { class: "portraet portraet--leer", "aria-hidden": "true" },
-                    initialen(e.name),
-                  ),
-            ),
-            el(`h${ebene}`, { class: "titel" }, e.name),
-            ...(e.funktion ? [el("p", undefined, e.funktion)] : []),
-            ...(e.email
-              ? [
-                  el(
-                    "p",
-                    { class: "adresse" },
-                    ...verlinke(`mailto:${e.email}`, [e.email]),
-                  ),
-                ]
-              : []),
-          );
-        }),
-      );
+      return personenListe(eintraege, letzte);
     }
     case "artikel":
       return el(

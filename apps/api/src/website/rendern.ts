@@ -3,6 +3,7 @@ import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
 import {
   istInhaltsBaustein,
+  personenListe,
   rendereInhaltsBaustein,
   STIL_INHALT,
 } from "./inhaltsbausteine.js";
@@ -56,8 +57,10 @@ export type MedienDaten = {
 };
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
 export type Mitglied = { name: string; funktion: string | null };
-// Freigegebene Person für den Baustein «personen» (#560): Anzeigename und, falls vorhanden, die Adresse des Profilbilds in der Ausgabe
+// Person mit einer Rolle mit Aussenwirkung (#560, #610): Anzeigename und, falls vorhanden, die Adresse des Profilbilds in der Ausgabe
 export type WebsitePerson = { name: string; bild?: string };
+// Leitung oder Stufenleitung einer Stufe im Leitungsteam der Stufenseite (#610): dazu die Rolle als Text
+export type StufenMitglied = WebsitePerson & { funktion: string };
 // link: der Wert als Link (Eckdaten, #560)
 export type Fakt = { bezeichnung: string; wert: string; link?: string };
 // Ein Termin der Liste (#549): Tage als «JJJJ-MM-TT» und Zeiten als «HH:MM» in Zürcher Zeit, schon so aus der Abfrage; stufen sind die Namen der Stufen-Tags (Chips); anlassId nur bei einem Anlass (Link)
@@ -92,8 +95,10 @@ export type Daten = {
   medien: ReadonlyMap<string, MedienDaten>;
   personen: ReadonlyMap<string, Mitglied>;
   teams: ReadonlyMap<string, { name: string; mitglieder: Mitglied[] }>;
-  // Freigegebene Personen für den Baustein «personen» (#560), nach ID; wer fehlt, erscheint nicht
+  // Personen mit Aussenrolle für den Baustein «personen» (#560, #610), nach ID; wer fehlt, erscheint nicht
   websitePersonen: ReadonlyMap<string, WebsitePerson>;
+  // Leitungsteam einer Stufe mit Bild (#610), nach ID des Stufen-Tags; ein Tag vom Typ «stufe» steht hier, auch wenn niemand die Rolle trägt
+  stufenteams: ReadonlyMap<string, StufenMitglied[]>;
   // Profilbilder dazu als Dateien der Ausgabe [Pfad, Bytes]; schreibt nur der Abgleich
   personenDateien?: [string, Uint8Array][];
   stufenfakten: ReadonlyMap<string, Fakt[]>;
@@ -115,6 +120,7 @@ export const keineDaten = (): Daten => ({
   personen: new Map(),
   teams: new Map(),
   websitePersonen: new Map(),
+  stufenteams: new Map(),
   stufenfakten: new Map(),
   termine: new Map(),
   anlaesse: new Map(),
@@ -620,6 +626,9 @@ function rendereBaustein(
       return p ? el("ul", { class: "kontakt" }, ...mitglieder([p])) : null;
     }
     case "leitungsteam": {
+      // Eine Stufe zeigt ihre Leitung als Porträts mit Bild (#610); jedes andere Team bleibt die Liste mit Cevi-Namen
+      const stufe = daten.stufenteams.get(b.daten.tagId);
+      if (stufe) return personenListe(stufe, letzte);
       const t = daten.teams.get(b.daten.tagId);
       return t && t.mitglieder.length > 0
         ? el("ul", { class: "team" }, ...mitglieder(t.mitglieder))
@@ -1304,7 +1313,12 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     zusatzSkripte: bilder ? bilder.zusatzSkripte : [],
     stile: [
       ...(bilder ? bilder.stile : []),
-      ...(s.dokument.bausteine.some(istInhaltsBaustein) ? [STIL_INHALT] : []),
+      // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
+      ...(s.dokument.bausteine.some(
+        (b) => istInhaltsBaustein(b) || b.typ === "leitungsteam",
+      )
+        ? [STIL_INHALT]
+        : []),
       ...(mitLaden ? STILE_LADEN : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad

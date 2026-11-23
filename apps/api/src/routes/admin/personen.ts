@@ -108,8 +108,6 @@ const aendernSchema = z.strictObject({
   name: text(201).optional(),
   ceviName: ceviNameFeld.nullable().optional(),
   telefon: telefonSchema.optional(),
-  // Freigabe für die öffentliche Website (#560): true setzt den Zeitpunkt, false widerruft
-  websiteFreigabe: z.boolean().optional(),
   admin: z.boolean().optional(),
   rollen: rollenFeld.optional(),
   elternteilVon: elternteilVonFeld.optional(),
@@ -237,7 +235,6 @@ export function erstellePersonenRouten({
               id: user.id,
               name: user.name,
               ceviName: user.ceviName,
-              websiteFreigabeAm: user.websiteFreigabeAm,
               telefon: user.telefon,
               benutzername: user.username,
               role: user.role,
@@ -302,7 +299,6 @@ export function erstellePersonenRouten({
           id: p.id,
           name: p.name,
           ceviName: p.ceviName,
-          websiteFreigabe: p.websiteFreigabeAm !== null,
           bildUrl: p.bildUrl,
           telefon: p.telefon,
           benutzername: p.benutzername,
@@ -402,7 +398,6 @@ export function erstellePersonenRouten({
             // Nur geänderte Schlüssel; ein No-op des Rollen-Editors schreibt keinen Eintrag
             const details: Record<string, unknown> = {};
             let telefonDetails: Record<string, unknown> | undefined;
-            let freigabeWechsel: boolean | undefined;
             if (aenderung.name !== undefined) felder.name = aenderung.name;
             if (aenderung.ceviName !== undefined) {
               felder.ceviName = aenderung.ceviName;
@@ -418,24 +413,6 @@ export function erstellePersonenRouten({
                 telefonDetails = {
                   telefon: aenderung.telefon ? "gesetzt" : "entfernt",
                 };
-              }
-            }
-            if (aenderung.websiteFreigabe !== undefined) {
-              const [bisher] = await tx
-                .select({ am: user.websiteFreigabeAm })
-                .from(user)
-                .where(eq(user.id, id));
-              // Nur ein Wechsel schreibt: Der Zeitpunkt der ersten Freigabe bleibt stehen
-              if ((bisher.am !== null) !== aenderung.websiteFreigabe) {
-                await tx
-                  .update(user)
-                  .set({
-                    websiteFreigabeAm: aenderung.websiteFreigabe
-                      ? sql`now()`
-                      : null,
-                  })
-                  .where(eq(user.id, id));
-                freigabeWechsel = aenderung.websiteFreigabe;
               }
             }
             if (aenderung.admin !== undefined) {
@@ -531,15 +508,6 @@ export function erstellePersonenRouten({
             if (Object.keys(details).length > 0) {
               await protokolliere(tx, person, "rolle_geaendert", id, details);
             }
-            if (freigabeWechsel !== undefined) {
-              await protokolliere(
-                tx,
-                person,
-                "website_freigabe_geaendert",
-                id,
-                { websiteFreigabe: freigabeWechsel },
-              );
-            }
             if (telefonDetails) {
               await protokolliere(
                 tx,
@@ -556,8 +524,12 @@ export function erstellePersonenRouten({
           }
           throw fehler;
         }
-        // Die Website zeigt oder vergisst die Person beim nächsten Abgleich (#560)
-        if (aenderung.websiteFreigabe !== undefined) {
+        // Die Website zeigt oder vergisst die Person nach ihrer Rolle und ihrem Namen beim nächsten Abgleich (#610)
+        if (
+          aenderung.rollen !== undefined ||
+          aenderung.ceviName !== undefined ||
+          aenderung.name !== undefined
+        ) {
           meldeWebsiteEreignis({
             art: "seite_geaendert",
             abteilungId: person.abteilungId,
