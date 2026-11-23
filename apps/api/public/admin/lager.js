@@ -454,8 +454,17 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
     [zeitraum(lager.von, lager.bis), lager.ort].filter(Boolean).join(" · "),
   );
   const aktionen = [];
+  // Ein aktives Lager braucht eine Lagerleitung (sonst antwortet der Server mit 409): Der Knopf ist dann gesperrt, der Grund steht darunter
+  const ohneLeitung =
+    lager.status === "entwurf" &&
+    !mitglieder.some((m) => m.rolle === "lagerleitung");
   if (lager.status === "entwurf") {
-    const aktivieren = knopf("Aktivieren", { art: "haupt", symbol: "haken" });
+    const aktivieren = knopf("Aktivieren", {
+      art: "haupt",
+      symbol: "haken",
+      disabled: ohneLeitung,
+      "aria-describedby": ohneLeitung ? "lg-ohne-leitung" : undefined,
+    });
     aktivieren.addEventListener("click", () =>
       statusSetzen(
         aktivieren,
@@ -510,8 +519,25 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neu) {
   ctx.kopfAktion(...aktionen);
 
   const rolle = (r) => mitglieder.filter((m) => m.rolle === r).length;
-  const hinweis =
-    lager.status === "abgeschlossen"
+  const hinweis = ohneLeitung
+    ? el(
+        "div",
+        { class: "hinweis hinweis--warn", id: "lg-ohne-leitung" },
+        el(
+          "span",
+          {},
+          "Zum Aktivieren fehlt die Lagerleitung. Ein aktives Lager braucht mindestens eine.",
+        ),
+        el(
+          "a",
+          {
+            class: "knopf knopf--klein",
+            href: `${ADRESSE}/${lager.id}/mitglieder`,
+          },
+          "Mitglieder öffnen",
+        ),
+      )
+    : lager.status === "abgeschlossen"
       ? el(
           "div",
           { class: "hinweis hinweis--info", role: "status" },

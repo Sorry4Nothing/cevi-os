@@ -1,4 +1,5 @@
 // «Komponenten» (System): Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen der Verwaltung, in Tag und Nacht des Browsers. Zeigt nur feste Beispiele, ruft keine API auf und enthält keine echten Daten. Dient auch als Prüfstand für die Folge-Issues.
+import { anfrage } from "./api.js";
 import {
   chip,
   dialogFormular,
@@ -310,7 +311,7 @@ function werkzeuge(ctx) {
   ];
 }
 
-export function zeige(bereich, ctx) {
+function zeigeGalerie(bereich, ctx) {
   const hinweise = el(
     "div",
     { class: "spalte" },
@@ -435,5 +436,31 @@ export function zeige(bereich, ctx) {
       el("h3", {}, "Liste"),
       skeletonListe({ zeilen: 3 }),
     ),
+  );
+}
+
+// Die Galerie ist ein Werkzeug für Entwickler (#593): Die Antwort der Website-Einstellungen sagt es mit «nameAenderbar» (nur Entwickler dürfen den Namen ändern); ohne diese Angabe, auch bei einem Fehler, bleibt die Galerie zu. Die Navigation blendet den Eintrag für alle anderen aus, sobald sie dieselbe Frage stellt.
+export function zeige(bereich, ctx) {
+  ctx.lade(
+    async () => {
+      try {
+        return (
+          (await anfrage("GET", "/api/v1/redaktion/website")).nameAenderbar ===
+          true
+        );
+      } catch {
+        return false;
+      }
+    },
+    (entwickler) =>
+      entwickler
+        ? zeigeGalerie(bereich, ctx)
+        : bereich.append(
+            zustandsKarte({
+              ueber: "Nur für Entwickler",
+              titel: "Diese Galerie ist ein Werkzeug für Entwickler.",
+              text: "Sie zeigt alle Bausteine der Verwaltung zum Prüfen. Für die tägliche Arbeit brauchst du sie nicht.",
+            }).wurzel,
+          ),
   );
 }
