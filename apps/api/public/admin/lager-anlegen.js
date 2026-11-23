@@ -338,7 +338,7 @@ export function zeige(bereich, ctx) {
                 el(
                   "div",
                   { class: "wer" },
-                  avatar(person.name),
+                  avatar(person.name, { hell: true, bildUrl: person.bildUrl }),
                   el(
                     "div",
                     {},

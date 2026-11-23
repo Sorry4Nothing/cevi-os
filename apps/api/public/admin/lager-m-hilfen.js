@@ -1,6 +1,7 @@
 import { anfrage } from "./api.js";
 import { el, feld, knopf } from "./dom.js";
 import { knopfMit, meldung } from "./lager-gemeinsam.js";
+import { istGeschlossen, istVersionKonflikt } from "./lager-konflikt.js";
 
 // Gemeinsames der Module «Material und Infos» im Lager-Arbeitsbereich (#674): Adressen der Lager-Routen, Rechte, Version-Konflikt, Personenliste. Klassen mit dem Vorsatz «lm-» (lager-material.css).
 
@@ -15,11 +16,9 @@ export const kannSchreiben = (lager, recht) =>
   kannLesen(lager, recht) && !lager?.schreibgeschuetzt;
 
 // 409 VERSION_KONFLIKT: Jemand hat die Zeile inzwischen geändert. Der Body nennt den Stand des Servers («aktuell») und die Felder, die abweichen.
-export const istKonflikt = (f) =>
-  f?.status === 409 && f?.code === "VERSION_KONFLIKT";
-// 409 LAGER_GESCHLOSSEN: Das Lager wurde inzwischen abgeschlossen
-export const istGeschlossen = (f) =>
-  f?.status === 409 && f?.code === "LAGER_GESCHLOSSEN";
+// Die Erkennung der Konflikte ist die gemeinsame aus lager-konflikt.js (#672)
+export const istKonflikt = istVersionKonflikt;
+export { istGeschlossen };
 
 export const KONFLIKT_TEXT =
   "Jemand hat diesen Eintrag inzwischen geändert. Entscheide oben, was gilt.";

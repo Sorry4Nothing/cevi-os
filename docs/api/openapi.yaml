@@ -7870,7 +7870,7 @@ paths:
       operationId: listeAdminLagerMitglieder
       summary: Mitglieder eines Lagers
       description: |
-        Nur die Abteilungsleitung, nur Lager der eigenen Abteilung. Liefert die Mitglieder mit Name, Cevi-Name und Rolle, nach Name sortiert. Nie Zugangsdaten.
+        Nur die Abteilungsleitung, nur Lager der eigenen Abteilung. Liefert die Mitglieder mit Name, Cevi-Name, Profilbild-Pfad (`bildUrl`, `null` ohne Bild; das Bild selbst liefert `GET /api/v1/personen/{id}/bild` nach dessen Regeln) und Rolle, nach Name sortiert. Nie Zugangsdaten.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -28614,6 +28614,7 @@ components:
         - personId
         - name
         - ceviName
+        - bildUrl
         - rolle
       properties:
         personId:
@@ -28625,6 +28626,11 @@ components:
           type:
             - string
             - "null"
+        bildUrl:
+          type:
+            - string
+            - "null"
+          description: Pfad zum Profilbild (`GET /api/v1/personen/{id}/bild`, mit Sitzung), `null` ohne Bild.
         rolle:
           $ref: "#/components/schemas/LagerRolle"
     LagerKonflikt:
