@@ -673,3 +673,99 @@ tr.la-gruppe > th {
 .la-pruefzeile {
   margin-top: 0.75rem;
 }
+
+/* ---- Skeletons, Bewegung und Rückmeldung (#685) ---- */
+.la-sk,
+.la-todos-sk {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.la-sk > .la-umschalter {
+  margin-bottom: 0;
+}
+
+.la-sk-filter {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.la-sk-filter2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.la-sk-feld {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.la-sk-filter .sk--b {
+  width: 100%;
+}
+
+/* To-do-Zeile im Skeleton: Karte mit Kästchen und einer Textzeile, die schmal werden darf */
+.la-todos-sk .la-punkt {
+  flex-wrap: nowrap;
+  padding: 1rem;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+.la-todos-sk .la-punkt .sk--t {
+  flex: 0 1 18rem;
+  width: auto;
+}
+
+.la-todos-sk .sk--b,
+.la-detail .sk--b {
+  width: 100%;
+}
+
+.la-sk .sk--t,
+.la-todos-sk .sk--t {
+  max-width: 100%;
+}
+
+.la-sk > .sk--t {
+  margin-block: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .la-sk-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Karte der Zahl in der Zählzeile: Ziffern gleich breit, damit das Zählen nicht wackelt */
+.la-kennzahlen .lg-zahl {
+  font-variant-numeric: tabular-nums;
+}
+
+.la-fortschritt {
+  margin-block: 0.25rem 0.5rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Die Speicherleiste im Detail steigt auf, wenn sich etwas ändert */
+  .la-detail .lg-speicherleiste:not([hidden]) {
+    animation: lg-hoch 0.24s var(--kurve) both;
+  }
+
+  /* Ein Teil lädt neu: Der alte Inhalt bleibt, wird aber ruhiger */
+  .la-zeitplan[aria-busy="true"] > * {
+    opacity: 0.55;
+    transition: opacity var(--dauer) var(--kurve);
+  }
+
+  /* Gewählte Zeilen färben sich weich */
+  .la-koerper tr {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+}

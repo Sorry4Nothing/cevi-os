@@ -1,7 +1,17 @@
 import { ApiFehler, anfrage } from "./api.js";
 import { datumsfeld, zahlfeld } from "./datumsfeld.js";
 import { ankreuzen, auswahl, el, feld, knopf } from "./dom.js";
-import { skeletonDetail } from "./lader.js";
+import {
+  balkenBis,
+  bewegeUm,
+  blendeEin,
+  blitze,
+  ersetzeMitBewegung,
+  klappe,
+  puls,
+  staffle,
+  zaehlZahl,
+} from "./lager-anim.js";
 import { sortierListe } from "./sortieren.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { feldFehler, symbol, zurueckLink } from "./lager-gemeinsam.js";
@@ -22,6 +32,7 @@ import {
   personenOptionen,
   rechteVon,
   ressortOptionen,
+  skeletonAufgabeDetail,
   statusChip,
 } from "./lager-aufgaben-gemeinsam.js";
 import {
@@ -78,7 +89,7 @@ export function zeige(bereich, ctx, lagerId, lager, aufgabeId) {
       };
     },
     (d, neu) => zeichne(bereich, ctx, lagerId, d, neu),
-    { skeleton: () => skeletonDetail() },
+    { skeleton: () => skeletonAufgabeDetail() },
   );
 }
 
@@ -211,7 +222,8 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
       D.personen.find((p) => p.id === id)?.name ??
       personName(a.unterstuetzung.find((p) => p.id === id));
     function zeichneUnter() {
-      unterOrt.replaceChildren(
+      ersetzeMitBewegung(
+        unterOrt,
         el(
           "ul",
           { class: "la-chipliste", "aria-label": "Unterstützung" },
@@ -220,7 +232,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
             : unterstuetzung.map((id) =>
                 el(
                   "li",
-                  { class: "chip" },
+                  { class: "chip", "data-id": `u-${id}` },
                   nameVon(id),
                   el(
                     "button",
@@ -567,13 +579,33 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
   function checkliste() {
     const liste = D.details.checkliste;
     const erledigt = liste.filter((c) => c.erledigt).length;
+    // Die Zahl zählt und der Balken wächst vom Stand der vorigen Zeichnung zum neuen
+    const vorher = D.check;
+    D.check = { erledigt, gesamt: liste.length };
+    const anteil = (c) => (c && c.gesamt ? (100 * c.erledigt) / c.gesamt : 0);
     const kopf = el(
       "h2",
       { id: "la-h-check" },
       "Checkliste ",
       liste.length > 0 &&
-        el("span", { class: "n" }, `${erledigt} von ${liste.length}`),
+        el(
+          "span",
+          { class: "n" },
+          zaehlZahl(erledigt, String, vorher?.erledigt),
+          " von ",
+          liste.length,
+        ),
     );
+    const balken = el("span");
+    const fortschritt =
+      liste.length > 0 &&
+      el(
+        "div",
+        { class: "fortschritt la-fortschritt", "aria-hidden": "true" },
+        balken,
+      );
+    if (fortschritt)
+      balkenBis(balken, anteil(D.check), vorher ? anteil(vorher) : 0);
     const ort = el("div", { class: "la-check" });
     async function abhaken(c, wert) {
       try {
@@ -588,6 +620,11 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
             : null,
         });
         neueSektion("checkliste");
+        const z = knoten.checkliste.querySelector(
+          `[data-id="${CSS.escape(c.id)}"]`,
+        );
+        puls(z?.querySelector(".wahl"));
+        if (z) blitze(z);
       } catch (f) {
         if (istKonflikt(f)) {
           await neueDetails();
@@ -646,8 +683,8 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
         text: `Punkt «${c.text}» gelöscht`,
         erledigt: "Gelöscht.",
         ansicht: {
-          weg: () => (zeileEl.hidden = true),
-          zurueck: () => (zeileEl.hidden = false),
+          weg: () => klappe(zeileEl, false),
+          zurueck: () => klappe(zeileEl, true),
         },
         ausfuehren: () =>
           anfrage(
@@ -761,7 +798,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
         el(
           "ul",
           { class: "la-liste" },
-          liste.map((c) => el("li", {}, punkt(c))),
+          liste.map((c) => el("li", { "data-id": c.id }, punkt(c))),
         ),
       );
     }
@@ -770,6 +807,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
       "section",
       { class: "flaeche", "aria-labelledby": "la-h-check" },
       kopf,
+      fortschritt,
       ort,
       neu,
     );
@@ -823,7 +861,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
             liste.map((l) =>
               el(
                 "li",
-                { class: "la-link" },
+                { class: "la-link", "data-id": l.id },
                 el(
                   "a",
                   {
@@ -860,8 +898,8 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
         text: `Link «${l.titel}» gelöscht`,
         erledigt: "Gelöscht.",
         ansicht: {
-          weg: () => (zeileEl.hidden = true),
-          zurueck: () => (zeileEl.hidden = false),
+          weg: () => klappe(zeileEl, false),
+          zurueck: () => klappe(zeileEl, true),
         },
         ausfuehren: () =>
           anfrage(
@@ -963,7 +1001,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
         : liste.map((w) =>
             el(
               "li",
-              { class: "chip" },
+              { class: "chip", "data-id": `s-${w}` },
               w,
               rechte.bearbeiten &&
                 el(
@@ -1028,6 +1066,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
           .filter((x) => x.id !== D.a.id);
         if (andere.length === 0 || istErledigt(D.a)) return;
         ort.hidden = false;
+        blendeEin(ort);
         ort.append(
           el(
             "p",
@@ -1191,8 +1230,11 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
   const knoten = {};
   function neueSektion(name) {
     const neu = bauer[name]();
-    if (knoten[name]?.isConnected) knoten[name].replaceWith(neu);
+    const alt = knoten[name];
+    // Einträge gleiten an ihren neuen Platz, neue blenden ein; gespeicherte Angaben heben sich kurz ab
+    if (alt?.isConnected) bewegeUm(bereiche, () => alt.replaceWith(neu));
     knoten[name] = neu;
+    if (name === "angaben" && alt?.isConnected) blitze(neu);
   }
   for (const name of ["angaben", "checkliste", "links", "stichworte"])
     knoten[name] = bauer[name]();
@@ -1214,4 +1256,5 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
   bereich.append(
     ...[rechte.zu && geschlossenHinweis(), kopf, bereiche].filter(Boolean),
   );
+  staffle(bereiche.children);
 }

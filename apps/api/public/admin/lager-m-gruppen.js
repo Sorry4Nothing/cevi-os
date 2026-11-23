@@ -9,7 +9,12 @@ import {
   seitenblatt,
 } from "./dom.js";
 import { zahlfeld } from "./datumsfeld.js";
-import { skeletonFlaeche } from "./lader.js";
+import {
+  blendeAus,
+  skeletonBrett,
+  skeletonVorschauKarten,
+} from "./lager-einteilung-laden.js";
+import { blitze, blendeEin, skeletonSpaeter, staffle } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { ADRESSE, haenge } from "./lager-gemeinsam.js";
 import {
@@ -59,7 +64,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       if (!d.a) return keinLeserecht(bereich, "die Gruppen");
       zeichne(bereich, ctx, d, neu);
     },
-    { skeleton: () => skeletonFlaeche({ zeilen: 5, mitKnopf: true }) },
+    { skeleton: () => skeletonBrett({ werkzeuge: true }) },
   );
 }
 
@@ -81,6 +86,7 @@ function zeichne(bereich, ctx, { k, a, kinder, mitglieder }, neu) {
     personen: g.personen.map((p) => ({ ...p })),
   }));
   const zustand = { tab: "kinder", suche: "" };
+  let letztesZiel = null;
   const wahl = erstelleAuswahl(() => leiste.aktualisiere());
   const brett = el("div", { class: "mn-brett" });
 
@@ -197,6 +203,7 @@ function zeichne(bereich, ctx, { k, a, kinder, mitglieder }, neu) {
         }
       }
     wahl.leeren();
+    letztesZiel = gruppeId;
     zeichneBrett();
     const text =
       wandern.length === 1
@@ -264,7 +271,11 @@ function zeichne(bereich, ctx, { k, a, kinder, mitglieder }, neu) {
     );
     const f = el(
       "section",
-      { class: "flaeche mn-zimmer", "aria-labelledby": `gruppe-${g.id}` },
+      {
+        class: "flaeche mn-zimmer",
+        "aria-labelledby": `gruppe-${g.id}`,
+        "data-karte": g.id,
+      },
       el(
         "div",
         { class: "mn-flaechenkopf" },
@@ -407,11 +418,15 @@ function zeichne(bereich, ctx, { k, a, kinder, mitglieder }, neu) {
         ]),
       ]),
     );
-    fuelle(
-      brett,
-      bearbeiten ? offenFlaeche() : false,
-      el("div", { class: "mn-karten" }, gruppen.map(karte)),
-    );
+    const erster = !brett.firstChild;
+    const karten = el("div", { class: "mn-karten" }, gruppen.map(karte));
+    fuelle(brett, bearbeiten ? offenFlaeche() : false, karten);
+    if (erster) staffle(karten.children);
+    // Das Ziel meldet den Eingang kurz zurück
+    if (letztesZiel) {
+      blitze(brett.querySelector(`[data-karte="${CSS.escape(letztesZiel)}"]`));
+      letztesZiel = null;
+    }
     if (fokusSuche) suche.eingabe.focus();
     leiste.aktualisiere();
   }
@@ -423,7 +438,9 @@ function zeichne(bereich, ctx, { k, a, kinder, mitglieder }, neu) {
       ansicht: {
         weg: () => {
           gruppen = gruppen.filter((x) => x.id !== g.id);
-          zeichneBrett();
+          blendeAus(
+            brett.querySelector(`[data-karte="${CSS.escape(g.id)}"]`),
+          ).then(zeichneBrett);
         },
         zurueck: () => {
           gruppen.splice(index, 0, g);
@@ -579,8 +596,12 @@ function mischenSeite(ctx, k, gruppen, neu) {
   }
   async function zeigeVorschau(neuerSeed) {
     for (const b of [vorschau, anders]) b.disabled = true;
+    const stopp = skeletonSpaeter(ausgabe, () =>
+      skeletonVorschauKarten(Math.min(Math.max(n(), 2), 6)),
+    );
     try {
       const e = await schicke(false, neuerSeed);
+      stopp();
       if (!e) return;
       seed = e.seed;
       ausgabe.replaceChildren(
@@ -624,7 +645,11 @@ function mischenSeite(ctx, k, gruppen, neu) {
       );
       anders.hidden = uebernehmen.hidden = false;
       vorschau.classList.remove("knopf--haupt");
+      staffle(ausgabe.querySelector(".mn-karten").children);
+      blendeEin(ausgabe.firstElementChild);
     } catch (f) {
+      stopp();
+      ausgabe.replaceChildren();
       fehler.textContent = meldung(f);
       fehler.hidden = false;
       fehler.focus();

@@ -99,8 +99,13 @@ function starte(griff, ereignis, last, text) {
     markiere(null);
     document.body.classList.remove("mn-zieht");
     if (bewegungErlaubt()) {
+      // Die Hülle gleitet auf die Fläche, auf der sie abgelegt wird, und blendet dort aus
+      if (treffer) {
+        const r = treffer.getBoundingClientRect();
+        hulle.style.transform = `translate(${r.left + 24}px, ${r.top + 16}px)`;
+      }
       hulle.classList.add(treffer ? "mn-huelle--ab" : "mn-huelle--zurueck");
-      window.setTimeout(() => hulle.remove(), 180);
+      window.setTimeout(() => hulle.remove(), 260);
     } else hulle.remove();
     if (treffer) await ZIELE.get(treffer).beiAblegen(last);
   };

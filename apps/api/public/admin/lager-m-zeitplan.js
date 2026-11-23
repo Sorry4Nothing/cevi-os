@@ -9,7 +9,15 @@ import {
   menue,
   seitenblatt,
 } from "./dom.js";
-import { skeletonFlaeche } from "./lader.js";
+import { sk } from "./lader.js";
+import {
+  blendeEin,
+  ersetzeMitBewegung,
+  klappe,
+  skeletonSpaeter,
+  wechsle,
+  zaehlZahl,
+} from "./lager-anim.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { sortierListe } from "./sortieren.js";
 import { leerKarte } from "./zustaende.js";
@@ -24,6 +32,7 @@ import {
   ladeAufgaben,
   ladeLagerMitRechten,
   rechteVon,
+  skeletonZeitplan,
 } from "./lager-aufgaben-gemeinsam.js";
 import {
   MONATE,
@@ -57,7 +66,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       return { lager: l, rechte, zeitplan, aufgaben };
     },
     (d) => zeichne(bereich, ctx, lagerId, d),
-    { skeleton: () => skeletonFlaeche({ zeilen: 5 }) },
+    { skeleton: () => skeletonZeitplan() },
   );
 }
 
@@ -67,17 +76,23 @@ function zeichne(bereich, ctx, lagerId, d) {
     zeitplan: d.zeitplan,
     aufgaben: d.aufgaben,
     ansicht: "liste",
+    angelegt: undefined,
     monat: null,
     jetzt: heute(),
   };
   const schreibbar = rechte.zeitplanBearbeiten;
 
   const ort = el("div", { class: "la-zeitplan" });
+  // Eine andere Ansicht blendet weich ein; sonst gleiten die Einträge an ihren neuen Platz (ein verschobener Meilenstein wandert zum neuen Tag)
+  let gezeigt = null;
   const zeichneAlles = () => {
-    ort.replaceChildren(
+    const teile = [
       Z.ansicht === "monat" ? monatAnsicht() : listeAnsicht(),
       verwaltung(),
-    );
+    ];
+    if (gezeigt === Z.ansicht) ersetzeMitBewegung(ort, ...teile);
+    else wechsle(ort, ...teile);
+    gezeigt = Z.ansicht;
   };
 
   // ---- Kopf ----
@@ -89,7 +104,9 @@ function zeichne(bereich, ctx, lagerId, d) {
         symbol: "plus",
         onclick: () => meilensteinForm(null),
       }),
-      knopf("Vorschlag des Servers", { onclick: () => vorschlag() }),
+      knopf("Vorschlag des Servers", {
+        onclick: (e) => vorschlag(e.currentTarget),
+      }),
     );
   }
   ctx.kopfAktion(...kopfKnoepfe);
@@ -110,6 +127,7 @@ function zeichne(bereich, ctx, lagerId, d) {
 
   // Nach einer Änderung holt die Seite den Zeitplan neu: Er ist klein (eine Abfrage) und bleibt so mit den Fristen der Aufgaben in Einklang
   async function auffrischen(meldung) {
+    ort.setAttribute("aria-busy", "true");
     try {
       const [zeitplan, aufgaben] = await Promise.all([
         anfrage("GET", `${API(lagerId)}/zeitplan`),
@@ -123,6 +141,8 @@ function zeichne(bereich, ctx, lagerId, d) {
       if (meldung) ctx.melde(meldung);
     } catch (f) {
       ctx.melde(meldungVon(f), "fehler");
+    } finally {
+      ort.removeAttribute("aria-busy");
     }
   }
 
@@ -173,7 +193,7 @@ function zeichne(bereich, ctx, lagerId, d) {
               t.meilensteine.map((m) =>
                 el(
                   "li",
-                  { class: "la-eintrag" },
+                  { class: "la-eintrag", "data-id": `m-${m.id}` },
                   el(
                     "span",
                     { class: "chip chip--stufe" },
@@ -193,7 +213,7 @@ function zeichne(bereich, ctx, lagerId, d) {
               t.fristen.map((a) =>
                 el(
                   "li",
-                  { class: "la-eintrag" },
+                  { class: "la-eintrag", "data-id": `a-${a.id}` },
                   el("span", { class: "chip" }, symbol("uhr"), "Frist"),
                   el(
                     "a",
@@ -367,8 +387,8 @@ function zeichne(bereich, ctx, lagerId, d) {
             text: `Meilenstein «${m.titel}» gelöscht`,
             erledigt: "Gelöscht.",
             ansicht: {
-              weg: () => (zeileEl.hidden = true),
-              zurueck: () => (zeileEl.hidden = false),
+              weg: () => klappe(zeileEl, false),
+              zurueck: () => klappe(zeileEl, true),
             },
             ausfuehren: () =>
               anfrage(
@@ -526,6 +546,29 @@ function zeichne(bereich, ctx, lagerId, d) {
     );
   }
 
+  // Skeleton der Vorschau: Überschrift, Satz, Tabelle mit drei Spalten
+  const skeletonVorschau = () =>
+    el(
+      "div",
+      { class: "la-vorschau", "aria-hidden": "true" },
+      sk("t", 260),
+      sk("t", 200),
+      el(
+        "div",
+        { class: "sk-zeile sk-zeile--liste" },
+        sk("t", 160),
+        sk("t", 96),
+        sk("t", 96),
+      ),
+      el(
+        "div",
+        { class: "sk-zeile sk-zeile--liste" },
+        sk("t", 200),
+        sk("t", 96),
+        sk("t", 96),
+      ),
+    );
+
   // Verschieben mit Vorschau: Erst zeigt der Server, welche Aufgaben ihre Frist ändern (nichts wird geschrieben), dann bestätigt die Person
   function verschieben(m) {
     const neues = datumsfeld({
@@ -564,6 +607,7 @@ function zeichne(bereich, ctx, lagerId, d) {
     function zeigeVorschau(v, hinweis) {
       vorschau = v;
       bestaetigen.disabled = false;
+      blendeEin(ergebnis);
       ersetzeKinder(
         ergebnis,
         hinweis && el("p", { class: "hinweis hinweis--warn" }, hinweis),
@@ -610,6 +654,8 @@ function zeichne(bereich, ctx, lagerId, d) {
       bestaetigen.disabled = true;
       if (!neues.eingabe.value) return feldFehler(neues, "Wähle ein Datum.");
       pruefen.disabled = true;
+      pruefen.setAttribute("aria-busy", "true");
+      const stopp = skeletonSpaeter(ergebnis, skeletonVorschau);
       try {
         zeigeVorschau(
           await anfrage(
@@ -623,7 +669,9 @@ function zeichne(bereich, ctx, lagerId, d) {
         fehler.textContent = meldungVon(f);
         fehler.hidden = false;
       } finally {
+        stopp();
         pruefen.disabled = false;
+        pruefen.removeAttribute("aria-busy");
       }
     });
     neues.eingabe.addEventListener("change", () => {
@@ -879,6 +927,8 @@ function zeichne(bereich, ctx, lagerId, d) {
           onclick: () => abschnittForm(null),
         }),
     );
+    const angelegt = Z.angelegt;
+    Z.angelegt = Z.zeitplan.lagertage.length;
     const tageKarte = el(
       "section",
       { class: "flaeche", "aria-labelledby": "la-h-lagertage" },
@@ -886,7 +936,10 @@ function zeichne(bereich, ctx, lagerId, d) {
       el(
         "p",
         { class: "leise" },
-        `${Z.zeitplan.lagertage.length} von ${fehlend.length + Z.zeitplan.lagertage.length} Tagen des Lagers (${datumText(lager.von)} bis ${datumText(lager.bis)}) sind angelegt.`,
+        zaehlZahl(Z.zeitplan.lagertage.length, String, angelegt),
+        " von ",
+        fehlend.length + Z.zeitplan.lagertage.length,
+        ` Tagen des Lagers (${datumText(lager.von)} bis ${datumText(lager.bis)}) sind angelegt.`,
       ),
       schreibbar &&
         knopf("Lagertag hinzufügen", {
@@ -899,13 +952,16 @@ function zeichne(bereich, ctx, lagerId, d) {
   }
 
   // Der Vorschlag des Servers: fehlende Lagertage und Standard-Abschnitte; die Lagerleitung bestätigt, der Server legt erst dann an
-  async function vorschlag() {
+  async function vorschlag(knopfEl) {
     let v;
+    knopfEl.setAttribute("aria-busy", "true");
     try {
       v = await anfrage("GET", `${API(lagerId)}/zeitplan/vorschlag`);
     } catch (f) {
       ctx.melde(meldungVon(f), "fehler");
       return;
+    } finally {
+      knopfEl.removeAttribute("aria-busy");
     }
     if (v.lagertage.length === 0 && v.tagesabschnitte.length === 0) {
       ctx.melde("Es fehlt nichts: Alle Tage und Abschnitte sind angelegt.");

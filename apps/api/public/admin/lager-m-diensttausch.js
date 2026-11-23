@@ -8,7 +8,8 @@ import {
   knopf,
   tabelle,
 } from "./dom.js";
-import { skeletonTabelle } from "./lader.js";
+import { blendeAus, skeletonTausch } from "./lager-einteilung-laden.js";
+import { blitze, ersetzeMitBewegung, zaehleBis } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { beschrifteZellen, haenge, kartenTabelle } from "./lager-gemeinsam.js";
 import { tagText, TAUSCH_STATUS, tauschSatz } from "./lager-menschen-logik.js";
@@ -53,7 +54,12 @@ export function zeige(bereich, ctx, lagerId, lager) {
       zeichne(bereich, ctx, d, neu);
     },
     {
-      skeleton: () => skeletonTabelle({ spalten: 4, zeilen: 4, avatar: false }),
+      skeleton: () =>
+        skeletonTausch({
+          entscheiden:
+            lager?.rechte?.includes("diensttausch.entscheiden") ?? true,
+          anfragen: lager?.rechte?.includes("diensttausch.anfragen") ?? true,
+        }),
     },
   );
 }
@@ -85,6 +91,26 @@ function zeichne(
       : false,
   );
 
+  // Nach einer Entscheidung holt die Seite nur die Anfragen neu: Die Zeile blendet aus, die Nachbarn rutschen nach, der Zähler zählt
+  const zeilenort = {};
+  async function frischen(id) {
+    const [a, e] = await Promise.all([
+      entscheiden ? ladeAlle(`${LB(k.lagerId)}/diensttausch`, "tausche") : [],
+      anfragen
+        ? anfrage("GET", `${LB(k.lagerId)}/diensttausch/eigene`).then(
+            (x) => x.tausche,
+          )
+        : [],
+    ]);
+    const zeile = bereich.querySelector(`tr[data-id="${CSS.escape(id)}"]`);
+    const bleibt = zeilenort.bleibt?.(a.find((x) => x.id === id));
+    if (zeile && bleibt === false) await blendeAus(zeile);
+    alle = a;
+    eigene = e;
+    zeilenort.zeichne?.();
+    zeilenort.zeichneEigene?.();
+    blitze(bereich.querySelector(`[data-id="${CSS.escape(id)}"]`));
+  }
   async function entscheide(t, entscheid, mitPersonId) {
     try {
       await anfrage("POST", `${LB(k.lagerId)}/diensttausch/${t.id}/entscheid`, {
@@ -97,7 +123,7 @@ function zeichne(
           ? "Tausch angenommen. Der Schichtplan ist angepasst."
           : "Anfrage abgelehnt. Der Schichtplan bleibt, wie er ist.",
       );
-      neu();
+      await frischen(t.id).catch(() => neu());
     } catch (f) {
       ctx.melde(meldung(f), "warn");
       if (f?.status === 409) neu();
@@ -128,7 +154,7 @@ function zeichne(
         }),
       danach: () => {
         ctx.melde("Tausch angenommen. Der Schichtplan ist angepasst.");
-        neu();
+        frischen(t.id).catch(() => neu());
       },
     });
   }
@@ -140,7 +166,7 @@ function zeichne(
         { version: t.version },
       );
       ctx.melde("Anfrage zurückgezogen.");
-      neu();
+      await frischen(t.id).catch(() => neu());
     } catch (f) {
       ctx.melde(meldung(f), "warn");
       if (f?.status === 409) neu();
@@ -160,7 +186,8 @@ function zeichne(
             : t.status !== "offen"),
       );
       if (treffer.length === 0) {
-        ort.replaceChildren(
+        ersetzeMitBewegung(
+          ort,
           leerKarte(
             stand.status === "offen"
               ? "Keine offenen Anfragen."
@@ -180,7 +207,7 @@ function zeichne(
         zeilen: treffer.map((t) =>
           el(
             "tr",
-            {},
+            { "data-id": t.id },
             el(
               "th",
               { scope: "row" },
@@ -216,8 +243,24 @@ function zeichne(
       });
       kartenTabelle(wurzel);
       beschrifteZellen(koerper, ["", "Notiz", "Status", ""]);
-      ort.replaceChildren(wurzel);
+      ersetzeMitBewegung(ort, wurzel);
     };
+    zeilenort.zeichne = () => {
+      zeichneListe();
+      const n = filter.wurzel.querySelector("button .n");
+      if (n)
+        zaehleBis(
+          n,
+          alle.filter((t) => t.status === "offen").length,
+          String,
+          Number(n.textContent),
+        );
+    };
+    // Bleibt die Zeile nach der Entscheidung in der gewählten Liste?
+    zeilenort.bleibt = (t) =>
+      !t ||
+      stand.status === "alle" ||
+      (stand.status === "offen" ? t.status === "offen" : t.status !== "offen");
     const filter = filterGruppe({
       beschriftung: "Status",
       eintraege: [
@@ -250,33 +293,36 @@ function zeichne(
 
   // --- Eigene Anfragen ---
   if (anfragen) {
-    haenge(
-      bereich,
-      el("h2", {}, "Deine Anfragen"),
-      eigene.length === 0
-        ? leerKarte(
-            "Du hast keine Anfragen gestellt. Einen Tausch fragst du hier bei einer deiner Schichten an.",
-          )
-        : el(
-            "ul",
-            { class: "liste-zeilen" },
-            eigene.map((t) =>
-              el(
-                "li",
-                {},
-                el("span", {}, tauschSatz({ ...t, vonName: "Du" })),
-                statusChip(t.status),
-                t.status === "offen" && schreiben("diensttausch.anfragen")
-                  ? knopf("Zurückziehen", {
-                      klein: true,
-                      art: "still",
-                      onclick: () => zieheZurueck(t),
-                    })
-                  : false,
+    const eigenOrt = el("div");
+    zeilenort.zeichneEigene = () =>
+      ersetzeMitBewegung(
+        eigenOrt,
+        eigene.length === 0
+          ? leerKarte(
+              "Du hast keine Anfragen gestellt. Einen Tausch fragst du hier bei einer deiner Schichten an.",
+            )
+          : el(
+              "ul",
+              { class: "liste-zeilen" },
+              eigene.map((t) =>
+                el(
+                  "li",
+                  { "data-id": t.id },
+                  el("span", {}, tauschSatz({ ...t, vonName: "Du" })),
+                  statusChip(t.status),
+                  t.status === "offen" && schreiben("diensttausch.anfragen")
+                    ? knopf("Zurückziehen", {
+                        klein: true,
+                        art: "still",
+                        onclick: () => zieheZurueck(t),
+                      })
+                    : false,
+                ),
               ),
             ),
-          ),
-    );
+      );
+    haenge(bereich, el("h2", {}, "Deine Anfragen"), eigenOrt);
+    zeilenort.zeichneEigene();
   }
 }
 

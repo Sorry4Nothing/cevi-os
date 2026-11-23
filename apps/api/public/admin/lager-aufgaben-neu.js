@@ -9,6 +9,8 @@ import {
   knopf,
   seitenblatt,
 } from "./dom.js";
+import { sk } from "./lader.js";
+import { blendeEin, skeletonSpaeter, staffle } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { feldFehler } from "./lager-gemeinsam.js";
 import {
@@ -25,6 +27,16 @@ import {
   vorschlagBereit,
   vorschlagZuAufgabe,
 } from "./lager-aufgaben-logik.js";
+
+// Skeleton für eine Liste von Vorschlägen: Zeilen mit Kästchen und Text, wie die erkannten Aufgaben
+const skeletonVorschlaege = () =>
+  el(
+    "ul",
+    { class: "la-schnell-liste", "aria-hidden": "true" },
+    [260, 200, 320].map((b) =>
+      el("li", { class: "la-schnell-zeile" }, sk("k", 24), sk("t", b)),
+    ),
+  );
 
 // Formulare des Moduls «Aufgaben» (#670): neue Aufgabe, Schnelleingabe, Vorlage anwenden, «Später erinnern». Alle öffnen als Seite im Fluss (Zurück und Browser-Zurück schliessen sie); nichts ist ein Popup.
 
@@ -261,6 +273,7 @@ export function schnellErfassen({ ctx, lagerId, S, beiNeu }) {
     }
     pruefen.disabled = true;
     pruefen.setAttribute("aria-busy", "true");
+    const stopp = skeletonSpaeter(ergebnis, skeletonVorschlaege);
     try {
       const r = await anfrage("POST", `${API(lagerId)}/aufgaben/schnell`, {
         text: text.eingabe.value,
@@ -281,10 +294,13 @@ export function schnellErfassen({ ctx, lagerId, S, beiNeu }) {
         ),
       );
       zaehle();
+      staffle(ergebnis.querySelector(".la-schnell-liste").children);
     } catch (f) {
+      ergebnis.replaceChildren();
       fehler.textContent = meldungVon(f);
       fehler.hidden = false;
     } finally {
+      stopp();
       pruefen.disabled = false;
       pruefen.removeAttribute("aria-busy");
     }
@@ -362,12 +378,13 @@ export function vorlageAnwenden({ ctx, lagerId, beiNeu }) {
     anwenden.disabled = true;
     gewaehlt = null;
     const ort = inhalt.querySelector(".la-vorlage-vorschau");
-    ort.replaceChildren(el("p", { class: "leise" }, "Vorschau wird geladen …"));
+    const stopp = skeletonSpaeter(ort, skeletonVorschlaege);
     try {
       const r = await anfrage(
         "POST",
         `${API(lagerId)}/vorlagen/${id}/anwenden?trocken=true`,
       );
+      stopp();
       gewaehlt = id;
       anwenden.disabled = false;
       ort.replaceChildren(
@@ -397,15 +414,27 @@ export function vorlageAnwenden({ ctx, lagerId, beiNeu }) {
           ),
         ),
       );
+      blendeEin(ort);
     } catch (f) {
+      stopp();
       ort.replaceChildren();
       fehler.textContent = meldungVon(f);
       fehler.hidden = false;
     }
   }
 
+  // Die Liste der Vorlagen lädt mit Skeleton (ein Feld), erst nach 250 ms
+  const stoppListe = skeletonSpaeter(inhalt, () =>
+    el(
+      "div",
+      { class: "feld", "aria-hidden": "true" },
+      sk("t", 80),
+      sk("b", 380),
+    ),
+  );
   anfrage("GET", `${API(lagerId)}/vorlagen`)
     .then((r) => {
+      stoppListe();
       const liste = r.vorlagen.filter((v) => v.art === "aufgaben");
       if (liste.length === 0) {
         inhalt.replaceChildren(
@@ -441,6 +470,7 @@ export function vorlageAnwenden({ ctx, lagerId, beiNeu }) {
       );
     })
     .catch((f) => {
+      stoppListe();
       inhalt.replaceChildren(leerKarte(meldungVon(f)));
     });
 

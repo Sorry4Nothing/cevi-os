@@ -9,7 +9,8 @@ import {
   menue,
 } from "./dom.js";
 import { datumsfeld, zahlfeld, zeitfeld } from "./datumsfeld.js";
-import { skeletonFlaeche } from "./lader.js";
+import { blendeAus, skeletonBrett } from "./lager-einteilung-laden.js";
+import { blitze, staffle, wachseBis, wechsle } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { haenge } from "./lager-gemeinsam.js";
 import {
@@ -66,7 +67,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       if (!d.fahrten) return keinLeserecht(bereich, "die Fahrten");
       zeichne(bereich, ctx, d, neu);
     },
-    { skeleton: () => skeletonFlaeche({ zeilen: 5, mitKnopf: true }) },
+    { skeleton: () => skeletonBrett({ werkzeuge: true, mitBalken: true }) },
   );
 }
 
@@ -119,6 +120,9 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
     rueck: ohne.rueck.map(alsPerson),
   };
   const stand = { richtung: "hin", suche: "" };
+  // Belegung beim letzten Zeichnen: Der Balken wächst vom alten zum neuen Wert
+  const fuellStand = new Map();
+  let letztesZiel = null;
   const wahl = erstelleAuswahl(() => leiste.aktualisiere());
   const brett = el("div", { class: "mn-brett" });
   const leiste = auswahlLeiste({
@@ -184,6 +188,7 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
       return;
     }
     wahl.leeren();
+    letztesZiel = zielId;
     zeichneBrett();
     const ziel = liste.find((f) => f.id === zielId);
     const text =
@@ -296,9 +301,26 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
             : false,
         )
       : false;
+    const wert = Math.min(f.mitfahrer.length, f.plaetze ?? 0);
+    const fuell =
+      f.plaetze !== null &&
+      el("progress", {
+        class: `mn-fuell${b.ueberbelegt ? " ist-voll" : ""}`,
+        max: String(f.plaetze),
+        value: String(wert),
+        "aria-label": `Belegung ${fahrtTitel(f)}`,
+      });
+    if (fuell) {
+      wachseBis(fuell, fuellStand.get(f.id) ?? 0, wert);
+      fuellStand.set(f.id, wert);
+    }
     const karteEl = el(
       "section",
-      { class: "flaeche mn-zimmer", "aria-labelledby": `fahrt-${f.id}` },
+      {
+        class: "flaeche mn-zimmer",
+        "aria-labelledby": `fahrt-${f.id}`,
+        "data-karte": f.id,
+      },
       el(
         "div",
         { class: "mn-flaechenkopf" },
@@ -331,13 +353,7 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
         ),
       ziel,
       el("p", { class: "mn-fuelltext" }, b.text),
-      f.plaetze !== null &&
-        el("progress", {
-          class: `mn-fuell${b.ueberbelegt ? " ist-voll" : ""}`,
-          max: String(f.plaetze),
-          value: String(Math.min(f.mitfahrer.length, f.plaetze)),
-          "aria-label": `Belegung ${fahrtTitel(f)}`,
-        }),
+      fuell,
       b.ueberbelegt &&
         el(
           "p",
@@ -381,7 +397,7 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
     beiAenderung: (r) => {
       stand.richtung = r;
       wahl.leeren();
-      zeichneBrett();
+      zeichneBrett({ wechsel: true });
     },
   });
   const suche = feld({
@@ -439,7 +455,8 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
     return f;
   }
 
-  function zeichneBrett() {
+  // wechsel: Die Richtung ändert den ganzen Inhalt; er blendet ein, statt dass die Personen vom alten Platz gleiten
+  function zeichneBrett({ wechsel = false } = {}) {
     const fokusSuche = document.activeElement === suche.eingabe;
     const alleKeys = new Set([
       ...offen[stand.richtung].map((p) => personSchluessel(p.typ, p.id)),
@@ -454,17 +471,24 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
     ]);
     wahl.bereinige(alleKeys);
     const fahrten = sichtbare();
-    fuelle(
-      brett,
-      bearbeiten ? ohneFlaeche() : false,
+    const erster = !brett.firstChild;
+    const karten =
       fahrten.length === 0
         ? leerKarte(
             bearbeiten
               ? `Noch keine ${stand.richtung === "hin" ? "Hinfahrt" : "Rückfahrt"}. Lege eine Fahrt an.`
               : "Du sitzt in dieser Richtung in keiner Fahrt.",
           )
-        : el("div", { class: "mn-karten" }, fahrten.map(karte)),
-    );
+        : el("div", { class: "mn-karten" }, fahrten.map(karte));
+    const teile = [bearbeiten ? ohneFlaeche() : false, karten];
+    if (wechsel) wechsle(brett, ...teile);
+    else fuelle(brett, ...teile);
+    if (erster && fahrten.length > 0) staffle(karten.children);
+    // Das Ziel meldet den Eingang kurz zurück
+    if (letztesZiel) {
+      blitze(brett.querySelector(`[data-karte="${CSS.escape(letztesZiel)}"]`));
+      letztesZiel = null;
+    }
     if (fokusSuche) suche.eingabe.focus();
     leiste.aktualisiere();
   }
@@ -477,7 +501,9 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
       ansicht: {
         weg: () => {
           liste = liste.filter((x) => x.id !== f.id);
-          zeichneBrett();
+          blendeAus(
+            brett.querySelector(`[data-karte="${CSS.escape(f.id)}"]`),
+          ).then(zeichneBrett);
         },
         zurueck: () => {
           liste.splice(index, 0, rest);

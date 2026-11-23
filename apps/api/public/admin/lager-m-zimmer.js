@@ -9,7 +9,8 @@ import {
   menue,
 } from "./dom.js";
 import { zahlfeld } from "./datumsfeld.js";
-import { skeletonFlaeche } from "./lader.js";
+import { blendeAus, skeletonBrett } from "./lager-einteilung-laden.js";
+import { blitze, staffle, wachseBis } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { haenge } from "./lager-gemeinsam.js";
 import {
@@ -64,7 +65,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       if (!d.a) return keinLeserecht(bereich, "Zimmer und Zelte");
       zeichne(bereich, ctx, d, neu);
     },
-    { skeleton: () => skeletonFlaeche({ zeilen: 5, mitKnopf: true }) },
+    { skeleton: () => skeletonBrett({ mitBalken: true }) },
   );
 }
 
@@ -154,6 +155,9 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
     leiste.aktualisiere();
   });
   const zustand = { tab: "teilnehmer", suche: "" };
+  // Belegung beim letzten Zeichnen: Der Balken wächst vom alten zum neuen Wert
+  const fuellStand = new Map();
+  let letztesZiel = null;
   const brett = el("div", { class: "mn-brett" });
   const leiste = auswahlLeiste({
     auswahl: wahl,
@@ -207,6 +211,7 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
       return;
     }
     wahl.leeren();
+    letztesZiel = zielId;
     lokalVerschieben(wandern, zielId);
     const ziel = zimmer.find((z) => z.id === zielId);
     const text =
@@ -293,9 +298,16 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
       value: String(Math.min(z.mitglieder.length, z.plaetze)),
       "aria-label": `Belegung ${z.name}`,
     });
+    const wert = Math.min(z.mitglieder.length, z.plaetze);
+    wachseBis(fuell, fuellStand.get(z.id) ?? 0, wert);
+    fuellStand.set(z.id, wert);
     const karteEl = el(
       "section",
-      { class: "flaeche mn-zimmer", "aria-labelledby": `zimmer-${z.id}` },
+      {
+        class: "flaeche mn-zimmer",
+        "aria-labelledby": `zimmer-${z.id}`,
+        "data-karte": z.id,
+      },
       el(
         "div",
         { class: "mn-flaechenkopf" },
@@ -421,11 +433,15 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
     wahl.bereinige(alleKeys);
     const fokus = document.activeElement;
     const fokusSuche = fokus === suche.eingabe;
-    fuelle(
-      brett,
-      bearbeiten ? offenFlaeche() : false,
-      el("div", { class: "mn-karten" }, zimmer.map(karte)),
-    );
+    const erster = !brett.firstChild;
+    const karten = el("div", { class: "mn-karten" }, zimmer.map(karte));
+    fuelle(brett, bearbeiten ? offenFlaeche() : false, karten);
+    if (erster) staffle(karten.children);
+    // Das Ziel meldet den Eingang kurz zurück
+    if (letztesZiel) {
+      blitze(brett.querySelector(`[data-karte="${CSS.escape(letztesZiel)}"]`));
+      letztesZiel = null;
+    }
     if (fokusSuche) suche.eingabe.focus();
     leiste.aktualisiere();
   }
@@ -438,7 +454,9 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
       ansicht: {
         weg: () => {
           zimmer = zimmer.filter((x) => x.id !== z.id);
-          zeichneBrett();
+          blendeAus(
+            brett.querySelector(`[data-karte="${CSS.escape(z.id)}"]`),
+          ).then(zeichneBrett);
         },
         zurueck: () => {
           zimmer.splice(index, 0, rest);

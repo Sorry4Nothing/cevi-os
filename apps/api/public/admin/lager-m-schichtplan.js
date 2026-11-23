@@ -12,7 +12,13 @@ import {
   tabelle,
 } from "./dom.js";
 import { zahlfeld } from "./datumsfeld.js";
-import { skeletonFlaeche } from "./lader.js";
+import {
+  beschaeftigt,
+  skeletonPlan,
+  skeletonVorschlag,
+  skeletonWahlliste,
+} from "./lager-einteilung-laden.js";
+import { blendeEin, blitze, skeletonSpaeter } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { ADRESSE, haenge } from "./lager-gemeinsam.js";
 import {
@@ -62,7 +68,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       if (!d.plan) return keinLeserecht(bereich, "den Schichtplan");
       zeichne(bereich, ctx, d, neu);
     },
-    { skeleton: () => skeletonFlaeche({ zeilen: 6, mitKnopf: true }) },
+    { skeleton: skeletonPlan },
   );
 }
 
@@ -103,10 +109,19 @@ function zeichne(
   );
 
   // Nach einer Änderung nur den Plan holen, nicht die ganze Seite (Scrollposition bleibt)
+  // Der Plan bleibt dabei stehen (ruhiger, ohne Sprung) und die Einträge gleiten an ihren neuen Platz
   async function ladePlan() {
-    plan = await anfrage("GET", `${LB(k.lagerId)}/schichtplan`);
+    plan = await beschaeftigt(
+      ort,
+      anfrage("GET", `${LB(k.lagerId)}/schichtplan`),
+    );
     zeichnePlan();
+    if (letzteZelle) {
+      blitze(ort.querySelector(`[data-zelle="${letzteZelle}"]`));
+      letzteZelle = null;
+    }
   }
+  let letzteZelle = null;
 
   // Besetzung eines Dienstes an einem Tag setzen (der Server setzt genau diese Leute)
   async function setze(dienstId, tagId, personen) {
@@ -127,6 +142,7 @@ function zeichne(
     const da = new Set(aktuell.map(schluessel));
     const neue = personen.filter((p) => !da.has(schluessel(p)));
     if (neue.length === 0) return;
+    letzteZelle = `${dienstId}|${tagId}`;
     // Aus einer anderen Zelle zuerst entfernen: Der Server verbietet zwei Dienste im selben Abschnitt des Tages
     const quellen = neue.filter(
       (p) =>
@@ -193,6 +209,7 @@ function zeichne(
       "td",
       {
         class: `mn-zelle${voll ? "" : leute.length === 0 ? " ist-leer" : " ist-luecke"}`,
+        "data-zelle": `${dienst.id}|${tag.id}`,
       },
       el(
         "ul",
@@ -203,7 +220,11 @@ function zeichne(
         leute.map((p) =>
           el(
             "li",
-            { class: "mn-chip" },
+            {
+              class: "mn-chip",
+              // Eine Person hat je Tag und Abschnitt höchstens einen Dienst: So gleitet sie von Zelle zu Zelle
+              "data-schluessel": `s:${p.typ}:${p.id}:${tag.id}:${dienst.tagesabschnittId}`,
+            },
             bearbeiten
               ? ziehGriff({
                   name: p.name,
@@ -334,7 +355,9 @@ function zeichne(
     });
     wurzel.classList.add("mn-plan");
     const stat = statistik();
-    ort.replaceChildren(wurzel, stat);
+    const erster = !ort.firstChild;
+    fuelle(ort, wurzel, stat);
+    if (erster) blendeEin(ort);
   }
 
   function statistik() {
@@ -549,8 +572,10 @@ function besetzenSeite(ctx, k, dienst, tag, aktuell, mitglieder, danach) {
   kinderWahl.eingabe.addEventListener("change", async () => {
     mitKinder.an = kinderWahl.eingabe.checked;
     if (mitKinder.an && mitKinder.liste.length === 0) {
+      const stopp = skeletonSpaeter(liste, skeletonWahlliste, 150);
       try {
         const t = await ladeAlle(`${LB(k.lagerId)}/teilnehmer`, "teilnehmer");
+        stopp();
         mitKinder.liste = t
           .filter((x) => !x.abgewaehlt)
           .map((x) => ({
@@ -559,6 +584,7 @@ function besetzenSeite(ctx, k, dienst, tag, aktuell, mitglieder, danach) {
             name: teilnehmerName(x),
           }));
       } catch (f) {
+        stopp();
         mitKinder.an = false;
         kinderWahl.eingabe.checked = false;
         fehler.textContent = meldung(f);
@@ -742,8 +768,10 @@ function vorschlagSeite(ctx, k, plan, tage, neu) {
   async function zeige(neuerSeed) {
     for (const b of [vorschau, anders]) b.disabled = true;
     fehler.hidden = true;
+    const stopp = skeletonSpaeter(ausgabe, skeletonVorschlag);
     try {
       const e = await schicke(false, neuerSeed);
+      stopp();
       seed = e.seed;
       const je = new Map();
       for (const s of e.schichten) {
@@ -821,7 +849,10 @@ function vorschlagSeite(ctx, k, plan, tage, neu) {
       anders.hidden = false;
       vorschau.classList.remove("knopf--haupt");
       uebernehmen.hidden = e.schichten.length === 0;
+      blendeEin(ausgabe);
     } catch (f) {
+      stopp();
+      ausgabe.replaceChildren();
       fehler.textContent = meldung(f);
       fehler.hidden = false;
       fehler.focus();

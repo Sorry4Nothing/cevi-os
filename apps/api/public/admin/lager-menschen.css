@@ -719,3 +719,207 @@ body.mn-zieht * {
   padding-block: 14px;
   margin-block: -14px;
 }
+
+/* #685 Teilnehmende, Abzählen, Anwesenheit, Adressbuch: Ladezustände in der Form des Inhalts und Bewegung */
+.lg-sk-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lg-sk-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.lg-sk-hinweis {
+  width: 100%;
+  height: 66px;
+  border-radius: 12px;
+}
+
+.lg-sk-knopf {
+  width: 220px;
+  height: 48px;
+  border-radius: 9999px;
+}
+
+.lg-sk-leiste--unten {
+  align-items: flex-end;
+}
+
+.lg-sk-feld {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.lg-sk-karte {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 64px;
+  padding: 12px 16px;
+  background: var(--karte);
+  border: 2px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.lg-sk-haken {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+}
+
+.lg-sk-name {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.lg-sk-zelle {
+  width: 100%;
+  min-width: 5rem;
+  height: 44px;
+  border-radius: 10px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Antippen: Haken, Zelle und Leiste antworten sofort */
+  .mn-abzaehl-zeile,
+  .mn-anw,
+  .mn-haken {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve),
+      color var(--dauer) var(--kurve),
+      transform var(--dauer) var(--kurve);
+  }
+
+  .mn-abzaehl-zeile:active:not(:disabled),
+  .mn-anw:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  .mn-leiste:not([hidden]) {
+    animation: lg-hoch 0.24s var(--kurve) both;
+  }
+
+  .mn-konflikt,
+  .mn-importausgabe > * {
+    animation: lg-hoch 0.24s var(--kurve) both;
+  }
+
+  .ist-da .mn-haken::after {
+    animation: mn-haken-ein 0.22s var(--kurve) both;
+  }
+
+  @keyframes mn-haken-ein {
+    from {
+      opacity: 0;
+      transform: rotate(-45deg) scale(0.4);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .lg-sk-karte {
+    border-color: CanvasText;
+  }
+}
+
+/* #685 Gruppen, Zimmer, Fahrten, Schichtplan, Diensttausch */
+
+/* Skeleton: nie breiter als der Platz (390 px); die Form der echten Karten und Zeilen (Balken der Belegung, Personenzeile mit Griff, Name und Menü) */
+.sk-huelle .sk {
+  max-width: 100%;
+}
+
+.sk.sk--balken {
+  width: 100%;
+  height: 8px;
+  margin: 6px 0;
+  border-radius: 4px;
+}
+
+.mn-sk-person {
+  min-height: 48px;
+  padding: 2px 4px;
+}
+
+.mn-sk-person > .sk--r {
+  margin-left: auto;
+}
+
+/* Während ein Teil nachlädt (Plan, Anfragen), bleibt er stehen; die Deckkraft steht in lager-anim.css */
+@media (prefers-reduced-motion: no-preference) {
+  .lg-teil {
+    transition: opacity var(--dauer) var(--kurve);
+  }
+
+  /* Die Ziehhülle gleitet auf das Ziel, wenn sie abgelegt wird */
+  .mn-huelle--ab {
+    transition:
+      opacity 0.22s ease,
+      scale 0.22s ease,
+      transform 0.24s var(--kurve);
+  }
+
+  .mn-person,
+  .mn-chip,
+  .mn-chip-weg,
+  .mn-griff {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve),
+      color var(--dauer) var(--kurve);
+  }
+
+  .mn-zelle {
+    transition: border-color var(--dauer) var(--kurve);
+  }
+
+  .mn-chip-weg:active {
+    transform: scale(0.9);
+  }
+
+  /* Der Bereich «Personen zum Einteilen» klappt auf und zu (wo der Browser es kann; sonst sofort) */
+  .mn-poolflaeche::details-content {
+    block-size: 0;
+    overflow: hidden;
+    transition:
+      block-size 0.24s var(--kurve),
+      content-visibility 0.24s var(--kurve) allow-discrete;
+  }
+
+  .mn-poolflaeche[open]::details-content {
+    block-size: auto;
+  }
+
+  :root {
+    interpolate-size: allow-keywords;
+  }
+}
+
+@media (forced-colors: active) {
+  .mn-sk-person {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* Summe mit Balken (Abzählen) */
+.mn-summebox {
+  display: grid;
+  flex: 1;
+  gap: 6px;
+  min-width: 10rem;
+  max-width: 24rem;
+}
+
+.mn-summe .lg-zahl-huelle {
+  font-variant-numeric: tabular-nums;
+}

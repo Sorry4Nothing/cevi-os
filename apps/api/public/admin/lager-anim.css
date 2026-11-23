@@ -15,14 +15,8 @@
 /* Antippen: Knöpfe und tippbare Zellen geben sofort Rückmeldung */
 @media (prefers-reduced-motion: no-preference) {
   .la-tick,
-  .la-karte,
   .la-spalte,
-  .mn-person,
-  .mn-ziel,
-  .mn-zelle,
-  .mn-fuell,
-  .la-auswahlleiste,
-  .mn-auswahlleiste {
+  .la-auswahlleiste {
     transition:
       background-color var(--dauer) var(--kurve),
       border-color var(--dauer) var(--kurve),
@@ -30,27 +24,17 @@
       transform var(--dauer) var(--kurve);
   }
 
-  .la-tick:active,
-  .mn-zelle:active {
+  .la-tick:active {
     transform: scale(0.92);
   }
 
-  .la-karte:hover,
-  .mn-person:hover {
-    border-color: var(--rand);
-  }
-
   /* Die Auswahlleiste steigt von unten auf, wenn sie erscheint */
-  .la-auswahlleiste:not([hidden]),
-  .mn-auswahlleiste:not([hidden]) {
+  .la-auswahlleiste:not([hidden]) {
     animation: lg-hoch 0.24s var(--kurve) both;
   }
 
-  /* Ein- und aufgeklappte Teile */
-  .la-formblatt:not([hidden]),
-  .mn-formblatt:not([hidden]),
-  .la-bulkform:not(:empty),
-  .hinweis.lg-hinweis:not([hidden]) {
+  /* Das Formular der Sammelaktion steigt auf */
+  .la-bulkform {
     animation: lg-hoch 0.24s var(--kurve) both;
   }
 
@@ -88,5 +72,12 @@
   .lg-geht {
     border: 1px solid CanvasText;
     background: Canvas;
+  }
+}
+
+/* Balken in .fortschritt: wächst weich auf den neuen Wert (#685) */
+@media (prefers-reduced-motion: no-preference) {
+  .fortschritt > span {
+    transition: width 0.45s var(--kurve);
   }
 }

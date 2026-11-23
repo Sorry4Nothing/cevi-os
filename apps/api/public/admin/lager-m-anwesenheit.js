@@ -9,7 +9,13 @@ import {
   knopf,
   tabelle,
 } from "./dom.js";
-import { skeletonTabelle } from "./lader.js";
+import {
+  blendeEin,
+  ersetzeMitBewegung,
+  puls,
+  skeletonMatrix,
+  zaehlZahl,
+} from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { ADRESSE, haenge } from "./lager-gemeinsam.js";
 import {
@@ -75,7 +81,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       const eig = await anfrage("GET", `${LB(lagerId)}/anwesenheit/eigene`);
       return { k, zeitplan, eig, modus: "eigene" };
     },
-    (d, neu) => {
+    (d) => {
       kopfeMitHinweis(bereich, ctx, d.k, "Anwesenheit");
       if (d.ohne) return keinLeserecht(bereich, "die Anwesenheit");
       if (
@@ -97,10 +103,10 @@ export function zeige(bereich, ctx, lagerId, lager) {
             ],
           ),
         );
-      zeichne(bereich, ctx, d, neu);
+      zeichne(bereich, ctx, d);
     },
     {
-      skeleton: () => skeletonTabelle({ spalten: 4, zeilen: 8, avatar: true }),
+      skeleton: () => skeletonMatrix({ spalten: 4, zeilen: 8 }),
     },
   );
 }
@@ -131,7 +137,7 @@ const FRIST_FORMAT = new Intl.DateTimeFormat("de-CH", {
   timeStyle: "short",
 });
 
-function zeichne(bereich, ctx, d, neuLaden) {
+function zeichne(bereich, ctx, d) {
   const { k, zeitplan } = d;
   const alleModus = d.modus === "alle";
   const bearbeiten = alleModus && k.kann("anwesenheit.bearbeiten");
@@ -259,6 +265,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
       danach: (a) => {
         frist = a.frist;
         zeichneFrist();
+        puls(kopfFrist);
         ctx.melde(
           frist ? "Die Frist ist gesetzt." : "Die Frist ist aufgehoben.",
         );
@@ -273,6 +280,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
     beiAenderung: (t) => {
       stand.tag = t;
       zeichneTabelle();
+      blendeEin(tabelleOrt);
     },
   });
   tageOrt.append(tagButtons.wurzel);
@@ -308,6 +316,15 @@ function zeichne(bereich, ctx, d, neuLaden) {
   // Das Team ändert direkt, was offen und nicht abgelaufen ist; bei allem anderen antwortet der Server mit «Anfrage nötig»
   const schreibbar = () => bearbeiten || eigeneSchreiben;
 
+  // Rückmeldung am Antippen: Das Feld pulst, die Tabelle baut sich neu auf, der Fokus bleibt auf dem Feld
+  const rueckmeldung = (schluessel) =>
+    schluessel.forEach((key, i) => {
+      const knopf = tabelleOrt.querySelector(
+        `[data-fokus="${CSS.escape(key)}"]`,
+      );
+      if (knopf) puls(knopf, Math.min(i, 10) * 25);
+    });
+
   function wechsle(person, tagId, aId, wert) {
     setzeWert(
       person,
@@ -316,6 +333,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
       wert ?? naechsterWert(wertVon(person, tagId, aId)),
     );
     zeichneTabelle();
+    rueckmeldung([feldSchluessel(person.id, tagId, aId)]);
   }
 
   function zelle(person, tag, a) {
@@ -333,6 +351,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
           type: "button",
           class: `mn-anw mn-anw--${wert}${geaendert ? " ist-geaendert" : ""}`,
           disabled: !kann,
+          "data-fokus": feldSchluessel(person.id, tag.id, a.id),
           "aria-label": `${name}, ${a.name}, ${tagText(tag.datum)}: ${wort}${geaendert ? ", noch nicht gespeichert" : ""}. Antippen wechselt den Wert.`,
           onclick: () => wechsle(person, tag.id, a.id),
         },
@@ -343,7 +362,29 @@ function zeichne(bereich, ctx, d, neuLaden) {
     );
   }
 
+  // Die Summen zählen vom alten zum neuen Wert (Schlüssel: Tag, Abschnitt, Art)
+  const summenStand = new Map();
+  function summenZelle(tagId, aId, z) {
+    const kinder = [];
+    [
+      ["A", "da"],
+      ["F", "frei"],
+      ["O", "offen"],
+    ].forEach(([w, name], i) => {
+      const key = `${tagId}|${aId}|${w}`;
+      kinder.push(
+        zaehlZahl(z[w], String, summenStand.get(key)),
+        ` ${name}${i < 2 ? ", " : ""}`,
+      );
+      summenStand.set(key, z[w]);
+    });
+    return el("td", { class: "klein" }, ...kinder);
+  }
+
   function zeichneTabelle() {
+    const fokus = tabelleOrt.contains(document.activeElement)
+      ? document.activeElement.dataset.fokus
+      : undefined;
     const tag = tages();
     const sichtbar = personen.filter(
       (p) =>
@@ -353,7 +394,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
     const zeilen = sichtbar.map((p) =>
       el(
         "tr",
-        {},
+        { "data-id": `${p.typ}:${p.id}` },
         el(
           "th",
           { scope: "row" },
@@ -369,12 +410,16 @@ function zeichne(bereich, ctx, d, neuLaden) {
                 klein: true,
                 art: "still",
                 kontext: alleModus ? p.name : undefined,
+                "data-fokus": `tag|${p.typ}:${p.id}`,
                 onclick: () => {
                   const neu = naechsterWert(
                     wertVon(p, tag.id, abschnitte[0].id),
                   );
                   for (const a of abschnitte) setzeWert(p, tag.id, a.id, neu);
                   zeichneTabelle();
+                  rueckmeldung(
+                    abschnitte.map((a) => feldSchluessel(p.id, tag.id, a.id)),
+                  );
                 },
               }),
             )
@@ -390,11 +435,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
           abschnitte.map((a) => {
             const z = { A: 0, F: 0, O: 0 };
             for (const p of sichtbar) z[wertVon(p, tag.id, a.id)]++;
-            return el(
-              "td",
-              { class: "klein" },
-              `${z.A} da, ${z.F} frei, ${z.O} offen`,
-            );
+            return summenZelle(tag.id, a.id, z);
           }),
           bearbeiten ? el("td") : false,
         )
@@ -422,11 +463,17 @@ function zeichne(bereich, ctx, d, neuLaden) {
               {
                 type: "button",
                 class: "knopf knopf--klein knopf--still",
+                "data-fokus": `alle|${abschnitte[i].id}`,
                 "aria-label": `Alle sichtbaren auf Da setzen: ${abschnitte[i].name}`,
                 onclick: () => {
                   for (const p of sichtbar)
                     setzeWert(p, tag.id, abschnitte[i].id, "A");
                   zeichneTabelle();
+                  rueckmeldung(
+                    sichtbar.map((p) =>
+                      feldSchluessel(p.id, tag.id, abschnitte[i].id),
+                    ),
+                  );
                 },
               },
               "Alle Da",
@@ -444,19 +491,28 @@ function zeichne(bereich, ctx, d, neuLaden) {
           )
         : false,
     );
+    if (fokus)
+      tabelleOrt.querySelector(`[data-fokus="${CSS.escape(fokus)}"]`)?.focus();
     zeichneLeiste();
   }
   const tages = () => tage.find((t) => t.id === stand.tag);
 
+  // Die Zahl in der Leiste zählt; die Leiste selbst steigt auf, wenn die erste Änderung entsteht
+  let letzteN = 0;
   function zeichneLeiste() {
     const n = offen.size;
     leiste.hidden = n === 0;
-    if (n === 0) return;
+    if (n === 0) {
+      letzteN = 0;
+      return;
+    }
     leiste.replaceChildren(
       el(
         "p",
         { class: "mn-leiste-zahl", role: "status" },
-        mehrzahl(n, "Änderung", "Änderungen") + " noch nicht gespeichert",
+        zaehlZahl(n, String, letzteN),
+        n === 1 ? " Änderung" : " Änderungen",
+        " noch nicht gespeichert",
       ),
       knopf("Speichern", { art: "haupt", onclick: speichern }),
       knopf("Änderungen verwerfen", {
@@ -468,14 +524,19 @@ function zeichne(bereich, ctx, d, neuLaden) {
         },
       }),
     );
+    letzteN = n;
   }
 
   async function speichern(ereignis) {
     const b = ereignis.currentTarget;
     b.disabled = true;
     b.setAttribute("aria-busy", "true");
+    let gespeichert = [];
     try {
       const liste = [...offen.values()];
+      const schluesselListe = liste.map((c) =>
+        feldSchluessel(c.person.id, c.tagId, c.abschnittId),
+      );
       if (alleModus) {
         for (let i = 0; i < liste.length; i += 100) {
           const teil = liste.slice(i, i + 100);
@@ -496,6 +557,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
           for (const c of teil)
             offen.delete(feldSchluessel(c.person.id, c.tagId, c.abschnittId));
         }
+        gespeichert = schluesselListe;
         ctx.melde(
           `${mehrzahl(liste.length, "Änderung", "Änderungen")} gespeichert.`,
         );
@@ -508,6 +570,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
           })),
         });
         uebernimm(a.eintraege);
+        gespeichert = schluesselListe;
         offen.clear();
         ctx.melde("Deine Anwesenheit ist gespeichert.");
       }
@@ -530,6 +593,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
       b.removeAttribute("aria-busy");
       zeichneTabelle();
       zeichneKonflikt();
+      rueckmeldung(gespeichert);
     }
   }
   function uebernimm(liste) {
@@ -651,17 +715,51 @@ function zeichne(bereich, ctx, d, neuLaden) {
           ? "Die Anfragen sind angenommen."
           : "Die Anfragen sind abgelehnt.",
       );
-      // Angenommene Werte stehen jetzt in der Matrix: neu laden
-      neuLaden();
+      zeichneAnfragen();
+      // Angenommene Werte stehen jetzt in der Matrix: neu holen, ohne die Seite zu leeren
+      await nachladen();
     } catch (f) {
       ctx.melde(meldung(f), f?.status === 409 ? "warn" : "fehler");
-      if (f?.status === 409) neuLaden();
+      if (f?.status === 409) await nachladen();
+    }
+  }
+  // Matrix und Anfragen neu holen: die Tabelle bleibt stehen, wird ruhiger und tauscht dann ihre Felder
+  async function nachladen() {
+    tabelleOrt.classList.add("lg-teil");
+    tabelleOrt.setAttribute("aria-busy", "true");
+    try {
+      const [matrix, neueAnfragen] = await Promise.all([
+        ladeMatrix(k.lagerId),
+        bearbeiten
+          ? ladeAlle(
+              `${LB(k.lagerId)}/anwesenheit/anfragen?status=offen`,
+              "anfragen",
+            )
+          : [],
+      ]);
+      server.clear();
+      for (const e of matrix.eintraege)
+        server.set(
+          feldSchluessel(idVon(e), e.lagertagId, e.tagesabschnittId),
+          e,
+        );
+      frist = matrix.frist;
+      anfragen = neueAnfragen;
+      zeichneFrist();
+      zeichneTabelle();
+      zeichneAnfragen();
+    } catch (f) {
+      ctx.melde(meldung(f), "fehler");
+    } finally {
+      tabelleOrt.classList.remove("lg-teil");
+      tabelleOrt.removeAttribute("aria-busy");
     }
   }
   function zeichneAnfragen() {
     if (!bearbeiten) return;
-    if (anfragen.length === 0) return anfragenOrt.replaceChildren();
-    anfragenOrt.replaceChildren(
+    if (anfragen.length === 0) return ersetzeMitBewegung(anfragenOrt);
+    ersetzeMitBewegung(
+      anfragenOrt,
       el(
         "section",
         { class: "flaeche", "aria-labelledby": "anw-anfragen" },
@@ -683,7 +781,7 @@ function zeichne(bereich, ctx, d, neuLaden) {
           anfragen.map((a) =>
             el(
               "li",
-              {},
+              { "data-id": a.id },
               el(
                 "span",
                 {},

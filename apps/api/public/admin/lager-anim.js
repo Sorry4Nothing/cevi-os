@@ -1,7 +1,8 @@
 // Bewegung und Ladezustände im Lager-Arbeitsbereich (#685): Sie gilt für Aufgaben, Zeitplan, To-dos und die Module «Menschen und Einteilung».
 // Alle Bewegung läuft nur, wenn der Browser sie erlaubt (prefers-reduced-motion: no-preference); sonst steht alles sofort da. Die Animationen sind Web Animations (kein Inline-Stil, kein Inline-Skript, die CSP bleibt streng); die ruhigen Übergänge (Antippen, Balken) stehen in lager-anim.css.
 import { el } from "./dom.js";
-import { erstelleLader } from "./lader.js";
+import { SKELETONS, sk } from "./lader.js";
+import { nochmals, zustandsDaten, zustandsKarte } from "./zustaende.js";
 
 const KURVE = "cubic-bezier(0.2, 0.7, 0.2, 1)";
 
@@ -40,7 +41,7 @@ export function staffle(knoten, { stufe = 30, max = 10 } = {}) {
 }
 
 // Kurzer Puls als Rückmeldung (Antippen, Speichern): die Zeile oder Zelle hebt sich für einen Moment ab
-export const puls = (knoten) =>
+export const puls = (knoten, verzug = 0) =>
   spiele(
     knoten,
     [
@@ -49,6 +50,7 @@ export const puls = (knoten) =>
       { transform: "none" },
     ],
     260,
+    verzug,
   );
 
 // Zeile oder Karte wurde gespeichert: der Hintergrund blitzt kurz in der Akzentfarbe auf
@@ -70,16 +72,16 @@ export function zaehleBis(knoten, ende, format = String, vonWert) {
     knoten.textContent = format(ende);
     return;
   }
-  const start = performance.now();
+  const start = window.performance.now();
   const dauer = 420;
   const schritt = (jetzt) => {
     if (knoten._lgWert !== ende) return;
     const t = Math.min(1, (jetzt - start) / dauer);
     const weich = 1 - (1 - t) ** 3;
     knoten.textContent = format(Math.round(von + (ende - von) * weich));
-    if (t < 1) requestAnimationFrame(schritt);
+    if (t < 1) window.requestAnimationFrame(schritt);
   };
-  requestAnimationFrame(schritt);
+  window.requestAnimationFrame(schritt);
 }
 
 // Eine Zahl für den Bildschirm: sichtbar zählend (aria-hidden), für Screenreader sofort der Endwert
@@ -102,8 +104,8 @@ export function wachseBis(balken, vorher, jetzt) {
     return;
   }
   balken.value = vorher;
-  requestAnimationFrame(() =>
-    requestAnimationFrame(() => {
+  window.requestAnimationFrame(() =>
+    window.requestAnimationFrame(() => {
       balken.value = jetzt;
     }),
   );
@@ -174,16 +176,19 @@ function merke(ziel) {
   return { karte, doppelt };
 }
 
-export function ersetzeMitBewegung(ziel, ...kinder) {
-  const neue = kinder.flat().filter(Boolean);
+export const ersetzeMitBewegung = (ziel, ...kinder) =>
+  bewegeUm(ziel, () => ziel.replaceChildren(...kinder.flat().filter(Boolean)));
+
+// Wie ersetzeMitBewegung, nur baut aendere() den Inhalt von ziel selbst um (zum Beispiel einen Abschnitt per replaceWith ersetzen)
+export function bewegeUm(ziel, aendere) {
   if (!darfBewegen() || !ziel.isConnected) {
-    ziel.replaceChildren(...neue);
+    aendere();
     return;
   }
   const vorher = merke(ziel);
   const zielRect = ziel.getBoundingClientRect();
-  const bezug = getComputedStyle(ziel).position !== "static";
-  ziel.replaceChildren(...neue);
+  const bezug = window.getComputedStyle(ziel).position !== "static";
+  aendere();
   const nachher = oberste(ziel);
   const erster = vorher.karte.size === 0;
   const gesehen = new Set();
@@ -256,29 +261,196 @@ export function ersetzeMitBewegung(ziel, ...kinder) {
 }
 
 // ---- Laden von Teilen ----
-// Ein Teil der Seite (eine Liste, ein Tag, eine Matrix) lädt neu, ohne dass die Seite springt: Das Skeleton hat die Form des Inhalts und
-// ersetzt ihn erst nach 250 ms (Lader); kommt die Antwort früher, bleibt der alte Inhalt bis zur neuen Anzeige. leere: true leert vorher
-// (anderer Tag, anderer Filter vom Server), sonst bleibt der alte Inhalt stehen und «Wird aktualisiert …» steht darüber.
-// Rückgabe: lade(laden, zeichnen, { skeleton, leere }) wie ctx.lade
+// Ein Teil der Seite (eine Liste, ein Tag, eine Matrix) lädt neu, ohne dass die Seite springt. Bis 250 ms bleibt der alte Inhalt stehen (ruhiger,
+// mit aria-busy); dauert es länger, ersetzt ihn ein Skeleton in der Form des Inhalts (mindestens 400 ms, kein Flackern). Ohne alten Inhalt
+// gibt es gleich das Skeleton nach 250 ms wie bei ctx.lade. Fehler: Zustandskarte mit «Nochmals versuchen».
+// leere: true = anderer Inhalt vom Server (anderer Tag, anderer Filter): das Skeleton ersetzt den alten Inhalt; sonst (Aktualisieren) bleibt er stehen.
+// Rückgabe: lade(laden, zeichnen, { skeleton, leere }); zeichnen(daten, neuLaden) baut den Inhalt von teil neu auf.
 export function teilLader(teil) {
-  const lade = erstelleLader(teil);
-  return (laden, zeichnen, { skeleton, leere = false } = {}) => {
-    if (leere) teil.replaceChildren();
+  let lauf = 0;
+  const lade = async (laden, zeichnen, optionen = {}) => {
+    const { skeleton = "tabelle", leere = false } = optionen;
+    const meine = ++lauf;
+    const hatInhalt = teil.firstChild !== null;
+    teil.classList.add("lg-teil");
     teil.setAttribute("aria-busy", "true");
-    return lade(
-      laden,
-      (daten, neu) => {
-        teil.removeAttribute("aria-busy");
-        zeichnen(daten, neu);
-        blendeEin(teil);
-      },
-      { skeleton },
-    ).finally(() => teil.removeAttribute("aria-busy"));
+    let seit = 0;
+    const timer = setTimeout(() => {
+      if (skeleton === false || (hatInhalt && !leere)) return;
+      const bauen =
+        typeof skeleton === "function" ? skeleton : SKELETONS[skeleton];
+      teil.replaceChildren(
+        el(
+          "div",
+          { class: "sk-huelle", "aria-busy": "true" },
+          bauen(),
+          el("p", { class: "nur-leser", role: "status" }, "Lädt …"),
+        ),
+      );
+      seit = Date.now();
+    }, 250);
+    let daten;
+    let fehler = null;
+    try {
+      daten = await laden();
+    } catch (f) {
+      fehler = f;
+    }
+    clearTimeout(timer);
+    if (seit) {
+      const rest = 400 - (Date.now() - seit);
+      if (rest > 0) await new Promise((r) => setTimeout(r, rest));
+    }
+    if (!teil.isConnected || meine !== lauf) return;
+    teil.removeAttribute("aria-busy");
+    teil.classList.remove("lg-teil");
+    const erneut = () => lade(laden, zeichnen, optionen);
+    if (fehler) {
+      const karte = zustandsKarte(zustandsDaten(fehler), [
+        nochmals(erneut, ""),
+      ]);
+      teil.replaceChildren(karte.wurzel);
+      karte.titel.focus();
+      return;
+    }
+    zeichnen(daten, erneut);
+    if (seit || !hatInhalt) blendeEin(teil);
   };
+  return lade;
 }
 
 // Ein Wechsel von Ansicht oder Reiter: der neue Inhalt blendet weich ein, der Fokus bleibt, wo er ist
 export function wechsle(ziel, ...kinder) {
   ziel.replaceChildren(...kinder.flat().filter(Boolean));
   blendeEin(ziel);
+}
+
+// Balken aus einem span in .fortschritt: wächst von «vorher» auf «jetzt» Prozent (CSSOM, kein Inline-Attribut; der Übergang steht in lager-anim.css)
+export function balkenBis(balken, jetzt, vorher) {
+  const setze = (p) => balken.style.setProperty("width", `${p}%`);
+  if (!darfBewegen() || vorher === undefined || vorher === jetzt)
+    return setze(jetzt);
+  setze(vorher);
+  window.requestAnimationFrame(() =>
+    window.requestAnimationFrame(() => setze(jetzt)),
+  );
+}
+
+// Ein Skeleton in einem Teil, aber erst nach 250 ms (kein Flackern bei schnellen Antworten). Rückgabe: Funktion, die den Timer stoppt; der Aufrufer ersetzt den Inhalt danach selbst.
+export function skeletonSpaeter(ziel, bauen, verzug = 250) {
+  const t = setTimeout(() => {
+    const huelle = el(
+      "div",
+      { class: "sk-huelle", "aria-busy": "true" },
+      bauen(),
+    );
+    huelle.append(el("p", { class: "nur-leser", role: "status" }, "Lädt …"));
+    ziel.replaceChildren(huelle);
+  }, verzug);
+  return () => clearTimeout(t);
+}
+
+// ---- Skeleton-Formen der Module Teilnehmende, Abzählen, Anwesenheit, Adressbuch (#685) ----
+const reihe = (n, bau) => Array.from({ length: n }, (_, i) => bau(i));
+
+// Filterleiste (Suche, Auswahlfelder mit Beschriftung), Trefferzeile und optional ein Knopf darüber; gleiche Höhen wie die echte Leiste
+export const skeletonMitFilter = (inhalt, { felder = 2, knopf = false } = {}) =>
+  el(
+    "div",
+    { class: "lg-sk-seite" },
+    knopf &&
+      el(
+        "div",
+        { class: "lg-sk-leiste" },
+        el("span", { class: "sk lg-sk-knopf", "aria-hidden": "true" }),
+      ),
+    el(
+      "div",
+      { class: "lg-sk-leiste lg-sk-leiste--unten" },
+      sk("b", 320),
+      ...reihe(felder, () =>
+        el("span", { class: "lg-sk-feld" }, sk("t", 64), sk("b", 160)),
+      ),
+    ),
+    sk("t", 96),
+    inhalt,
+  );
+
+// Abzählliste: Umschalter, Summe und ein Raster grosser Zeilen mit Haken, Name und Wort
+export function skeletonAbzaehlen({ karten = 12, kopf = true } = {}) {
+  return el(
+    "div",
+    { class: "lg-sk-seite" },
+    kopf && el("div", { class: "lg-sk-leiste" }, sk("b", 260), sk("t", 112)),
+    kopf && el("div", { class: "lg-sk-leiste" }, sk("b", 320), sk("b", 160)),
+    el(
+      "div",
+      { class: "mn-abzaehl", "aria-hidden": "true" },
+      reihe(karten, (i) =>
+        el(
+          "div",
+          { class: "lg-sk-karte" },
+          el("span", { class: "sk lg-sk-haken", "aria-hidden": "true" }),
+          el(
+            "span",
+            { class: "lg-sk-name" },
+            sk("t", [136, 112, 160, 96][i % 4]),
+            sk("t", 64),
+          ),
+          sk("t", 64),
+        ),
+      ),
+    ),
+  );
+}
+
+// Matrix (Anwesenheit): Tagesleiste, Werkzeuge und Tabelle mit Feldern in Knopfhöhe
+export function skeletonMatrix({ spalten = 4, zeilen = 8 } = {}) {
+  return el(
+    "div",
+    { class: "lg-sk-seite" },
+    el("div", { class: "lg-sk-leiste" }, sk("b", 380), sk("b", 160)),
+    el(
+      "div",
+      { class: "box sk-tabelle", "aria-hidden": "true" },
+      el(
+        "table",
+        {},
+        el(
+          "thead",
+          {},
+          el(
+            "tr",
+            {},
+            ...reihe(spalten + 1, () =>
+              el("th", { scope: "col" }, sk("t", 64)),
+            ),
+          ),
+        ),
+        el(
+          "tbody",
+          {},
+          ...reihe(zeilen, (z) =>
+            el(
+              "tr",
+              {},
+              el(
+                "td",
+                {},
+                el(
+                  "span",
+                  { class: "sk-zeile" },
+                  sk("k", 36),
+                  sk("t", [112, 136, 96, 160][z % 4]),
+                ),
+              ),
+              ...reihe(spalten, () =>
+                el("td", {}, el("span", { class: "sk lg-sk-zelle" })),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
 }

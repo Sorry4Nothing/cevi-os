@@ -1,5 +1,6 @@
 import { anfrage } from "./api.js";
 import { avatar, el, knopf } from "./dom.js";
+import { sk } from "./lader.js";
 import { ersetzeMitBewegung } from "./lager-anim.js";
 import { symbol } from "./lager-gemeinsam.js";
 import {
@@ -282,3 +283,161 @@ export const geschlossenHinweis = () =>
       "Das Lager ist schreibgeschützt. Öffne es wieder, wenn du etwas ändern willst.",
     ),
   );
+
+// ---- Skeletons (#685): gleiche Klassen und Masse wie der echte Inhalt, damit beim Wechsel nichts springt ----
+const zeileMit = (...kinder) => el("div", { class: "sk-zeile" }, kinder);
+
+// Aufgaben: Ansicht und Gruppierung, Filterleiste, Kennzahlen, Tabelle mit sieben Spalten
+// Feld mit Beschriftung
+const feldSk = (breite) =>
+  el("div", { class: "la-sk-feld" }, sk("t", 64), sk("b", breite));
+
+export function skeletonAufgaben({ zeilen = 6 } = {}) {
+  const zelle = (inhalt) => el("td", {}, inhalt);
+  return el(
+    "div",
+    { class: "la-sk", "aria-hidden": "true" },
+    el("div", { class: "la-umschalter" }, sk("b", 360), feldSk(200)),
+    el(
+      "div",
+      { class: "la-sk-filter" },
+      sk("b", 380),
+      feldSk(200),
+      feldSk(200),
+      feldSk(200),
+    ),
+    el("div", { class: "la-sk-filter2" }, feldSk(200), feldSk(200)),
+    sk("t", 96),
+    sk("t", 200),
+    el(
+      "div",
+      { class: "box sk-tabelle" },
+      el(
+        "table",
+        {},
+        el(
+          "thead",
+          {},
+          el(
+            "tr",
+            {},
+            Array.from({ length: 7 }, () =>
+              el("th", { scope: "col" }, sk("t", 64)),
+            ),
+          ),
+        ),
+        el(
+          "tbody",
+          {},
+          Array.from({ length: zeilen }, (_, i) =>
+            el(
+              "tr",
+              {},
+              zelle(sk("k", 24)),
+              zelle(zeileMit(sk("k", 48), sk("t", [260, 200, 320][i % 3]))),
+              zelle(sk("r", 80)),
+              zelle(zeileMit(sk("k", 36), sk("t", 96))),
+              zelle(sk("t", 36)),
+              zelle(sk("t", 112)),
+              zelle(sk("r", 96)),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+// Zeitplan: Ansicht, drei Tageskarten mit Einträgen, zwei Verwaltungskarten
+export function skeletonZeitplan() {
+  const tag = (eintraege) =>
+    el(
+      "li",
+      { class: "la-tag" },
+      el("div", { class: "la-tag-kopf" }, sk("t", 160), sk("r", 80)),
+      el(
+        "ul",
+        { class: "la-eintraege" },
+        Array.from({ length: eintraege }, (_, i) =>
+          el(
+            "li",
+            { class: "la-eintrag" },
+            sk("r", 96),
+            sk("t", [200, 260, 160][i % 3]),
+          ),
+        ),
+      ),
+    );
+  const karte = () =>
+    el(
+      "section",
+      { class: "flaeche" },
+      sk("t", 160),
+      sk("t", 320),
+      sk("r", 136),
+    );
+  return el(
+    "div",
+    { class: "la-zeitplan", "aria-hidden": "true" },
+    el("div", { class: "la-umschalter" }, sk("b", 160)),
+    el("ol", { class: "la-tage" }, tag(1), tag(1), tag(1), tag(1)),
+    el("div", { class: "la-verwaltung" }, karte(), karte()),
+  );
+}
+
+// To-dos: Hinweis, Zählzeile, Liste mit Kästchen, Feld zum Hinzufügen
+export function skeletonTodos({ zeilen = 4 } = {}) {
+  return el(
+    "div",
+    { class: "la-todos-sk", "aria-hidden": "true" },
+    sk("t", 380),
+    sk("t", 260),
+    sk("t", 96),
+    el(
+      "ul",
+      { class: "la-liste" },
+      Array.from({ length: zeilen }, (_, i) =>
+        el(
+          "li",
+          {},
+          el(
+            "div",
+            { class: "la-punkt" },
+            sk("k", 24),
+            sk("t", [260, 200, 320, 160][i % 4]),
+          ),
+        ),
+      ),
+    ),
+    sk("b", 380),
+  );
+}
+
+// Detail einer Aufgabe: Angaben mit Feldern, Checkliste, Links
+export function skeletonAufgabeDetail() {
+  const feldDetail = () =>
+    el("div", { class: "feld" }, sk("t", 80), sk("b", 380));
+  const flaeche = (...kinder) =>
+    el("section", { class: "flaeche" }, sk("t", 200), ...kinder);
+  return el(
+    "div",
+    { "aria-hidden": "true" },
+    el("div", { class: "la-kopf" }, sk("t", 136)),
+    el(
+      "div",
+      { class: "la-detail" },
+      flaeche(
+        zeileMit(sk("r", 80), sk("r", 96)),
+        feldDetail(),
+        feldDetail(),
+        feldDetail(),
+      ),
+      flaeche(
+        ...[260, 200, 320].map((b) =>
+          el("div", { class: "la-punkt" }, sk("k", 24), sk("t", b)),
+        ),
+      ),
+      flaeche(sk("t", 260), sk("t", 200)),
+    ),
+  );
+}

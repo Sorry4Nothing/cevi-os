@@ -12,6 +12,13 @@ import { oeffneFluss } from "./fluss.js";
 import { flussKopf } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import { skeletonTabelle } from "./lader.js";
+import {
+  blitze,
+  ersetzeMitBewegung,
+  skeletonMitFilter,
+  staffle,
+  teilLader,
+} from "./lager-anim.js";
 import { macheSortierbar, seitenleiste, sortiere } from "./liste-hilfen.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { leerKarte } from "./zustaende.js";
@@ -52,7 +59,11 @@ export function zeige(bereich, ctx, lagerId, lager) {
     },
     ({ k, liste }, neu) => zeichne(bereich, ctx, k, liste, neu),
     {
-      skeleton: () => skeletonTabelle({ spalten: 5, zeilen: 6, avatar: false }),
+      skeleton: () =>
+        skeletonMitFilter(
+          skeletonTabelle({ spalten: 5, zeilen: 6, avatar: false }),
+          { knopf: true },
+        ),
     },
   );
 }
@@ -77,7 +88,10 @@ function zeichne(bereich, ctx, k, alle, neu) {
       knopf("Person hinzufügen", {
         art: "haupt",
         symbol: "plus",
-        onclick: () => formular(ctx, k, null, neu),
+        onclick: () =>
+          formular(ctx, k, null, () =>
+            alle.length === 0 ? neu() : nachladen(),
+          ),
       }),
     );
   else ctx.kopfAktion();
@@ -174,6 +188,36 @@ function zeichne(bereich, ctx, k, alle, neu) {
   );
   const leer = el("div");
 
+  // Die Liste neu holen, ohne die Seite zu leeren: Zeilen blenden ein, gehen weg und rutschen an ihren Platz; geänderte blitzen auf
+  async function nachladen() {
+    rahmen.classList.add("lg-teil");
+    rahmen.setAttribute("aria-busy", "true");
+    try {
+      const neuListe = await ladeAlle(
+        `${LB(k.lagerId)}/teilnehmer`,
+        "teilnehmer",
+      );
+      if (neuListe.length === 0) return neu();
+      const vorher = new Map(alle.map((t) => [t.id, `${t.version}`]));
+      alle.splice(0, alle.length, ...neuListe);
+      gewaehlt.bereinige(new Set(alle.map((t) => t.id)));
+      zeichneZeilen();
+      for (const tr of koerper.querySelectorAll("tr[data-id]")) {
+        const v = vorher.get(tr.dataset.id);
+        if (
+          v !== undefined &&
+          v !== `${alle.find((t) => t.id === tr.dataset.id)?.version}`
+        )
+          blitze(tr);
+      }
+    } catch (f) {
+      ctx.melde(meldung(f), "fehler");
+    } finally {
+      rahmen.classList.remove("lg-teil");
+      rahmen.removeAttribute("aria-busy");
+    }
+  }
+
   // «Nicht dabei» setzen oder aufheben: eigene Route der Gruppen (einteilung.bearbeiten)
   async function setzeAbgewaehlt(personen, abgewaehlt) {
     try {
@@ -187,7 +231,7 @@ function zeichne(bereich, ctx, k, alle, neu) {
           : `${personen.length === 1 ? teilnehmerName(personen[0]) : mehrzahl(personen.length, "Person", "Personen")} ${personen.length === 1 ? "ist" : "sind"} wieder dabei.`,
       );
       gewaehlt.leeren();
-      neu();
+      nachladen();
     } catch (f) {
       ctx.melde(meldung(f), "fehler");
     }
@@ -203,7 +247,7 @@ function zeichne(bereich, ctx, k, alle, neu) {
           `${LB(k.lagerId)}/teilnehmer/${t.id}?version=${t.version}`,
         ),
       fehlertext: meldung,
-      danach: neu,
+      danach: nachladen,
     });
 
   function zeichneZeilen() {
@@ -234,7 +278,10 @@ function zeichne(bereich, ctx, k, alle, neu) {
               : t.name,
     );
     const [von, bis] = seiten.fenster(treffer.length);
-    koerper.replaceChildren(...treffer.slice(von, bis).map((t) => zeile(t)));
+    ersetzeMitBewegung(
+      koerper,
+      ...treffer.slice(von, bis).map((t) => zeile(t)),
+    );
     beschrifteZellen(koerper, [
       ...(einteilen ? [""] : []),
       "",
@@ -277,7 +324,7 @@ function zeichne(bereich, ctx, k, alle, neu) {
     }
     return el(
       "tr",
-      { class: t.abgewaehlt ? "inaktiv" : undefined },
+      { "data-id": t.id, class: t.abgewaehlt ? "inaktiv" : undefined },
       kasten && el("td", { class: "mn-auswahlzelle" }, kasten.wurzel),
       el(
         "th",
@@ -301,7 +348,7 @@ function zeichne(bereich, ctx, k, alle, neu) {
               art: "still",
               symbol: "bearbeiten",
               kontext: teilnehmerName(t),
-              onclick: () => formular(ctx, k, t, neu),
+              onclick: () => formular(ctx, k, t, nachladen),
             }),
           einteilen &&
             knopf(t.abgewaehlt ? "Wieder dabei" : "Nicht dabei", {
@@ -358,7 +405,7 @@ function zeichne(bereich, ctx, k, alle, neu) {
     bearbeiten &&
       knopf("Aus Tabelle importieren", {
         symbol: "plus",
-        onclick: () => importSeite(ctx, k, neu),
+        onclick: () => importSeite(ctx, k, nachladen),
       }),
     false,
   );
@@ -557,20 +604,31 @@ function importSeite(ctx, k, neu) {
     });
   };
 
+  // Die Vorschau lädt als Skeleton in der Form der Tabelle; Fehler stehen als Karte mit «Nochmals versuchen» in der Ausgabe
+  const ladeVorschau = teilLader(ausgabe);
   vorschau.addEventListener("click", async () => {
     vorschau.disabled = true;
     vorschau.setAttribute("aria-busy", "true");
+    uebernehmen.hidden = true;
+    fehler.hidden = true;
+    const gesendet = text.eingabe.value;
     try {
-      const e = await sende(false);
-      if (!e) return;
-      zeigeVorschau(ausgabe, e);
-      vorschau.classList.remove("knopf--haupt");
-      uebernehmen.hidden = e.neu.length === 0;
-      uebernehmen.textContent = `${mehrzahl(e.neu.length, "Person", "Personen")} übernehmen`;
-    } catch (f) {
-      fehler.textContent = meldung(f);
-      fehler.hidden = false;
-      fehler.focus();
+      await ladeVorschau(
+        async () => (await sende(false)) ?? false,
+        (e) => {
+          // Ein Text, den man inzwischen geändert hat, bekommt keine alte Vorschau
+          if (!e || text.eingabe.value !== gesendet) return;
+          zeigeVorschau(ausgabe, e);
+          vorschau.classList.remove("knopf--haupt");
+          uebernehmen.hidden = e.neu.length === 0;
+          uebernehmen.textContent = `${mehrzahl(e.neu.length, "Person", "Personen")} übernehmen`;
+        },
+        {
+          leere: true,
+          skeleton: () =>
+            skeletonTabelle({ spalten: 5, zeilen: 4, avatar: false }),
+        },
+      );
     } finally {
       vorschau.disabled = false;
       vorschau.removeAttribute("aria-busy");
@@ -666,4 +724,5 @@ function zeigeVorschau(ausgabe, e) {
       el("p", { class: "leise" }, "In diesem Text steht keine Person."),
     );
   ausgabe.replaceChildren(...teile);
+  staffle(ausgabe.querySelectorAll("tbody tr, li"), { stufe: 24 });
 }

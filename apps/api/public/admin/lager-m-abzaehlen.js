@@ -1,7 +1,14 @@
 import { anfrage } from "./api.js";
 import { el, filterGruppe, knopf } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
-import { skeletonListe } from "./lader.js";
+import {
+  blendeEin,
+  ersetzeMitBewegung,
+  puls,
+  skeletonAbzaehlen,
+  teilLader,
+  zaehlZahl,
+} from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { haenge } from "./lager-gemeinsam.js";
 import { mehrzahl } from "./lager-menschen-logik.js";
@@ -52,7 +59,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       if (!eintraege) return keinLeserecht(bereich, "die Abzählliste");
       zeichne(bereich, ctx, k, eintraege, gruppen);
     },
-    { skeleton: () => skeletonListe({ zeilen: 8 }) },
+    { skeleton: () => skeletonAbzaehlen() },
   );
 }
 
@@ -64,13 +71,29 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
   ].sort((a, b) => a.localeCompare(b, "de"));
   const stand = { art: "teilnehmer", gruppe: "", stufe: "", suche: "" };
   let eintraege = ersteListe;
-  const summe = el("p", {
-    class: "mn-summe",
-    role: "status",
-    "aria-live": "polite",
+  // Die Summe zählt hoch und runter (sichtbar), Screenreader bekommen den Satz «12 von 40 da» (aria-live)
+  const zahlDa = zaehlZahl(0);
+  const zahlAlle = zaehlZahl(0);
+  const summe = el(
+    "p",
+    { class: "mn-summe", role: "status", "aria-live": "polite" },
+    zahlDa,
+    " von ",
+    zahlAlle,
+    " da",
+  );
+  const fortschritt = el("progress", {
+    class: "mn-fuell",
+    max: "1",
+    value: "0",
+    "aria-hidden": "true",
   });
   const liste = el("ul", { class: "mn-abzaehl" });
   const leer = el("div");
+  // Liste und Leerzustand: ein Teil, der als Ganzes neu lädt (anderer Filter vom Server, Zurücksetzen)
+  const listeOrt = el("div", {}, liste, leer);
+  const ladeTeil = teilLader(listeOrt);
+  const zeilen = new Map(); // id -> { knopf, kasten, wort }
   const leisteOrt = el("div");
   let leiste = null;
 
@@ -131,26 +154,49 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
     leisteOrt.replaceChildren(leiste.wurzel);
   }
 
-  async function lade() {
-    liste.setAttribute("aria-busy", "true");
-    try {
-      eintraege = await holeListe(k.lagerId, stand.art, stand.gruppe);
-      zeichneZeilen();
-    } catch (f) {
-      ctx.melde(meldung(f), "fehler");
-    } finally {
-      liste.removeAttribute("aria-busy");
+  // leere: false (Zurücksetzen, Fehler beim Haken) lässt die Liste stehen und tauscht sie danach; sonst ersetzt ein Skeleton sie
+  function lade({ leere = true } = {}) {
+    // Ein anderer Stand wird geholt: Die Summe zählt auf null, bis die neue Liste da ist
+    if (leere) {
+      zahlDa.setze(0);
+      zahlAlle.setze(0);
+      fortschritt.value = 0;
+      alleKnopf.hidden = true;
     }
+    return ladeTeil(
+      () => holeListe(k.lagerId, stand.art, stand.gruppe),
+      (daten) => {
+        eintraege = daten;
+        listeOrt.replaceChildren(liste, leer);
+        zeichneZeilen();
+      },
+      { skeleton: () => skeletonAbzaehlen({ kopf: false }), leere },
+    );
   }
 
   const nameVon = (e) => (e.vorname ? `${e.nachname} ${e.vorname}` : e.name);
 
-  // Haken setzen; die Zeilen ändern sich sofort, bei einem Fehler kehren sie zurück und der Stand wird neu geholt
-  async function haken(zeilen, geprueft) {
-    const betroffen = zeilen.filter((z) => z.geprueft !== geprueft);
+  const idVon = (e) => e.teilnehmerId ?? e.personId ?? nameVon(e);
+  // Eine Zeile bekommt ihren Zustand; sie wird nicht neu gebaut, der Fokus bleibt auf dem Knopf
+  function stelleZeile(e) {
+    const z = zeilen.get(idVon(e));
+    if (!z) return;
+    z.knopf.classList.toggle("ist-da", e.geprueft);
+    z.knopf.setAttribute("aria-pressed", String(e.geprueft));
+    z.wort.textContent = e.geprueft ? "Da" : "Nicht gezählt";
+  }
+
+  // Haken setzen; die Zeilen ändern sich sofort mit einem Puls am Haken, die Summe zählt mit; bei einem Fehler kehren sie zurück und der Stand wird neu geholt
+  async function haken(zeilenListe, geprueft) {
+    const betroffen = zeilenListe.filter((z) => z.geprueft !== geprueft);
     if (betroffen.length === 0) return;
-    for (const z of betroffen) z.geprueft = geprueft;
-    zeichneZeilen();
+    betroffen.forEach((z, i) => {
+      z.geprueft = geprueft;
+      stelleZeile(z);
+      const kasten = zeilen.get(idVon(z))?.kasten;
+      if (kasten) puls(kasten, Math.min(i, 12) * 25);
+    });
+    aktualisiereSumme();
     try {
       await anfrage("PUT", `${LB(k.lagerId)}/abzaehlen`, {
         geprueft,
@@ -161,8 +207,21 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
       });
     } catch (f) {
       ctx.melde(meldung(f), "fehler");
-      lade();
+      lade({ leere: false });
     }
+  }
+
+  function aktualisiereSumme() {
+    const sicht = sichtbare();
+    const da = sicht.filter((e) => e.geprueft).length;
+    zahlDa.setze(da);
+    zahlAlle.setze(sicht.length);
+    fortschritt.max = Math.max(1, sicht.length);
+    fortschritt.value = da;
+    const offen = sicht.filter((e) => !e.geprueft);
+    alleKnopf.hidden = !schreiben || offen.length === 0;
+    alleKnopf.lastChild.textContent = `Alle ${offen.length} abhaken`;
+    alleKnopf.onclick = () => haken(offen, true);
   }
 
   function sichtbare() {
@@ -173,40 +232,41 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
     );
   }
 
-  function zeichneZeilen() {
-    const sicht = sichtbare();
-    const da = sicht.filter((e) => e.geprueft).length;
-    summe.textContent = `${da} von ${sicht.length} da`;
-    liste.replaceChildren(
-      ...sicht.map((e) =>
-        el(
-          "li",
-          {},
-          el(
-            "button",
-            {
-              type: "button",
-              class: `mn-abzaehl-zeile${e.geprueft ? " ist-da" : ""}`,
-              "aria-pressed": String(e.geprueft),
-              disabled: !schreiben,
-              onclick: () => haken([e], !e.geprueft),
-            },
-            el("span", { class: "mn-haken", "aria-hidden": "true" }),
-            el(
-              "span",
-              { class: "mn-abzaehl-name" },
-              el("span", { class: "name" }, nameVon(e)),
-              e.stufe && el("span", { class: "klein leise" }, e.stufe),
-            ),
-            el(
-              "span",
-              { class: "mn-abzaehl-wort" },
-              e.geprueft ? "Da" : "Nicht gezählt",
-            ),
-          ),
-        ),
+  function zeileVon(e) {
+    const knopf = el(
+      "button",
+      {
+        type: "button",
+        class: `mn-abzaehl-zeile${e.geprueft ? " ist-da" : ""}`,
+        "aria-pressed": String(e.geprueft),
+        disabled: !schreiben,
+        onclick: () => haken([e], !e.geprueft),
+      },
+      el("span", { class: "mn-haken", "aria-hidden": "true" }),
+      el(
+        "span",
+        { class: "mn-abzaehl-name" },
+        el("span", { class: "name" }, nameVon(e)),
+        e.stufe && el("span", { class: "klein leise" }, e.stufe),
+      ),
+      el(
+        "span",
+        { class: "mn-abzaehl-wort" },
+        e.geprueft ? "Da" : "Nicht gezählt",
       ),
     );
+    zeilen.set(idVon(e), {
+      knopf,
+      kasten: knopf.firstChild,
+      wort: knopf.lastChild,
+    });
+    return el("li", { "data-id": idVon(e) }, knopf);
+  }
+
+  function zeichneZeilen() {
+    const sicht = sichtbare();
+    zeilen.clear();
+    ersetzeMitBewegung(liste, ...sicht.map(zeileVon));
     leer.replaceChildren();
     if (sicht.length === 0)
       leer.append(
@@ -228,11 +288,9 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
           ],
         ),
       );
+    if (sicht.length === 0) blendeEin(leer.firstChild);
     leiste?.setzeTreffer(sicht.length, eintraege.length);
-    const offen = sicht.filter((e) => !e.geprueft);
-    alleKnopf.hidden = !schreiben || offen.length === 0;
-    alleKnopf.lastChild.textContent = `Alle ${offen.length} abhaken`;
-    alleKnopf.onclick = () => haken(offen, true);
+    aktualisiereSumme();
   }
 
   const alleKnopf = knopf("Alle abhaken", { symbol: "haken" });
@@ -251,7 +309,7 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
         ctx.melde(
           `Liste zurückgesetzt. ${mehrzahl(e.zurueckgesetzt, "Haken", "Haken")} entfernt, niemand gelöscht.`,
         );
-        lade();
+        lade({ leere: false });
       } catch (f) {
         ctx.melde(meldung(f), "fehler");
       }
@@ -261,11 +319,15 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
   baueLeiste();
   haenge(
     bereich,
-    el("div", { class: "mn-werkzeuge" }, umschalter.wurzel, summe),
+    el(
+      "div",
+      { class: "mn-werkzeuge" },
+      umschalter.wurzel,
+      el("div", { class: "mn-summebox" }, summe, fortschritt),
+    ),
     leisteOrt,
     schreiben && el("div", { class: "mn-werkzeuge" }, alleKnopf, zurueck),
-    liste,
-    leer,
+    listeOrt,
   );
   zeichneZeilen();
 }

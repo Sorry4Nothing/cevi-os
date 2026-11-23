@@ -10,7 +10,13 @@ import {
   tabelle,
 } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
-import { skeletonTabelle } from "./lader.js";
+import {
+  blitze,
+  ersetzeMitBewegung,
+  puls,
+  wechsle,
+  zaehlZahl,
+} from "./lager-anim.js";
 import { macheSortierbar, sortiere } from "./liste-hilfen.js";
 import { sortierListe } from "./sortieren.js";
 import { leerKarte } from "./zustaende.js";
@@ -38,6 +44,7 @@ import {
   personenOptionen,
   rechteVon,
   ressortOptionen,
+  skeletonAufgaben,
   statusChip,
   sternMarke,
 } from "./lager-aufgaben-gemeinsam.js";
@@ -87,9 +94,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       return { lager: l, rechte, aufgaben, mitglieder, ressorts };
     },
     (daten, neu) => zeichne(bereich, ctx, lagerId, daten, neu),
-    {
-      skeleton: () => skeletonTabelle({ spalten: 5, zeilen: 6, avatar: true }),
-    },
+    { skeleton: () => skeletonAufgaben() },
   );
 }
 
@@ -184,6 +189,13 @@ function zeichne(bereich, ctx, lagerId, daten, neuLaden) {
     ctx.melde(`Nicht gespeichert. ${fehlerText(f)}`, "fehler");
     if (istGeschlossen(f)) neuLaden();
   }
+  // Nach dem Speichern: die Zeile oder Karte hebt sich kurz ab, der Haken pulsiert
+  const rueckmeldung = (id) => {
+    const k = koerper.querySelector(`[data-id="${CSS.escape(id)}"]`);
+    if (!k) return;
+    blitze(k);
+    puls(k.querySelector(".la-tick"));
+  };
   async function setzeStatus(a, status, { undo = true } = {}) {
     const vorher = a.status;
     try {
@@ -201,6 +213,7 @@ function zeichne(bereich, ctx, lagerId, daten, neuLaden) {
         S.aufgaben = await ladeAufgaben(lagerId);
       }
       zeichneKoerper();
+      rueckmeldung(a.id);
       if (undo)
         ctx.melde(
           status === "erledigt"
@@ -229,6 +242,7 @@ function zeichne(bereich, ctx, lagerId, daten, neuLaden) {
       });
       ersetze(neu);
       zeichneKoerper();
+      rueckmeldung(a.id);
       if (text) ctx.melde(text);
       return neu;
     } catch (f) {
@@ -359,7 +373,19 @@ function zeichne(bereich, ctx, lagerId, daten, neuLaden) {
     zeichneKoerper();
   });
   const gruppenOrt = el("div", { class: "la-gruppenwahl" }, gruppenWahl.wurzel);
-  const kennzahlen = el("p", { class: "leise klein", role: "status" });
+  const zahlOffen = zaehlZahl(0);
+  const zahlUeberfaellig = zaehlZahl(0);
+  const zahlErledigt = zaehlZahl(0);
+  const kennzahlen = el(
+    "p",
+    { class: "leise klein la-kennzahlen", role: "status" },
+    zahlOffen,
+    " offen, ",
+    zahlUeberfaellig,
+    " überfällig, ",
+    zahlErledigt,
+    " erledigt",
+  );
   const koerper = el("div", { class: "la-koerper" });
   const leiste2 = el(
     "div",
@@ -427,10 +453,12 @@ function zeichne(bereich, ctx, lagerId, daten, neuLaden) {
     const ok = knopf("Anwenden", { art: "haupt", klein: true });
     ok.addEventListener("click", async () => {
       ok.disabled = true;
+      ok.setAttribute("aria-busy", "true");
       try {
         await anwenden();
       } finally {
         ok.disabled = false;
+        ok.removeAttribute("aria-busy");
       }
     });
     return el(
@@ -1027,6 +1055,7 @@ function zeichne(bereich, ctx, lagerId, daten, neuLaden) {
     );
   }
 
+  let gezeigt = null;
   function zeichneKoerper({ fokusSortierung = false } = {}) {
     const liste = sichtbar();
     const alleSichtbar = S.aufgaben.filter((a) => !S.verborgen.has(a.id));
@@ -1036,14 +1065,19 @@ function zeichne(bereich, ctx, lagerId, daten, neuLaden) {
     const ueberfaellig = offen.filter(
       (a) => abschnitt(a, S.jetzt) === "ueberfaellig",
     ).length;
-    kennzahlen.textContent = `${offen.length} offen, ${ueberfaellig} überfällig, ${alleSichtbar.length - offen.length} erledigt`;
+    zahlOffen.setze(offen.length);
+    zahlUeberfaellig.setze(ueberfaellig);
+    zahlErledigt.setze(alleSichtbar.length - offen.length);
     const inhalt =
       S.ansicht === "board"
         ? zeichneBoard(liste)
         : S.ansicht === "reihenfolge"
           ? zeichneReihenfolge(liste)
           : zeichneTabelle(liste);
-    koerper.replaceChildren(inhalt);
+    // Eine andere Ansicht blendet weich ein; innerhalb einer Ansicht gleiten die Zeilen und Karten an ihren neuen Platz
+    if (gezeigt === S.ansicht) ersetzeMitBewegung(koerper, inhalt);
+    else wechsle(koerper, inhalt);
+    gezeigt = S.ansicht;
     zeichneAuswahl();
     if (fokusSortierung) koerper.querySelector("th[aria-sort] button")?.focus();
   }

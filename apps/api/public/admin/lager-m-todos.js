@@ -1,6 +1,6 @@
 import { ApiFehler, anfrage } from "./api.js";
 import { ankreuzen, el, feld, knopf } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { blitze, ersetzeMitBewegung, puls, zaehlZahl } from "./lager-anim.js";
 import { sortierListe } from "./sortieren.js";
 import { leerKarte } from "./zustaende.js";
 import { feldFehler, symbol } from "./lager-gemeinsam.js";
@@ -11,6 +11,7 @@ import {
   istGeschlossen,
   ladeLagerMitRechten,
   rechteVon,
+  skeletonTodos,
 } from "./lager-aufgaben-gemeinsam.js";
 
 // Modul «To-dos» des Lager-Arbeitsbereichs (#670): die privaten To-dos der eigenen Person. Jede Person im Lager führt ihre eigenen, auch mit der Rolle «Lesen»; niemand sonst sieht sie, auch die Lagerleitung nicht. Adresse: #lager/lager/<id>/todos. Der Server kennt keine Version (kein Konflikt), höchstens 200 To-dos je Person und Lager, Text bis 500 Zeichen.
@@ -27,7 +28,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       return { lager: l, rechte: rechteVon(l), todos: r.todos };
     },
     (d, neu) => zeichne(bereich, ctx, lagerId, d, neu),
-    { skeleton: () => skeletonListe({ zeilen: 4 }) },
+    { skeleton: () => skeletonTodos() },
   );
 }
 
@@ -40,6 +41,15 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
   ctx.kopfAktion();
 
   const ort = el("div", { class: "la-todos" });
+  const zahlOffen = zaehlZahl(0);
+  const zahlGesamt = zaehlZahl(0);
+  const zaehlzeile = el(
+    "p",
+    { class: "leise klein la-kennzahlen", role: "status" },
+    zahlOffen,
+    " offen von ",
+    zahlGesamt,
+  );
   const melde = (f) => {
     if (istGeschlossen(f)) neuLaden();
     ctx.melde(
@@ -60,6 +70,11 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
       melde(f);
     }
     zeichneListe();
+    const k = ort.querySelector(`[data-id="${CSS.escape(t.id)}"]`);
+    if (k) {
+      blitze(k);
+      puls(k.querySelector(".wahl"));
+    }
   }
   function loesche(t) {
     ctx.mitRueckgaengig({
@@ -158,7 +173,8 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
     const sichtbar = T.todos.filter((t) => !T.verborgen.has(t.id));
     const offen = sichtbar.filter((t) => !t.erledigt).length;
     if (sichtbar.length === 0) {
-      ort.replaceChildren(
+      ersetzeMitBewegung(
+        ort,
         leerKarte(
           schreibbar
             ? "Noch keine To-dos. Schreibe unten das erste auf."
@@ -167,12 +183,11 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
       );
       return;
     }
-    ort.replaceChildren(
-      el(
-        "p",
-        { class: "leise klein", role: "status" },
-        `${offen} offen von ${sichtbar.length}`,
-      ),
+    zahlOffen.setze(offen);
+    zahlGesamt.setze(sichtbar.length);
+    ersetzeMitBewegung(
+      ort,
+      zaehlzeile,
       schreibbar && sichtbar.length > 1
         ? sortierListe({
             beschriftung: "Meine To-dos",
@@ -206,7 +221,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
         : el(
             "ul",
             { class: "la-liste" },
-            sichtbar.map((t) => el("li", {}, zeile(t))),
+            sichtbar.map((t) => el("li", { "data-id": t.id }, zeile(t))),
           ),
     );
   }

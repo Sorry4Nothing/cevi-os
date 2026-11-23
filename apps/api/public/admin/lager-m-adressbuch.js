@@ -10,6 +10,7 @@ import {
 } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import { skeletonTabelle } from "./lader.js";
+import { blitze, ersetzeMitBewegung, skeletonMitFilter } from "./lager-anim.js";
 import { macheSortierbar, seitenleiste, sortiere } from "./liste-hilfen.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { normalisiereTelefon } from "./telefon.js";
@@ -46,7 +47,16 @@ export function zeige(bereich, ctx, lagerId, lager) {
       zeichne(bereich, ctx, k, liste, neu);
     },
     {
-      skeleton: () => skeletonTabelle({ spalten: 5, zeilen: 5, avatar: false }),
+      skeleton: () =>
+        el(
+          "div",
+          { class: "lg-sk-seite" },
+          el("span", { class: "sk lg-sk-hinweis", "aria-hidden": "true" }),
+          skeletonMitFilter(
+            skeletonTabelle({ spalten: 6, zeilen: 5, avatar: false }),
+            { felder: 0 },
+          ),
+        ),
     },
   );
 }
@@ -69,7 +79,10 @@ function zeichne(bereich, ctx, k, alle, neu) {
       ? knopf("Kontakt hinzufügen", {
           art: "haupt",
           symbol: "plus",
-          onclick: () => formular(ctx, k, null, neu),
+          onclick: () =>
+            formular(ctx, k, null, () =>
+              alle.length === 0 ? neu() : nachladen(),
+            ),
         })
       : false,
   );
@@ -142,6 +155,35 @@ function zeichne(bereich, ctx, k, alle, neu) {
   );
   const leer = el("div");
 
+  // Die Liste neu holen, ohne die Seite zu leeren: Zeilen blenden ein, gehen weg und rutschen an ihren Platz; geänderte blitzen auf
+  async function nachladen() {
+    rahmen.classList.add("lg-teil");
+    rahmen.setAttribute("aria-busy", "true");
+    try {
+      const neuListe = await ladeAlle(
+        `${LB(k.lagerId)}/adressbuch`,
+        "kontakte",
+      );
+      if (neuListe.length === 0) return neu();
+      const vorher = new Map(alle.map((c) => [c.id, `${c.version}`]));
+      alle.splice(0, alle.length, ...neuListe);
+      zeichneZeilen();
+      for (const tr of koerper.querySelectorAll("tr[data-id]")) {
+        const v = vorher.get(tr.dataset.id);
+        if (
+          v !== undefined &&
+          v !== `${alle.find((c) => c.id === tr.dataset.id)?.version}`
+        )
+          blitze(tr);
+      }
+    } catch (f) {
+      ctx.melde(meldung(f), "fehler");
+    } finally {
+      rahmen.classList.remove("lg-teil");
+      rahmen.removeAttribute("aria-busy");
+    }
+  }
+
   const loesche = (c, ereignis) =>
     ctx.mitRueckgaengig({
       text: `${c.name} ist gelöscht`,
@@ -152,7 +194,7 @@ function zeichne(bereich, ctx, k, alle, neu) {
           `${LB(k.lagerId)}/adressbuch/${c.id}?version=${c.version}`,
         ),
       fehlertext: meldung,
-      danach: neu,
+      danach: nachladen,
     });
 
   function zeichneZeilen() {
@@ -168,11 +210,12 @@ function zeichne(bereich, ctx, k, alle, neu) {
       (c, s) => (c[s] ?? "").toLowerCase(),
     );
     const [von, bis] = seiten.fenster(treffer.length);
-    koerper.replaceChildren(
+    ersetzeMitBewegung(
+      koerper,
       ...treffer.slice(von, bis).map((c) =>
         el(
           "tr",
-          {},
+          { "data-id": c.id },
           el(
             "th",
             { scope: "row" },
@@ -211,7 +254,7 @@ function zeichne(bereich, ctx, k, alle, neu) {
                 art: "still",
                 symbol: "bearbeiten",
                 kontext: c.name,
-                onclick: () => formular(ctx, k, c, neu),
+                onclick: () => formular(ctx, k, c, nachladen),
               }),
               knopf("Löschen", {
                 klein: true,
