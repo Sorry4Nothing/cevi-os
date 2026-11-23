@@ -46,6 +46,11 @@ export const abteilung = pgTable("abteilung", {
     (): AnyPgColumn => medium.id,
     { onDelete: "set null" },
   ),
+  // Quadratisches Zeichen für das Favicon der Website (#558); ohne es gilt das Cevi-Zeichen der Plattform
+  websiteZeichenMediumId: uuid("website_zeichen_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen

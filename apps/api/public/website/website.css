@@ -695,6 +695,26 @@ a.btn.s {
   gap: 0.75rem;
 }
 
+/* Aktionsgruppe (#555): Schaltflächen, die aufeinander folgen, stehen in einer Zeile. Alle haben dieselbe Form und Höhe; nur die Hauptaktion ist gefüllt.
+   Ein Verweis in der Gruppe ist ein Knopf mit Rand und Pfeil, damit Haupt- und Nebenaktion aus einem Guss sind */
+.aktionen {
+  gap: 0.75rem 1rem;
+}
+
+.aktionen .verweis {
+  min-height: 3.5rem;
+  padding: 0 1.75rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+  font-size: 1.0625rem;
+}
+
+.aktionen .verweis:hover {
+  background: var(--surface-container);
+  text-decoration: none;
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;
@@ -1341,17 +1361,9 @@ div.termin {
   --abstand: clamp(2.25rem, 1.5rem + 2.5vw, 4rem);
 }
 
-/* Folgt ein Abschnitt mit Schiene auf einen gleichen, bleibt die Fläche: Eine Linie trennt, kein neuer Ton */
+/* Folgt ein Abschnitt mit Schiene auf einen gleichen, bleibt die Fläche: Eine Linie trennt, kein neuer Ton. Die Linie läuft wie die Hintergründe von Fensterrand zu Fensterrand */
 .sektion--folge {
-  padding-top: 0;
-}
-
-.sektion--folge > .wrap::before {
-  display: block;
-  grid-column: 1 / -1;
-  margin-bottom: var(--abstand);
   border-top: 1px solid var(--outline-variant);
-  content: "";
 }
 
 .sektion-rumpf {
@@ -2002,8 +2014,9 @@ a.btn.w {
   background: none;
 }
 
-.sektion--terminliste .termine > li:first-child .termin {
-  padding-top: 0;
+/* Die Liste rückt um den Innenabstand der ersten Zeile nach oben: So steht das erste Datumsfeld auf der Höhe des Titels */
+.sektion--terminliste .termine {
+  margin-block: -1.25rem;
 }
 
 .sektion--terminliste .termin .titel {
@@ -2012,19 +2025,32 @@ a.btn.w {
   font-weight: 800;
 }
 
-/* Zeigen und Fokus: Die Zeile bekommt eine ruhige Fläche, sonst bewegt sich nichts ausser dem Pfeil. Die Fläche reicht seitlich über die Zeile hinaus, damit der Text nicht springt */
+/* Zeigen: Hinter der Zeile erscheint eine ruhige Fläche, sonst bewegt sich nichts ausser dem Pfeil. Die Fläche ist eine eigene Schicht (::before):
+   Sie hat rundum denselben Abstand zum Inhalt (0.75rem), bleibt von den Trennlinien weg (0.5rem) und verschiebt nichts */
 .sektion--terminliste a.termin {
-  margin-inline: -1rem;
-  padding-inline: 1rem;
-  border-radius: var(--r-sm);
+  position: relative;
+  isolation: isolate;
+}
+
+.sektion--terminliste a.termin::before {
+  position: absolute;
+  inset: 0.5rem -0.75rem;
+  z-index: -1;
+  border-radius: var(--r-md);
+  content: "";
 }
 
 .sektion--terminliste a.termin:hover {
+  background: none;
+}
+
+.sektion--terminliste a.termin:hover::before {
   background: var(--surface-container);
 }
 
 .sektion--terminliste a.termin:focus-visible {
-  outline-offset: 4px;
+  outline-offset: -0.375rem;
+  border-radius: var(--r-md);
 }
 
 .termin-pfeil {
@@ -2257,30 +2283,42 @@ a.btn.w {
   line-height: 1.5rem;
 }
 
-/* Zeitstrahl: das Jahr gross vorn, das Ereignis daneben; eine Linie mit Marken verbindet die Jahre */
+/* Zeitstrahl (#560): das Jahr gross als Blickfang, eine durchgehende Linie mit Marken, das Ereignis daneben.
+   Jahr, Marke und erste Textzeile liegen auf derselben Achse: der Mitte der Jahreszahl (--jahr ist ihre Schriftgrösse und Zeilenhöhe) */
 .zeitstrahl {
+  --jahr: clamp(2rem, 1.4rem + 1.8vw, 3.25rem);
+  --jahr-spalte: calc(var(--jahr) * 2.6);
+  --schiene: 4rem;
+  --marke: 0.875rem;
+  --zeile: 1.75rem;
+  --zeit-grund: var(--surface-container-low);
   display: flex;
   flex-direction: column;
+}
+
+.sektion--toenung .zeitstrahl {
+  --zeit-grund: var(--surface);
 }
 
 .zeitstrahl > li {
   position: relative;
   display: grid;
-  grid-template-columns: 6.5rem minmax(0, 1fr);
-  gap: 0.25rem 2.5rem;
-  align-items: baseline;
-  padding-bottom: 2rem;
+  grid-template-columns: var(--jahr-spalte) minmax(0, 1fr);
+  column-gap: var(--schiene);
+  align-items: start;
+  padding-bottom: clamp(2rem, 1.5rem + 1.5vw, 3rem);
 }
 
 .zeitstrahl > li:last-child {
   padding-bottom: 0;
 }
 
+/* Die Linie läuft von der Mitte dieser Marke bis zur Mitte der nächsten: zusammen eine durchgehende Linie */
 .zeitstrahl > li::before {
   position: absolute;
-  top: 0.5rem;
-  bottom: -0.5rem;
-  left: calc(6.5rem + 1.25rem - 1px);
+  top: calc(var(--jahr) / 2);
+  bottom: calc(var(--jahr) / -2);
+  left: calc(var(--jahr-spalte) + var(--schiene) / 2 - 1px);
   width: 2px;
   background: var(--outline-variant);
   content: "";
@@ -2290,27 +2328,35 @@ a.btn.w {
   display: none;
 }
 
+/* Die Marke sitzt auf der Mitte der Jahreszahl; ihr Hof in der Farbe des Abschnitts trennt sie von der Linie */
 .zeitstrahl > li::after {
   position: absolute;
-  top: 0.5rem;
-  left: calc(6.5rem + 1.25rem - 0.375rem);
-  width: 0.75rem;
-  height: 0.75rem;
+  top: calc((var(--jahr) - var(--marke)) / 2);
+  left: calc(var(--jahr-spalte) + (var(--schiene) - var(--marke)) / 2);
+  width: var(--marke);
+  height: var(--marke);
   background: var(--primary);
+  box-shadow: 0 0 0 0.375rem var(--zeit-grund);
   content: "";
 }
 
 .zeitstrahl .jahr {
   color: var(--titel);
-  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.25rem);
+  font-size: var(--jahr);
   line-height: 1;
   font-weight: 800;
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
+  text-align: right;
 }
 
+/* Die erste Textzeile steht mittig zur Jahreszahl */
 .zeitstrahl p + p {
-  max-width: 52ch;
+  max-width: 56ch;
+  margin-top: calc((var(--jahr) - var(--zeile)) / 2);
+  color: var(--on-surface);
+  font-size: 1.125rem;
+  line-height: var(--zeile);
 }
 
 /* Zahlen: wenige grosse Zahlen nebeneinander, darunter, was sie zählen */
@@ -2343,17 +2389,29 @@ a.btn.w {
 }
 
 @media (max-width: 47.5em) {
+  .zeitstrahl {
+    --schiene: 2.5rem;
+  }
+
   .zeitstrahl > li {
-    grid-template-columns: 4.5rem minmax(0, 1fr);
-    gap: 0.25rem 2rem;
+    display: block;
+    padding-left: var(--schiene);
   }
 
   .zeitstrahl > li::before {
-    left: calc(4.5rem + 1rem - 1px);
+    left: calc(var(--marke) / 2 - 1px);
   }
 
   .zeitstrahl > li::after {
-    left: calc(4.5rem + 1rem - 0.375rem);
+    left: 0;
+  }
+
+  .zeitstrahl .jahr {
+    text-align: left;
+  }
+
+  .zeitstrahl p + p {
+    margin-top: 0.5rem;
   }
 
   .personen {
@@ -2450,7 +2508,8 @@ a.btn.w {
   /* Knöpfe und Flächen antworten auf Zeigen und Drücken */
   .btn,
   .karten > li,
-  a.termin {
+  a.termin,
+  a.termin::before {
     transition:
       background-color var(--dauer) var(--kurve),
       border-color var(--dauer) var(--kurve),
@@ -2534,4 +2593,13 @@ a.btn.w {
   text-decoration: underline;
   text-underline-offset: 3px;
   overflow-wrap: anywhere;
+}
+
+/* Zeitstrahl in erzwungenen Farben (#560): Marke und Linie in der Textfarbe, ohne Hof */
+@media (forced-colors: active) {
+  .zeitstrahl > li::before,
+  .zeitstrahl > li::after {
+    background: CanvasText;
+    box-shadow: none;
+  }
 }

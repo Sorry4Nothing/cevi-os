@@ -44,6 +44,11 @@ import {
 } from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
 import {
+  ZEICHEN_DATEIEN,
+  ZEICHEN_ICO,
+  type ZeichenDateien,
+} from "./zeichen.js";
+import {
   DATENPLAN_DATEI,
   rendereDatenplan,
   rendereTermineSeiten,
@@ -101,9 +106,14 @@ export type AbgleichOptionen = {
   datenquellen?: Datenquelle[];
   // Adresse, Telefon und E-Mail der Abteilung für Fuss und Kontaktkarte (aus der Konfiguration des Servers); Impressum und Datenschutz suchen die Seiten im Baum
   kontakt?: Pick<Kontakt, "adresse" | "telefon" | "email">;
+  // Favicon (#558): macht aus dem Zeichen der Abteilung (oder, ohne Wahl, aus dem Cevi-Zeichen der Plattform) die Dateien. Fehlt die Funktion, gibt es kein Favicon
+  zeichen?: (medium: ZeichenQuelle | null) => Promise<ZeichenDateien>;
   // Hash der zuletzt geschriebenen Gesamtdateien (Sitemap, robots.txt, ...); in Tests und beim Start leer
   merker?: Map<string, string>;
 };
+
+// Das gewählte Zeichen: ID und Schlüssel im Medienspeicher
+export type ZeichenQuelle = { id: string; speicherSchluessel: string };
 
 export type AbgleichErgebnis = {
   geschrieben: number;
@@ -135,6 +145,26 @@ const sichtbarePerson = and(
 
 // Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke).
 // Die Fassung für den dunklen Modus (#558) kommt in derselben Abfrage mit; für sie gelten dieselben Bedingungen, sonst fehlt sie
+// Das Zeichen für das Favicon (#558): wie das Logo nur ein öffentliches Bild der eigenen Abteilung; sonst null (dann gilt das Cevi-Zeichen der Plattform)
+export async function ladeZeichen(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+): Promise<ZeichenQuelle | null> {
+  const [z] = await db
+    .select({ id: medium.id, speicherSchluessel: medium.speicherSchluessel })
+    .from(abteilung)
+    .innerJoin(medium, eq(medium.id, abteilung.websiteZeichenMediumId))
+    .where(
+      and(
+        eq(abteilung.id, abteilungId),
+        eq(medium.abteilungId, abteilungId),
+        eq(medium.sichtbarkeit, "oeffentlich"),
+        roh`${medium.mimeTyp} like 'image/%'`,
+      ),
+    );
+  return z ?? null;
+}
+
 const logoDunkel = alias(medium, "logo_dunkel");
 export async function ladeLogo(
   db: Pick<Db, "select">,
@@ -518,9 +548,14 @@ export async function erzeugeWebsite(
     ...(impressum && { impressum }),
     ...(datenschutz && { datenschutz }),
   };
+  // Favicon: Die Fassung in den Adressen ist ein Stück des Hashes, damit Browser ein neues Zeichen sofort holen
+  const zeichen = opt.zeichen
+    ? await opt.zeichen(await ladeZeichen(db, abteilungId))
+    : undefined;
   const kontext: Kontext = {
     abteilung: abt.name,
     logo: await ladeLogo(db, abteilungId),
+    ...(zeichen && { zeichen: sha256(zeichen[ZEICHEN_ICO]).slice(0, 12) }),
     basisUrl,
     navigation: baueNavigation(
       zeilen,
@@ -555,6 +590,7 @@ export async function erzeugeWebsite(
     ...TERMINE_DATEIEN,
     DATENPLAN_DATEI,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
+    ...(zeichen ? ZEICHEN_DATEIEN : []),
     ...[...huellen.values()].map((h) => h.datei),
     ...weiterleitungen.map(([datei]) => datei),
   ]);
@@ -622,6 +658,9 @@ export async function erzeugeWebsite(
         inhalt,
       ],
     ),
+    ...(zeichen
+      ? ZEICHEN_DATEIEN.map((d): [string, Uint8Array] => [d, zeichen[d]])
+      : []),
     ...weiterleitungen,
   ];
   for (const [datei, inhalt] of gesamt) {

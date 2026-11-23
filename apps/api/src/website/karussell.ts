@@ -4,6 +4,9 @@ import type { HtmlKnoten } from "./rendern.js";
 
 export const STIL_KARUSSELL = "/website/karussell.css";
 export const SKRIPT_KARUSSELL = "/website/karussell.js";
+// Grossansicht eines Bildes über der Seite; eigenes Modul, das auch Bild und Galerie nutzen
+export const STIL_LICHTKASTEN = "/website/lichtkasten.css";
+export const SKRIPT_LICHTKASTEN = "/website/lichtkasten.js";
 
 const anzahlText = (n: number) => `${n} Bilder`;
 
@@ -14,7 +17,10 @@ function mitUnterschrift(figur: HtmlKnoten): HtmlKnoten {
   if (kinder.some((k) => typeof k !== "string" && k.tag === "figcaption")) {
     return figur;
   }
-  const img = kinder.find((k) => typeof k !== "string" && k.tag === "img");
+  // Das Bild steckt im Link zur Grossansicht
+  const img = kinder
+    .flatMap((k) => (typeof k === "string" ? [] : [k, ...(k.kinder ?? [])]))
+    .find((k) => typeof k !== "string" && k.tag === "img");
   const alt = typeof img === "object" ? img.attr?.alt : undefined;
   if (typeof alt !== "string" || alt === "") return figur;
   return {
@@ -43,8 +49,8 @@ export function karussell(figuren: HtmlKnoten[]): HtmlKnoten {
     kinder: [
       {
         tag: "ul",
-        // Der Streifen scrollt seitwärts: mit Tabulator erreichbar, damit die Pfeiltasten ihn bewegen
-        attr: { class: "folien", tabindex: "0" },
+        // Der Streifen scrollt seitwärts; mit der Tastatur erreichbar über die Links der Bilder
+        attr: { class: "folien" },
         kinder: figuren.map((f) => ({
           tag: "li",
           attr: { class: "folie" },

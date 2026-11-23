@@ -36,7 +36,7 @@ export const fehlerBuehne = ({
 }
 <div class="teaser${zeichen ? " teaser--ueber-bild" : ""}">
 <div class="wrap teaser-in">
-<div class="fahne"><h1>${esc(titel)}</h1><div class="knopfreihe">${knoepfe}</div></div>
+<div class="fahne"><h1>${esc(titel)}</h1><div class="knopfreihe aktionen">${knoepfe}</div></div>
 <div class="teaser-text fehler-text">${text.map((t) => `<p>${t}</p>`).join("")}${code ? `<p class="klein leise">${esc(code)}</p>` : ""}</div>
 </div>
 </div>
