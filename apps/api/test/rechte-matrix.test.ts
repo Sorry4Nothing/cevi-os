@@ -844,6 +844,18 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Empfänger einer Mitteilung zählen (#625): nur Admins, nur Zahlen; Auflösung und Grenzen in test/admin-mitteilungen.test.ts
+  "POST /api/v1/admin/mitteilungen/vorschau": {
+    body: () => ({ empfaenger: "alle" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "GET /api/v1/admin/kinder": {
     erwartet: {
       ...alle(403),

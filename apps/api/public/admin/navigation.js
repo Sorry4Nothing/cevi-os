@@ -233,7 +233,8 @@ export const BEREICHE = [
         schluessel: "mitteilungen",
         name: "Mitteilungen",
         modul: "./mitteilungen.js",
-        untertitel: "Push-Mitteilung an Eltern und Leitende senden.",
+        untertitel:
+          "Push-Mitteilung an Stufen, Teams und andere Gruppen senden.",
       },
     ],
   },
