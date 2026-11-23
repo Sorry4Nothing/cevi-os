@@ -47,6 +47,8 @@ export type MedienDaten = {
 };
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
 export type Mitglied = { name: string; funktion: string | null };
+// Freigegebene Person für den Baustein «personen» (#560): Anzeigename und, falls vorhanden, die Adresse des Profilbilds in der Ausgabe
+export type WebsitePerson = { name: string; bild?: string };
 // link: der Wert als Link (Eckdaten, #560)
 export type Fakt = { bezeichnung: string; wert: string; link?: string };
 // Ein Termin der Liste (#549): Tage als «JJJJ-MM-TT» und Zeiten als «HH:MM» in Zürcher Zeit, schon so aus der Abfrage; stufen sind die Namen der Stufen-Tags (Chips); anlassId nur bei einem Anlass (Link)
@@ -81,6 +83,10 @@ export type Daten = {
   medien: ReadonlyMap<string, MedienDaten>;
   personen: ReadonlyMap<string, Mitglied>;
   teams: ReadonlyMap<string, { name: string; mitglieder: Mitglied[] }>;
+  // Freigegebene Personen für den Baustein «personen» (#560), nach ID; wer fehlt, erscheint nicht
+  websitePersonen: ReadonlyMap<string, WebsitePerson>;
+  // Profilbilder dazu als Dateien der Ausgabe [Pfad, Bytes]; schreibt nur der Abgleich
+  personenDateien?: [string, Uint8Array][];
   stufenfakten: ReadonlyMap<string, Fakt[]>;
   // Je Baustein «terminliste» (nach der ID des Bausteins) die kommenden Termine; fehlt der Eintrag, wurde nichts geladen und der Baustein entfällt
   termine: ReadonlyMap<string, TerminEintrag[]>;
@@ -95,6 +101,7 @@ export const keineDaten = (): Daten => ({
   medien: new Map(),
   personen: new Map(),
   teams: new Map(),
+  websitePersonen: new Map(),
   stufenfakten: new Map(),
   termine: new Map(),
   anlaesse: new Map(),
@@ -227,7 +234,7 @@ function bild(
     undefined,
     el(
       "a",
-      { class: "gross", href: medienUrl(id) },
+      { class: "bildgross", href: medienUrl(id) },
       img,
       el("span", { class: "nur-sr" }, "Bild gross ansehen"),
     ),
@@ -1320,7 +1327,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
             attr: { class: "titelbild" },
             // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
             kinder: erstes.knoten!.kinder?.flatMap((kind) =>
-              typeof kind === "object" && kind.attr?.class === "gross"
+              typeof kind === "object" && kind.attr?.class === "bildgross"
                 ? (kind.kinder ?? []).filter(
                     (x) => typeof x === "object" && x.tag === "img",
                   )
