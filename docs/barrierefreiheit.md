@@ -530,6 +530,17 @@ Dieser Abschnitt gilt für `sortieren.js` (`zieheMitBewegung`, `sortierListe`), 
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 26.1 bis 26.6 mit Maus (Artikel im Lädeli, Seitenbaum, Beispielliste, Bausteine einer Seite, Aufgaben-Vorlage) und mit Finger (CDP-Touch: Artikel, Beispielliste), 26.2 mit `reducedMotion: reduce`, 26.3 mit Tastatur und Menü, 26.7 und 26.8 bei 1440 und 390 Pixeln, Tag und Nacht. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), ein echtes Touch-Gerät, 200 Prozent Zoom von Hand, Kontrastwerte mit einem Messwerkzeug, die Sortierliste der Stufenleitung und der Zusatzfelder im Browser (gleicher Code, keine Demo-Daten dafür).
 
+## 34. Verwaltung: Gruppentyp «Anlass» (#626)
+
+Dieser Abschnitt gilt für «Gruppen und Tags» (`tags.js`, `tags-detail.js`, `tags-anlass.js`) und den Verweis auf die Gruppe in der Übersicht eines Anlasses (`termine-anlaesse.js`). Geprüft wird im Browser mit der Abteilungsleitung, bei 1440 und 390 Pixeln, in Tag und Nacht, mit Tastatur.
+
+- [ ] **34.1** «Neue Gruppe»: Typ und Anlass sind eigene Auswahlfelder (`role="combobox"` mit Namen «Typ» und «Anlass», Tastatur: Pfeile, Eingabe, Escape). Das Feld «Anlass» erscheint erst beim Typ «Anlass»; die Anlässe kommen mit einer Abfrage und stehen als «Titel · Datum», kommende zuerst. Hat kein Anlass mehr Platz, steht der Hinweis als Text im Feld (`role="status"`).
+- [ ] **34.2** Fehlt der Anlass, steht «Wähle einen Anlass.» am Feld (nicht nur Farbe, `aria-invalid`, Symbol), die Zusammenfassung oben nennt «Anlass» und führt mit dem Fokus dorthin. Ein zweiter Versuch für denselben Anlass sagt «Zu diesem Anlass gibt es schon eine Gruppe.» und verlangt einen anderen Anlass.
+- [ ] **34.3** Liste: Der Typ steht als Chip mit Wort und Symbol («Anlass»), nie nur als Farbe; unter dem Namen steht der Anlass mit Datum als Link (Trefferfläche mindestens 44 Pixel hoch). Ist der Anlass gelöscht, steht «Der Anlass ist gelöscht». «Anlass» ist im Typfilter und in der Suche der Befehlspalette.
+- [ ] **34.4** Gruppe: Die Karte «Anlass» nennt Titel (Link «<Titel>, öffnen») und Termin als Definitionsliste und sagt, dass die Gruppe keine zusätzlichen Rechte gibt und nie auf der Website erscheint. Mitglieder und Rollen verhalten sich wie bei einem Team.
+- [ ] **34.5** Anlass, Übersicht: Die Zeile «Gruppe» in «Angaben» ist ein Link auf die Gruppe oder der Knopf «Gruppe anlegen» (Seite im Fluss, der Anlass steht in der Beschreibung, Typ und Anlass entfallen). Nach dem Erstellen steht die Meldung in der Statusregion und die Zeile zeigt die Gruppe.
+- [ ] **34.6** Bei 390 Pixeln stehen die Felder untereinander, Ziele sind mindestens 44 Pixel hoch, nichts scrollt ausser der Tabelle der Gruppen in ihrem beschrifteten Bereich; bei 200 % Zoom bleibt alles lesbar. Es gibt keine neue Bewegung.
+
 ## 37. Verwaltung: Rollen und Rechte (#623)
 
 Dieser Abschnitt gilt für die Seite «Rollen und Rechte» (`rechte.js`, `rechte-rollen.js`, `rechte-gruppen.js`, `rechte-uebersicht.js`, `rechte.css`) mit den Reitern «Rollen», «Gruppen» und «Was darf wer?». Geprüft wird im Browser mit Tastatur, bei 390 und 1440 Pixeln, in Tag und Nacht und mit «Bewegung reduzieren».
@@ -569,7 +580,7 @@ Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung 
 Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellung» in `personen.css` (Klassenvorsatz `mg-`) auf den Seiten «Personen», «Kinder», dem Detail einer Gruppe und der Stufenleitung auf «Stufen». Geprüft wird im Browser bei 390, 720, 1440, 1920 und 2560 Pixeln, in Tag und Nacht, mit Tastatur und mit «Bewegung reduzieren».
 
 - [ ] **33.1** Umschalter «Karten | Liste» und «Gruppieren»: je eine Gruppe von Auswahlknöpfen (`role="radiogroup"`, benannt durch «Ansicht» und «Gruppieren nach»). Pfeiltasten wechseln, Tab verlässt die Gruppe, der Fokus ist sichtbar (3 Pixel). Jede Option ist 44 Pixel hoch. Die gewählte Option trägt Rand und Fläche, nie nur eine Farbe. Der Schieber gleitet nur ohne «Bewegung reduzieren».
-- [ ] **33.2** Die Wahl der Ansicht bleibt im Browser (`localStorage`, nur «karten» oder «liste»); ohne Speicher gilt «karten». Die Gruppierung gilt für die Sitzung.
+- [ ] **33.2** Die Wahl der Ansicht (nur «karten» oder «liste») gilt, solange die Seite offen ist, und wird nicht im Browser gespeichert; nach dem Neuladen gilt «karten». Die Gruppierung gilt ebenso für die Sitzung.
 - [ ] **33.3** Abschnitte: Jeder Abschnitt hat eine Überschrift (Ebene 2, im Detail einer Gruppe Ebene 3) mit der Zahl der Treffer, das Raster oder die Tabelle trägt den Namen des Abschnitts. Die Zahl zählt alle Treffer, nicht nur die der Seite.
 - [ ] **33.4** Karte: Bild oder Initialen, Name, Cevi-Name, Rollen und Tags als Chips mit Wort (höchstens drei, der Rest als «+n weitere» mit Aufzählung im Titel), darunter «Bearbeiten». Der Name der Person steht im Namen jedes Knopfs (`kontext`, `aria-label`). Konto und Zugang sind ruhige Marken mit Symbol und Wort (`Konto aktiv`, `Eltern verknüpft`, `Kein Zugang`, `Zweiter Faktor`); was Aufmerksamkeit verlangt (Startpasswort offen, abgelaufen, deaktiviert, Inaktiv, Telefon fehlt) bleibt ein Chip mit Symbol.
 - [ ] **33.5** Kontrast: Marken (`--leise`, `--ok`) und Chips erreichen 4.5:1 auf Karte und Fläche in Tag und Nacht; Rand von Karte und Umschalter mindestens 3:1 zu `--outline` beim Zeigen und beim Wählen.
@@ -578,6 +589,8 @@ Dieser Abschnitt gilt für `mitglieder.js` und den Block «Mitglieder-Darstellun
 - [ ] **33.8** Bewegung: Das gestaffelte Einblenden der Karten läuft nur beim Wechsel von Ansicht oder Gruppierung und nur ohne «Bewegung reduzieren»; beim Tippen im Filter bewegt sich nichts.
 - [ ] **33.9** Laden und leer: Das Skelett hat die Form der Karten (oder der Tabelle, wenn die Liste gewählt ist). Ohne Treffer steht der Satz mit «Filter zurücksetzen».
 - [ ] **33.10** Rechte und Daten: Keine neue Abfrage und kein neues Feld. Kinder zeigen Name, Cevi-Name, Stufe, Zugang und die verknüpften Eltern wie bisher; Alter und Bild gibt es nicht und stehen nicht da. Der Knopf «Anrufen» (`tel:`) erscheint nur bei einer Person, deren Nummer die Antwort der Verwaltung ohnehin enthält (Stufenleitung).
+
+- [ ] **33.11** Stufenkarte: Das hinterlegte Bild (erstes Bild der Stufenseite auf der Website) steht oben in der Karte mit leerem `alt` (Zierde, der Name der Stufe steht darunter als Überschrift); bis es geladen ist, steht ein ruhiger Platzhalter, fehlt die Datei, das Wort «Vorschau fehlt». Ohne Seite, ohne Bild oder ohne Recht bleibt die Karte wie vorher mit dem Buchstaben. Abfragen: die Seitenliste und je Stufe mit Seite der Entwurf, nur lesend.
 
 ### Stand der Prüfung (#624)
 

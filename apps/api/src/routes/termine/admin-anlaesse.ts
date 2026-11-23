@@ -3,7 +3,13 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
-import { anlass, anlassFeld, auditLog, programm } from "../../db/schema.js";
+import {
+  anlass,
+  anlassFeld,
+  auditLog,
+  programm,
+  tag,
+} from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import {
   sichtbarkeitAusSpalten,
@@ -102,6 +108,11 @@ const anlassSpalten = {
   sichtbarkeit: anlass.sichtbarkeit,
   sichtbarkeitTags: anlass.sichtbarkeitTags,
   seiteId: anlass.seiteId,
+  // Die Gruppe vom Typ «anlass» zu diesem Anlass (zum Beispiel das OK), höchstens eine (#626); null ohne Gruppe
+  gruppe: sql<{
+    id: string;
+    name: string;
+  } | null>`(select jsonb_build_object('id', ${tag.id}, 'name', ${tag.name}) from ${tag} where ${tag.anlassId} = ${anlass.id})`,
   erstelltAm: anlass.erstelltAm,
 };
 function ausgabe<
