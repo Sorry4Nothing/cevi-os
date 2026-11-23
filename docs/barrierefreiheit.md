@@ -274,6 +274,25 @@ Dieser Abschnitt gilt für die Übersicht unter `/admin#uebersicht` (`apps/api/p
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 16.1 bis 16.7 und 16.9 bis 16.11 (1440, 390 und 320 Pixel, Hell, Dunkel, erzwungene Farben, Tabellenansicht, Tastaturfolge mit Pfeiltasten in den Grafiken, je ein Konto der Abteilungsleitung, der Stufenleitung und des Webmasters). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack: 14.2, 14.3 und 14.8 nur an den Attributen), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug.
 
+## 17. Verwaltung: Anmeldung, System, Plattform, Erinnerungen, Mitteilungen (#593)
+
+Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf), `system.js`, `plattform.js`, `hinweisband.js`, `zeitregeln.js`, `mitteilungen.js` und `system.css`. Die Abschnitte 1 bis 4, 6 und 9 gelten dafür sinngemäss.
+
+- [ ] **17.1** Das Hinweisband ist ein Bereich mit Namen («Betriebshinweis»); Sperre und Wartung stehen als Wort («Informationssperre: …», «Wartung: … ist nur lesbar») mit Symbol, nie nur als Farbe. Text und Verweis erreichen 4.5:1, der Verweis «Zur Plattform» ist mit Tab erreichbar und mindestens 44 Pixel hoch.
+- [ ] **17.2** Die Plattform zeigt jeden Zustand als Chip mit Wort («Frei», «In Wartung», «Offen», «Gesperrt»); die Knöpfe tragen den Bereich im Namen («Aufheben: Website»). «Aufheben» fragt im Knopf («Wirklich aufheben?»), Esc nimmt die Frage zurück.
+- [ ] **17.3** Das geplante Ende ist Datum und Uhrzeit in eigenen Feldern mit Beschriftung; eine unvollständige Angabe nennt der Fehlertext beim Feld, der Fokus geht dorthin.
+- [ ] **17.4** Der Wochentag der Erinnerung ist eine Gruppe mit Legende; jeder Tag hat den vollen Namen für Screenreader («Montag», sichtbar «Mo»), die Pfeiltasten wechseln den Tag. Die Vorschau der nächsten Termine ist eine Liste mit Legende; der nächste Termin trägt Rahmen und steht an erster Stelle.
+- [ ] **17.5** Die Vorschau der Mitteilung ist für Screenreader ausgeblendet (`aria-hidden`), die Angaben stehen in den Feldern selbst; «Geht an» und «Rollen» stehen als Liste mit Name und Wert. Der Knopf «Senden» fragt im Knopf, die Frage nennt Empfänger und Rollen.
+- [ ] **17.6** Das Diagramm der Anfragen hat einen Satz mit allen Werten, eine Ablesung mit Pfeiltasten und eine Tabelle («Als Tabelle anzeigen»); der Fehleranteil hat Legende und Zahl, nicht nur Farbe.
+- [ ] **17.7** Die Seite System aktualisiert sich nie von selbst; «Aktualisieren» meldet «Zahlen aktualisiert.» in der Live-Region.
+- [ ] **17.8** Anmeldung: Fehler, «zu viele Versuche» (Chip mit Wort) und der zweite Faktor (Codefeld mit sechs Zellen, Einfügen, Autofill) sind Meldungen mit `role="alert"`; der Fokus liegt auf der Meldung oder dem Titel. Der Sitzungsablauf sagt ehrlich, was verloren geht, und führt nach dem Anmelden auf dieselbe Seite zurück.
+- [ ] **17.9** Hell, Dunkel und «Bewegung reduzieren»: Das Band und die Termine der Vorschau gleiten nur bei erlaubter Bewegung ein.
+- [ ] **17.10** 320, 390, 720 und 1440 Pixel: nichts scrollt waagrecht, auch Personen und Gruppen nicht (die Beschriftung der Tabelle für Screenreader liegt im Rahmen).
+
+### Stand der Prüfung (#593)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung geprüft: 17.1 bis 17.4, 17.6 bis 17.7 und 17.9 bis 17.10 (320, 390, 720 und 1440 Pixel, Hell und Dunkel, Tastatur im Wochentag, Wartung und Sperre ein- und ausgeschaltet). Anmeldung (17.8) mit falscher Eingabe, 429 und falschem Code im Browser, der echte zweite Faktor und der Sitzungsablauf nur mit nachgestellten Antworten. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug.
+
 ## Im PR angeben
 
 Bei UI-Änderungen nennt der PR-Text unter «Evidence»:

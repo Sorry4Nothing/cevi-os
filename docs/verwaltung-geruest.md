@@ -50,6 +50,10 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `uebersicht-kacheln.js`               | Kacheln der Übersicht: Aufgabenband, Kennzahlen, Kommendes, Stufen, Zustand, Fehlerkachel                    |
 | `uebersicht-diagramme.js`             | Inline-SVG ohne Bibliothek: Verlaufslinie, Säulen, Rangbalken, Wertetabelle, Ablesung mit Pfeiltasten        |
 | `uebersicht.css`                      | Stile der Übersicht (Klassenvorsatz `ub-`)                                                                   |
+| `hinweisband.js`                      | Hinweisband unter dem Kopf bei Wartung oder Informationssperre (#593); `BEREICHE` der Plattform              |
+| `system.js`, `plattform.js`           | System (Übersicht, Anfragen, Abrufe) und Plattform (Wartung, Sperre) (#593)                                  |
+| `zeitregeln.js`, `mitteilungen.js`    | Erinnerungen mit Zeitplan-Vorschau, Mitteilungen mit Vorschau (#593)                                         |
+| `system.css`                          | Stile dieser Seiten und des Hinweisbands (Vorsätze `hinweisband-`, `sch-`, `zr-`, `mt-`)                     |
 | `<bereich>-*.js/css`                  | Module und Stile der Bereiche (Klassen mit eigenem Vorsatz, z. B. `tm-`, `ws-`)                              |
 
 Wer eine neue Datei anlegt, trägt sie ein: `docs/api/openapi.yaml` (Pfad `/admin/<Datei>`), `apps/api/test/rechte-matrix.test.ts` (Zeile `"GET /admin/<Datei>": { erwartet: alle(200) }`, **nur byte-erhaltend ändern**, die Datei enthält ungültige UTF-8-Bytes) und `index.html` für eine `.css`. Eine `.js`-Datei braucht keinen Eintrag in `index.html`: Der Router lädt sie mit `import()`. Der Server liest alle Dateien aus `public/admin/` ein (`src/seiten.ts`), Unterordner gibt es nicht.
@@ -136,6 +140,15 @@ Die Übersicht ist ein Dashboard: Sie zeigt je Rolle, was jetzt zu tun ist und w
 - **Diagramme** (`uebersicht-diagramme.js`): Inline-SVG, Farben nur über Klassen aus den Tokens (Randfarbe für die Vergangenheit, Akzent für den aktuellen Zeitraum, Fehlerfarbe für Fehler), Säulen immer ab 0, Fehleranteil als zweiter Teil mit 2 px Luft. Jede Grafik hat einen Satz mit allen Werten für Screenreader (`role="img"`), eine Ablesung mit Zeiger oder Pfeiltasten (Text darunter, `aria-live`) und eine Entsprechung als Tabelle; der Schalter «Tabellen statt Diagramme» tauscht beide für die ganze Seite. In erzwungenen Farben tragen Form und Umriss die Information (der Fehleranteil wird zum Umriss).
 - **Neue Kachel:** eine Funktion in `uebersicht-kacheln.js`, die aus der Antwort einen Knoten baut (`kachel({ titel, inhalt })`) und `null` liefert, wenn der Teil fehlt; ein Eintrag in `zeichne` von `uebersicht.js`. Der Teil gehört zuerst in die Route (`routes/admin/uebersicht.ts`) mit seinem eigenen Recht, Eintrag in OpenAPI und Test.
 - **Zähler der Unterleiste** (Vorschläge, Ohne Kategorie, Anfragen) kommen aus denselben Zahlen (`ctx.zaehler`), ohne eigene Abfrage; sie sind jetzt exakt statt «100+».
+
+## Hinweisband, System, Plattform, Erinnerungen, Mitteilungen (#593)
+
+- **Hinweisband** (`hinweisband.js`): Solange ein Bereich in Wartung oder durch eine Informationssperre gesperrt ist, steht unter dem Kopf jeder Seite ein Band (Sperre rot, Wartung gelb, immer mit Wort und Symbol) mit Bereich, Zeitpunkt, Hinweistext und Verweis auf `#system/plattform`. Es erscheint nur für Personen, die die Plattform sehen (Abteilungsleitung, Plattformrecht `wartungsmodus.website`); wer nicht schalten darf, bekommt auch keinen Abruf. Quelle ist `GET /api/v1/plattform/schalter` (Speicher der API, keine Datenbankabfrage). Der Abruf läuft beim Öffnen der Verwaltung, nach jeder Schaltung auf der Plattform (Ereignis `plattform:geaendert`) und bei einer Navigation höchstens einmal je Minute, nie im Takt.
+- **System** lädt nur beim Öffnen und auf «Aktualisieren», kein Polling (`aufWunsch` statt des früheren Takts von 15 Sekunden). Auf der Übersicht steht der Verlauf der Anfragen der letzten 24 Stunden als Säulen je Stunde mit Fehleranteil (`saeulen` aus `uebersicht-diagramme.js`, Tabelle dahinter).
+- **Plattform** zeigt je Bereich eine Zeile mit Zustand (Chip), Einzelheiten und Aktionen; auf dem Handy stehen die Aktionen unter dem Text, es gibt keine Tabelle zum Seitwärtsscrollen. Das geplante Ende der Wartung ist ein `datumZeitFeld` (kein natives `datetime-local`); ein Datum ohne Uhrzeit wird beim Speichern gemeldet.
+- **Erinnerungen** bauen den Zeitplan aus Wochentag (Segment mit Radioknöpfen), Uhrzeit (`zeitfeld`) und zeigen darunter die nächsten sechs Termine als Streifen (`naechsteTermine`, gerechnet in Schweizer Zeit). Die Liste nennt je Regel das nächste Mal.
+- **Mitteilungen**: Formular links, Vorschau rechts (so sieht der Push aus, an wen er geht); die Rückfrage vor dem Senden bleibt ein zweistufiger Knopf. Die Spalten haben keine eigenen Scrollbereiche (`formularRaster` passt für ein so kurzes Formular nicht).
+- **Komponenten** zeigt Personen ohne Entwicklerrolle eine Karte statt der Galerie; das Signal ist `nameAenderbar` in `GET /api/v1/redaktion/website`. Die Navigation blendet den Eintrag noch nicht aus.
 
 ## Laden, Leer, Fehler
 
