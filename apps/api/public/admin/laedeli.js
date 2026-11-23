@@ -106,6 +106,77 @@ export const variantenAus = (text) => [
   ).values(),
 ];
 
+// Verfügbarkeit je Grösse (#629): «nichtVerfuegbar» nennt die Grössen, die nicht zu haben sind. Stand eines Artikels: aus (Schalter des Artikels), keine (alle Grössen weg), teilweise oder ganz
+export function standVon(a) {
+  const weg = a.nichtVerfuegbar ?? [];
+  if (!(a.verfuegbarGesetzt ?? a.verfuegbar)) return { art: "aus", weg };
+  if (a.varianten.length > 0 && a.varianten.every((v) => weg.includes(v))) {
+    return { art: "keine", weg };
+  }
+  return { art: weg.length > 0 ? "teilweise" : "ganz", weg };
+}
+export function standChips(a) {
+  const { art, weg } = standVon(a);
+  if (art === "ganz") return [chip("Verfügbar", "ok")];
+  if (art === "teilweise") {
+    return [
+      chip("Teilweise verfügbar", "warn"),
+      el(
+        "p",
+        { class: "klein leise ld-stand-weg" },
+        `${weg.join(", ")} nicht verfügbar`,
+      ),
+    ];
+  }
+  return [
+    chip("Nicht verfügbar", "warn"),
+    art === "keine" &&
+      el(
+        "p",
+        { class: "klein leise ld-stand-weg" },
+        "Alle Grössen nicht verfügbar",
+      ),
+  ];
+}
+// Ein Schalter je Grösse: role="switch", der Name ist die Grösse, der Zustand steht in aria-checked und als Wort («nicht verfügbar», durchgestrichen); nie nur Farbe
+// kompakt (Artikelliste): ohne Wort im Schalter, es steht in der Spalte «Stand» daneben
+export function groessenSchalter({
+  namen,
+  weg,
+  beiUmschalten,
+  name,
+  kompakt = false,
+}) {
+  return el(
+    "ul",
+    { class: "ld-groessen" },
+    namen.map((v) => {
+      const aus = weg.includes(v);
+      return el(
+        "li",
+        {},
+        el(
+          "button",
+          {
+            type: "button",
+            class: aus ? "ld-gschalter ld-gschalter--aus" : "ld-gschalter",
+            role: "switch",
+            "aria-checked": aus ? "false" : "true",
+            "data-name": v,
+            "aria-label": name ? `${v} verfügbar, ${name}` : `${v} verfügbar`,
+            onclick: () => beiUmschalten(v, !aus),
+          },
+          icon(aus ? "schliessen" : "haken"),
+          el("span", { class: "ld-gname" }, aus ? el("s", {}, v) : v),
+          aus &&
+            !kompakt &&
+            el("span", { class: "ld-gtext" }, "nicht verfügbar"),
+        ),
+      );
+    }),
+  );
+}
+
 export function zeige(bereich, ctx) {
   const unter = ctx.seite.unter.schluessel;
   if (unter === "artikel") return zeigeArtikel(bereich, ctx);
@@ -669,6 +740,77 @@ function zeigeArtikel(bereich, ctx) {
       return knopfGriff;
     }
 
+    const standInhalt = (a) => [
+      el("ul", { class: "chips" }, standChips(a)[0]),
+      ...standChips(a).slice(1),
+    ];
+    // Schnellschalter: eine Grösse antippen meldet sie als nicht verfügbar oder wieder als verfügbar. Nur die beiden Zellen der Zeile zeichnen neu; «Rückgängig» stellt den Stand davor wieder her
+    const groessenInhalt = (a) =>
+      a.varianten.length > 0
+        ? groessenSchalter({
+            namen: a.varianten,
+            weg: a.nichtVerfuegbar ?? [],
+            name: a.name,
+            kompakt: true,
+            beiUmschalten: (v, aus) => schalte(a, v, aus),
+          })
+        : el("span", { class: "leise" }, "Einheitsgrösse");
+    function zeichneZellen(a, fokusName) {
+      const tr = koerper.querySelector(`tr[data-id="${a.id}"]`);
+      if (!tr) return;
+      tr.classList.toggle("inaktiv", !a.verfuegbar);
+      tr.querySelector(".ld-groessenzelle").replaceChildren(groessenInhalt(a));
+      tr.querySelector(".ld-standzelle").replaceChildren(...standInhalt(a));
+      if (fokusName) {
+        for (const b of tr.querySelectorAll(".ld-gschalter")) {
+          if (b.dataset.name === fokusName) b.focus();
+        }
+      }
+    }
+    const meldeWeg = (a, v, aus) =>
+      aus
+        ? `${v} ist bei «${a.name}» als nicht verfügbar gemeldet.`
+        : `${v} ist bei «${a.name}» wieder verfügbar.`;
+    let beschaeftigt = false;
+    async function setzeWeg(a, liste, fokusName) {
+      await anfrage("PATCH", `${BASIS}/artikel/${a.id}`, {
+        nichtVerfuegbar: liste,
+      });
+      a.nichtVerfuegbar = liste;
+      a.verfuegbar =
+        (a.verfuegbarGesetzt ?? true) &&
+        (a.varianten.length === 0 ||
+          a.varianten.some((x) => !liste.includes(x)));
+      zeichneZellen(a, fokusName);
+    }
+    async function schalte(a, v, aus) {
+      if (beschaeftigt) return;
+      beschaeftigt = true;
+      const vorher = [...(a.nichtVerfuegbar ?? [])];
+      const nachher = aus
+        ? [...vorher, v].filter((x, i, l) => l.indexOf(x) === i)
+        : vorher.filter((x) => x !== v);
+      try {
+        await setzeWeg(a, nachher, v);
+      } catch (f) {
+        ctx.melde(`Nicht gespeichert. ${meldungVon(f)}`, "fehler");
+        beschaeftigt = false;
+        return;
+      }
+      beschaeftigt = false;
+      ctx.melde(meldeWeg(a, v, aus), "ok", {
+        text: "Rückgängig",
+        onclick: async () => {
+          try {
+            await setzeWeg(a, vorher, v);
+            ctx.melde(meldeWeg(a, v, !aus));
+          } catch (f) {
+            ctx.melde(meldungVon(f), "fehler");
+          }
+        },
+      });
+    }
+
     const zeileVon = (a, n) =>
       el(
         "tr",
@@ -697,24 +839,20 @@ function zeigeArtikel(bereich, ctx) {
             ),
           ),
         ),
-        el("td", { class: "zahl" }, preisText(a.preisRappen)),
         el(
           "td",
-          {},
-          a.varianten.length > 0
-            ? a.varianten.join(", ")
-            : el("span", { class: "leise" }, "Einheitsgrösse"),
+          { class: "zahl", "data-label": "Preis" },
+          preisText(a.preisRappen),
         ),
         el(
           "td",
-          {},
-          el(
-            "ul",
-            { class: "chips" },
-            a.verfuegbar
-              ? chip("Verfügbar", "ok")
-              : chip("Nicht verfügbar", "warn"),
-          ),
+          { class: "ld-groessenzelle", "data-label": "Grösse" },
+          groessenInhalt(a),
+        ),
+        el(
+          "td",
+          { class: "ld-standzelle", "data-label": "Stand" },
+          standInhalt(a),
         ),
         el(
           "td",
@@ -882,6 +1020,48 @@ async function artikelBlatt({ artikel, ctx, neu }) {
     wert: artikel?.varianten.join(", ") ?? "",
     autocomplete: "off",
   });
+  // Verfügbarkeit je Grösse (#629): ein Schalter je Grösse der Liste; ausgeschaltete Grössen bleiben sichtbar, lassen sich aber nicht bestellen
+  const weg = new Set(artikel?.nichtVerfuegbar ?? []);
+  const schalterOrt = el("div", { class: "ld-gschalter-ort" });
+  const gwahl = el(
+    "div",
+    { class: "ld-gwahl" },
+    el(
+      "p",
+      { class: "ld-gwahl-titel", id: "ld-gwahl-titel" },
+      "Verfügbarkeit je Grösse",
+    ),
+    el(
+      "p",
+      { class: "hilfe", id: "ld-gwahl-hilfe" },
+      "Schalte eine Grösse aus, wenn sie nicht mehr zu haben ist. Sie bleibt im Lädeli sichtbar, durchgestrichen und mit dem Wort «nicht verfügbar».",
+    ),
+    schalterOrt,
+  );
+  const aktuelleNamen = () =>
+    liste.eingabe.checked ? variantenAus(varianten.eingabe.value) : [];
+  function zeichneSchalter(fokusName) {
+    const namen = aktuelleNamen();
+    gwahl.hidden = namen.length < 2;
+    schalterOrt.replaceChildren(
+      groessenSchalter({
+        namen,
+        weg: namen.filter((v) => weg.has(v)),
+        beiUmschalten: (v, aus) => {
+          if (aus) weg.add(v);
+          else weg.delete(v);
+          zeichneSchalter(v);
+          meldeAenderung();
+          zeigeVorschau();
+        },
+      }),
+    );
+    if (fokusName) {
+      for (const b of schalterOrt.querySelectorAll(".ld-gschalter")) {
+        if (b.dataset.name === fokusName) b.focus();
+      }
+    }
+  }
   const groesse = {
     eingabe: einheit.eingabe,
     wurzel: el(
@@ -890,10 +1070,14 @@ async function artikelBlatt({ artikel, ctx, neu }) {
       el("legend", {}, "Grösse (Pflicht)"),
       el("div", { class: "ld-wahl" }, einheit.wurzel, liste.wurzel),
       varianten.wurzel,
+      gwahl,
     ),
   };
+  let bereit = false;
   function aktualisiereGroesse() {
     varianten.wurzel.hidden = !liste.eingabe.checked;
+    gwahl.hidden = true;
+    if (bereit) zeichneSchalter();
   }
   aktualisiereGroesse();
   const hinweis = feld({
@@ -904,7 +1088,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
   });
   const verfuegbar = ankreuzen({
     label: "Verfügbar: Der Artikel lässt sich bestellen",
-    gewaehlt: artikel?.verfuegbar ?? true,
+    gewaehlt: artikel?.verfuegbarGesetzt ?? artikel?.verfuegbar ?? true,
     wert: "verfuegbar",
   });
   const meldungsfeld = el("div", {});
@@ -937,14 +1121,17 @@ async function artikelBlatt({ artikel, ctx, neu }) {
             ? "Einheitsgrösse"
             : "Grösse noch offen",
       ),
-      el(
-        "ul",
-        { class: "chips" },
-        verfuegbar.eingabe.checked
-          ? chip("Verfügbar", "ok")
-          : chip("Nicht verfügbar", "warn"),
-      ),
+      ...vorschauStand(),
     );
+  };
+  const vorschauStand = () => {
+    const namen = aktuelleNamen();
+    const stand = standChips({
+      verfuegbarGesetzt: verfuegbar.eingabe.checked,
+      varianten: namen,
+      nichtVerfuegbar: namen.filter((v) => weg.has(v)),
+    });
+    return [el("ul", { class: "chips" }, stand[0]), ...stand.slice(1)];
   };
   const formular = el(
     "form",
@@ -971,6 +1158,9 @@ async function artikelBlatt({ artikel, ctx, neu }) {
   for (const f of [name, preis, varianten, hinweis]) {
     f.eingabe.addEventListener("input", zeigeVorschau);
   }
+  varianten.eingabe.addEventListener("input", () => zeichneSchalter());
+  bereit = true;
+  zeichneSchalter();
   for (const k of [einheit, liste, verfuegbar]) {
     k.eingabe.addEventListener("change", zeigeVorschau);
   }
@@ -1077,7 +1267,10 @@ async function artikelBlatt({ artikel, ctx, neu }) {
       preisRappen: rappen,
       mediumId,
       groessenart: art,
-      ...(art === "liste" && { varianten: namen }),
+      ...(art === "liste" && {
+        varianten: namen,
+        nichtVerfuegbar: namen.filter((v) => weg.has(v)),
+      }),
       hinweis: hinweis.eingabe.value.trim() || null,
       verfuegbar: verfuegbar.eingabe.checked,
     };

@@ -694,6 +694,13 @@
       "when": 1793555500000,
       "tag": "0135_tag_anlass",
       "breakpoints": true
+    },
+    {
+      "idx": 138,
+      "version": "7",
+      "when": 1793555800000,
+      "tag": "0138_laden_groesse_verfuegbar",
+      "breakpoints": true
     }
   ]
 }
