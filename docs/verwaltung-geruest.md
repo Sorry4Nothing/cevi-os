@@ -6,7 +6,7 @@ Das Gerüst der Verwaltung unter `/admin` ist Teil **eines** Designsystems mit d
 
 ```
 Kopf (header.kopfzeile, wie website/kopf.css)
-  Logozeile        Marke (Logo hell/dunkel oder Wortmarke «CEVI» mit Name), «Verwaltung», «Zur Website» (#669; bis 520 px im Bereichsmenü), Konto, Umschalter Hell/Dunkel, Abmelden
+  Logozeile        Marke (Logo hell/dunkel oder Wortmarke «CEVI» mit Name; führt zur Website), «Verwaltung» (Link zur Übersicht), Suche, Konto-Menü (Bild, Name, Rolle; darunter «Zur Website», «Mein Konto», «Abmelden», #669), Umschalter Hell/Dunkel
   Bereichsleiste   weisses Band, ein Eintrag je Bereich, roter Strich unter dem aktuellen; haftet beim Scrollen oben (unter 960 px: Bereichsauswahl)
   Unterleiste      die Unterseiten des aktiven Bereichs auf der Fläche der Seite, Zähler als roter Kreis; scrollt mit weg
 main#inhalt        .rahmen (max. 105 rem und Seitenrand clamp(1rem, 4vw, 4.5rem): dieselben Werte wie .wrap und --rand der Website, in der Verwaltung als --seitenbreite und --seitenrand, weil --rand hier die Randfarbe ist; Kopf, Leisten, Hinweisband, Seitenkopf und Inhalt haben exakt dieselben Kanten wie die Website)
@@ -575,3 +575,11 @@ ctx.lade(laden, zeichnen, {
 **Von Hand.** `blendeEin(knoten)` und `blendeAus(knoten)` für Knoten, die ein Modul selbst einfügt oder entfernt; `fuelle(progress, wert)` lässt einen Fortschrittsbalken wachsen. `hidden`-Elemente, die erscheinen (Fehler an Feldern, Hinweise, Speicherleiste), blenden von selbst ein; `details` klappt gleitend, wo der Browser `::details-content` kennt.
 
 **Regeln.** Jede Animation und jeder Übergang steht in `lager-rahmen.css` unter `@media (prefers-reduced-motion: no-preference)` (Test `admin-lager-bewegung.test.ts`), Dauer und Kurve aus `--dauer`, `--dauer-lang`, `--kurve`, `animation-fill-mode: backwards` (kein Transform bleibt stehen), kein `style`-Attribut im Markup. Prüfpunkte: `docs/barrierefreiheit.md`, Abschnitt 63.
+
+## Lager: Navigation, Stelle der Seite und Status (#693)
+
+**Stelle der Seite behalten.** `navigiere()` in `admin.js` setzt nach jedem Wechsel die Seite nach oben (`stelleWiederHer()` in `verlauf.js`), und die Überschrift bekam den Fokus, was ebenfalls nach oben scrollt. Im Lager wechselt man aber oft innerhalb des Rahmens (Modul, Reiter). Darum meldet der Rahmen den Klick vorher mit `behalteStelle("genau" | "ausrichten")`; `stelleWiederHer()` lässt die Seite dann stehen, und der Rahmen setzt die Stelle nach dem Aufbau selbst (`haltStelle()` führt sie nach, bis der Inhalt lang genug geladen ist, und hört auf, sobald die Person scrollt). «genau» gilt für Reiter (`a.tab`), «ausrichten» für alles andere im Arbeitsbereich: stand die Seite unter dem Anfang des Moduls, steht dieser oben (`scroll-margin-top` auf `.lg-arbeit`), sonst bleibt sie. Der Fokus auf die Überschrift scrollt nicht mehr (`preventScroll`). Ein Bereich, der das auch will, ruft `behalteStelle()` vor dem Wechsel und `nimmBehaltene()` und `haltStelle()` danach.
+
+**Navigation.** Gruppen sind Knöpfe (`aria-expanded`) und klappen auf und zu; offen ist, was die Person geöffnet hat, und immer die Gruppe des aktiven Moduls. Die Leiste scrollt nur, wenn der Platz fehlt, und nutzt die Regeln aus `tokens.css`.
+
+**Status.** `lager-status.js` zeichnet im Kopf des Arbeitsbereichs Chip, Satz und die Schritte (`schritteFuer(status)`: Hauptaktion und Menü), mit Frage am Ort und «Rückgängig» danach. Die Schritte brauchen das Recht «Lager verwalten» (`ctx.zugang.darf("lager.verwalten")`); der Server prüft jede Anfrage und lässt unverändert nur `PATCH /api/v1/admin/lager/{id}` mit `status` zu. Prüfpunkte: `docs/barrierefreiheit.md`, Abschnitt 69.

@@ -1,5 +1,5 @@
 import { anfrage } from "./api.js";
-import { splitKnopf, bestaetigungAmOrt } from "./aktionen.js";
+import { bestaetigungAmOrt } from "./aktionen.js";
 import { auswahl, dialogFormular, el } from "./dom.js";
 import { skeletonFlaeche } from "./lader.js";
 import {
@@ -17,7 +17,7 @@ import {
   zeitraum,
 } from "./lager-gemeinsam.js";
 
-// Angaben eines Lagers im Arbeitsbereich (A22, A29; #672): Zeitraum, Ort, Mitglieder, Vorlagen und die Aktionen Abschliessen, Archivieren und Löschen. Aus lager.js hierher gezogen, damit der Rahmen die Seite einhängen kann.
+// Angaben eines Lagers im Arbeitsbereich (A22, A29; #672): Zeitraum, Ort, Mitglieder, Vorlagen und Löschen. Der Status und seine Schritte stehen im Kopf (lager-status.js, #693). Aus lager.js hierher gezogen, damit der Rahmen die Seite einhängen kann.
 
 export function zeige(bereich, ctx, id) {
   detail(bereich, ctx, id);
@@ -135,37 +135,6 @@ async function vorlageDialog(lager, ctx, neu, hinweis) {
   });
 }
 
-// Statuswechsel sofort, mit «Rückgängig» in der Meldung: Der alte Status lässt sich jederzeit wieder setzen (die Meldung bleibt, bis man sie schliesst)
-async function wechsle(lager, status, text, ctx, neu) {
-  const alt = lager.status;
-  try {
-    await anfrage("PATCH", `${BASIS}/${lager.id}`, { status });
-  } catch (f) {
-    ctx.melde(`Nicht geändert. ${meldung(f)}`, "fehler");
-    return;
-  }
-  await neu();
-  ctx.melde(text, "ok", {
-    text: "Rückgängig",
-    onclick: async () => {
-      try {
-        await anfrage("PATCH", `${BASIS}/${lager.id}`, { status: alt });
-        ctx.melde(`«${lager.titel}» ist wieder ${statusWort(alt)}.`);
-      } catch (f) {
-        ctx.melde(`Nicht zurückgesetzt. ${meldung(f)}`, "fehler");
-      }
-      await neu();
-    },
-  });
-}
-const statusWort = (s) =>
-  ({
-    entwurf: "ein Entwurf",
-    aktiv: "aktiv",
-    abgeschlossen: "abgeschlossen",
-    archiviert: "archiviert",
-  })[s];
-
 const zahlKnopf = (text, href, symbolName) => {
   const a = el("a", { class: "knopf", href }, text);
   if (symbolName) a.prepend(symbol(symbolName));
@@ -198,137 +167,17 @@ function detail(bereich, ctx, id) {
   );
 }
 
-// Eine Hauptaktion je Status; was sonst noch geht, steht im Menü daneben (Archivieren) oder unten (Löschen)
-function aktionen(lager, hatLeitung, ctx, neu) {
-  const archivieren = {
-    text: "Archivieren",
-    onclick: () =>
-      wechsle(
-        lager,
-        "archiviert",
-        `«${lager.titel}» ist archiviert. Du findest es in der Liste unter «Archiviert».`,
-        ctx,
-        neu,
-      ),
-  };
-  if (lager.status === "entwurf") {
-    // Ohne Lagerleitung antwortet der Server mit 409: Der Knopf ist gesperrt, der Grund steht im Hinweis darunter (aria-describedby) mit dem Weg zu den Mitgliedern
-    const aktivieren = splitKnopf({
-      text: "Aktivieren",
-      art: "haupt",
-      symbol: "haken",
-      onclick: () =>
-        wechsle(lager, "aktiv", `«${lager.titel}» ist aktiv.`, ctx, neu),
-      eintraege: [archivieren],
-    });
-    if (!hatLeitung) {
-      aktivieren.haupt.disabled = true;
-      aktivieren.haupt.setAttribute("aria-describedby", "lg-ohne-leitung");
-    }
-    return [aktivieren];
-  }
-  if (lager.status === "aktiv")
-    return [
-      splitKnopf({
-        text: "Abschliessen",
-        art: "blau",
-        symbol: "schloss",
-        onclick: () =>
-          wechsle(
-            lager,
-            "abgeschlossen",
-            `«${lager.titel}» ist abgeschlossen und schreibgeschützt. Du kannst es jederzeit wieder öffnen.`,
-            ctx,
-            neu,
-          ),
-        eintraege: [archivieren],
-      }),
-    ];
-  if (lager.status === "abgeschlossen")
-    return [
-      knopfMit("Wieder öffnen", {
-        art: "haupt",
-        symbol: "aktualisieren",
-        onclick: () =>
-          wechsle(
-            lager,
-            "aktiv",
-            `«${lager.titel}» ist wieder geöffnet.`,
-            ctx,
-            neu,
-          ),
-      }),
-    ];
-  return [
-    knopfMit("Wiederherstellen", {
-      art: "haupt",
-      symbol: "aktualisieren",
-      onclick: () =>
-        wechsle(
-          lager,
-          "abgeschlossen",
-          `«${lager.titel}» ist wiederhergestellt, abgeschlossen und schreibgeschützt.`,
-          ctx,
-          neu,
-        ),
-    }),
-  ];
-}
-
 function zeichneDetail(bereich, ctx, lager, mitglieder, neuModul) {
   // Eine Statusänderung ändert auch Kopf und Navigation des Arbeitsbereichs: dessen Neuladen geht vor
   const neu = ctx.neuRahmen ?? neuModul;
   const geschlossen =
     lager.status === "abgeschlossen" || lager.status === "archiviert";
-  ctx.titel("Angaben", "Zeitraum, Ort und Status des Lagers.");
-  // mitglieder === null: Die Person darf sie nicht sehen; der Server prüft die Leitung beim Aktivieren trotzdem
+  ctx.titel("Angaben", "Zeitraum, Ort, Mitglieder und Vorlagen des Lagers.");
+  // mitglieder === null: Die Person darf sie nicht sehen
   const ohneMitglieder = mitglieder === null;
+  // Der Status mit seinen Schritten steht im Kopf des Arbeitsbereichs (lager-status.js), nicht mehr hier
+  ctx.kopfAktion();
   const rolle = (r) => (mitglieder ?? []).filter((m) => m.rolle === r).length;
-  ctx.kopfAktion(
-    ...aktionen(
-      lager,
-      ohneMitglieder || rolle("lagerleitung") > 0,
-      ctx,
-      neu,
-    ).map((a) => a.wurzel ?? a),
-  );
-
-  const hinweis =
-    lager.status === "entwurf" && !ohneMitglieder && rolle("lagerleitung") === 0
-      ? el(
-          "div",
-          { class: "hinweis hinweis--warn", id: "lg-ohne-leitung" },
-          el(
-            "span",
-            {},
-            "Zum Aktivieren fehlt die Lagerleitung. Ein aktives Lager braucht mindestens eine Person mit dieser Rolle.",
-          ),
-          el(
-            "a",
-            {
-              class: "knopf knopf--klein",
-              href: `${ADRESSE}/${lager.id}/mitglieder`,
-            },
-            "Mitglieder öffnen",
-          ),
-        )
-      : lager.status === "abgeschlossen"
-        ? el(
-            "div",
-            { class: "hinweis hinweis--info", role: "status" },
-            el("span", {}, "Das Lager ist schreibgeschützt."),
-          )
-        : lager.status === "archiviert"
-          ? el(
-              "div",
-              { class: "hinweis hinweis--info", role: "status" },
-              el(
-                "span",
-                {},
-                "Archiviert, nicht in der Liste «Alle». Die Daten bleiben erhalten.",
-              ),
-            )
-          : null;
 
   const werte = (paare) =>
     el(
@@ -343,7 +192,6 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neuModul) {
   });
   haenge(
     bereich,
-    hinweis,
     el(
       "div",
       { class: "lg-raster" },

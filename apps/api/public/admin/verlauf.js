@@ -86,16 +86,29 @@ window.addEventListener(
   { passive: true },
 );
 
+// Eine Ansicht darf die Stelle der Seite behalten (#693): Ein Bereich, der sich beim Wechsel innerhalb seines Rahmens selbst um die Stelle kümmert (Lager: Wechsel des Moduls, Reiter), meldet das vor dem Klick. Dann scrollt stelleWiederHer() nicht nach oben; der Bereich ruft nimmBehaltene() und haltStelle() selbst. Die Meldung gilt 10 Sekunden.
+let behalten = null;
+const FRIST_BEHALTEN_MS = 10000;
+export function behalteStelle(art, ziel) {
+  behalten = { art, ziel, y: window.scrollY, zeit: Date.now() };
+}
+// Nur für die Adresse, zu der der Klick führen sollte: Ein Klick auf den aktiven Eintrag oder ein späterer Wechsel anderswohin behält nichts
+const frischBehalten = () =>
+  behalten !== null &&
+  Date.now() - behalten.zeit < FRIST_BEHALTEN_MS &&
+  window.location.hash === behalten.ziel;
+export function nimmBehaltene() {
+  const b = frischBehalten() ? behalten : null;
+  behalten = null;
+  return b;
+}
+
 // Nach dem Aufbau einer Ansicht: zurück an die gemerkte Stelle (Eintrag aus dem Verlauf) oder nach oben (neuer Eintrag).
 // Der Inhalt lädt nach, darum wird kurz nachgeführt, bis die Seite lang genug ist oder die Person selbst scrollt
 let abbruch = null;
-export function stelleWiederHer() {
+// Führt die Seite an die Stelle y nach, bis sie lang genug ist (der Inhalt lädt nach) oder die Person selbst scrollt
+export function haltStelle(y, { versuche: maximal = 40 } = {}) {
   abbruch?.();
-  const y = window.history.state?.y;
-  if (!(y > 0)) {
-    window.scrollTo(0, 0);
-    return;
-  }
   let fertig = false;
   let timer;
   const ende = () => {
@@ -113,8 +126,23 @@ export function stelleWiederHer() {
   const schritt = () => {
     if (fertig) return;
     window.scrollTo(0, y);
-    if (Math.abs(window.scrollY - y) < 2 || ++versuche > 40) return ende();
+    if (Math.abs(window.scrollY - y) < 2 || ++versuche > maximal) return ende();
     timer = window.setTimeout(schritt, 50);
   };
   schritt();
+}
+
+export function stelleWiederHer() {
+  // Der Bereich hat gemeldet, dass er die Stelle selbst hält (Lager): nicht nach oben
+  if (frischBehalten()) {
+    abbruch?.();
+    return;
+  }
+  const y = window.history.state?.y;
+  if (!(y > 0)) {
+    abbruch?.();
+    window.scrollTo(0, 0);
+    return;
+  }
+  haltStelle(y);
 }
