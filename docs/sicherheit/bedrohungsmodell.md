@@ -1404,7 +1404,7 @@ Bisher hatte die Abteilungsleitung (technisch das Konto mit der Rolle `admin`) f
 
 **OWASP:** ASVS V4 Access Control, V8 Data Protection, V16 Logging; Top 10 A01 Broken Access Control; API1, API3, API5.
 
-### 62. Fotos aus Flickr direkt auf der Website (#690)
+### 64. Fotos aus Flickr direkt auf der Website (#690)
 
 Die Fotos der Abteilung liegen bei Flickr. Der Server holt Albumlisten und Bilder dort und reicht sie angemeldeten Personen weiter (`/api/v1/fotos/*`, Verwaltung unter `/api/v1/admin/fotos/*`). Es gibt eine **neue Vertrauensgrenze zu Flickr** (ein Dritter in den USA) und **Fotos von Kindern** als schützenswerten Inhalt; die Zugangsdaten zu Flickr (Schlüssel, Secret, Token mit Lesezugriff auf das Konto) sind **Geheimnisse**. Bedroht sind die Kinder auf den Fotos (Zugriff ohne Konto, Zugriff durch das Konto eines Kindes, Weitergabe an Flickr oder Dritte), die Abteilung (Missbrauch des Tokens, Server als Relais für fremde Adressen) und die Verfügbarkeit (Flickr bremst oder fällt aus).
 
@@ -1424,6 +1424,23 @@ Die Fotos der Abteilung liegen bei Flickr. Der Server holt Albumlisten und Bilde
 **Restrisiko:** Flickr ist ein Dritter: Wer ein Foto dort löscht, sieht es auf der Website bis zu 10 Minuten (Zwischenspeicher). Ob Flickr die Bilddateien nicht öffentlicher Fotos nur mit Anmeldung ausliefert, hängt von Flickr ab; der Server ruft sie mit der Adresse ab, die Flickr für das Foto nennt, und sie ist ohne diese Adresse nicht erratbar. Wer das Token kennt, liest das Konto (nur lesend); das Token lässt sich bei Flickr widerrufen. Ein angemeldetes Konto kann Fotos auf seinem Gerät speichern oder abfotografieren: Das lässt sich technisch nicht verhindern, nur organisatorisch (Einwilligung, Auswahl der Alben).
 
 **OWASP:** ASVS V4 Access Control, V5 Validation, V8 Data Protection, V12 Files and Resources, V13 API; API1, API4, API7, API10 (Unsafe Consumption of APIs).
+
+### 63. Profilbilder in den Antworten der Lager-Routen (#697)
+
+Die Lager-Antworten (Mitglieder, Aufgaben, Höcks, Pinnwand, Fahrten, Gruppen, Schichtplan, Anwesenheit, Diensttausch, Ressorts, Notfallkontakte, Tagesseiten, Umfragen) nennen neben dem Namen einer Person das Feld `bildUrl` (Pfad `/api/v1/personen/{id}/bild?v=…` oder `null`), damit die Verwaltung das Bild statt der Initialen zeigt. Das Bild selbst liefert weiterhin nur `GET /api/v1/personen/{id}/bild`; neu gilt dort der Weg «gemeinsames Lager»: Wer Mitglied desselben Lagers ist wie die Person (aktives Konto der Abteilung), darf ihr Bild abrufen.
+
+| Massnahme                                                                                                                                                                                                                                                                                                                                                      | Test oder Prüfpunkt                                                                                                                                                                        |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Das Feld ist ein Pfad, nie das Bild. Es steht nur bei Konten (Leitende, Eltern), die Mitglied dieses Lagers mit aktivem Konto sind und ein Bild haben (`bildUrlImLager` in `bild.ts`, ein Unterausdruck in derselben Abfrage, kein N+1). Teilnehmende ohne Konto und Kinder haben nie eins (`null`); die Tabellen der Teilnehmenden werden dafür nicht gelesen | `test/lager/profilbild.test.ts`: Mitglieder, Aufgaben, Ressorts, Fahrten (Teilnehmende `null`), Gruppen (Teilnehmende ohne Feld), Schichtplan, Anwesenheit, Pinnwand                       |
+| Die Abteilungsleitung ohne Mitgliedschaft und ein deaktiviertes Konto liefern kein `bildUrl`, auch wenn sie ein Bild haben: Das Feld nennt nie ein Bild, das die Route der Person nicht herausgäbe                                                                                                                                                             | `test/lager/profilbild.test.ts`: «Pinnwand: Autor mit Bild; die Abteilungsleitung ohne Mitgliedschaft nie», «ein Konto, das nicht mehr Mitglied ist, liefert kein Bild mehr»               |
+| Der Weg «gemeinsames Lager» in `GET /personen/{id}/bild` ist an dieselbe Bedingung gebunden (beide Mitglieder desselben Lagers, Zielkonto aktiv in der Abteilung des Abrufenden); ohne Weg bleibt es bei 404, gleich für «kein Bild» und «nicht erlaubt»                                                                                                       | `test/lager/profilbild.test.ts`: «Mitglieder desselben Lagers sehen das Bild, andere nicht», «ein Konto im Lager, das kein Mitglied dieses Lagers ist, kommt nicht über ein fremdes Lager» |
+| Das Feld ist additiv und optional (`LagerBildUrl` in der OpenAPI-Beschreibung, nicht in `required`); ein Client, der es nicht kennt, zeigt die Initialen. Keine neue Route, kein neues Recht                                                                                                                                                                   | OpenAPI; Rechte-Matrix unverändert                                                                                                                                                         |
+
+**Restrisiko:** Mitglieder eines Lagers sehen die Bilder aller Mitglieder dieses Lagers, auch wenn sie sich sonst nicht begegnen (Stufe, Chat). Das entspricht den Namen, die sie dort ohnehin sehen. Wer das Lager verlässt oder deaktiviert wird, verliert den Weg sofort.
+
+**Abweichungen von den Anforderungen:** keine.
+
+**OWASP:** ASVS V4 Access Control, V8 Data Protection; API1, API3.
 
 ## Bewusst nicht umgesetzt
 

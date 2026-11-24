@@ -27,7 +27,7 @@ import type { Person } from "../../rechte.js";
 import { erstelleAdminFotoRouten } from "./admin.js";
 
 // Fotos aus Flickr (#690). app.ts hängt die öffentlichen Routen bei /api/v1/fotos und die der Verwaltung bei /api/v1/admin/fotos ein, beide hinter der Sitzung.
-// Zugang: jede angemeldete Person der Abteilung ausser dem Konto eines Kindes (es sieht nur sein eigenes Kind, Bedrohungsmodell 56 und 62). Ohne Sitzung 401 (app.ts). Der Browser lädt Bilder nur von hier, nie von Flickr: Der Server holt sie und reicht sie durch.
+// Zugang: jede angemeldete Person der Abteilung ausser dem Konto eines Kindes (es sieht nur sein eigenes Kind, Bedrohungsmodell 56 und 64). Ohne Sitzung 401 (app.ts). Der Browser lädt Bilder nur von hier, nie von Flickr: Der Server holt sie und reicht sie durch.
 // Was die Person sieht, bestimmt die Abteilung (Verwaltung «Fotos»): nur Alben, die sie sichtbar gestellt hat. Eine Kennung, die nicht zu einem sichtbaren Album gehört, ist 404; eine Adresse oder ein Host kommt von nirgends als aus dem Code.
 export type FotoEnv = { Variables: { person: Person } };
 

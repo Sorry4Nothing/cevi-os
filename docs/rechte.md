@@ -285,7 +285,7 @@ Das Lädeli (#566) hängt im Stack 563. Bestellen und eigene Bestellungen lesen 
 
 ### 4.6a Fotos aus Flickr (#690)
 
-Die Fotos der Abteilung liegen bei Flickr. Der Server holt Alben und Bilder und reicht sie an die Website weiter; der Browser lädt nie etwas von Flickr. Ansehen darf jede angemeldete Person der Abteilung ausser dem **Konto eines Kindes** (`fotos.ansehen`, Art «struktur»; das Konto eines Kindes sieht nur sein eigenes Kind, Entscheid siehe Bedrohungsmodell 62). Ohne Sitzung gibt es 401 und kein Bild. Was erscheint, bestimmt die Abteilung: Ein Album von Flickr ist erst sichtbar, wenn es jemand in der Verwaltung einschaltet. Die Verwaltung unter `/api/v1/admin/fotos*` verlangt `fotos.verwalten` (Abteilungsleitung; die Vorgabe «Webmaster» hat es ebenfalls, weitere Rollen bekommen es von der Abteilungsleitung), mit zweitem Faktor wie alle Verwaltungsrouten.
+Die Fotos der Abteilung liegen bei Flickr. Der Server holt Alben und Bilder und reicht sie an die Website weiter; der Browser lädt nie etwas von Flickr. Ansehen darf jede angemeldete Person der Abteilung ausser dem **Konto eines Kindes** (`fotos.ansehen`, Art «struktur»; das Konto eines Kindes sieht nur sein eigenes Kind, Entscheid siehe Bedrohungsmodell 64). Ohne Sitzung gibt es 401 und kein Bild. Was erscheint, bestimmt die Abteilung: Ein Album von Flickr ist erst sichtbar, wenn es jemand in der Verwaltung einschaltet. Die Verwaltung unter `/api/v1/admin/fotos*` verlangt `fotos.verwalten` (Abteilungsleitung; die Vorgabe «Webmaster» hat es ebenfalls, weitere Rollen bekommen es von der Abteilungsleitung), mit zweitem Faktor wie alle Verwaltungsrouten.
 
 ### 4.7 Plattform, System und Datenschutz
 
