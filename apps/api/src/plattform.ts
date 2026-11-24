@@ -161,6 +161,7 @@ export function verlangePlattformRecht(db: Db, recht: PlattformRecht) {
         return c.json(
           zweiterFaktorFehlt(
             "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+            person,
           ),
           403,
         );
@@ -180,6 +181,7 @@ export function verlangeEntwickler(db: Db) {
         return c.json(
           zweiterFaktorFehlt(
             "Für den Entwickler braucht es zuerst einen zweiten Faktor.",
+            person,
           ),
           403,
         );

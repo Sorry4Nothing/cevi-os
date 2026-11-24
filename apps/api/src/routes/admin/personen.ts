@@ -38,6 +38,7 @@ import { keinKindKonto as keinKindKontoVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
+import { beendeSitzungenBeiNeuerPflicht } from "../../rechtemodell/faktor-pflicht.js";
 import {
   geschuetzteKonten,
   personenSicht,
@@ -676,6 +677,10 @@ export function erstellePersonenRouten({
             return c.json(KONFLIKT[fehler.konflikt], 409);
           }
           throw fehler;
+        }
+        // Wird der zweite Faktor mit dieser Änderung Pflicht und fehlt er, meldet sich die Person neu an und sieht die Einrichtung (#715)
+        if (aenderung.admin === true || aenderung.rollen !== undefined) {
+          await beendeSitzungenBeiNeuerPflicht(db, person.abteilungId, [id]);
         }
         // Die Website zeigt oder vergisst die Person nach ihrer Rolle und ihrem Namen beim nächsten Abgleich (#610)
         if (

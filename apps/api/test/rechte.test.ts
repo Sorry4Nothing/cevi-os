@@ -142,6 +142,7 @@ describe("person aus der Sitzung", () => {
       abteilungId: welt.testabteilungId,
       admin: false,
       zweiterFaktor: false,
+      zweiterFaktorKonto: false,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
     });
   });

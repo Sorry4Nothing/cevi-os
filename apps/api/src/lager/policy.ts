@@ -132,6 +132,7 @@ export function lagerZugriff(db: Db, optionen: LagerZugriffOptionen = {}) {
       return c.json(
         zweiterFaktorFehlt(
           "Für die Lagerleitung braucht es zuerst einen zweiten Faktor.",
+          c.get("person"),
         ),
         403,
       );

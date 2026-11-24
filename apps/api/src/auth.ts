@@ -33,6 +33,28 @@ const rollen = {
   user: ac.newRole({ user: [], session: [] }),
 };
 
+// Das Schema der App (Android, später iOS) in der Kopfzeile Origin; das Muster ohne Authority deckt auch cevi-os://<host:port> eines Dev-Builds
+const APP_ORIGIN = "cevi-os://";
+
+// Die Anmeldung der App erkennt der Server an Origin (der Expo-Client meldet es in expo-origin, mitExpoOrigin setzt es um). Das ist keine Sicherheitsgrenze: Ein Skript kann Origin setzen, ein Browser nicht. Wer es setzt, bekommt eine Sitzung ohne Code, und genau die ist markiert (session.zweiter_faktor_geprueft = falsch): Sie öffnet weder die Verwaltung noch ein Recht mit «erweitert» (#721)
+function istAppAnmeldung(kontext: { request?: Request; headers?: Headers }) {
+  const herkunft = (kontext.request?.headers ?? kontext.headers)?.get("origin");
+  return herkunft?.startsWith(APP_ORIGIN) === true;
+}
+
+// Das Plugin legt für Konten mit zweitem Faktor bei jeder Anmeldung eine Umleitung auf den Code statt einer Sitzung. Für die App nicht (der zweite Faktor gilt nur in der Verwaltung): Der Haken nach der Anmeldung greift bei ihr nicht, die Sitzung bleibt. Kein Patch an better-auth, nur der matcher des öffentlichen Hooks ist enger; ändert sich dessen Form, scheitert der Start laut statt still offen
+function zweiterFaktorPlugin() {
+  const plugin = twoFactor({ issuer: "Cevi OS" });
+  const haken = plugin.hooks.after[0];
+  if (plugin.hooks.after.length !== 1 || !haken) {
+    throw new Error("twoFactor: Aufbau der Hooks hat sich geändert (#721)");
+  }
+  const matcher = haken.matcher;
+  haken.matcher = (kontext) =>
+    matcher(kontext) && !istAppAnmeldung(kontext as never);
+  return plugin;
+}
+
 // Startpasswort nur bei einer neuen Anmeldung prüfen: change-password und verify-totp in der eigenen laufenden Sitzung legen auch eine Sitzung an und müssen nach dem Ablauf gehen
 const anmeldepfade = new Set([
   "/sign-in/username",
@@ -146,9 +168,17 @@ export function erstelleAuth(
     session: {
       // 90 Tage, verlängert bei Nutzung (updateAge bleibt beim Standard von 1 Tag); kein cookieCache, damit beendete Sitzungen sofort enden
       expiresIn: 60 * 60 * 24 * 90,
+      // Wie die Spalte in src/db/schema.ts (#721); get-session liefert sie mit, die Verwaltung liest sie dort. Gesetzt wird sie nur im Hook unten, nie aus einer Anfrage
+      additionalFields: {
+        zweiterFaktorGeprueft: {
+          type: "boolean",
+          input: false,
+          defaultValue: false,
+        },
+      },
     },
     // Das App-Schema ist eine Baukonstante, darum im Code statt in der Umgebung: Fehlte die Variable, bekäme jeder Cookie-POST der App 403. Das Muster ohne Authority deckt auch cevi-os://<host:port> eines Dev-Builds; better-auth ergänzt BETTER_AUTH_TRUSTED_ORIGINS obendrauf (Tests)
-    trustedOrigins: ["cevi-os://"],
+    trustedOrigins: [APP_ORIGIN],
     rateLimit: {
       // enabled auch ausserhalb der Produktion; database zählt in rate_limit und übersteht Neustarts
       enabled: true,
@@ -227,7 +257,25 @@ export function erstelleAuth(
                 });
               }
             }
-            return { data: { ipAddress: null, userAgent: null } };
+            // Geprüft ist nur, was mit dem Code begann: Eine Sitzung, die verify-totp oder verify-backup-code anlegt (nach dem Code in der Anmeldung, oder beim Einschalten des Faktors). Die Anmeldung mit Passwort allein nie, auch nicht mit Header der App. Eine Sitzung, die eine laufende ersetzt (change-password), erbt den Stand der laufenden, sonst verlöre die Verwaltung nach einem Passwortwechsel ihren Code
+            const geprueft =
+              ctx?.path === "/two-factor/verify-totp" ||
+              ctx?.path === "/two-factor/verify-backup-code" ||
+              (!!ctx &&
+                !anmeldepfade.has(ctx.path) &&
+                ctx.context.session?.user.id === sitzung.userId &&
+                (
+                  ctx.context.session.session as {
+                    zweiterFaktorGeprueft?: boolean;
+                  }
+                ).zweiterFaktorGeprueft === true);
+            return {
+              data: {
+                ipAddress: null,
+                userAgent: null,
+                zweiterFaktorGeprueft: geprueft,
+              },
+            };
           },
         },
       },
@@ -291,6 +339,19 @@ export function erstelleAuth(
           ctx.path === "/two-factor/verify-totp" ||
           ctx.path === "/two-factor/verify-backup-code"
         ) {
+          // Eine Sitzung ohne Code (die der App) holt den Code nicht nach (#721): In einer laufenden Sitzung zählt better-auth keine Fehlversuche und sperrt das Konto nicht, ein Angreifer mit Passwort und App-Sitzung dürfte Codes raten. Der Weg zur geprüften Sitzung ist die neue Anmeldung im Browser, dort gilt die Grenze der Anmeldung. Das Einschalten des Faktors (Konto ohne Faktor) bleibt offen
+          const laufende = await getSessionFromCtx(ctx);
+          if (
+            laufende?.user.twoFactorEnabled === true &&
+            (laufende.session as { zweiterFaktorGeprueft?: boolean })
+              .zweiterFaktorGeprueft !== true
+          ) {
+            throw new APIError("FORBIDDEN", {
+              code: "ZWEITER_FAKTOR_SITZUNG",
+              message:
+                "Diese Sitzung hat den zweiten Faktor nicht geprüft. Melde dich in der Verwaltung neu an.",
+            });
+          }
           // Kein «Gerät vertrauen»: Auf jedem neuen Gerät fragt der Login nach dem Code, was der Client auch schickt
           return { context: { body: { ...ctx.body, trustDevice: false } } };
         }
@@ -452,7 +513,7 @@ export function erstelleAuth(
       }),
       admin({ ac, roles: rollen }),
       // Name wie in app.json; sonst die Standards: 6 Stellen, 30 s, zehn Ersatzcodes
-      twoFactor({ issuer: "Cevi OS" }),
+      zweiterFaktorPlugin(),
       haveIBeenPwned(),
     ],
   });
@@ -479,15 +540,21 @@ function mitExpoOrigin(anfrage: Request) {
   return new Request(anfrage, { headers: kopfzeilen });
 }
 
-export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
+// istKinderkonto: ob die Kennung das eigene Konto eines Kindes ist (kind.user_id, #644); ohne Angabe gibt es keine Kinderkonten
+export function erstelleAuthRouten(
+  auth: ReturnType<typeof erstelleAuth>,
+  istKinderkonto: (userId: string) => Promise<boolean> = async () => false,
+) {
   const routen = new Hono<{ Variables: AktivitaetVariablen }>();
-  // Den zweiten Faktor richtet nur die Abteilungsleitung ein; für alle anderen ist der Pfad zu
+  // Den zweiten Faktor richtet jedes Konto ein, ausser dem eigenen Konto eines Kindes (#715); ohne Sitzung und für Kinderkonten ist der Pfad zu. Zwei Schritte: enable gibt Link und Ersatzcodes, erst verify-totp mit einem gültigen Code schaltet ihn ein (twoFactorEnabled)
   routen.post("/api/auth/two-factor/enable", async (c, next) => {
     const sitzung = await auth.api.getSession({
       headers: c.req.raw.headers,
       query: { disableRefresh: true },
     });
-    if (sitzung?.user.role !== "admin") return c.notFound();
+    if (!sitzung || (await istKinderkonto(sitzung.user.id))) {
+      return c.notFound();
+    }
     await next();
   });
   for (const eintrag of offenePfade) {

@@ -132,7 +132,11 @@ const CODES = {
     "Der Push-Dienst ist auf diesem Server nicht eingerichtet. Es wurde nichts gesendet.",
   NETZ: "Keine Verbindung. Prüfe das Internet und versuche es nochmals.",
   ZWEITER_FAKTOR_FEHLT:
-    "Für die Verwaltung braucht es zuerst einen zweiten Faktor. Richte ihn ein und melde dich danach neu an.",
+    "Dafür braucht es zuerst einen zweiten Faktor. Richte ihn unter «Mein Konto» ein.",
+  ZWEITER_FAKTOR_SITZUNG:
+    "Diese Sitzung hat den Code nicht geprüft. Melde dich neu an und gib den Code ein.",
+  TOTP_ALREADY_ENABLED: "Der zweite Faktor ist schon eingerichtet.",
+  INVALID_PASSWORD: "Das Passwort stimmt nicht.",
   INVALID_CODE: "Der Code stimmt nicht. Prüfe ihn und versuche es nochmals.",
   INVALID_BACKUP_CODE:
     "Der Ersatzcode stimmt nicht oder wurde schon verwendet.",
