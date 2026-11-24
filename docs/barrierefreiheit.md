@@ -1291,3 +1291,19 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Tag und Nacht) geprüf
 - **Ungespeichert, Szenarien:** Mein Konto (Schalter ändern, Menü, Browser-Zurück, «Bleiben», «Verwerfen und gehen»), Seite im Fluss (Person erfassen: Menü, Browser-Zurück, «Verwerfen»), «Verwerfen» über die Speicherleiste: jeweils kein Browserdialog, Adresse bleibt beim «Bleiben», danach ist `beforeunload` nicht mehr scharf.
 - **Nicht geprüft:** Safari und Firefox; Bildschirmleser; Touch (der Hinweis `data-tipp` erscheint dort nicht, die Information steht im Namen oder im Text); jede einzelne Zeile der Seiten, die nur mit Daten erreichbar sind, die die Demo-Datenbank nicht enthält.
 - **Bleibt unvermeidlich:** der Dialog des Browsers beim Schliessen oder Neuladen des Tabs mit echten ungespeicherten Änderungen, und der Systemdialog der Dateiwahl.
+
+## 72. Website: feste Seite «Datenschutz: Cevi OS, App, Verwaltung und Website» (#712)
+
+Gilt für `/datenschutz-cevi-os` (`datenschutz-cevi-os.ts`, `datenschutz.css`) und die neuen Links auf sie (Fuss, Mein Konto, `/support`, `/konto-loeschen`). Massstab WCAG 2.2 AA. Es ist eine lange Seite aus Text ohne Skript und ohne Formular.
+
+- [ ] **72.1** Genau eine Überschrift der Ebene 1 (der Seitentitel), eine der Ebene 2 («11 Zusätzlich für Cevi OS …»), acht der Ebene 3 (11.1 bis 11.8) und die Kategorien als Ebene 4; keine Ebene wird übersprungen. Der Fuss bringt seine eigenen Überschriften der Ebene 2 mit, wie auf jeder Seite.
+- [ ] **72.2** `lang="de-CH"`; Sprunglink «Zum Inhalt», `main` mit `id="inhalt"`.
+- [ ] **72.3** Die Liste «Auf dieser Seite» ist eine `nav` mit `aria-labelledby` auf ihren Titel; jeder Link führt auf eine vorhandene `id` der Überschrift (`abschnitt-11-1` bis `abschnitt-11-8`); jede Zeile ist mindestens 44 px hoch; der Fokus ist sichtbar, und die Sprungmarke verdeckt der feste Kopf nicht (`scroll-padding-top` in `kopf.css`).
+- [ ] **72.4** Links sind unterstrichen und tragen ihren Zweck im Text («Konto löschen», «Allgemeine Datenschutzerklärung des Cevi Stäfa-Hombrechtikon»); keine Farbe als einziges Zeichen. Der Link zurück steht oben und unten.
+- [ ] **72.5** Farben nur aus den Tokens der Website: Tag, Nacht und erhöhter Kontrast gelten wie auf jeder Seite (Text 4,5 : 1, Rahmen der Liste 3 : 1).
+- [ ] **72.6** Zoom 200 % und 320 px Breite: kein waagrechtes Scrollen, der Text bricht um; Zeilenlänge höchstens 70 Zeichen (`.lesetext`).
+- [ ] **72.7** Bewegung: Das Einblenden beim Scrollen ist für den langen Textblock ausgeschaltet (er stünde sonst über seine ganze Länge blass); ohne Skript und mit «Bewegung reduzieren» ändert sich nichts.
+
+### Stand der Prüfung (#712)
+
+Im Browser (Chromium, headless, die Seite aus dem Code in eine Datei erzeugt und von einem lokalen Dateiserver ausgeliefert, Abteilung mit Beispieldaten) gesehen: 72.1, 72.3, 72.5 und 72.6 bei 1440, 390 und 320 px, Hell und Dunkel (Text hell auf dunkel rund 14 : 1), kein waagrechtes Scrollen, Zielhöhe der Liste 44 px, Fokus sichtbar, alle acht Anker vorhanden; 72.2, 72.4 und 72.7 im Markup und im Stil geprüft, nicht im Browser bedient. Im Test (`website-datenschutz-cevi-os.test.ts`): Überschriftenfolge, acht Abschnitte, 42 Kategorien, Anker, Links, Maskierung. **Nicht geprüft:** Bildschirmleser, Safari und Firefox, Touch, erhöhter Kontrast mit erzwungenen Farben, 400 % Zoom.

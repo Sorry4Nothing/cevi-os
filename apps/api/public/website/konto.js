@@ -580,6 +580,10 @@ export function hilfeKarte(s) {
       { class: "linkliste" },
       [
         ["/datenschutz-website", "Datenschutzerklärung"],
+        [
+          "/datenschutz-cevi-os",
+          "Datenschutz: Cevi OS, App, Verwaltung und Website",
+        ],
         ["/termine/", "Kalender abonnieren"],
         ["/support", "Hilfe und Kontakt"],
         ["/konto-loeschen", "Konto löschen"],
