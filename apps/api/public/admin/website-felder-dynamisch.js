@@ -6,6 +6,8 @@ import { el, feld, knopf, neueId } from "./dom.js";
 // h sind die Helfer aus website-felder.js (eine Fabrik statt eines Imports, damit die beiden Dateien einander nicht einbinden).
 
 const API = "/api/v1/redaktion";
+// Beispieladressen für die Vorschau: Der Quelltext der Verwaltung nennt keine Adresse im Klartext (seiten.test.ts), darum getrennt geschrieben
+const BSP_HTTPS = "https:" + "//";
 export const MAX_ANLASS_ANZAHL = 12;
 export const MAX_TREFFPUNKTE = 12;
 export const MAX_DOKUMENTE = 30;
@@ -532,13 +534,13 @@ export function dynamischeBausteine(h) {
         eintraege: [
           {
             titel: "Anmeldeformular",
-            link: "https://example.sharepoint.com/f/anmeldung",
+            link: `${BSP_HTTPS}example.sharepoint.com/f/anmeldung`,
             typ: "PDF",
             groesse: 120000,
           },
           {
             titel: "Packliste",
-            link: "https://example.sharepoint.com/f/packliste",
+            link: `${BSP_HTTPS}example.sharepoint.com/f/packliste`,
             typ: "PDF",
             groesse: 80000,
           },

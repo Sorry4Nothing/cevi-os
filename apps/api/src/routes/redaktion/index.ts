@@ -45,6 +45,7 @@ export function erstelleEditorRouten({
         return c.json(
           zweiterFaktorFehlt(
             "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+            person,
           ),
           403,
         );

@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { istAbteilungsleitungSql } from "../admins.js";
 import { nachCommit, type Db } from "../db/client.js";
 import { lager, lagerMitglied, session, user } from "../db/schema.js";
 import type { LagerRolle } from "./rechte-katalog.js";
@@ -257,7 +258,7 @@ export async function ungueltigeVerbindungen(
       personId: session.userId,
       laeuftAb: session.expiresAt,
       gesperrt: user.banned,
-      rolle: user.role,
+      abteilungsleitung: istAbteilungsleitungSql(user.id),
       abteilungId: user.abteilungId,
     })
     .from(session)
@@ -300,10 +301,9 @@ export async function ungueltigeVerbindungen(
     }
     // Wie ladeLagerZugriff: Das Lager der Abteilung der Person, die Abteilungsleitung ist Lagerleitung
     if (abteilungJeLager.get(v.lagerId) !== s.abteilungId) return true;
-    const rolle =
-      s.rolle === "admin"
-        ? "lagerleitung"
-        : mitgliedRolle.get(`${v.lagerId}:${v.personId}`);
+    const rolle = s.abteilungsleitung
+      ? "lagerleitung"
+      : mitgliedRolle.get(`${v.lagerId}:${v.personId}`);
     return rolle !== v.rolle;
   });
 }

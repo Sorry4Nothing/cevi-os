@@ -219,7 +219,7 @@ describe("POST /api/v1/admin/import/vorschau", () => {
         vorname: "Anderer",
         nachname: "Name",
         benutzername: `${basis}.test`.toUpperCase(),
-        admin: false,
+        abteilungsleitung: false,
         rollen: [],
         elternteilVon: [],
       }),
@@ -387,7 +387,10 @@ describe("POST /api/v1/admin/import", () => {
         abteilungId: welt.testabteilungId,
         zielTyp: "person",
       });
-      expect(a.details).toMatchObject({ admin: false, elternteilVon: [] });
+      expect(a.details).toMatchObject({
+        abteilungsleitung: false,
+        elternteilVon: [],
+      });
     }
     const nachher = await zaehle();
     expect(nachher.audit - vorher.audit).toBe(2);

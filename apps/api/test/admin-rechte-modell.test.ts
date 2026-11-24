@@ -18,7 +18,6 @@ const katalog = {
       geltungen: ["alle", "eigene"],
       gruppenrolle: true,
       nurEntwickler: false,
-      entwickler: true,
     },
     {
       id: "wartungsmodus.website",
@@ -28,7 +27,6 @@ const katalog = {
       geltungen: ["alle"],
       gruppenrolle: false,
       nurEntwickler: false,
-      entwickler: true,
     },
     {
       id: "anlass.anmeldungen_sehen",
@@ -38,7 +36,6 @@ const katalog = {
       geltungen: ["alle", "eigene"],
       gruppenrolle: true,
       nurEntwickler: false,
-      entwickler: false,
     },
     {
       id: "anlass.anmelden",
@@ -48,7 +45,6 @@ const katalog = {
       geltungen: [],
       gruppenrolle: false,
       nurEntwickler: false,
-      entwickler: false,
     },
   ],
 };
@@ -137,13 +133,13 @@ describe("Entwurf", () => {
 });
 
 describe("Vorschau", () => {
-  test("zählt Personen einmal und lässt die Abteilungsleitung aus", () => {
-    const a = rolle("a", [], ["p1", "p2", "admin"]);
+  test("zählt Personen einmal und lässt Abteilungsleitung und Entwickler aus", () => {
+    const a = rolle("a", [], ["p1", "p2", "al", "dev"]);
     const b = rolle("b", [], ["p2"]);
     const e = m.neuerEntwurf();
     m.setzeZelle(e, a, "seiten.bearbeiten", "eigene");
     m.setzeZelle(e, b, "seiten.bearbeiten", "eigene");
-    const v = m.betroffene([a, b], e, new Set(["admin"]));
+    const v = m.betroffene([a, b], e, new Set(["al", "dev"]));
     expect(v.personen).toBe(2);
     expect(v.jeRolle.map((x: { personen: number }) => x.personen)).toEqual([
       2, 1,
@@ -217,7 +213,7 @@ describe("Wer darf dieses Recht?", () => {
     const kasse = rolle("k", [["seiten.bearbeiten", "eigene"]], ["u2"]);
     const zeilen = m.werDarf({
       eintrag: katalog.rechte[0],
-      admin: [{ id: "a", name: "A" }],
+      abteilungsleitung: [{ id: "a", name: "A" }],
       globale: [global],
       gruppen: [{ gruppe, rollen: [kasse] }],
     });
@@ -231,10 +227,20 @@ describe("Wer darf dieses Recht?", () => {
     expect(zeilen[3].geltung).toBe("eigene");
   });
 
+  test("der Entwickler steht bei jedem vergebbaren Recht, auch bei Anmeldungen (#722)", () => {
+    const zeilen = m.werDarf({
+      eintrag: katalog.rechte[2],
+      abteilungsleitung: [],
+      globale: [],
+      gruppen: [],
+    });
+    expect(zeilen.map((z: { art: string }) => z.art)).toContain("entwickler");
+  });
+
   test("ein Recht, das nur aus der Beziehung folgt, gilt für alle und nennt keine Personen", () => {
     const zeilen = m.werDarf({
       eintrag: katalog.rechte[3],
-      admin: [],
+      abteilungsleitung: [],
       globale: [],
       gruppen: [],
     });
@@ -249,7 +255,7 @@ describe("Wer darf dieses Recht?", () => {
     };
     const zeilen = m.werDarf({
       eintrag: katalog.rechte[0],
-      admin: [],
+      abteilungsleitung: [],
       globale: [],
       gruppen: [
         { gruppe: { id: "x", name: "Pilami", typ: "stufe" }, rollen: [stufe] },
@@ -357,7 +363,7 @@ describe("Die Abteilungsleitung als einstellbare Rolle (#663)", () => {
   test("«Wer darf das?»: Nimmt der Entwickler ein Recht weg, steht die Abteilungsleitung nicht mehr dabei", () => {
     const quellen = (rechte: string[]) => ({
       eintrag: eintrag("seiten.bearbeiten"),
-      admin: [],
+      abteilungsleitung: [],
       globale: [al(rechte)],
       gruppen: [],
     });

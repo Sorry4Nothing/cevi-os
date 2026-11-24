@@ -4,11 +4,12 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { OBJEKT_TYPEN } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
-import { auditLog, bearbeiter, tag, user } from "../../db/schema.js";
+import { auditLog, bearbeiter, personTag, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
+import { beendeSitzungenBeiNeuerPflicht } from "../../rechtemodell/faktor-pflicht.js";
 
 // Ein Sonderrecht gilt für genau ein Objekt (objektId Pflicht). «Alle Seiten» ist das Plattformrecht «Seiten bearbeiten» der Rolle Webmaster (/api/v1/admin/plattform/rollen), nicht mehr eine Zeile hier (#426). Genau eines von userId und tagId
 const setzenSchema = z
@@ -97,6 +98,19 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
           });
           return zeile;
         });
+        // Ein Recht an dieser Seite kann den zweiten Faktor verlangen: Wer ihn nicht hat, meldet sich neu an (#715)
+        await beendeSitzungenBeiNeuerPflicht(
+          db,
+          person.abteilungId,
+          userId
+            ? [userId]
+            : (
+                await db
+                  .select({ id: personTag.userId })
+                  .from(personTag)
+                  .where(eq(personTag.tagId, tagId!))
+              ).map((z) => z.id),
+        );
         return c.json({ id: neu.id }, 201);
       } catch (fehler) {
         if (pgCode(fehler) === "23505") {

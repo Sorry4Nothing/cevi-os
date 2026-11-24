@@ -10,8 +10,10 @@ import { feldFehler } from "./liste-hilfen.js";
 import { rolleVon } from "./navigation.js";
 import { setzeKontoBild } from "./rahmen.js";
 import { zweiStufig } from "./rueckgaengig.js";
+import { istAbteilungsleitung, istEntwickler, siehtAlles } from "./sicht.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
 import { zuschneiden } from "./zuschneiden.js";
+import { erstelleEinrichtung } from "./zweiter-faktor-einrichten.js";
 
 const BILD_MAX_BYTES = 5 * 1024 * 1024;
 const BILD_ARTEN = ["image/jpeg", "image/png", "image/webp"];
@@ -63,12 +65,12 @@ const PASSWORT_FEHLER = {
 // ===== Reine Funktionen (getestet in test/admin-konto.test.ts) =====
 
 // Chips der Rollen im Klartext: Abteilungsleitung, Entwickler, je Stufe «Stufenleitung Artemis», Website-Redaktion. Die Rechte entscheidet der Server, das hier ist nur die Anzeige
-// profil: Antwort von GET /api/v1/ich; zugang: Antwort von GET /api/v1/redaktion/ich
-export function rollenChips({ profil, zugang, entwickler = false }) {
+// profil: Antwort von GET /api/v1/ich (abteilungsleitung, entwickler, rollen, stufen); zugang: Antwort von GET /api/v1/redaktion/ich
+export function rollenChips({ profil, zugang }) {
   const stufenName = new Map(profil.stufen.map((s) => [s.id, s.name]));
   const chips = [];
-  if (profil.admin) chips.push({ text: "Abteilungsleitung" });
-  if (entwickler) chips.push({ text: "Entwickler" });
+  if (istAbteilungsleitung(profil)) chips.push({ text: "Abteilungsleitung" });
+  if (istEntwickler(profil)) chips.push({ text: "Entwickler" });
   for (const r of profil.rollen) {
     const stufe = stufenName.get(r.stufeId);
     if (stufe && ROLLEN_NAME[r.typ]) {
@@ -76,7 +78,7 @@ export function rollenChips({ profil, zugang, entwickler = false }) {
     }
   }
   const rechte = zugang?.rechte ?? [];
-  if (!profil.admin && rechte.length > 0) {
+  if (!siehtAlles(profil) && rechte.length > 0) {
     chips.push({
       text: rechte.some((r) => !r.startsWith("wartungsmodus."))
         ? "Website-Redaktion"
@@ -268,8 +270,8 @@ function zeichne(bereich, ctx, profil) {
   let stand = profil;
   const istStufenleitung = profil.rollen.some((r) => r.typ === "stufenleitung");
   const rolle = rolleVon({
-    istAdmin: profil.admin,
-    entwickler: ctx.entwickler,
+    abteilungsleitung: istAbteilungsleitung(profil),
+    entwickler: istEntwickler(profil),
     zugang: ctx.zugang,
     profil,
   });
@@ -415,11 +417,15 @@ function zeichne(bereich, ctx, profil) {
     },
   });
 
-  const chips = rollenChips({
-    profil,
-    zugang: ctx.zugang,
-    entwickler: ctx.entwickler,
-  });
+  const chips = rollenChips({ profil, zugang: ctx.zugang });
+  // Der Kennwert «Zweiter Faktor» ändert sich, sobald der Ablauf in der Sicherheit fertig ist (#715)
+  const faktorKennwert = el("div", { class: "kt-kennwert" });
+  const zeichneFaktorKennwert = (an) =>
+    faktorKennwert.replaceChildren(
+      el("dt", {}, "Zweiter Faktor"),
+      el("dd", {}, icon(an ? "schild" : "minus"), an ? "Aktiv" : "Aus"),
+    );
+  zeichneFaktorKennwert(profil.zweiterFaktor === true);
   const kennwert = (label, wert, symbol) =>
     el(
       "div",
@@ -470,11 +476,7 @@ function zeichne(bereich, ctx, profil) {
         "dl",
         { class: "kt-kennwerte" },
         kennwert("Konto", "Aktiv", "haken"),
-        kennwert(
-          "Zweiter Faktor",
-          profil.zweiterFaktor ? "Aktiv" : "Aus",
-          profil.zweiterFaktor ? "schild" : "minus",
-        ),
+        faktorKennwert,
       ),
       el("div", { class: "kt-bildblock" }, bildAktionen, bildStatus, datei),
     ),
@@ -493,7 +495,7 @@ function zeichne(bereich, ctx, profil) {
     f.eingabe.classList.add("kt-lesen");
     return f;
   };
-  const wer = profil.admin
+  const wer = siehtAlles(profil)
     ? "Ändere ihn unter «Personen»."
     : "Ihn ändert die Abteilungsleitung.";
   const name = lesefeld(
@@ -716,7 +718,7 @@ function zeichne(bereich, ctx, profil) {
         telefon.wurzel,
       ),
       pushGruppe,
-      profil.admin &&
+      siehtAlles(profil) &&
         el(
           "p",
           { class: "hilfe" },
@@ -737,7 +739,7 @@ function zeichne(bereich, ctx, profil) {
     el(
       "div",
       { class: "kt-stapel" },
-      zweiterFaktorBlock(profil),
+      zweiterFaktorBlock(profil, zeichneFaktorKennwert),
       sitzungenBlock(ctx),
     ),
   );
@@ -913,33 +915,47 @@ function passwortBlock() {
   return el("div", { class: "kt-gruppe" }, el("h3", {}, "Passwort"), formular);
 }
 
-// Zweiter Faktor: nur der Stand. Einrichten kann ihn nur die Abteilungsleitung (Route two-factor/enable), Zurücksetzen macht sie für andere unter «Personen»
-function zweiterFaktorBlock(profil) {
-  const an = profil.zweiterFaktor;
-  return el(
-    "div",
-    { class: "kt-gruppe" },
-    el("h3", {}, "Zweiter Faktor"),
-    el(
-      "p",
-      {},
+// Zweiter Faktor (#715): der Stand und, solange er fehlt, der Ablauf zum Einrichten (derselbe wie auf der Pflichtseite). Ausschalten und neue Ersatzcodes gibt es nicht; Zurücksetzen macht die Abteilungsleitung für andere unter «Personen»
+function zweiterFaktorBlock(profil, beiStand) {
+  const wurzel = el("div", { class: "kt-gruppe" });
+  const zeichneStand = (an) => {
+    beiStand(an);
+    const einrichten = knopf("Zweiten Faktor einrichten", {
+      symbol: "schluessel",
+      onclick: () => {
+        const ablauf = erstelleEinrichtung({
+          beiAbbruch: () => zeichneStand(false),
+          beiFertig: () => zeichneStand(true),
+          fertigText: "Fertig",
+        });
+        wurzel.replaceChildren(el("h3", {}, "Zweiter Faktor"), ablauf.wurzel);
+        ablauf.fokus();
+      },
+    });
+    wurzel.replaceChildren(
+      el("h3", {}, "Zweiter Faktor"),
       el(
-        "span",
-        { class: an ? "chip chip--ok" : "chip" },
-        icon(an ? "haken" : "minus"),
-        an ? "Aktiv" : "Nicht eingerichtet",
+        "p",
+        {},
+        el(
+          "span",
+          { class: an ? "chip chip--ok" : "chip" },
+          icon(an ? "haken" : "minus"),
+          an ? "Aktiv" : "Nicht eingerichtet",
+        ),
       ),
-    ),
-    el(
-      "p",
-      { class: "hilfe" },
-      an
-        ? "Beim Anmelden fragt die Verwaltung nach dem Code aus deiner Authenticator-App. Hast du dein Gerät verloren, setzt die Abteilungsleitung den zweiten Faktor für dich zurück."
-        : profil.admin
-          ? "Für die Verwaltung braucht die Abteilungsleitung einen zweiten Faktor."
-          : "Für dein Konto gibt es keinen zweiten Faktor. Einrichten lässt er sich nur für Konten der Abteilungsleitung.",
-    ),
-  );
+      el(
+        "p",
+        { class: "hilfe" },
+        an
+          ? "Beim Anmelden in der Verwaltung fragt das System nach dem Code aus deiner Authenticator-App. Hast du dein Gerät verloren, setzt die Abteilungsleitung den zweiten Faktor für dich zurück."
+          : "Der zweite Faktor schützt dein Konto: Beim Anmelden in der Verwaltung gibst du zusätzlich einen Code aus einer Authenticator-App ein. Für manche Rechte ist er Pflicht. Die Website und die Apps fragen nie danach.",
+      ),
+      !an && el("div", { class: "kt-aktionen" }, einrichten),
+    );
+  };
+  zeichneStand(profil.zweiterFaktor === true);
+  return wurzel;
 }
 
 // Überall abmelden: beendet alle Sitzungen, auch diese; eine Liste der Geräte gibt die API nicht her

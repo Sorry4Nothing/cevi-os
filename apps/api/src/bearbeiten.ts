@@ -2,13 +2,13 @@ import { and, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { Db } from "./db/client.js";
 import { abteilung, anlass, bearbeiter, personTag, tag } from "./db/schema.js";
 import { plattformRechtSql } from "./plattform.js";
-import { hatRolle, type Person } from "./rechte.js";
+import { hatRolle, siehtAlles, type Person } from "./rechte.js";
 import { darf } from "./rechtemodell/darf.js";
 import { rechteModus } from "./rechtemodell/modus.js";
 import { rechtSql } from "./rechtemodell/sql.js";
 
 // Ein Modell für alle bearbeitbaren Objekte (#334), aufgebaut auf Person aus rechte.ts:
-// Abteilungsleitung (person.admin) darf alles; eine Stufenleitung die Objekte ihrer Stufe; wer das Plattformrecht «Seiten bearbeiten» hat (Rolle Webmaster, #426), alle Seiten;
+// Abteilungsleitung und Entwickler (siehtAlles) dürfen alles; eine Stufenleitung die Objekte ihrer Stufe; wer das Plattformrecht «Seiten bearbeiten» hat (Rolle Webmaster, #426), alle Seiten;
 // alle anderen nur über eine Zeile in «bearbeiter» für genau dieses Objekt, auf die Person oder auf einen Tag, den sie trägt.
 // Ein Tag verleiht für sich nichts; das Recht steht erst in der Zeile, die nur die Abteilungsleitung anlegt (/api/v1/admin/bearbeiter).
 export const OBJEKT_TYPEN = ["seite"] as const;
@@ -57,7 +57,7 @@ export async function darfBearbeiten(
     veroeffentlichen,
   }: { stufeId?: string; tagId?: string; veroeffentlichen?: boolean } = {},
 ) {
-  if (person.admin) return true;
+  if (siehtAlles(person)) return true;
   if (stufeId !== undefined && hatRolle(person, stufeId, "stufenleitung")) {
     return true;
   }
@@ -87,7 +87,7 @@ export async function darfSeite(
   zeile: { id: string; abteilungId?: string; tagId: string | null },
   { veroeffentlichen = false }: { veroeffentlichen?: boolean } = {},
 ) {
-  if (person.admin) return true;
+  if (siehtAlles(person)) return true;
   const [a] = await db
     .select({ id: anlass.id })
     .from(anlass)
@@ -119,7 +119,7 @@ export function bearbeitbar(
   },
 ): SQL {
   const eigeneAbteilung = sql`${spalten.abteilungId} = ${person.abteilungId}`;
-  if (person.admin) return eigeneAbteilung;
+  if (siehtAlles(person)) return eigeneAbteilung;
   const modus = rechteModus();
   const rechtSpalten = {
     abteilungId: spalten.abteilungId,

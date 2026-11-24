@@ -1,5 +1,6 @@
 import { createHmac, randomBytes } from "node:crypto";
 import { and, eq, gte, inArray, lte, sql, type SQL } from "drizzle-orm";
+import { istAbteilungsleitungSql } from "./admins.js";
 import {
   beschreibungVon,
   sicherDetails,
@@ -212,7 +213,7 @@ export function erstelleAktivitaetsprotokoll(
             .select({
               id: user.id,
               name: user.name,
-              rolle: user.role,
+              abteilungsleitung: istAbteilungsleitungSql(user.id),
               abteilungId: user.abteilungId,
             })
             .from(user)
@@ -247,7 +248,7 @@ export function erstelleAktivitaetsprotokoll(
         ]);
       for (const p of personen) {
         const r = new Set<string>();
-        if (p.rolle === "admin") r.add("abteilungsleitung");
+        if (p.abteilungsleitung) r.add("abteilungsleitung");
         if (entwickler.some((e) => e.id === p.id)) r.add("entwickler");
         for (const z of rollenZeilen) {
           if (z.id === p.id)

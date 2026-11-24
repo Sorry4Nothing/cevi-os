@@ -778,6 +778,20 @@
       "when": 1793557800000,
       "tag": "0158_lager_wetter_ort",
       "breakpoints": true
+    },
+    {
+      "idx": 159,
+      "version": "7",
+      "when": 1793557900000,
+      "tag": "0159_abteilungsleitung_person",
+      "breakpoints": true
+    },
+    {
+      "idx": 160,
+      "version": "7",
+      "when": 1793558000000,
+      "tag": "0160_sitzung_zweiter_faktor",
+      "breakpoints": true
     }
   ]
 }

@@ -2,12 +2,13 @@ import { PLATTFORM_RECHT_NAMEN, PLATTFORM_RECHTE } from "../plattform.js";
 import { TERMINE_RECHTE } from "../termine/rechte-katalog.js";
 
 // Der eine Rechtekatalog (#643): jedes Recht, das die Verwaltung einstellen oder anzeigen kann, mit Bereich, Klartext, Risiko und Geltung. Er fasst PLATTFORM_RECHTE (plattform.ts) und TERMINE_RECHTE (termine/rechte-katalog.ts) zusammen und ergänzt, was bisher fest an «Abteilungsleitung» hing.
+// Der Entwickler (Zeile in plattform_entwickler) hat jedes Recht des Katalogs, abteilungsweit; kein Eintrag nennt ihn (Entscheid vom 24.11.2026, #722). Er braucht für «erweitert» und «fest» den zweiten Faktor wie jede Person.
 // Der Katalog ist die einzige Liste: Plattformrollen, Gruppenrollen, die Matrix-API, darf() und die Dokumentation lesen ihn. Ein Name, den er nicht kennt, gibt nie ein Recht (fail-closed).
 //
 // Risiko:
 //   normal    Alltag, kein Personendatenrisiko, kein zweiter Faktor
 //   erweitert ändert Inhalte, sieht oder exportiert Personendaten oder entscheidet über andere: zweiter Faktor (403 ZWEITER_FAKTOR_FEHLT)
-//   fest      nur die Abteilungsleitung (und je nach Eintrag der Entwickler), nicht an Rollen vergebbar. Das ist, was Aussperren oder Eskalation verhindert
+//   fest      nur die Abteilungsleitung (und der Entwickler), nicht an Rollen vergebbar. Das ist, was Aussperren oder Eskalation verhindert
 // Art:
 //   vergebbar  an Plattformrollen (abteilungsweit) und Gruppenrollen (je Gruppe) einstellbar
 //   struktur   folgt aus Beziehungen (jede angemeldete Person, Eltern des Kindes); steht im Katalog, ist aber nicht einstellbar
@@ -62,8 +63,6 @@ export interface RechtEintrag {
   art: Art;
   geltungen: readonly Geltung[];
   bezug?: Bezug;
-  // Hat der Entwickler (Zeile in plattform_entwickler) das Recht? Nur Plattform und Website, wie bisher
-  entwickler: boolean;
   // Hat die Abteilungsleitung es nicht (nur der Entwickler)?
   nurEntwickler?: true;
   // Der Name im älteren Katalog (TERMINE_RECHTE), falls er abweicht
@@ -76,7 +75,7 @@ const v = (
   erklaerung: string,
   risiko: Risiko,
   geltungen: readonly Geltung[],
-  zusatz: Partial<Pick<RechtEintrag, "bezug" | "entwickler" | "frueher">> = {},
+  zusatz: Partial<Pick<RechtEintrag, "bezug" | "frueher">> = {},
 ): RechtEintrag => ({
   bereich,
   klartext,
@@ -84,7 +83,6 @@ const v = (
   risiko,
   art: "vergebbar",
   geltungen,
-  entwickler: false,
   ...zusatz,
 });
 const s = (
@@ -98,13 +96,12 @@ const s = (
   risiko: "normal",
   art: "struktur",
   geltungen: [],
-  entwickler: false,
 });
 const f = (
   bereich: Bereich,
   klartext: string,
   erklaerung: string,
-  zusatz: Partial<Pick<RechtEintrag, "entwickler" | "nurEntwickler">> = {},
+  zusatz: Partial<Pick<RechtEintrag, "nurEntwickler">> = {},
 ): RechtEintrag => ({
   bereich,
   klartext,
@@ -112,7 +109,6 @@ const f = (
   risiko: "fest",
   art: "fest",
   geltungen: [],
-  entwickler: false,
   ...zusatz,
 });
 
@@ -120,14 +116,14 @@ const ALLE: readonly Geltung[] = ["alle"];
 const ALLE_EIGENE: readonly Geltung[] = ["alle", "eigene"];
 
 export const RECHTE_KATALOG = {
-  // Website: Quelle PLATTFORM_RECHTE; alle «erweitert», der Entwickler hat sie alle
+  // Website: Quelle PLATTFORM_RECHTE; alle «erweitert»
   "seiten.bearbeiten": v(
     "website",
     "Seiten bearbeiten",
     "Seiten ändern, Entwürfe anlegen, Versionen zurückholen. «Eigene» sind die Seiten der Gruppe und die Seite ihres Anlasses.",
     "erweitert",
     ALLE_EIGENE,
-    { bezug: "seite", entwickler: true },
+    { bezug: "seite" },
   ),
   "seiten.veroeffentlichen": v(
     "website",
@@ -135,7 +131,7 @@ export const RECHTE_KATALOG = {
     "Seiten auf der öffentlichen Website zeigen oder zurückziehen. «Eigene» sind die Seiten der Gruppe und die Seite ihres Anlasses.",
     "erweitert",
     ALLE_EIGENE,
-    { bezug: "seite", entwickler: true },
+    { bezug: "seite" },
   ),
   "seiten.anlegen_loeschen": v(
     "website",
@@ -143,7 +139,6 @@ export const RECHTE_KATALOG = {
     "Neue Seiten anlegen, Seiten löschen und in eine andere Gruppe verschieben.",
     "erweitert",
     ALLE,
-    { entwickler: true },
   ),
   "medien.verwalten": v(
     "website",
@@ -151,7 +146,6 @@ export const RECHTE_KATALOG = {
     "Bilder und PDFs beschreiben und löschen, auch fremde.",
     "erweitert",
     ALLE,
-    { entwickler: true },
   ),
   "weiterleitungen.verwalten": v(
     "website",
@@ -159,7 +153,6 @@ export const RECHTE_KATALOG = {
     "Alte Adressen auf neue Seiten umleiten.",
     "erweitert",
     ALLE,
-    { entwickler: true },
   ),
   "vorlagen.nutzen": v(
     "website",
@@ -167,7 +160,6 @@ export const RECHTE_KATALOG = {
     "Neue Seiten aus Vorlagen anlegen.",
     "erweitert",
     ALLE,
-    { entwickler: true },
   ),
   "wartungsmodus.website": v(
     "website",
@@ -175,7 +167,6 @@ export const RECHTE_KATALOG = {
     "Die öffentliche Website in den Wartungsmodus setzen und wieder öffnen.",
     "erweitert",
     ALLE,
-    { entwickler: true },
   ),
 
   // Termine: Quelle TERMINE_RECHTE
@@ -459,7 +450,6 @@ export const RECHTE_KATALOG = {
     "Das Profilbild einer anderen Person entfernen, mit Eintrag im Protokoll.",
     "erweitert",
     ALLE,
-    { entwickler: true },
   ),
   "konto.loeschen": f(
     "personen",
@@ -482,7 +472,7 @@ export const RECHTE_KATALOG = {
     "plattform",
     "Protokoll lesen",
     "Das Aktivitätsprotokoll lesen und exportieren. Das darf nur der Entwickler, nicht die Abteilungsleitung (Entscheid E5).",
-    { nurEntwickler: true, entwickler: true },
+    { nurEntwickler: true },
   ),
 
   // Plattform und Rechte
@@ -496,7 +486,7 @@ export const RECHTE_KATALOG = {
     "plattform",
     "Rechte der Abteilungsleitung ändern",
     "Die Rechte der Abteilungsleitung einstellen und «Rollen und Rechte» ohne Namen von Personen lesen. Das darf nur der Entwickler, nie die Abteilungsleitung selbst: Sie ändert ihre eigenen Rechte nicht.",
-    { nurEntwickler: true, entwickler: true },
+    { nurEntwickler: true },
   ),
   "entwickler.vergeben": f(
     "plattform",
@@ -507,7 +497,6 @@ export const RECHTE_KATALOG = {
     "plattform",
     "Informationssperre schalten",
     "Einen Bereich oder alles sperren (Informationssperre) und die Sperre wieder aufheben. Die Wartung eines Bereichs ist ein eigenes, vergebbares Recht.",
-    { entwickler: true },
   ),
   "wartung.bereiche": v(
     "plattform",
@@ -515,7 +504,6 @@ export const RECHTE_KATALOG = {
     "Die Bereiche Lager, Chat, Programme und Verwaltung in Wartung setzen und wieder öffnen. Die Website hat ein eigenes Recht, die Informationssperre bleibt bei der Abteilungsleitung.",
     "erweitert",
     ALLE,
-    { entwickler: true },
   ),
   "system.lesen": v(
     "plattform",

@@ -1,5 +1,6 @@
 import { and, eq, ne } from "drizzle-orm";
 import type { Context } from "hono";
+import { istAbteilungsleitungSql } from "../admins.js";
 import type { Db } from "../db/client.js";
 import { user } from "../db/schema.js";
 import { log } from "../log.js";
@@ -31,7 +32,7 @@ export async function pushNeuerVorschlag(
       .where(
         and(
           aktivesKonto(abteilungId),
-          eq(user.role, "admin"),
+          istAbteilungsleitungSql(user.id),
           ne(user.id, vonId),
         ),
       );
