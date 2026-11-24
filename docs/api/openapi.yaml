@@ -1342,6 +1342,126 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-m-einkauf.js:
+    get:
+      operationId: getAdminLagerMEinkaufSkript
+      summary: Skript der Verwaltung – Bereich Lager, m einkauf
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-hilfen.js:
+    get:
+      operationId: getAdminLagerMHilfenSkript
+      summary: Skript der Verwaltung – Bereich Lager, m hilfen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-infos.js:
+    get:
+      operationId: getAdminLagerMInfosSkript
+      summary: Skript der Verwaltung – Bereich Lager, m infos
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-notfall.js:
+    get:
+      operationId: getAdminLagerMNotfallSkript
+      summary: Skript der Verwaltung – Bereich Lager, m notfall
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-packliste.js:
+    get:
+      operationId: getAdminLagerMPacklisteSkript
+      summary: Skript der Verwaltung – Bereich Lager, m packliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-tagesseiten.js:
+    get:
+      operationId: getAdminLagerMTagesseitenSkript
+      summary: Skript der Verwaltung – Bereich Lager, m tagesseiten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-wetter.js:
+    get:
+      operationId: getAdminLagerMWetterSkript
+      summary: Skript der Verwaltung – Bereich Lager, m wetter
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-material.css:
+    get:
+      operationId: getAdminLagerMaterialStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Lager, material
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/kalenderhilfen.js:
     get:
       operationId: getAdminKalenderhilfenSkript
