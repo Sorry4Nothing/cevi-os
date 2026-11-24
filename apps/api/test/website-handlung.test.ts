@@ -13,6 +13,7 @@ import {
 } from "../src/website/dokument.js";
 import {
   keineDaten,
+  rendereBausteine,
   rendereGeschuetzte,
   rendereSeite,
   type Daten,
@@ -837,5 +838,23 @@ describe("Seitenwechsel", () => {
       }),
     );
     expect(html).not.toContain("<x-boese");
+  });
+});
+
+describe("Vorschau einzelner Bausteine", () => {
+  test("ohne Angaben zur Seite zeigen Brotkrumen, Seitenwechsel und Verzeichnis ihr Beispiel", () => {
+    const html = rendereBausteine(
+      dok(
+        b("brotkrumen", {}),
+        b("seitenwechsel", {}),
+        b("inhaltsverzeichnis", { darstellung: "liste" }),
+      ),
+      id(),
+      keineDaten(),
+    );
+    expect(html).toContain("Übergeordnete Seite");
+    expect(html).toContain("Nächste Seite");
+    expect(html).toContain("Erster Abschnitt");
+    expect(html).not.toMatch(/<a[^>]*href=/);
   });
 });

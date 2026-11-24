@@ -267,6 +267,8 @@ export const KATALOG_HANDLUNG = [
       "Grosses Bild mit blauem Kasten, Titel, Untertitel und bis zu zwei Schaltflächen.",
     neu: () => ({ titel: "" }),
     beispiel: () => ({
+      // Beispiel-ID: Die Vorschau im Katalog ersetzt jedes Medium durch ein Platzhalterbild
+      bild: "00000000-0000-4000-8000-000000000040",
       titel: "Sommerlager 2027",
       untertitel: "Zehn Tage Abenteuer für alle ab neun Jahren.",
       schaltflaechen: [

@@ -927,7 +927,16 @@ function rendereEintraege(
   pfad?: string,
   seite?: SeitenInfo,
 ): Eintrag[] {
-  const letzte = neuerStand(dok, seite);
+  // Ohne Angaben zur Seite (Vorschau einzelner Bausteine) gilt eine Seite ohne Menübaum: Seitenwechsel, Brotkrumen und Verzeichnis zeigen ihr Beispiel (#743)
+  const letzte = neuerStand(
+    dok,
+    seite ?? {
+      titel: dok.titel,
+      pfad: pfad ?? "/vorschau",
+      basisUrl: "",
+      navigation: [],
+    },
+  );
   return dok.bausteine.map((b) => ({
     b,
     knoten: istOeffentlich(b)
