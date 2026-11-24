@@ -558,7 +558,7 @@ describe("Fuss (#580)", () => {
       '<li><a href="mailto:info@example.org">info@example.org</a></li><li><a href="tel:+41000000000">+41 00 000 00 00</a></li><li>Cevi Beispielstadt<br>Beispielweg 1, 8000 Beispielstadt</li>',
     );
     expect(html).toContain(
-      '<nav class="fuss-recht" aria-labelledby="fuss-recht"><h2 id="fuss-recht">Rechtliches</h2><ul><li><a href="/impressum">Impressum</a></li><li><a href="/datenschutz-website">Datenschutz</a></li></ul></nav>',
+      '<nav class="fuss-recht" aria-labelledby="fuss-recht"><h2 id="fuss-recht">Rechtliches</h2><ul><li><a href="/impressum">Impressum</a></li><li><a href="/datenschutz-website">Datenschutz</a></li><li><a href="/datenschutz-cevi-os">Datenschutz: Cevi OS, App, Verwaltung und Website</a></li></ul></nav>',
     );
     // «Nach oben» ist ein Verweis des Repertoires (ohne Knopf), «©» und «Nach oben» stehen in einer Zeile
     expect(html).toMatch(

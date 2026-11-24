@@ -35,6 +35,8 @@ export const RESERVIERTE_ADRESSEN: readonly string[] = [
   // Termin mit Antwort je Kind und Mein Konto (#671)
   "termin",
   "konto",
+  // Die feste Datenschutzseite für Cevi OS (#712)
+  "datenschutz-cevi-os",
   "sitemap.xml",
   "robots.txt",
   ".well-known",

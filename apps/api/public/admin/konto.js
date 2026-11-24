@@ -782,6 +782,20 @@ function zeichne(bereich, ctx, profil) {
         el(
           "li",
           {},
+          el(
+            "a",
+            { href: "/datenschutz-cevi-os" },
+            "Datenschutz: Cevi OS, App, Verwaltung und Website",
+          ),
+          el(
+            "span",
+            { class: "leise" },
+            " Was Cevi OS bearbeitet, wer es sieht und wie lange es bleibt.",
+          ),
+        ),
+        el(
+          "li",
+          {},
           el("a", { href: "/konto-loeschen" }, "Konto löschen"),
           el(
             "span",

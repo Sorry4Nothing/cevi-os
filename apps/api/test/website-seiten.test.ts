@@ -62,6 +62,7 @@ describe("Adressen", () => {
         "anlass",
         "termin",
         "konto",
+        "datenschutz-cevi-os",
         "sitemap.xml",
         "robots.txt",
         ".well-known",

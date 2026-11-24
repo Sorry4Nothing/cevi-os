@@ -449,6 +449,7 @@ describe("Mein Konto (#671)", () => {
     const gelesen = html(konto.kontoView(stand(profil())));
     expect(gelesen).toContain("kto-links");
     expect(gelesen).toContain("kto-rechts");
+    expect(gelesen).toContain("kto-ende");
     expect(gelesen).toContain("kto-profil");
     expect(gelesen).not.toContain("Zur Kenntnis genommen");
     // Der Tag der Kenntnisnahme steht in «Datenschutz und Hilfe»
@@ -566,6 +567,7 @@ describe("Mein Konto (#671)", () => {
     expect(lade).toContain('aria-busy="true"');
     expect(lade).toContain("kto-links");
     expect(lade).toContain("kto-rechts");
+    expect(lade).toContain("kto-ende");
     // Ein Skelett ist für Hilfstechnik verborgen
     expect(lade).toContain('aria-hidden="true"');
   });

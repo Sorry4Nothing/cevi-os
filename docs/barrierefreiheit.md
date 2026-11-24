@@ -12,7 +12,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Lädeli auf der Website: Abschnitt 11 («Lädeli»); Bereich «Lädeli» der Verwaltung: Abschnitt 13, im Browser geprüft.
 - Verwaltung insgesamt (Web statt App), im Browser geprüft: Toasts und zweistufige Knöpfe Abschnitt 14, Kopf, Auswahlfelder und Seiten im Fluss Abschnitt 15, Übersicht Abschnitt 16, Anmeldung, System und Mitteilungen Abschnitt 17, Website-Medien, Einstellungen und Lädeli Abschnitt 18, Personen Abschnitt 19, Lager Abschnitt 20, Seiten und Editor Abschnitt 21, Navigation, Bereichsauswahl und Befehlspalette Abschnitt 22.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
-- Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 72, im Browser geprüft.
+- Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 73, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1206,17 +1206,20 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, erfundene Adressen; de
 
 Gilt für `/konto` (`konto.js`, `konto.css`) und ersetzt die Gestaltung aus 62.4 bis 62.6; deren Inhalt (Pflichtwechsel, Schalter, Abmelden mit Rückfrage) gilt weiter. Massstab WCAG 2.2 AA.
 
-- [ ] **65.1** Die Seite hat zwei Spalten ab 60 em Breite (links die Profilkarte, rechts die Karten), darunter eine Spalte; die Reihenfolge im Dokument ist Profil, Datenschutz (nur solange nicht gelesen), Mitteilungen, Telefon, Passwort, Hilfe, Abmelden. Jede Karte ist ein `section` mit `aria-labelledby` auf ihre Überschrift der Ebene 2; die Profilkarte trägt den Namen als Überschrift.
+- [ ] **65.1** Die Seite hat zwei Spalten ab 60 em Breite (links die Profilkarte und darunter «Abmelden», rechts die Karten), darunter eine Spalte; die Reihenfolge im Dokument ist Profil, Datenschutz (nur solange nicht gelesen), Mitteilungen, Telefon, Passwort, Hilfe, Abmelden. Jede Karte ist ein `section` mit `aria-labelledby` auf ihre Überschrift der Ebene 2; die Profilkarte trägt den Namen als Überschrift.
 - [ ] **65.2** Die Profilkarte zeigt Bild oder Initialen (das Bild hat `alt=""`, der Name steht daneben), Rollen als Liste mit Namen «Rollen», Benutzername, bei Eltern die Kinder; keine Symbole vor den Angaben. Der Hinweis «Name und Benutzername ändert die Abteilungsleitung» steht als Text.
 - [ ] **65.3** Schalter sind `button` mit `role="switch"` und `aria-checked`, benannt über `aria-labelledby` und beschrieben über `aria-describedby`; Text «Ein» oder «Aus» steht neben der Spur, der Zustand ist nie nur Farbe (Stellung des Knopfes, Text). Zielgrösse mindestens 44 x 44 px, Leertaste und Enter schalten, der Fokus bleibt nach dem Speichern auf dem Schalter. Die Spur hat im Tag und in der Nacht mindestens 3 : 1 zum Grund (Farbe `accent`).
 - [ ] **65.4** Passwortfelder haben eine sichtbare Beschriftung; das Auge im Feld ist ein Knopf mit `aria-label` («Passwort anzeigen» oder «verbergen») und `aria-pressed`, 52 px breit, mit sichtbarem Fokus; es betrifft nur sein Feld. Der Hinweis zur Länge hängt per `aria-describedby` am Feld, steht als Satz mit Symbol («Noch 7 Zeichen bis zum Minimum», «Lang genug») und als Balken (`aria-hidden`); er meldet sich nicht bei jeder Eingabe an. Es zählt nur die Länge, die Seite behauptet keine Stärke. Der Hauptknopf «Passwort speichern» steht rechtsbündig, am Handy in voller Breite.
 - [ ] **65.5** Rückmeldung nach dem Speichern: Bestätigungsband in der Karte (`role="status"`), Fehler als `role="alert"`, dazu eine Ansage in der Statusregion. Die geänderte Karte wird kurz grün hinterlegt (nur bei erlaubter Bewegung) und behält einen grünen Rand; ohne Bewegung gibt es nur den Rand. Wer als Elternteil die Nummer entfernt, sieht die Karte mit der Rückmeldung, bis die Seite neu lädt.
 - [ ] **65.6** Ladezustand: Skelett in der Form der Seite (Profilkarte links, Karten rechts), `aria-busy`, für Hilfstechnik verborgen, Ansage erst nach 700 ms.
 - [ ] **65.7** 390, 768, 1024, 1440 und 2560 px, Hell und Dunkel: kein waagrechtes Scrollen, kein Ziel unter 44 px, im 2560er Fenster bleibt der Inhalt in der Breite der Website. Erzwungene Farben: Spur, Balken und Porträt behalten eine Linie.
+- [ ] **65.8** Anordnung (#711): Der Inhalt steht in der Breite der Website (`.wrap`). Links stehen Profilkarte und «Abmelden» untereinander, rechts füllen die übrigen Karten die Zeilen lückenlos (eine einzelne Karte am Ende der Zeile wächst über die Zeile, «Mitteilungen» und «Datenschutz» stehen über die ganze Breite). Die Reihenfolge im Dokument und die Tab-Reihenfolge bleiben Profil, Datenschutz, Mitteilungen, Telefon, Passwort, Hilfe, Abmelden; nur das Raster setzt «Abmelden» um. Bei 1280, 1440, 1920 und 2560 px, auch mit wenigen Karten, bleibt keine Fläche über 250 px Höhe leer.
 
 ### Stand der Prüfung (#689)
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank mit erfundenen Demo-Konten) gesehen und bedient: 65.1 bis 65.7 bei 390, 768, 1024, 1440 und 2560 px, Hell und Dunkel (Eltern nur in Dunkel, Stufenleitung in beiden), Pflichtwechsel mit Startpasswort, Schalter mit Maus und Leertaste, Auge, Länge live, Telefon speichern und entfernen, Datenschutz, Rückfrage «Überall abmelden», sichtbarer Fokus auf Schalter und Auge, Zielgrössen gemessen (keine unter 44 px). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Kontrastmessung mit Werkzeug (nur Augenschein), 200 % Zoom per Browser-Einstellung, Windows-Hochkontrast, sehr lange Namen.
+
+Anordnung (#711) im Browser (Chromium, headless, Demo-Konto der Abteilungsleitung, Stil und Skript aus dem Zweig) bei 390, 1280, 1440, 1920 und 2560 px, Hell und Dunkel: 65.8, dazu mit entfernten Karten und entfernter Rollenzeile und mit der Karte «Datenschutz» oben, kein waagrechtes Scrollen, kein Ziel unter 44 px. **Nicht geprüft:** ein Konto mit Telefon-Karte (Eltern, Stufenleitung; Stand-in durch Kopie der Passwort-Karte, bei 1280 px bleibt darunter links eine freie Fläche von etwa 220 px), Tab-Reihenfolge von Hand, Screenreader, Hochkontrast.
 
 ## 69. Verwaltung: Lager, Navigation ohne Hochspringen und verständliche Status-Schritte (#693)
 
@@ -1290,24 +1293,40 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Tag und Nacht) geprüf
 - **Nicht geprüft:** Safari und Firefox; Bildschirmleser; Touch (der Hinweis `data-tipp` erscheint dort nicht, die Information steht im Namen oder im Text); jede einzelne Zeile der Seiten, die nur mit Daten erreichbar sind, die die Demo-Datenbank nicht enthält.
 - **Bleibt unvermeidlich:** der Dialog des Browsers beim Schliessen oder Neuladen des Tabs mit echten ungespeicherten Änderungen, und der Systemdialog der Dateiwahl.
 
-## 72. Verwaltung: Zweiten Faktor einrichten (#715)
+## 72. Website: feste Seite «Datenschutz: Cevi OS, App, Verwaltung und Website» (#712)
+
+Gilt für `/datenschutz-cevi-os` (`datenschutz-cevi-os.ts`, `datenschutz.css`) und die neuen Links auf sie (Fuss, Mein Konto, `/support`, `/konto-loeschen`). Massstab WCAG 2.2 AA. Es ist eine lange Seite aus Text ohne Skript und ohne Formular.
+
+- [ ] **72.1** Genau eine Überschrift der Ebene 1 (der Seitentitel), eine der Ebene 2 («11 Zusätzlich für Cevi OS …»), acht der Ebene 3 (11.1 bis 11.8) und die Kategorien als Ebene 4; keine Ebene wird übersprungen. Der Fuss bringt seine eigenen Überschriften der Ebene 2 mit, wie auf jeder Seite.
+- [ ] **72.2** `lang="de-CH"`; Sprunglink «Zum Inhalt», `main` mit `id="inhalt"`.
+- [ ] **72.3** Die Liste «Auf dieser Seite» ist eine `nav` mit `aria-labelledby` auf ihren Titel; jeder Link führt auf eine vorhandene `id` der Überschrift (`abschnitt-11-1` bis `abschnitt-11-8`); jede Zeile ist mindestens 44 px hoch; der Fokus ist sichtbar, und die Sprungmarke verdeckt der feste Kopf nicht (`scroll-padding-top` in `kopf.css`).
+- [ ] **72.4** Links sind unterstrichen und tragen ihren Zweck im Text («Konto löschen», «Allgemeine Datenschutzerklärung des Cevi Stäfa-Hombrechtikon»); keine Farbe als einziges Zeichen. Der Link zurück steht oben und unten.
+- [ ] **72.5** Farben nur aus den Tokens der Website: Tag, Nacht und erhöhter Kontrast gelten wie auf jeder Seite (Text 4,5 : 1, Rahmen der Liste 3 : 1).
+- [ ] **72.6** Zoom 200 % und 320 px Breite: kein waagrechtes Scrollen, der Text bricht um; Zeilenlänge höchstens 70 Zeichen (`.lesetext`).
+- [ ] **72.7** Bewegung: Das Einblenden beim Scrollen ist für den langen Textblock ausgeschaltet (er stünde sonst über seine ganze Länge blass); ohne Skript und mit «Bewegung reduzieren» ändert sich nichts.
+
+### Stand der Prüfung (#712)
+
+Im Browser (Chromium, headless, die Seite aus dem Code in eine Datei erzeugt und von einem lokalen Dateiserver ausgeliefert, Abteilung mit Beispieldaten) gesehen: 72.1, 72.3, 72.5 und 72.6 bei 1440, 390 und 320 px, Hell und Dunkel (Text hell auf dunkel rund 14 : 1), kein waagrechtes Scrollen, Zielhöhe der Liste 44 px, Fokus sichtbar, alle acht Anker vorhanden; 72.2, 72.4 und 72.7 im Markup und im Stil geprüft, nicht im Browser bedient. Im Test (`website-datenschutz-cevi-os.test.ts`): Überschriftenfolge, acht Abschnitte, 42 Kategorien, Anker, Links, Maskierung. **Nicht geprüft:** Bildschirmleser, Safari und Firefox, Touch, erhöhter Kontrast mit erzwungenen Farben, 400 % Zoom.
+
+## 73. Verwaltung: Zweiten Faktor einrichten (#715)
 
 Die Seite «Zweiten Faktor einrichten» erscheint nach der Anmeldung, wenn ein Recht den zweiten Faktor verlangt und keiner eingerichtet ist (`admin.js`, `zeigeEinrichtung`). Derselbe Ablauf (`zweiter-faktor-einrichten.js`) steht freiwillig unter «Mein Konto». Er hat drei Schritte: Passwort bestätigen, Konto in der App eintragen (QR-Code oder Schlüssel, erster Code), Ersatzcodes speichern. Den QR-Code zeichnet `qr.js` im Browser als SVG, ohne Abhängigkeit und ohne Skript von Dritten.
 
 ### Prüfpunkte
 
-- [ ] **72.1** Tastatur: Jeder Schritt ist ohne Maus zu bedienen; die Tabfolge geht Feld, Hauptknopf, «Abbrechen» oder «Abmelden». Nach jedem Schritt steht der Fokus auf der neuen Überschrift (`h2`, `tabindex="-1"`), damit der Bildschirmleser den Schritt ansagt. Enter im Passwortfeld geht weiter, die sechste Ziffer des Codes bestätigt von selbst.
-- [ ] **72.2** Fokus: Jedes Bedienelement trägt einen sichtbaren Fokusring (3 px), auch im dunklen Theme. Nach einem Fehler geht der Fokus ins Feld; ein Fehler ohne Feld (Netz, Server) bekommt `role="alert"` und den Fokus.
-- [ ] **72.3** Fehlermeldungen am Feld: «Das Passwort stimmt nicht», «Der Code stimmt nicht» und «Gib die sechs Ziffern aus der App ein» stehen als Text mit Symbol beim Feld (`aria-invalid`, `aria-describedby`), nie nur als Farbe. Das Formular hat `novalidate`; kein Dialog und keine Blase des Browsers.
-- [ ] **72.4** Schlüssel für den Bildschirmleser: Der Schlüssel steht in Gruppen zu vier Zeichen zum Abtippen und wird zeichenweise vorgelesen («K Q Y G, Y 2 S S, …», `nur-leser`); die sichtbare Fassung ist für den Bildschirmleser versteckt, damit er ihn nicht doppelt liest. «Schlüssel kopieren» meldet das Ergebnis in einer Statusregion, auch wenn das Kopieren nicht geht («Markiere den Schlüssel von Hand»).
-- [ ] **72.5** QR-Code mit Textalternative: Das SVG ist ein Bild (`role="img"`) mit der Beschriftung «QR-Code für die Authenticator-App. Den Schlüssel dazu findest du als Text darunter.» Der Code ist immer Schwarz auf Weiss mit Ruhezone, im hellen und im dunklen Theme, und der Schlüssel als Text steht immer dabei: Wer nicht scannen kann, kommt ohne Kamera zum Ziel.
-- [ ] **72.6** Kontrast: Text mindestens 4,5:1, Knöpfe und Rahmen mindestens 3:1, hell und dunkel. Der Fehlertext erreicht mindestens 7:1.
-- [ ] **72.7** Reflow und Schrift: Bei 320 px Breite gibt es kein waagrechtes Scrollen; die Ersatzcodes stehen unter 32 em in einer Spalte und brechen nicht mitten im Code um. Text und Schlüssel wachsen mit der Schrift.
-- [ ] **72.8** Ersatzcodes: Sie stehen als Liste «Ersatzcodes» mit «Ersatzcodes kopieren». «Zur Verwaltung» oder «Fertig» verlangt das Häkchen «Ich habe die Ersatzcodes gespeichert»; ohne Häkchen erscheint ein Hinweis beim Häkchen (`role="alert"`) und der Fokus geht dorthin. Danach sind die Codes aus der Seite gelöscht.
-- [ ] **72.9** Bewegung: Der Ablauf kommt ohne Animation aus; nichts blinkt.
+- [ ] **73.1** Tastatur: Jeder Schritt ist ohne Maus zu bedienen; die Tabfolge geht Feld, Hauptknopf, «Abbrechen» oder «Abmelden». Nach jedem Schritt steht der Fokus auf der neuen Überschrift (`h2`, `tabindex="-1"`), damit der Bildschirmleser den Schritt ansagt. Enter im Passwortfeld geht weiter, die sechste Ziffer des Codes bestätigt von selbst.
+- [ ] **73.2** Fokus: Jedes Bedienelement trägt einen sichtbaren Fokusring (3 px), auch im dunklen Theme. Nach einem Fehler geht der Fokus ins Feld; ein Fehler ohne Feld (Netz, Server) bekommt `role="alert"` und den Fokus.
+- [ ] **73.3** Fehlermeldungen am Feld: «Das Passwort stimmt nicht», «Der Code stimmt nicht» und «Gib die sechs Ziffern aus der App ein» stehen als Text mit Symbol beim Feld (`aria-invalid`, `aria-describedby`), nie nur als Farbe. Das Formular hat `novalidate`; kein Dialog und keine Blase des Browsers.
+- [ ] **73.4** Schlüssel für den Bildschirmleser: Der Schlüssel steht in Gruppen zu vier Zeichen zum Abtippen und wird zeichenweise vorgelesen («K Q Y G, Y 2 S S, …», `nur-leser`); die sichtbare Fassung ist für den Bildschirmleser versteckt, damit er ihn nicht doppelt liest. «Schlüssel kopieren» meldet das Ergebnis in einer Statusregion, auch wenn das Kopieren nicht geht («Markiere den Schlüssel von Hand»).
+- [ ] **73.5** QR-Code mit Textalternative: Das SVG ist ein Bild (`role="img"`) mit der Beschriftung «QR-Code für die Authenticator-App. Den Schlüssel dazu findest du als Text darunter.» Der Code ist immer Schwarz auf Weiss mit Ruhezone, im hellen und im dunklen Theme, und der Schlüssel als Text steht immer dabei: Wer nicht scannen kann, kommt ohne Kamera zum Ziel.
+- [ ] **73.6** Kontrast: Text mindestens 4,5:1, Knöpfe und Rahmen mindestens 3:1, hell und dunkel. Der Fehlertext erreicht mindestens 7:1.
+- [ ] **73.7** Reflow und Schrift: Bei 320 px Breite gibt es kein waagrechtes Scrollen; die Ersatzcodes stehen unter 32 em in einer Spalte und brechen nicht mitten im Code um. Text und Schlüssel wachsen mit der Schrift.
+- [ ] **73.8** Ersatzcodes: Sie stehen als Liste «Ersatzcodes» mit «Ersatzcodes kopieren». «Zur Verwaltung» oder «Fertig» verlangt das Häkchen «Ich habe die Ersatzcodes gespeichert»; ohne Häkchen erscheint ein Hinweis beim Häkchen (`role="alert"`) und der Fokus geht dorthin. Danach sind die Codes aus der Seite gelöscht.
+- [ ] **73.9** Bewegung: Der Ablauf kommt ohne Animation aus; nichts blinkt.
 
 ### Stand der Prüfung (#715)
 
-Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung) mit einem Test-TOTP (RFC 6238, im Skript nachgerechnet) geprüft: Pflichtseite für ein Konto der Abteilungsleitung und für eine Person mit Webmaster-Rolle, «Mein Konto» für eine Stufenleitung, hell und dunkel, 1100 und 375 px; danach verlangt die neue Anmeldung den Code. Punkte 72.1 bis 72.3, 72.6 und 72.7 sind mit Tabfolge, berechnetem Fokusring, berechnetem Kontrast (hell mindestens 5,4:1, Fehlertext 7,9:1, dunkel 5,4:1 und 7,0:1) und der Messung der Breite bei 320 px belegt. Der QR-Code aus dem Browser wurde mit zbar und OpenCV dekodiert und gleicht dem Link der API.
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung) mit einem Test-TOTP (RFC 6238, im Skript nachgerechnet) geprüft: Pflichtseite für ein Konto der Abteilungsleitung und für eine Person mit Webmaster-Rolle, «Mein Konto» für eine Stufenleitung, hell und dunkel, 1100 und 375 px; danach verlangt die neue Anmeldung den Code. Punkte 73.1 bis 73.3, 73.6 und 73.7 sind mit Tabfolge, berechnetem Fokusring, berechnetem Kontrast (hell mindestens 5,4:1, Fehlertext 7,9:1, dunkel 5,4:1 und 7,0:1) und der Messung der Breite bei 320 px belegt. Der QR-Code aus dem Browser wurde mit zbar und OpenCV dekodiert und gleicht dem Link der API.
 
-**Nicht geprüft:** VoiceOver, TalkBack und NVDA (72.4, 72.5, 72.8 nur als Quelltext und Rolle), echte Authenticator-Apps auf einem Telefon, Safari und Firefox, 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA (73.4, 73.5, 73.8 nur als Quelltext und Rolle), echte Authenticator-Apps auf einem Telefon, Safari und Firefox, 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.
