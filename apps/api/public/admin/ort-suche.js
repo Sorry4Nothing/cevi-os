@@ -14,7 +14,9 @@ const AKZENTE = /[̀-ͯ]/g;
 
 // Kleinbuchstaben ohne Akzente, ein Zeichen für jedes Zeichen: Positionen bleiben gleich
 const falte = (text) =>
-  Array.from(text, (z) => (z.normalize("NFD").replace(AKZENTE, "")[0] ?? z).toLowerCase()).join("");
+  Array.from(text, (z) =>
+    (z.normalize("NFD").replace(AKZENTE, "")[0] ?? z).toLowerCase(),
+  ).join("");
 
 // Welche Zeichen des Texts die Eingabe getroffen hat; Wortanfänge zuerst
 function trefferMaske(text, woerter) {
@@ -137,7 +139,15 @@ export function adressSuche({ label, hilfe, beiWahl }) {
     "div",
     { class: "feld ort-suche" },
     el("label", { for: id }, label),
-    el("div", { class: "ort-suche-feld" }, lupe, eingabe, dreher, leeren, popup),
+    el(
+      "div",
+      { class: "ort-suche-feld" },
+      lupe,
+      eingabe,
+      dreher,
+      leeren,
+      popup,
+    ),
     hilfe && el("p", { class: "hilfe", id: hilfeId }, hilfe),
     ansage,
   );
@@ -170,7 +180,11 @@ export function adressSuche({ label, hilfe, beiWahl }) {
     popup.hidden = zustand === "zu";
     skelett.hidden = zustand !== "laedt";
     liste.hidden = !treffer;
-    meldung.hidden = !(zustand === "keine" || zustand === "fehler" || zustand === "zuviele");
+    meldung.hidden = !(
+      zustand === "keine" ||
+      zustand === "fehler" ||
+      zustand === "zuviele"
+    );
     dreher.hidden = zustand !== "laedt";
     popup.setAttribute("aria-busy", String(zustand === "laedt"));
     eingabe.setAttribute("aria-expanded", String(treffer));
@@ -223,8 +237,17 @@ export function adressSuche({ label, hilfe, beiWahl }) {
             onclick: () => waehle(i),
             onmousemove: () => aktiv !== i && setzeAktiv(i),
           },
-          el("span", { class: "ort-suche-haupt" }, hervorgehoben(haupt, woerter)),
-          neben && el("span", { class: "ort-suche-neben" }, hervorgehoben(neben, woerter)),
+          el(
+            "span",
+            { class: "ort-suche-haupt" },
+            hervorgehoben(haupt, woerter),
+          ),
+          neben &&
+            el(
+              "span",
+              { class: "ort-suche-neben" },
+              hervorgehoben(neben, woerter),
+            ),
         );
       }),
     );
@@ -295,7 +318,8 @@ export function adressSuche({ label, hilfe, beiWahl }) {
       const text = eingabe.value.trim();
       if (!offen) {
         // Eine geschlossene Liste mit Eingabe öffnet sich wieder
-        if (text.length >= MIN_ZEICHEN && vorschlaege.length > 0) zeige("treffer");
+        if (text.length >= MIN_ZEICHEN && vorschlaege.length > 0)
+          zeige("treffer");
         else if (text.length >= MIN_ZEICHEN) starte(text);
         e.preventDefault();
         return;
@@ -322,7 +346,11 @@ export function adressSuche({ label, hilfe, beiWahl }) {
 
   eingabe.addEventListener("focus", () => {
     // Zurück ins Feld: die letzten Vorschläge wieder zeigen, solange der Text noch derselbe Suchtext ist
-    if (vorschlaege.length > 0 && popup.hidden && eingabe.value.trim().length >= MIN_ZEICHEN) {
+    if (
+      vorschlaege.length > 0 &&
+      popup.hidden &&
+      eingabe.value.trim().length >= MIN_ZEICHEN
+    ) {
       zeige("treffer");
     }
   });

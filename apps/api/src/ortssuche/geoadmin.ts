@@ -48,7 +48,7 @@ export function leseTreffer(roh: unknown): Ortsvorschlag | null {
   const { label, origin, lat, lon } = t.data.attrs;
   let strasse: string | null = null;
   let plz: string | null = null;
-  let ort: string | null = null;
+  let ort: string | null;
   let bezeichnung: string;
   if (origin === "address") {
     const m = /^(.+?) <b>(\d{4}) (.+)<\/b>$/.exec(label);

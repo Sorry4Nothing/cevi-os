@@ -89,7 +89,7 @@ const sucheSchema = z.strictObject({
     .min(MIN_SUCHTEXT)
     .max(MAX_SUCHTEXT)
     .regex(OHNE_STEUERZEICHEN)
-    .refine((t) => t.split(/s+/).length <= 10),
+    .refine((t) => t.split(/\s+/).length <= 10),
 });
 // Je Konto höchstens so viele Suchen je Minute (die Eingabe im Browser wartet kurz, bevor sie fragt)
 const SUCHEN_PRO_MINUTE = 20;
