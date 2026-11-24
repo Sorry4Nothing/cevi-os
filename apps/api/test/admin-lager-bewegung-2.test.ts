@@ -143,9 +143,10 @@ describe("Verhalten ohne Bewegung", () => {
       history: {},
       matchMedia: () => ({ matches: false }),
     });
-    anim = (await import(
-      /* @vite-ignore */ "../public/admin/lager-anim.js"
-    )) as Modul;
+    const name = "lager-anim.js";
+    anim = await (import(
+      /* @vite-ignore */ `../public/admin/${name}`
+    ) as Promise<Modul>);
   });
 
   test("darfBewegen ist falsch, wenn der Browser reduzierte Bewegung verlangt", () => {
