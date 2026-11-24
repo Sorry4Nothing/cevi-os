@@ -1957,6 +1957,51 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-anim.css:
+    get:
+      operationId: getAdminLagerAnimStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Lager, Animationen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/lager-anim.js:
+    get:
+      operationId: getAdminLagerAnimSkript
+      summary: Skript der Verwaltung – Bereich Lager, Animationen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-einteilung-laden.js:
+    get:
+      operationId: getAdminLagerEinteilungLadenSkript
+      summary: Skript der Verwaltung – Bereich Lager, Einteilung laden
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kalenderhilfen.js:
     get:
       operationId: getAdminKalenderhilfenSkript
