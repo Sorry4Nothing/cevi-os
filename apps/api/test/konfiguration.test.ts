@@ -282,7 +282,7 @@ describe("WEBSITE_* (#351)", () => {
 // Fotos aus Flickr (#690): Geheimnisse nur aus der Umgebung; Schlüssel und Secret, Token und Token-Secret gehören zusammen
 describe("Flickr", () => {
   const SCHLUESSEL = {
-    FLICKR_API_KEY: "abcdef0123456789abcdef0123456789",
+    FLICKR_API_KEY: "TestSchluesselNurFuerTests",
     FLICKR_API_SECRET: "ffeeddccbbaa9988",
   };
   const TOKEN = {

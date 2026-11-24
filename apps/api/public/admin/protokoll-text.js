@@ -103,6 +103,7 @@ export const BEREICHE = {
   plattform: "Plattform",
   laden: "Lädeli",
   fotos: "Fotos",
+  "cevi-db": "Cevi-DB",
   raeume: "Räume",
   termine: "Termine",
   "termin-vorschlaege": "Termine",

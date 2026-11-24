@@ -4,7 +4,7 @@ import { signiere as signiereServer } from "../src/fotos/flickr.js";
 import { laufe, signiere } from "../scripts/flickr-token.mjs";
 
 // Das Skript, das das Lese-Token holt (#690), gegen eine Attrappe von Flickr mit erfundenen Werten
-const KEY = "abcdef0123456789abcdef0123456789";
+const KEY = "TestSchluesselNurFuerTests";
 const SECRET = "ffeeddccbbaa9988";
 
 function attrappe() {
