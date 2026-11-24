@@ -21,14 +21,36 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
+import { istDynamisch } from "./bausteine-dynamisch.js";
+import type { DynamischErgebnis } from "./dynamisch-daten.js";
+import {
+  BREITE_DYNAMISCHE,
+  rendereDynamischenBaustein,
+  STIL_DYNAMISCH,
+} from "./dynamisch.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
 import { fuss, kontaktkarte, STIL_FUSS } from "./kontakt.js";
+import {
+  istBreitText,
+  istTextBaustein,
+  rendereTextBaustein,
+} from "./bausteine-text-rendern.js";
 import {
   rendereLaden,
   SKRIPT_LADEN,
   STILE_LADEN,
   type LadenArtikel,
 } from "./laden.js";
+import {
+  istMedienBaustein,
+  LICHTKASTEN_TYPEN,
+  medienAnforderungen,
+  MEDIEN_BREIT,
+  rendereMedienBaustein,
+  rendereVideolink,
+  SKRIPT_VERGLEICH,
+  STIL_MEDIEN,
+} from "./medien-bausteine.js";
 import { symbol } from "./symbole.js";
 import { zeichenLinks } from "./zeichen.js";
 
@@ -133,6 +155,8 @@ export type Daten = {
   ladenUebergabe: ReadonlyMap<string, true>;
   // Die Einstellungen des Lädelis (#642) unter dem Schlüssel «e»; ohne Eintrag gelten die Vorgaben
   ladenEinstellung: ReadonlyMap<"e", LadenEinstellung>;
+  // Je Baustein mit Daten aus Cevi OS (#740, nach der ID des Bausteins) das Ergebnis; fehlt der Eintrag, entfällt der Baustein
+  dynamisch: ReadonlyMap<string, DynamischErgebnis>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
@@ -146,6 +170,7 @@ export const keineDaten = (): Daten => ({
   laden: new Map(),
   ladenUebergabe: new Map(),
   ladenEinstellung: new Map(),
+  dynamisch: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -233,7 +258,7 @@ export function verlinke(
   return [el("a", klasse ? { ...h, class: klasse } : h, ...innen, ...extern)];
 }
 
-function textBlock(b: TextBlock): HtmlKnoten {
+export function textBlock(b: TextBlock): HtmlKnoten {
   const abschnitte = (liste: Extract<TextBlock, { typ: "absatz" }>["inhalt"]) =>
     liste.flatMap((a) => {
       let k: HtmlKnoten = a.text;
@@ -249,13 +274,13 @@ function textBlock(b: TextBlock): HtmlKnoten {
   );
 }
 
-function groesse(bytes: number) {
+export function groesse(bytes: number) {
   return bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function bild(
+export function bild(
   id: string,
   m: MedienDaten | undefined,
   unterschrift?: string,
@@ -363,7 +388,7 @@ function stufenkarte(
 }
 
 // Anker einer Überschrift der Ebene 2 (#560): ihr Text als Adresse («Unsere Lager» wird «unsere-lager»); ein doppelter bekommt «-2»
-function anker(text: string, vergeben: Set<string>): string | null {
+export function anker(text: string, vergeben: Set<string>): string | null {
   const basis = text
     .toLowerCase()
     .replace(/ä/g, "ae")
@@ -464,10 +489,15 @@ function rendereBaustein(
   if (istHandlungsBaustein(b)) {
     return rendereHandlungsBaustein(b, daten, letzte);
   }
+  // Bilder und Medien (#742)
+  if (istMedienBaustein(b)) return rendereMedienBaustein(b, daten, letzte);
+  // Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, Spalten, Bild und Text, Tabelle, Schritte, Checkliste
+  if (istTextBaustein(b)) return rendereTextBaustein(b, daten, letzte);
   if (b.typ === "laden") {
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
   if (b.typ === "fotoalben") return rendereFotoalben();
+  if (istDynamisch(b)) return rendereDynamischenBaustein(b, daten, letzte);
   switch (b.typ) {
     case "ueberschrift": {
       const ebene = Math.min(b.daten.ebene, letzte.ebene + 1);
@@ -710,11 +740,7 @@ function rendereBaustein(
         ? el("hr")
         : el("div", { class: "abstand", "aria-hidden": "true" });
     case "videolink":
-      return el(
-        "p",
-        undefined,
-        ...verlinke(b.daten.url, [b.daten.beschriftung], "verweis"),
-      );
+      return rendereVideolink(b, daten);
     case "stufenfakten": {
       const fakten = daten.stufenfakten.get(seiteId) ?? [];
       return fakten.length === 0 ? null : faktenTafel(fakten);
@@ -1024,6 +1050,15 @@ export function rendereBausteine(
   return ordneZweispaltig(rendereEintraege(dok, seiteId, daten, pfad));
 }
 
+// Die Abschnitte der Bausteine wie auf der Seite, ohne Titel, Kopf und Fuss: die Vorschau einzelner Bausteine im Editor (#739). Der Aufrufer prüft die Bausteine; geschützte erscheinen offen, wenn er ihre Sichtbarkeit auf «erbt» setzt
+export function rendereAbschnittsfolge(
+  dok: Seitendokument,
+  seiteId: string,
+  daten: Daten,
+): string {
+  return rendereAbschnitte(rendereEintraege(dok, seiteId, daten, "/vorschau"));
+}
+
 // Knoten für das Nachladen (#354): die Bausteine in der Reihenfolge der Seite, für die `erlaubt` wahr ist.
 // Ein Baustein ohne Inhalt (Medium fehlt, leere Daten) entfällt; die Überschriftenebene läuft über die gelieferten Bausteine
 export function rendereGeschuetzte(
@@ -1105,13 +1140,19 @@ const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
   "karten",
   "galerie",
   "karussell",
+  "bildraster",
+  "bildstreifen",
+  "logoreihe",
 ]);
 const istBreit = (b: Baustein) =>
+  istBreitText(b) ||
   b.typ === "artikel" ||
   b.typ === "laden" ||
   b.typ === "fotoalben" ||
+  BREITE_DYNAMISCHE.has(b.typ) ||
   b.typ === "galerie" ||
   b.typ === "karussell" ||
+  MEDIEN_BREIT.has(b.typ) ||
   (b.typ === "karten" &&
     (b.daten.darstellung === "karten" || b.daten.darstellung === "stufen"));
 // Abschnitte ab dieser Nummer liegen unterhalb des ersten Bildschirms: ihre Bilder laden erst beim Scrollen
@@ -1252,10 +1293,11 @@ export const SKRIPT_THEMA = "/website/theme.js";
 export const SKRIPT_LADEZUSTAND = "/website/ladezustand.js";
 export { SKRIPT_KARUSSELL };
 // Bausteine, deren Bilder sich gross öffnen lassen
-const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
+const BILD_BAUSTEINE = new Set<string>([
   "bild",
   "galerie",
   "karussell",
+  ...LICHTKASTEN_TYPEN,
 ]);
 // Die klassischen Skripte im <head> (Darstellung, Ladezustand der Bilder #574), die die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
 export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>
@@ -1405,6 +1447,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   const mitLaden = eintraege.some(
     (e) => e.b.typ === "laden" && istOeffentlich(e.b) && e.knoten !== null,
   );
+  const medien = medienAnforderungen(s.dokument.bausteine);
   const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
   // Fotoalben (#690): der Baustein ist nur ein Behälter; das Skript holt die Alben nach der Anmeldung (auch in einem geschützten Baustein, den geschuetzt.js erst nachlädt)
   const mitFotos = s.dokument.bausteine.some((b) => b.typ === "fotoalben");
@@ -1417,13 +1460,21 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     // Stil und Skript des Karussells nur auf Seiten, die eines zeigen oder nach der Anmeldung nachladen (das Skript rüstet nachgeladene aus)
     // Stil der Inhaltsbausteine (#560) nur auf Seiten, die einen davon haben (auch einen geschützten, der nachgeladen wird)
     // Die Fotoalben öffnen ihre Bilder in der Grossansicht (lichtkasten.js)
+    // Bilder und Medien (#742): Grossansicht für Bildraster, Bildstreifen und breites Bild, dazu Stil und Skript des Bildvergleichs
     zusatzSkripte: [
-      ...(bilder ? bilder.zusatzSkripte : []),
-      ...(mitFotos && !bilder ? [SKRIPT_LICHTKASTEN] : []),
+      ...new Set([
+        ...(bilder ? bilder.zusatzSkripte : []),
+        ...(mitFotos || medien.lichtkasten ? [SKRIPT_LICHTKASTEN] : []),
+        ...medien.skripte,
+      ]),
     ],
     stile: [
-      ...(bilder ? bilder.stile : []),
-      ...(mitFotos ? [...(bilder ? [] : [STIL_LICHTKASTEN]), STIL_FOTOS] : []),
+      ...new Set([
+        ...(bilder ? bilder.stile : []),
+        ...(mitFotos || medien.lichtkasten ? [STIL_LICHTKASTEN] : []),
+      ]),
+      ...(mitFotos ? [STIL_FOTOS] : []),
+      ...medien.stile,
       // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
       ...(s.dokument.bausteine.some(
         (b) => istInhaltsBaustein(b) || b.typ === "leitungsteam",
@@ -1431,6 +1482,10 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         ? [STIL_INHALT]
         : []),
       ...(mitLaden ? STILE_LADEN : []),
+      // Bausteine mit Daten aus Cevi OS (#740): der Stil nur auf Seiten, die einen davon zeigen
+      ...(eintraege.some((e) => istDynamisch(e.b) && e.knoten !== null)
+        ? [STIL_DYNAMISCH]
+        : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
     ...((geschuetzt || mitLaden || mitFotos) && {
@@ -1477,8 +1532,8 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell oder Fotoalbum findet Stil und Skript vor
     skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS],
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
-    zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
-    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS],
+    zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL, SKRIPT_VERGLEICH],
+    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS, STIL_MEDIEN],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>

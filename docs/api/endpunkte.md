@@ -69,6 +69,9 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/website-bausteine.js`             | Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten         | **200** alle      |
 | `GET /admin/website-dialoge.js`               | Skript der Verwaltung – Bereich Website, Fenster und Hinweise                        | **200** alle      |
 | `GET /admin/website-felder.js`                | Skript der Verwaltung – Bereich Website, Felder und Typen der Bausteine              | **200** alle      |
+| `GET /admin/website-felder-medien.js`         | Skript der Verwaltung – Bereich Website, Felder der Bilder und Medien                | **200** alle      |
+| `GET /admin/website-felder-text.js`           | Skript der Verwaltung – Bereich Website, Felder der Bausteine Text und Gestaltung    | **200** alle      |
+| `GET /admin/website-felder-dynamisch.js`      | Skript der Verwaltung – Bereich Website, Felder der Bausteine aus Cevi OS            | **200** alle      |
 | `GET /admin/website-sichtbarkeit.js`          | Skript der Verwaltung – Bereich Website, Sichtbarkeit                                | **200** alle      |
 | `GET /admin/website-symbole.js`               | Skript der Verwaltung – Bereich Website, Symbole                                     | **200** alle      |
 | `GET /admin/website-veroeffentlichen.js`      | Skript der Verwaltung – Bereich Website, Veröffentlichen und Versionen               | **200** alle      |
@@ -79,6 +82,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/website-editor.css`               | Stilvorlage der Verwaltung – Bereich Website, Editor                                 | **200** alle      |
 | `GET /admin/website-richtext.js`              | Skript der Verwaltung – Bereich Website, Rich Text                                   | **200** alle      |
 | `GET /admin/website-vorschau.css`             | Stilvorlage der Website für die Vorschau in der Verwaltung                           | **200** alle      |
+| `GET /admin/website-vorschau.js`              | Skript der Verwaltung – Bereich Website, Vorschau einzelner Bausteine                | **200** alle      |
 | `GET /admin/website-medien.js`                | Skript der Verwaltung – Bereich Website, Medien                                      | **200** alle      |
 | `GET /admin/website-medien.css`               | Stilvorlage der Verwaltung – Bereich Website, Medien                                 | **200** alle      |
 | `GET /admin/website-stufenfakten.js`          | Skript der Verwaltung – Bereich Website, Samstagsangaben der Stufen                  | **200** alle      |
@@ -256,6 +260,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 
 | Route                                                          | Zweck                                                | Status je Persona                                                                                                                                                                                                     |
 | -------------------------------------------------------------- | ---------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/redaktion/bausteine/vorschau`                    | Bausteine als Vorschau rendern, ohne zu speichern    | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
 | `GET /api/v1/redaktion/seiten`                                 | Seiten der Website, die die Person bearbeiten darf   | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
 | `POST /api/v1/redaktion/seiten`                                | Seite anlegen                                        | **201** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
 | `GET /api/v1/redaktion/seiten/:id`                             | Eine Seite lesen                                     | **200** admin, slA<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern           |
@@ -287,6 +292,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `PATCH /api/v1/redaktion/medien/:id`                           | Alt-Text nachtragen oder ändern                      | **200** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern           |
 | `DELETE /api/v1/redaktion/medien/:id`                          | Medium löschen                                       | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern           |
 | `GET /api/v1/redaktion/tags`                                   | Tags der Abteilung für die Auswahl im Editor         | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
+| `GET /api/v1/redaktion/baustein-auswahl`                       | Anlässe und Orte für die Bausteine aus Cevi OS       | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
 | `GET /api/v1/redaktion/personen`                               | Personen mit einem Tag für die Auswahl im Editor     | **200** admin, slA, slB<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern<br>**404** demoAdmin           |
 
 ## App: plattform

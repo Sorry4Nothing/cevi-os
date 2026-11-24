@@ -497,6 +497,7 @@ describe("Verweise und Aktionen: ein Repertoire (#568)", () => {
     for (const name of [
       "termine.css",
       "inhalt.css",
+      "dynamisch.css",
       "kopf.css",
       "fuss.css",
       "karussell.css",
@@ -573,6 +574,7 @@ describe("Scrollleisten (#572)", () => {
       "website.css",
       "termine.css",
       "inhalt.css",
+      "dynamisch.css",
       "kopf.css",
       "fuss.css",
       "karussell.css",

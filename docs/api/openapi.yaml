@@ -2485,6 +2485,40 @@ paths:
     get:
       operationId: getAdminWebsiteFelderHandlungSkript
       summary: Skript der Verwaltung – Bereich Website, Felder der Bausteine «Einstieg und Handlung»
+  /admin/website-felder-medien.js:
+    get:
+      operationId: getAdminWebsiteFelderMedienSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder der Bilder und Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-felder-text.js:
+    get:
+      operationId: getAdminWebsiteFelderTextSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder der Bausteine Text und Gestaltung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-felder-dynamisch.js:
+    get:
+      operationId: getAdminWebsiteFelderDynamischSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder der Bausteine aus Cevi OS
       tags:
         - Allgemein
       security: []
@@ -2614,6 +2648,21 @@ paths:
           description: Datei (`text/css; charset=UTF-8`).
           content:
             text/css:
+              schema:
+                type: string
+  /admin/website-vorschau.js:
+    get:
+      operationId: getAdminWebsiteVorschauSkript
+      summary: Skript der Verwaltung – Bereich Website, Vorschau einzelner Bausteine
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
               schema:
                 type: string
   /admin/website-editor.js:
@@ -8263,6 +8312,64 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/redaktion/bausteine/vorschau:
+    post:
+      operationId: vorschauRedaktionBausteine
+      summary: Bausteine als Vorschau rendern, ohne zu speichern
+      description: |
+        Rendert jeden der gelieferten Bausteine für sich mit demselben Renderer wie die Website und liefert je Baustein eine fertige HTML-Seite für einen Rahmen (`iframe` mit `srcdoc` und `sandbox` ohne Skript). Der Katalog «Baustein hinzufügen» und die Bausteinliste des Editors nutzen sie. Es wird nichts gespeichert, keine Datei und keine Zeile entsteht.
+
+        Ohne `seiteId` zeigt die Vorschau Platzhalter aus dem Code des Servers (Bilder, Namen, Termine, Artikel), nie Daten aus der Datenbank. Mit `seiteId` zeigt sie die echten Daten der Abteilung wie die Vorschau der Seite (Bilder, Personen, Gruppen, Termine, Samstagsangaben). Die Bausteine stehen in der Antwort offen, auch mit engerer Sichtbarkeit.
+
+        Jeder Baustein läuft durch das Schema des Bausteinkatalogs; HTML aus der Eingabe gibt es nie. Ein ungültiger Baustein (zum Beispiel ein Bild ohne Medium) bricht die Anfrage nicht ab: Sein Eintrag hat `html: null` und `grund: "ungueltig"`. Zeigt der Renderer nichts (Medium fehlt oder gehört nicht zur Abteilung), ist es `grund: "leer"`. Die Reihenfolge der Antwort entspricht der Anfrage.
+
+        Die Seite im Rahmen lädt nur `/admin/website-vorschau.css` und die Schrift von der eigenen Herkunft; ihre eigene CSP erlaubt keine Skripte und Verbindungen. Links haben kein Ziel.
+
+        Recht: Zugang zur Website-Verwaltung (Abteilungsleitung mit zweitem Faktor, Plattformrecht, Stufenleitung, wie im Namensraum `/redaktion`). Mit `seiteId` zusätzlich dasselbe Recht wie die Vorschau dieser Seite (404 für eine fremde Abteilung, danach 403). Reihenfolge: Eingabe (400), Zugang (403), Rate-Limit (429), Seite (404, 403).
+
+        Grenzen: höchstens 80 Bausteine je Anfrage, höchstens 256 KiB, höchstens 60 Anfragen je Minute und Person.
+
+        Statuscodes: 200, 400, 401, 403, 404, 413, 426, 429.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RedaktionBausteineVorschauAnfrage"
+      responses:
+        "200":
+          description: Je Baustein eine Vorschau.
+          headers:
+            Cache-Control:
+              description: Nie zwischengespeichert (`private, no-store`).
+              schema:
+                type: string
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionBausteineVorschau"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "413":
+          description: Die Anfrage ist grösser als 256 KiB.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/seiten/{id}/entwurf:
     get:
       operationId: leseRedaktionEntwurf
@@ -9658,6 +9765,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RedaktionTagListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/baustein-auswahl:
+    get:
+      operationId: listeRedaktionBausteinAuswahl
+      summary: Anlässe und Orte für die Bausteine aus Cevi OS im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (#740): die öffentlichen Anlässe der eigenen Abteilung mit aktivem Termin für Eltern (ab 90 Tage zurück, höchstens 200, nach Beginn sortiert) und die aktiven Orte der Bibliothek (höchstens 200). Nur Id, Titel, Tage und Art, bei Orten Name und Beschreibung. Nie Anmeldungen, Personen, Notizen oder Anlässe anderer Abteilungen.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Anlässe und Orte.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionBausteinAuswahl"
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
@@ -40430,6 +40562,57 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RedaktionTag"
+    RedaktionBausteinAuswahl:
+      type: object
+      required:
+        - anlaesse
+        - orte
+      properties:
+        anlaesse:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - titel
+              - art
+              - von
+              - bis
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
+              art:
+                type: string
+                enum:
+                  - anlass
+                  - lager
+              von:
+                type: string
+                format: date
+                description: Erster Tag in Zürcher Zeit.
+              bis:
+                type: string
+                format: date
+                description: Letzter Tag in Zürcher Zeit.
+        orte:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - beschreibung
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              beschreibung:
+                type: [string, "null"]
     RedaktionPerson:
       type: object
       required:
@@ -41116,6 +41299,46 @@ components:
           items:
             type: string
             format: uuid
+    RedaktionBausteineVorschauAnfrage:
+      type: object
+      additionalProperties: false
+      required:
+        - bausteine
+      properties:
+        seiteId:
+          type: string
+          format: uuid
+          description: Eine Seite der eigenen Abteilung. Mit ihr zeigt die Vorschau die echten Daten der Abteilung, ohne sie Platzhalter.
+        bausteine:
+          type: array
+          minItems: 1
+          maxItems: 80
+          description: Bausteine in der Form des Bausteinkatalogs (`id`, `typ`, `daten`, optional `sichtbarkeit`). Ein ungültiger Eintrag ergibt den Grund `ungueltig`, keinen Fehler.
+          items: {}
+    RedaktionBausteineVorschau:
+      type: object
+      required:
+        - vorschauen
+      properties:
+        vorschauen:
+          type: array
+          description: Je Baustein der Anfrage ein Eintrag, in derselben Reihenfolge.
+          items:
+            type: object
+            required:
+              - html
+            properties:
+              html:
+                type:
+                  - string
+                  - "null"
+                description: Eine vollständige HTML-Seite für einen Rahmen mit `srcdoc`; `null`, wenn nichts zu zeigen ist.
+              grund:
+                type: string
+                enum:
+                  - leer
+                  - ungueltig
+                description: Warum `html` fehlt. `leer`, wenn der Renderer nichts zeigt; `ungueltig`, wenn der Baustein dem Schema nicht entspricht.
     RedaktionOrtVorschauAnfrage:
       type: object
       additionalProperties: false

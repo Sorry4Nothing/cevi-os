@@ -118,8 +118,12 @@ describe("keine Browserdialoge", () => {
     ).toContain('src="/admin/auswahl.js"');
   });
 
-  test("keine Tooltips des Browsers: kein title-Attribut ausser am Rahmen der Vorschau (iframe braucht einen Namen)", () => {
-    const erlaubt = new Set(["public/admin/website-editor.js"]);
+  test("keine Tooltips des Browsers: kein title-Attribut ausser an den Rahmen der Vorschau (iframe braucht einen Namen)", () => {
+    const erlaubt = new Set([
+      "public/admin/website-editor.js",
+      // Die Rahmen der Bausteinvorschau (#739)
+      "public/admin/website-vorschau.js",
+    ]);
     const funde = [
       // Eigenschaft in einer Beschreibung: { title: "…" }, setAttribute("title", …)
       ...finde(

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { baustein, kurztext, link } from "./bausteine.js";
+import type { baustein, kurztext, link } from "./bausteine-basis.js";
 
 // Bausteine «Einstieg und Handlung» (#743): Kopfbereich, Inhaltsverzeichnis, Weiterführende Links, Kontaktleiste, Weitersagen, Seitenwechsel, Brotkrumen.
 // Die Schemas entstehen in einer Funktion, die bausteine.ts mit ihren Bausteinen aufruft: So hängen beide Dateien nicht im Kreis aneinander (bausteine.ts hängt die Liste nur an).

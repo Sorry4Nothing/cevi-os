@@ -187,6 +187,9 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-dialoge.js": { erwartet: alle(200) },
   "GET /admin/website-felder.js": { erwartet: alle(200) },
   "GET /admin/website-felder-handlung.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-medien.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-text.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-dynamisch.js": { erwartet: alle(200) },
   "GET /admin/website-sichtbarkeit.js": { erwartet: alle(200) },
   "GET /admin/website-symbole.js": { erwartet: alle(200) },
   "GET /admin/website-veroeffentlichen.js": { erwartet: alle(200) },
@@ -197,6 +200,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-editor.css": { erwartet: alle(200) },
   "GET /admin/website-richtext.js": { erwartet: alle(200) },
   "GET /admin/website-vorschau.css": { erwartet: alle(200) },
+  "GET /admin/website-vorschau.js": { erwartet: alle(200) },
   "GET /admin/website-medien.js": { erwartet: alle(200) },
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
@@ -1614,11 +1618,32 @@ const MATRIX: Record<string, Zeile> = {
   },
   "GET /api/v1/admin/protokoll/:id": {
     url: () => `/api/v1/admin/protokoll/${randomUUID()}`,
-    // Erst das Objekt, dann die Funktion: Eine unbekannte Kennung ist für jede angemeldete Person 404
+    // Erst das Objekt, dann die Funktion: Eine unbekannte Kennung ist fï¿½r jede angemeldete Person 404
     erwartet: {
       ...alle(404),
       adminOhneZweitenFaktor: 403,
       mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Vorschau einzelner Bausteine (#739): Zugang zur Website-Verwaltung wie bei den Seiten, ohne Seite nur Platzhalter. Die Wirkung steht in test/redaktion-bausteine-vorschau.test.ts
+  "POST /api/v1/redaktion/bausteine/vorschau": {
+    body: () => ({
+      bausteine: [
+        {
+          id: randomUUID(),
+          typ: "ueberschrift",
+          daten: { ebene: 2, text: "Matrix" },
+        },
+      ],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -1712,7 +1737,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/bearbeiter": {
-    // Sonderrecht auf eine Seite für eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
+    // Sonderrecht auf eine Seite fï¿½r eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
     body: () => ({
       objektTyp: "seite",
       objektId: randomUUID(),
@@ -2093,7 +2118,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "PATCH /api/v1/redaktion/website": {
-    // Kein Logo setzen ändert den Stand nicht: Die Anfrage prüft nur das Recht
+    // Kein Logo setzen ï¿½ndert den Stand nicht: Die Anfrage prï¿½ft nur das Recht
     body: () => ({ logoMediumId: null }),
     erwartet: {
       ...alle(403),
@@ -2447,6 +2472,18 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Anlaesse und Orte fuer die Bausteine aus Cevi OS (#740): wie die Tags, nur Namen und Tage
+  "GET /api/v1/redaktion/baustein-auswahl": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "GET /api/v1/redaktion/personen": {
     // Der Tag gehÃ¶rt zur Testabteilung: Die Demo-Abteilung kennt ihn nicht
     url: (w) => `/api/v1/redaktion/personen?tag=${w.stufeAId}`,
@@ -2710,7 +2747,7 @@ async function wegwerfTagId(userId?: string) {
   return zeile.id;
 }
 
-// Wegwerf-Recht der Testabteilung: Sonderrecht für den Tag-Empfänger
+// Wegwerf-Recht der Testabteilung: Sonderrecht fï¿½r den Tag-Empfï¿½nger
 async function wegwerfBearbeiterId() {
   const [zeile] = await welt.db
     .insert(schema.bearbeiter)
@@ -3089,7 +3126,7 @@ describe("Lager-Matrix: jede Route mal jede Lager-Persona mal jeder Zustand", ()
 
 // Rolle mal Anmeldung fÃ¼r jede Route der Termine-Module (test/termine/matrix/*.ts); die Regeln Ã¼ber alle Zeilen prÃ¼ft test/termine/matrix-regeln.test.ts. Bewusst eine Schleife: Ohne Zeilen ergibt sie keinen Test, statt an einem leeren test.each zu scheitern
 describe("Termine-Matrix: jede Route mal jede Persona", () => {
-  // Hält die Suite auch ohne Zeilen gültig (vitest verlangt einen Test) und belegt, dass die Vorbereitung der Module gelaufen ist
+  // Hï¿½lt die Suite auch ohne Zeilen gï¿½ltig (vitest verlangt einen Test) und belegt, dass die Vorbereitung der Module gelaufen ist
   test("der Kontext der Termine steht", () => {
     expect(termineKontext.welt).toBe(welt);
   });
