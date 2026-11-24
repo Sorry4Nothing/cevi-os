@@ -61,6 +61,10 @@ import {
   type ZeichenDateien,
 } from "./zeichen.js";
 import {
+  DATENSCHUTZ_CEVI_OS_DATEI,
+  rendereDatenschutzCeviOs,
+} from "./datenschutz-cevi-os.js";
+import {
   DATENPLAN_DATEI,
   rendereDatenplan,
   rendereTermineSeiten,
@@ -645,6 +649,7 @@ export async function erzeugeWebsite(
     STYLESHEET,
     ANMELDUNG,
     ...TERMINE_DATEIEN,
+    DATENSCHUTZ_CEVI_OS_DATEI,
     DATENPLAN_DATEI,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
     ...(zeichen ? ZEICHEN_DATEIEN : []),
@@ -720,6 +725,8 @@ export async function erzeugeWebsite(
     [STYLESHEET, opt.stylesheet],
     [ANMELDUNG, rendereAnmeldung(kontext)],
     ...rendereTermineSeiten(kontext),
+    // Die feste Datenschutzseite für Cevi OS (#712): Text im Code, keine Datenbank
+    rendereDatenschutzCeviOs(kontext),
     // Der öffentliche Datenplan (#564) als Datei: Die Seite «Termine» liest sie im Browser
     rendereDatenplan(kontext),
     ...Object.entries(opt.skripte ?? {}).map(
