@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/tagesseiten/:lagertagId/bloecke"
-order: 349000
+order: 401000
 method: POST
-url: "{{baseUrl}}{{pfad_L194}}"
+url: "{{baseUrl}}{{pfad_L198}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

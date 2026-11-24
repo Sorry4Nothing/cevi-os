@@ -5,15 +5,18 @@ import { pruefeDokument } from "../src/website/dokument.js";
 import {
   keineDaten,
   rendereAnmeldung,
-  rendereFehlerseite,
   rendereHuelle,
   rendereSeite,
-  rendereServerfehler,
-  rendereWartung,
   type Daten,
   type Kontext,
 } from "../src/website/rendern.js";
-import { HINWEISSEITE } from "../src/website/sperre.js";
+import {
+  rendereFehlerseite,
+  rendereServerfehler,
+  rendereWartung,
+  stimmungsbild,
+} from "../src/website/fehlerseiten.js";
+import { HINWEIS_STIL, HINWEISSEITE } from "../src/website/sperre.js";
 
 // Design «Cevi Web» (#529): Hülle, Seitentypen, Fehlerseiten, Stilvorlage
 const CSS = readFileSync(
@@ -21,7 +24,15 @@ const CSS = readFileSync(
   "utf8",
 );
 
-const THEMA_SKRIPT = '<script src="/website/theme.js"></script>';
+// Tokens und Schrift (#578): gemeinsam mit der Verwaltung
+const TOKENS = readFileSync(
+  new URL("../public/website/tokens.css", import.meta.url),
+  "utf8",
+);
+
+// Die klassischen Skripte im <head>: Darstellung (#550) und Ladezustand der Bilder (#574)
+const THEMA_SKRIPT =
+  '<script src="/website/theme.js"></script>\n<script src="/website/ladezustand.js"></script>';
 const id = () => randomUUID();
 const b = (typ: string, daten: unknown, extra: object = {}) => ({
   id: id(),
@@ -59,7 +70,7 @@ describe("Hülle", () => {
 
   test("Sprunglink zuerst, ein H1, ein main, Fusszeile mit Datenschutz", () => {
     expect(html.indexOf('class="sprunglink"')).toBeLessThan(
-      html.indexOf("<header>"),
+      html.indexOf("<header"),
     );
     expect(zaehle(html, "<h1")).toBe(1);
     expect(zaehle(html, "<main ")).toBe(1);
@@ -75,9 +86,9 @@ describe("Hülle", () => {
 
   test("Menü am Handy ohne Skript: details, und es gibt kein Skript und keinen Inline-Stil", () => {
     expect(html).toContain('<details class="menue-mobil">');
-    // Einzige Skripte: das Menü (Verbesserung) und theme.js, nie inline
+    // Einzige Skripte: das Menü und das Konto-Menü (Verbesserungen) und theme.js, nie inline
     expect(html.replace(THEMA_SKRIPT, "")).not.toMatch(
-      /<script(?![^>]* src="\/website\/menue\.js")|style=|<style/i,
+      /<script(?![^>]* src="\/website\/(?:menue|konto-menue)\.js")|style=|<style/i,
     );
     expect(html).toContain('<meta name="color-scheme" content="light dark">');
   });
@@ -120,7 +131,7 @@ describe("Startseite und Stufenseite", () => {
     ]),
   };
 
-  test("Startseite: Foto, Text und Schaltflächen bilden das Teaser-Feld mit dem einzigen H1", () => {
+  test("Startseite: Text und Schaltflächen bilden das Teaser-Feld über dem Titelbild, mit dem einzigen H1", () => {
     const html = rendereSeite(
       {
         id: id(),
@@ -144,18 +155,20 @@ describe("Startseite und Stufenseite", () => {
       },
       kontext(daten),
     );
-    expect(html).toContain('<section class="teaser"');
+    expect(html).toContain('<section class="teaser teaser--ueber-bild"');
     expect(html).toContain('<h1 id="h1">Spiel und Natur</h1>');
     expect(zaehle(html, "<h1")).toBe(1);
     // Nur die erste Schaltfläche ist rot
     expect(html).toContain('href="/kontakt" class="btn p gross"');
     expect(html).toContain('href="/termine" class="btn s gross"');
-    expect(html).toContain("<h2>Stufen</h2>");
+    expect(html).toContain('<h2 id="stufen">Stufen</h2>');
     // Der Teaser steht vor dem übrigen Inhalt
-    expect(html.indexOf("teaser")).toBeLessThan(html.indexOf("<h2>Stufen"));
+    expect(html.indexOf("teaser")).toBeLessThan(
+      html.indexOf('<h2 id="stufen">Stufen'),
+    );
   });
 
-  test("Startseite ohne Foto, Text und Schaltfläche: gewöhnlicher Seitenkopf", () => {
+  test("Startseite ohne Text und Schaltfläche: gewöhnlicher Seitentitel", () => {
     const html = rendereSeite(
       {
         id: id(),
@@ -165,10 +178,12 @@ describe("Startseite und Stufenseite", () => {
       kontext(),
     );
     expect(html).not.toContain('class="teaser');
-    expect(html).toContain('<div class="seitenkopf"><h1>Start</h1></div>');
+    expect(html).toContain(
+      '<div class="seitenband"><div class="wrap"><h1>Start</h1></div></div>',
+    );
   });
 
-  test("Stufenseite: Text und Bild vor den Stufenfeldern stehen links, die Felder rechts", () => {
+  test("Stufenseite: Text und Bild vor den Samstagsangaben der Stufen stehen links, die Felder rechts", () => {
     const seiteId = id();
     const d: Daten = {
       ...daten,
@@ -198,13 +213,46 @@ describe("Startseite und Stufenseite", () => {
     );
     expect(links).toContain("Willkommen");
     expect(links).toContain("<img");
-    expect(html.indexOf("<aside")).toBeLessThan(html.indexOf("<h2>Team"));
+    expect(html.indexOf("<aside")).toBeLessThan(
+      html.indexOf('<h2 id="team">Team'),
+    );
     expect(html).toContain(
       '<div class="fakt"><dt>Zeit</dt><dd>14:00 bis 17:00 Uhr</dd></div>',
     );
   });
 
-  test("Stufenfelder ohne Text davor: keine zweite Spalte", () => {
+  test("Mitnehmen (#645): Liste mit maskierten Einträgen, sonst ein Text in Lesegrösse", () => {
+    const seiteId = id();
+    const mitnehmen = (f: object) =>
+      rendereSeite(
+        {
+          id: seiteId,
+          pfad: "/stufen/woelfe",
+          dokument: dok("Wölfe", b("stufenfakten", {})),
+        },
+        kontext({
+          ...keineDaten(),
+          stufenfakten: new Map([
+            [
+              seiteId,
+              [{ bezeichnung: "Mitnehmen", wert: "w", lang: true, ...f }],
+            ],
+          ]),
+        }),
+      );
+    const liste = mitnehmen({ liste: ["Kluft", "<b>Hut</b>"] });
+    expect(liste).toContain(
+      '<div class="fakt fakt--lang"><dt>Mitnehmen</dt><dd><ul class="mitnehmen" role="list"><li>Kluft</li><li>&lt;b&gt;Hut&lt;/b&gt;</li></ul></dd></div>',
+    );
+    expect(liste).not.toContain("<b>Hut");
+    const text = mitnehmen({ wert: "Warme Kleidung & Trinkflasche" });
+    expect(text).toContain(
+      '<div class="fakt fakt--lang"><dt>Mitnehmen</dt><dd>Warme Kleidung &amp; Trinkflasche</dd></div>',
+    );
+    expect(text).not.toContain("mitnehmen");
+  });
+
+  test("Samstagsangaben der Stufen ohne Text davor: keine zweite Spalte", () => {
     const seiteId = id();
     const d: Daten = {
       ...keineDaten(),
@@ -255,42 +303,155 @@ describe("Geschützter Baustein und Hülle (W10)", () => {
   });
 });
 
-describe("Fehler- und Wartungsseiten (W4)", () => {
-  test("404: ein H1, Weg zur Startseite, die Hauptpunkte, noindex", () => {
-    const html = rendereFehlerseite(kontext());
-    expect(zaehle(html, "<h1")).toBe(1);
-    expect(html).toContain("Diese Seite gibt es nicht.");
-    expect(html).toContain(
-      '<a class="btn p gross" href="/">Zur Startseite</a>',
-    );
-    expect(html).toContain('<nav aria-label="Hauptpunkte"');
-    expect(html).toContain("Fehler 404");
+describe("Fehler- und Wartungsseiten (#567)", () => {
+  const mitSeiten = (): Kontext => ({
+    ...kontext(),
+    navigation: [
+      { pfad: "/", titel: "Start", kinder: [] },
+      {
+        pfad: "/mitmachen",
+        titel: "Mitmachen",
+        kinder: [
+          { pfad: "/mitmachen/gruppen", titel: "Unsere Gruppen", kinder: [] },
+        ],
+      },
+    ],
   });
 
-  test("500: ohne Skript, «Nochmals versuchen» ist ein Link auf dieselbe Adresse, nur das Logo im Kopf", () => {
+  test("404: ein H1, die Hauptaktion zur Startseite, Tafeln als Ziele statt des Menüs, noindex", () => {
+    const html = rendereFehlerseite(mitSeiten());
+    expect(zaehle(html, "<h1")).toBe(1);
+    expect(html).toContain("<h1>Falsch abgebogen.</h1>");
+    expect(html).toContain("Diese Seite gibt es nicht.");
+    expect(html).toContain(
+      '<div class="knopfreihe aktionen"><a class="btn p gross" href="/">Zur Startseite</a></div>',
+    );
+    expect(html).not.toContain("Hauptpunkte");
+    expect(html).toContain('<meta name="robots" content="noindex">');
+    expect(html).toContain('href="/website/fehler.css"');
+    expect(html).toContain("Fehler 404");
+    // Die Ziele: die Seite der Gruppen (auch aus einem Untermenü) und die Termine; ohne E-Mail kein Kontakt
+    expect(html).toContain('<nav aria-label="Wohin jetzt?">');
+    expect(html).toContain('<div class="wegweiser">');
+    expect(html).toContain(
+      '<a class="tafel" href="/mitmachen/gruppen"><span class="tafel-ziel">Unsere Gruppen</span>',
+    );
+    expect(html).toContain('<a class="tafel" href="/termine">');
+    expect(zaehle(html, 'class="tafel"')).toBe(2);
+    expect(html).not.toContain("mailto:");
+    expect(html).not.toContain("<img");
+  });
+
+  test("404: mit E-Mail der Abteilung eine Tafel «Schreib uns», mit Stimmungsbild ein Bild ohne Alt-Text", () => {
+    const k = mitSeiten();
+    const id = "00000000-0000-7000-8000-000000000001";
+    const daten = {
+      ...keineDaten(),
+      kontakt: { email: "info@example.org" },
+      medien: new Map([
+        [
+          id,
+          {
+            mimeTyp: "image/webp",
+            groesse: 1,
+            breite: 1600,
+            hoehe: 900,
+            altText: "Gruppe unterwegs",
+          },
+        ],
+      ]),
+    };
+    const html = rendereFehlerseite(
+      { ...k, daten },
+      {
+        id,
+        breite: 1600,
+        hoehe: 900,
+      },
+    );
+    expect(html).toContain(
+      '<a class="tafel" href="mailto:info@example.org"><span class="tafel-ziel">Schreib uns</span>',
+    );
+    expect(html).toContain(
+      `<img class="irr-bild" src="/api/v1/medien/${id}" alt="" width="1600" height="900" decoding="async">`,
+    );
+  });
+
+  test("Stimmungsbild: der erste Baustein der Startseite, wenn er ein öffentliches Bild ist", () => {
+    const id = "00000000-0000-7000-8000-000000000001";
+    const daten = {
+      ...keineDaten(),
+      medien: new Map([
+        [
+          id,
+          {
+            mimeTyp: "image/webp",
+            groesse: 1,
+            breite: 1,
+            hoehe: 1,
+            altText: null,
+          },
+        ],
+      ]),
+    };
+    const bild = (sichtbarkeit: "erbt" | { art: "angemeldet" }) =>
+      ({
+        titel: "Start",
+        bausteine: [
+          {
+            id: "00000000-0000-7000-8000-00000000000a",
+            typ: "bild",
+            sichtbarkeit,
+            tags: [],
+            daten: { mediumId: id },
+          },
+        ],
+      }) as unknown as Parameters<typeof stimmungsbild>[0];
+    expect(stimmungsbild(bild("erbt"), daten)).toEqual({
+      id,
+      breite: 1,
+      hoehe: 1,
+    });
+    expect(stimmungsbild(bild({ art: "angemeldet" }), daten)).toBeUndefined();
+    expect(stimmungsbild(bild("erbt"), keineDaten())).toBeUndefined();
+    expect(stimmungsbild(undefined, daten)).toBeUndefined();
+  });
+
+  test("500: ohne Skript und ohne Bild, «Nochmals versuchen» ist ein Link auf dieselbe Adresse, nur das Logo im Kopf", () => {
     const html = rendereServerfehler(kontext());
     expect(zaehle(html, "<h1")).toBe(1);
-    expect(html).toContain("Bei uns ist etwas schiefgegangen.");
+    expect(html).toContain("Bei uns ist etwas schiefgegangen");
     expect(html).toContain('href="">');
     expect(html).toContain("Nochmals versuchen");
+    expect(html).toContain('<a class="tafel" href="/">');
     expect(html).toContain("Fehler 500");
     expect(html.replace(THEMA_SKRIPT, "")).not.toMatch(/<script/);
+    expect(html).not.toContain("/api/");
     expect(html).not.toContain('class="leiste"');
     expect(html).toContain('<meta name="robots" content="noindex">');
   });
 
-  test("Wartung: «Wir sind gleich wieder da.», Fehler 503", () => {
+  test("Wartung: «Wir sind gleich wieder da.», ein Schild ohne Link, Fehler 503", () => {
     const html = rendereWartung(kontext());
     expect(zaehle(html, "<h1")).toBe(1);
     expect(html).toContain("Wir sind gleich wieder da.");
+    expect(html).toContain('<span class="tafel tafel--schild">');
+    expect(html).toContain('<div class="wegweiser">');
     expect(html).toContain("Fehler 503");
+    expect(html).not.toContain("/api/");
     expect(html).not.toContain('class="leiste"');
   });
 
-  test("Sperrseite: neutral, mit Tag und Nacht, ohne Skript und fremde Adresse", () => {
-    expect(HINWEISSEITE).toContain("prefers-color-scheme: dark");
+  test("Sperrseite: neutral, mit Tag und Nacht, ohne Skript, Inline-Stil und fremde Adresse", () => {
+    expect(HINWEIS_STIL).toContain("prefers-color-scheme: dark");
     expect(HINWEISSEITE).toContain("Vorübergehend nicht erreichbar");
-    expect(HINWEISSEITE).not.toMatch(/<script|https?:\/\//);
+    expect(HINWEISSEITE).toContain(
+      '<link rel="stylesheet" href="/gesperrt.css">',
+    );
+    expect(HINWEISSEITE).toContain('<a href="">Nochmals versuchen</a>');
+    expect(HINWEISSEITE + HINWEIS_STIL).not.toMatch(
+      /<script|<style|style=|https?:\/\//,
+    );
   });
 });
 
@@ -313,8 +474,8 @@ describe("Anmeldeseite (W9)", () => {
   test("ohne Skript: Hinweis im noscript; ein H1; nur eigenes Skript", () => {
     expect(html).toContain("<noscript>");
     expect(zaehle(html, "<h1")).toBe(1);
-    // Menü, theme.js und anmelden.js, alle eigene Dateien
-    expect(zaehle(html, "<script")).toBe(3);
+    // Menü, Konto-Menü, theme.js, ladezustand.js und anmelden.js, alle eigene Dateien
+    expect(zaehle(html, "<script")).toBe(5);
     expect(html).toContain('src="/website/anmelden.js"');
   });
 });
@@ -324,15 +485,36 @@ describe("Stilvorlage", () => {
     expect(CSS).toContain("@media (prefers-color-scheme: dark)");
     expect(CSS).toContain("@media (prefers-reduced-motion: no-preference)");
     expect(CSS).toContain("@media (forced-colors: active)");
-    // Beide Werte der Markenfarben als Text: Rot in der Nacht heller
-    expect(CSS).toMatch(/--primary-text: #d50038/);
-    expect(CSS).toMatch(/--primary-text: #ff7a93/);
+    // Beide Werte der Markenfarben als Text: Rot in der Nacht heller (die Tokens stehen in tokens.css, #578)
+    expect(TOKENS).toContain("@media (prefers-color-scheme: dark)");
+    expect(TOKENS).toMatch(/--primary-text: #d50038/);
+    expect(TOKENS).toMatch(/--primary-text: #ff7a93/);
+  });
+
+  test("Mitnehmen (#645): Lesegrösse und normale Stärke, höchstens zwei Spalten, Haken gezeichnet ohne Bild", () => {
+    const regel = (wahl: string) => {
+      const von = CSS.indexOf(`
+${wahl} {`);
+      return von < 0 ? "" : CSS.slice(von, CSS.indexOf("}", von));
+    };
+    const lang = regel(".fakten.karte .fakt--lang dd");
+    expect(lang).toContain("font-weight: 400");
+    expect(lang).toContain("font-size: 1.125rem");
+    const liste = regel(".mitnehmen");
+    expect(liste).toContain("list-style: none");
+    expect(liste).toContain("column-count: 2");
+    expect(regel(".mitnehmen li::before")).toContain(
+      "border-width: 0 2px 2px 0",
+    );
   });
 
   test("nichts von aussen: keine Adresse, kein @import, keine Daten-URL; url() nur für die eigene Schrift", () => {
     expect(CSS).not.toMatch(/https?:\/\/|@import/);
-    expect([...CSS.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual([
-      '"/website/archivo-latin.woff2"',
+    expect(TOKENS).not.toMatch(/https?:\/\/|@import/);
+    expect([...CSS.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual([]);
+    // Die Schrift steht in tokens.css mit relativer Adresse: gilt neben /website/ und neben /admin/
+    expect([...TOKENS.matchAll(/url\(([^)]*)\)/g)].map((m) => m[1])).toEqual([
+      '"archivo-latin.woff2"',
     ]);
   });
 
@@ -346,11 +528,32 @@ describe("Stilvorlage", () => {
     expect(ausserhalb).not.toMatch(/rgba?\(/);
   });
 
-  test("Bewegung nur unter no-preference: kein animation ausserhalb", () => {
+  test("Bewegung nur unter no-preference: kein animation und kein transition ausserhalb", () => {
+    // Jeder Block der obersten Ebene, der nur ohne «Bewegung reduzieren» gilt (auch «screen and …»)
     const ohne = CSS.replace(
-      /@media \(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/,
+      /@media (screen and )?\(prefers-reduced-motion: no-preference\) \{[\s\S]*?\n\}\n/g,
       "",
     );
-    expect(ohne).not.toMatch(/animation:/);
+    // Einzige Ausnahme (#574): bei reduzierter Bewegung hält eine Animation von 0.01 s die Skelette 150 ms zurück; sie bewegt nichts
+    const reduziert = [
+      ...ohne.matchAll(
+        /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\n\}\n/g,
+      ),
+    ].map((m) => m[0]);
+    expect(reduziert.length).toBeGreaterThan(0);
+    for (const block of reduziert) {
+      for (const z of block.match(/animation:.*/g) ?? []) {
+        expect(z).toMatch(/^animation: skelett-(ein|grund) 0\.01s /);
+      }
+    }
+    const rest = reduziert.reduce((t, bl) => t.replace(bl, ""), ohne);
+    expect(rest).not.toMatch(/animation:|transition:/);
+  });
+
+  test("Bewegung hat eine Kurve und zwei Dauern als Tokens; Einblenden beim Scrollen nur, wo der Browser es kann", () => {
+    expect(TOKENS).toMatch(/--kurve: cubic-bezier\(/);
+    expect(TOKENS).toMatch(/--dauer: 0\.2s/);
+    expect(TOKENS).toMatch(/--dauer-lang: 0\.5s/);
+    expect(CSS).toContain("@supports (animation-timeline: view())");
   });
 });

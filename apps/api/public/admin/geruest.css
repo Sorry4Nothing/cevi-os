@@ -1,33 +1,89 @@
-/* Gerüst der Verwaltung nach dem Design «Cevi Web» (A1, A2, A30, G4): Logozeile, Bereichsleiste, Unterleiste, Zustände auf der ganzen Seite, Rückmeldungen. Farben nur aus den Tokens in admin.css. */
+/* Gerüst der Verwaltung (#578, vorher Design «Cevi Web» A1, A2, A30, G4): Kopf mit Leisten im Stil der Website, Zustände auf der ganzen Seite, Rückmeldungen. Farben nur aus den Tokens (tokens.css). */
+
+/* Kopf wie auf der Website (#578, Vorlage: website/kopf.css): ein Band auf weisser Fläche mit der Marke, dem Namen des Bereichs «Verwaltung» und rechts Konto, Umschalter Hell/Dunkel und «Abmelden»; darunter eine Zeile Navigation mit ruhigen Wörtern und einem roten Strich unter dem aktuellen Bereich, dann die Unterleiste auf der Fläche der Seite. Dieselben Masse, dieselbe Schrift, dieselben Tokens.
+   Wie auf der Website bleibt beim Scrollen nur die Zeile der Navigation oben stehen: Kopf und Leisten sind Geschwister im Gerüst (display: contents), damit die Navigation haften kann. */
+
+.kopfzeile,
+.leisten {
+  display: contents;
+}
+
+/* Höhen der Leisten wie auf der Website (#667, Vorlage: website/kopf.css): Logozeile und Bereichsleiste sind ab 106 em je 4.5rem hoch (wie die eine Zeile des Kopfs der Website bei langen Titeln, kopf--weit), darunter 4rem und 3rem plus Linien (wie die zwei Zeilen der Website); die Unterleiste ist 44 px plus Linie hoch. Linien sind eingerechnet (border-box). Am Handy sind Logozeile und Bereichsauswahl je 4rem hoch (wie das Band der Website). --leiste-hoehe ist die Höhe der haftenden Leiste, für Abstände nach oben. */
+:root {
+  --logozeile-hoehe: 4rem;
+  --nav-hoehe: calc(3rem + 2px);
+  --unter-hoehe: calc(2.75rem + 1px);
+  --leiste-hoehe: var(--nav-hoehe);
+}
+
+@media (min-width: 106em) {
+  :root {
+    --logozeile-hoehe: 4.5rem;
+    --nav-hoehe: 4.5rem;
+  }
+}
+
+@media (max-width: 960px) {
+  :root {
+    --nav-hoehe: 4rem;
+  }
+}
 
 .breite {
   display: flex;
   align-items: center;
-  gap: 16px;
-  max-width: 1344px;
+  gap: 1rem;
+  max-width: var(--seitenbreite);
   margin: 0 auto;
-  padding: 0 48px;
+  padding: 0 var(--seitenrand);
 }
 
 /* Logozeile */
 
+.logozeile,
+.bereichsleiste,
+.unterleiste {
+  box-sizing: border-box;
+}
+
 .logozeile {
-  background: var(--karte);
+  height: var(--logozeile-hoehe);
+}
+
+.bereichsleiste {
+  height: var(--nav-hoehe);
+}
+
+.unterleiste {
+  height: var(--unter-hoehe);
+}
+
+.logozeile {
+  background: var(--surface-container-low);
+}
+
+.logozeile .breite,
+.bereichsleiste .breite,
+.unterleiste .breite {
+  height: 100%;
 }
 
 .logozeile .breite {
-  min-height: 80px;
+  column-gap: clamp(1rem, 2vw, 2.5rem);
 }
 
+/* Marke: ohne Logo die Wortmarke, mit Logo das Bild (hell und dunkel wie im Kopf der Website) */
 .marke {
   display: inline-flex;
+  flex: none;
   align-items: baseline;
-  gap: 10px;
+  gap: 0.625rem;
+  color: var(--on-surface);
   text-decoration: none;
 }
 
 .marke b {
-  color: var(--text);
+  color: var(--on-surface);
   font-size: 1.75rem;
   line-height: 1.75rem;
   font-weight: 900;
@@ -35,24 +91,262 @@
 }
 
 .marke span {
-  color: var(--rot-text);
+  color: var(--primary-text);
   font-size: 1.125rem;
   font-weight: 700;
 }
 
+.marke--logo {
+  align-items: center;
+  min-height: var(--logozeile-hoehe);
+}
+
+/* Logo wie auf der Website: 2.25rem am Computer, darunter 1.875rem */
+.logo {
+  display: block;
+  width: auto;
+  height: 2.25rem;
+}
+
+/* Nur eine Fassung: im dunklen Modus auf einem hellen Feld (--logo-grund ist am Tag durchsichtig) */
+.marke--logo:not(.marke--zwei) .logo {
+  box-sizing: content-box;
+  padding: 0.25rem 0.5rem;
+  margin-left: -0.5rem;
+  border-radius: 0.375rem;
+  background: var(--logo-grund);
+}
+
+.logo--dunkel {
+  display: none;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .logo--hell {
+    display: none;
+  }
+
+  :root:not([data-theme="light"]) .logo--dunkel {
+    display: block;
+  }
+}
+
+:root[data-theme="dark"] .logo--hell {
+  display: none;
+}
+
+:root[data-theme="dark"] .logo--dunkel {
+  display: block;
+}
+
 .bereichname {
-  padding-left: 16px;
-  color: var(--leise);
-  border-left: 1px solid var(--rand-leise);
+  padding-left: 1rem;
+  color: var(--on-surface-variant);
+  border-left: 1px solid var(--outline-variant);
   font-size: 0.9375rem;
   font-weight: 700;
 }
 
-.konto {
+/* «Verwaltung» im Kopf ist ein Link zur Übersicht der Verwaltung (#669); das Logo führt zur Website */
+a.bereichname {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  text-decoration: none;
+}
+
+a.bereichname:hover {
+  color: var(--text);
+  text-decoration: underline;
+}
+
+.kopf-rechts {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 0.75rem;
   margin-left: auto;
+}
+
+/* Das Profil im Kopf öffnet das Konto-Menü (#669, Aufbau wie auf der Website): Bild, Name und Rolle, Fläche mindestens 44 px */
+.konto-menue {
+  position: relative;
+}
+
+.konto {
+  display: flex;
+  cursor: pointer;
+  list-style: none;
+  align-items: center;
+  gap: 0.5rem;
+  box-sizing: border-box;
+  min-width: 0;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  /* Rand, Pillenform, Höhe und Zeigen wie «Suchen» und der Umschalter (.logozeile .knopf, .thema) */
+  border: 1px solid var(--outline);
+  color: var(--text);
+  border-radius: var(--r-full);
+  text-decoration: none;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve),
+    border-color var(--dauer) var(--kurve);
+}
+
+.konto .ava {
+  width: 2.125rem;
+  height: 2.125rem;
+  font-size: 0.8125rem;
+}
+
+.konto::-webkit-details-marker {
+  display: none;
+}
+
+.konto .i {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform var(--dauer) var(--kurve);
+}
+
+.konto-menue[open] > .konto .i {
+  transform: rotate(180deg);
+}
+
+/* Zeigen und geöffnet: blau gefüllt wie «Suchen» beim Zeigen; Rolle und Bild bleiben lesbar */
+.konto:hover,
+.konto-menue[open] > .konto {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.konto:hover .leise,
+.konto-menue[open] > .konto .leise {
+  color: var(--on-secondary-muted);
+}
+
+.konto:hover .ava,
+.konto-menue[open] > .konto .ava {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+/* Die Seite «Mein Konto» ist offen */
+.konto--hier {
+  box-shadow: inset 0 0 0 2px var(--blau);
+}
+
+.konto-tafel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 16rem;
+  max-width: calc(100vw - 2 * var(--seitenrand));
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--surface-container-low);
+  box-shadow: var(--schatten);
+}
+
+.konto-kopf {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.konto-kopf .ava {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1rem;
+}
+
+.konto-kopf p {
+  min-width: 0;
+}
+
+.konto-kopf p strong,
+.konto-kopf p span {
+  display: block;
+}
+
+.konto-kopf p strong {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.konto-kopf p span {
+  color: var(--on-surface-variant);
+  font-size: 0.875rem;
+}
+
+.konto-liste {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.konto-liste a,
+.konto-liste button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve);
+}
+
+.konto-liste a:hover,
+.konto-liste button:hover {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.konto-liste a[aria-current="page"] {
+  box-shadow: inset 0 0 0 2px var(--blau);
+}
+
+.konto-liste [aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.konto-meldung {
+  padding: 0.5rem 0.75rem 0.25rem;
+  color: var(--on-error-container);
+  font-size: 0.9375rem;
+}
+
+.konto-meldung:empty {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  .konto-tafel {
+    border: 1px solid CanvasText;
+  }
+
+  .konto-menue[open] > .konto {
+    border: 3px solid Highlight;
+  }
 }
 
 .konto-text {
@@ -66,105 +360,217 @@
   overflow-wrap: anywhere;
 }
 
-/* Bereichsleiste: blau, aktiver Bereich mit rotem Strich und fetter Schrift */
+/* «Suchen» und «Abmelden»: Knöpfe mit Rand, nie so laut wie die Hauptaktion; Mass, Schrift und Zeigen wie «Anmelden» auf der Website (44 px hoch, 1rem, Gewicht 600, Innenabstand 0.875rem links und 1.125rem rechts) */
+.logozeile .knopf {
+  min-height: 2.75rem;
+  padding: 0 1.125rem 0 0.875rem;
+  border-color: var(--outline);
+  border-radius: var(--r-full);
+  font-size: 1rem;
+  font-weight: 600;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve),
+    border-color var(--dauer) var(--kurve);
+}
+
+.logozeile .knopf:hover {
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
+  filter: none;
+}
+
+/* Der Umschalter: zwei runde Knöpfe nur mit Symbol (Hell, Dunkel); ohne Skript bleibt er verborgen (hidden) */
+.thema {
+  display: flex;
+  padding: 0.125rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+}
+
+.thema button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--on-surface);
+  cursor: pointer;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve);
+}
+
+.thema button .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.thema button:hover {
+  background: var(--surface-container-high);
+}
+
+/* Gewählt: gefüllt und mit innerem Ring; Fläche und Ring sind ein Formunterschied, nicht nur eine andere Farbe */
+.thema button[aria-pressed="true"] {
+  background: var(--secondary);
+  box-shadow: inset 0 0 0 2px var(--on-secondary);
+  color: var(--on-secondary);
+}
+
+.thema button:focus-visible {
+  outline-offset: 3px;
+}
+
+/* Navigation: die Bereiche. Ruhige Wörter; der rote Strich zeigt, wo man ist, und wächst beim Zeigen von links (wie hauptnav auf der Website). Die Unterleiste zeigt die Unterseiten des aktiven Bereichs auf der Fläche der Seite; sie scrollt mit dem Inhalt weg. Beide teilen Schrift, Abstände und Strich. */
 
 .bereichsleiste {
-  background: var(--blau);
-  color: var(--auf-blau);
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  border-top: 1px solid var(--outline-variant);
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+}
+
+.unterleiste {
+  border-bottom: 1px solid var(--outline-variant);
+  background: var(--surface);
+}
+
+.bereichsleiste .breite,
+.unterleiste .breite {
+  gap: 0;
+  align-items: stretch;
 }
 
 .bereichsleiste ul,
 .unterleiste ul {
   display: flex;
-  margin: 0;
+  margin: 0 0 0 -0.75rem;
   padding: 0;
   list-style: none;
 }
 
-.bereichsleiste a {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 52px;
-  padding: 0 14px;
-  color: var(--auf-blau);
-  font-size: 1rem;
-  font-weight: 500;
-  text-decoration: none;
-  white-space: nowrap;
+.bereichsleiste li,
+.unterleiste li {
+  display: flex;
 }
 
-.bereichsleiste a:hover {
-  background: var(--erhoben);
-  color: var(--text);
-}
-
-.bereichsleiste a[aria-current="page"] {
-  font-weight: 700;
-  box-shadow: inset 0 -4px 0 var(--rot);
-}
-
-/* Unterleiste: die Unterseiten des aktiven Bereichs, Zähler als rote Pille */
-
-.unterleiste {
-  background: var(--leiste);
-  border-bottom: 1px solid var(--rand-leise);
-}
-
-.unterleiste .breite {
-  gap: 4px;
-}
-
+.bereichsleiste a,
 .unterleiste a {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 14px;
-  color: var(--leise);
-  font-size: 0.9375rem;
-  font-weight: 700;
+  gap: 0.5rem;
+  padding: 0 0.75rem;
+  color: var(--on-surface);
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
   text-decoration: none;
   white-space: nowrap;
+}
+
+/* Hauptnavigation wie .hauptnav der Website: roter Strich unter dem aktiven Punkt, wächst beim Zeigen von links */
+.bereichsleiste a::before {
+  position: absolute;
+  right: 0.75rem;
+  bottom: -1px;
+  left: 0.75rem;
+  height: 3px;
+  background: var(--primary);
+  content: "";
+  transform: scaleX(0);
+  transform-origin: left;
+  transition: transform var(--dauer) var(--kurve);
+}
+
+.bereichsleiste a:hover::before,
+.bereichsleiste a:focus-visible::before,
+.bereichsleiste a[aria-current]::before {
+  transform: scaleX(1);
+}
+
+.bereichsleiste a[aria-current],
+.unterleiste a[aria-current="page"] {
+  color: var(--titel);
+  font-weight: 800;
+}
+
+/* Unterleiste wie .unterleiste der Website: leiser (0.9375rem, Gewicht 500), beim Zeigen unterstrichen, der aktive Punkt mit rotem Strich unten */
+.unterleiste a {
+  font-size: 0.9375rem;
+  font-weight: 500;
 }
 
 .unterleiste a:hover {
-  color: var(--text);
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 4px;
 }
 
 .unterleiste a[aria-current="page"] {
-  color: var(--text);
-  box-shadow: inset 0 -3px 0 var(--rot);
+  font-weight: 800;
+  box-shadow: inset 0 -3px 0 var(--primary);
 }
 
-/* Zähler: rote Pille mit weisser Zahl (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1) */
+/* Im schmalsten Fenster mit Leisten rücken die Punkte zusammen (wie .hauptnav unter 72 em) */
+@media (min-width: 961px) and (max-width: 71.99em) {
+  .bereichsleiste a {
+    padding-inline: 0.5rem;
+    font-size: 0.9375rem;
+  }
+
+  .bereichsleiste ul {
+    margin-left: -0.5rem;
+  }
+
+  .bereichsleiste a::before {
+    right: 0.5rem;
+    left: 0.5rem;
+  }
+}
+
+/* Zähler: roter Kreis mit weisser Zahl, Zahl mittig (Fläche, nicht Text: 5.4:1 im Tag, 3.2:1 gegen die Leiste in der Nacht, die Zahl selbst 5.4:1). Ein- und zweistellig immer rund; die Zahl steht über line-height und grid in der Mitte (mehr als 99 offene Punkte kommen nicht vor) */
 .pille-zaehler {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 24px;
-  height: 22px;
-  padding: 0 7px;
+  display: inline-grid;
+  flex: none;
+  place-items: center;
+  box-sizing: border-box;
+  width: 24px;
+  height: 24px;
+  padding: 0;
   background: var(--rot);
   color: var(--auf-rot);
-  border-radius: 9999px;
+  border-radius: 50%;
   font-size: 0.75rem;
+  line-height: 1;
   font-weight: 800;
   font-variant-numeric: tabular-nums;
+  text-align: center;
 }
 
-/* Fokus auf der blauen Leiste: weisser Ring, damit er vom Blau absticht */
-.bereichsleiste a:focus-visible {
-  outline-color: var(--auf-blau);
+.bereichsleiste a:focus-visible,
+.unterleiste a:focus-visible {
   outline-offset: -3px;
 }
 
 @media (max-width: 1100px) {
-  .breite {
-    padding: 0 24px;
+  /* Name und Rolle bleiben für Screenreader, weichen aber dem Platz (A2) */
+  .konto {
+    padding-right: 0.25rem;
   }
 
-  /* Name und Rolle bleiben für Screenreader, weichen aber dem Platz (A2) */
+  .konto .i {
+    display: none;
+  }
+
   .konto-text {
     position: absolute;
     width: 1px;
@@ -173,38 +579,693 @@
     clip-path: inset(50%);
     white-space: nowrap;
   }
-
-  .bereichsleiste a {
-    padding: 0 9px;
-    font-size: 0.9375rem;
-  }
 }
 
-@media (max-width: 760px) {
-  .breite {
-    padding: 0 16px;
-  }
-
-  .logozeile .breite {
-    min-height: 64px;
-    flex-wrap: wrap;
-    padding-block: 8px;
-  }
-
-  .bereichname {
+/* Wo die Bereichsauswahl übernimmt (bis 960 px), bleibt die Logozeile eine Zeile: Konto, Suche und Umschalter zeigen nur Symbole (Namen bleiben für Screenreader), «Verwaltung» entfällt. So ist sie ebenso hoch wie die Zeile der Bereichsauswahl darunter. */
+@media (max-width: 960px) {
+  a.bereichname {
     display: none;
   }
 
-  /* Die Leisten laufen waagrecht: Ziele bleiben 44 px hoch und mit dem Daumen erreichbar */
-  .bereichsleiste,
-  .unterleiste {
-    overflow-x: auto;
+  .logo {
+    height: 1.875rem;
   }
 
-  .bereichsleiste .breite,
-  .unterleiste .breite {
-    width: max-content;
-    min-width: 100%;
+  .palette-knopf-text,
+  .palette-kuerzel {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .logozeile .knopf {
+    justify-content: center;
+    min-width: 2.75rem;
+    padding-inline: 0;
+  }
+}
+
+/* Am Handy hat die Logozeile mehr Knöpfe als der Kopf der Website (Konto, Suche, «Abmelden», Umschalter): Das Logo ist darum etwas kleiner, damit alles in eine Zeile passt */
+@media (max-width: 760px) {
+  .logo {
+    height: 1.625rem;
+  }
+
+  .kopf-rechts {
+    gap: 0.5rem;
+  }
+}
+
+/* Schmal bleibt von der Marke das Wort «CEVI»; der Name der Abteilung steht in der Bereichsauswahl nicht, er ist für Screenreader noch da */
+@media (max-width: 520px) {
+  .marke:not(.marke--logo) span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .logozeile .breite {
+    column-gap: 0.25rem;
+  }
+
+  .kopf-rechts {
+    gap: 0.25rem;
+  }
+
+  .marke b {
+    font-size: 1.5rem;
+    line-height: 1.5rem;
+  }
+}
+
+/* Bereichsauswahl (nur schmal, Prinzip «Workspace-Switcher»): eine Zeile mit dem aktuellen Ort, die beim Öffnen zum Panel wächst. Sie ersetzt unter 960 px beide Leisten; am Computer ist sie verborgen */
+
+.bereichswahl {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .bereichsleiste,
+  .unterleiste {
+    display: none;
+  }
+
+  .bereichswahl {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    display: block;
+    border-top: 1px solid var(--outline-variant);
+    border-bottom: 1px solid var(--outline-variant);
+    background: var(--surface-container-low);
+    color: var(--on-surface);
+  }
+
+  .bereichswahl-zeile {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    width: 100%;
+    min-height: calc(var(--leiste-hoehe) - 2px);
+    padding: 0 var(--seitenrand);
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+
+  .bereichswahl-zeile:focus-visible,
+  .bereichswahl a:focus-visible {
+    outline-offset: -3px;
+  }
+
+  .bereichswahl-text {
+    display: flex;
+    flex: 1;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 0.5rem;
+    min-width: 0;
+    font-size: 1rem;
+  }
+
+  .bereichswahl-text b {
+    color: var(--titel);
+    font-weight: 800;
+  }
+
+  /* Die Unterseite steht leise hinter dem Bereich; der Trenner kommt aus dem Stil, nicht aus dem Text */
+  .bereichswahl-text b + span::before {
+    margin-right: 0.5rem;
+    color: var(--leise);
+    content: "/";
+  }
+
+  .bereichswahl-zeile > .i:last-child {
+    flex: none;
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .bereichswahl--offen .bereichswahl-zeile > .i:last-child {
+    transform: rotate(180deg);
+  }
+
+  /* Das Panel wächst aus der Zeile: Höhe von 0 auf die Höhe des Inhalts, das geschlossene ist inert (kein Fokus, nicht vorgelesen) */
+  .bereichswahl-panel {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+  }
+
+  .bereichswahl--offen .bereichswahl-panel {
+    grid-template-rows: 1fr;
+    visibility: visible;
+  }
+
+  .bereichswahl-innen {
+    min-height: 0;
+    max-height: calc(100dvh - 8.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
+  .bereichswahl ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+
+  .bereichswahl nav {
+    padding: 0 0 0.5rem;
+    border-top: 1px solid var(--outline-variant);
+  }
+
+  .bereichswahl a {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    min-height: 2.75rem;
+    padding: 0 var(--seitenrand);
+    color: var(--on-surface);
+    font-size: 1rem;
+    font-weight: 600;
+    text-decoration: none;
+  }
+
+  .bereichswahl a > span:not(.pille-zaehler) {
+    flex: 1;
+  }
+
+  .bereichswahl a:hover {
+    background: var(--surface);
+  }
+
+  .bereichswahl a[aria-current="page"] {
+    box-shadow: inset 3px 0 0 var(--primary);
+    color: var(--titel);
+    font-weight: 800;
+  }
+
+  .bereichswahl-unter a {
+    min-height: 2.75rem;
+    padding-left: calc(var(--seitenrand) + 2.25rem);
+    font-size: 0.9375rem;
+    font-weight: 500;
+  }
+
+  .bereichswahl-unter a[aria-current="page"] {
+    font-weight: 800;
+  }
+}
+
+@media (max-width: 960px) and (prefers-reduced-motion: no-preference) {
+  .bereichswahl-panel {
+    transition:
+      grid-template-rows var(--dauer-lang) var(--kurve),
+      visibility 0s linear var(--dauer-lang);
+  }
+
+  .bereichswahl--offen .bereichswahl-panel {
+    transition-delay: 0s;
+  }
+}
+
+@media (forced-colors: active) {
+  .bereichswahl a[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+  }
+}
+
+/* Knopf «Suchen» im Kopf (befehlspalette.js): Symbol, Wort und Kürzel; schmal nur das Symbol */
+
+.palette-knopf {
+  gap: 0.5rem;
+}
+
+.palette-kuerzel,
+.palette-fuss kbd {
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--leise);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+/* Suche (befehlspalette.js, Strg oder Cmd + K): eine Karte oben, so breit wie der Inhalt der Website (--seitenbreite und --seitenrand, die Werte von .wrap), über abgedunkeltem Grund. Oben das Feld, darunter Reiter mit Zahlen und die Treffer in Gruppen; jede Zeile trägt die Angaben, an denen man den Treffer erkennt (Aufbau nach Kokonut «Action Search Bar» und «Team Member List», eigene Klassen). */
+
+.palette {
+  --palette-rand: var(--seitenrand);
+  --palette-oben: clamp(0.75rem, 7vh, 4.5rem);
+  width: 100%;
+  max-width: min(var(--seitenbreite), 100%);
+  max-height: none;
+  margin: 0 auto auto;
+  padding: var(--palette-oben) var(--palette-rand) 0;
+  overflow: visible;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.palette::backdrop {
+  background: var(--schleier);
+}
+
+.palette-karte {
+  display: flex;
+  flex-direction: column;
+  max-height: min(50rem, calc(100dvh - var(--palette-oben) - 1rem));
+  overflow: hidden;
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  box-shadow: var(--schatten);
+}
+
+.palette-kopf {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 0.5rem 0 1.25rem;
+  border-bottom: 1px solid var(--rand-leise);
+  color: var(--leise);
+}
+
+.palette-kopf > .i {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+.palette-kopf:focus-within {
+  box-shadow: inset 0 -3px 0 var(--primary);
+}
+
+.palette-eingabe {
+  flex: 1;
+  min-width: 0;
+  min-height: 4rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.palette-eingabe::placeholder {
+  color: var(--leise);
+  font-weight: 400;
+  opacity: 1;
+}
+
+.palette-eingabe:focus-visible {
+  outline: none;
+}
+
+.palette-icon {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--leise);
+  cursor: pointer;
+}
+
+.palette-icon:hover {
+  background: var(--leiste);
+  color: var(--text);
+}
+
+.palette-esc,
+.palette-fuss kbd {
+  padding: 0.125rem 0.375rem;
+  border: 1px solid var(--rand-leise);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--leise);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.palette-reiter {
+  display: flex;
+  flex: none;
+  gap: 0.25rem;
+  padding: 0.5rem 1rem;
+  overflow-x: auto;
+  border-bottom: 1px solid var(--rand-leise);
+}
+
+.palette-reiter-knopf {
+  flex: none;
+  min-height: 44px;
+  padding: 0 1rem;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: var(--leise);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.palette-reiter-knopf:hover {
+  color: var(--text);
+}
+
+.palette-reiter-knopf[aria-selected="true"] {
+  background: var(--erhoben);
+  color: var(--text);
+}
+
+.palette-reiter-knopf .n {
+  font-weight: 400;
+}
+
+.palette-koerper {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.25rem 0.5rem 0.75rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.palette-tipp {
+  padding: 0.75rem;
+  color: var(--leise);
+}
+
+.palette-gruppenkopf {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 0.75rem 0.25rem;
+  background: var(--karte);
+  color: var(--leise);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.palette-gruppenkopf .i {
+  width: 16px;
+  height: 16px;
+}
+
+/* Eine Zeile hat fünf Felder: Bild oder Symbol, Titel mit Zusatz, Angabe, Chips, Zustand. Schmal stehen sie untereinander. */
+.palette-eintrag {
+  scroll-margin-top: 2.5rem;
+  display: grid;
+  grid-template-columns:
+    2.5rem minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.5fr)
+    12rem;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  min-height: 3.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.palette-eintrag[aria-selected="true"] {
+  background: var(--surface);
+  box-shadow: inset 4px 0 0 var(--primary);
+}
+
+.pz-links {
+  grid-column: 1;
+  display: flex;
+}
+
+.pz-haupt {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.pz-meta {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+.pz-chips {
+  grid-column: 4;
+  min-width: 0;
+}
+
+.pz-status {
+  grid-column: 5;
+  justify-self: end;
+}
+
+.pz-status .chips {
+  justify-content: flex-end;
+}
+
+.pz-titel {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.pz-zusatz {
+  color: var(--leise);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.pz-adresse {
+  font-family: var(--mono);
+  font-size: 0.8125rem;
+}
+
+.pz-zahl {
+  color: var(--leise);
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+.pz-symbol {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-sm);
+  background: var(--leiste);
+  color: var(--leise);
+}
+
+.pz-symbol .i {
+  width: 20px;
+  height: 20px;
+}
+
+/* Kachel mit Tag und Monat eines Termins */
+.pz-datum {
+  display: inline-flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: var(--r-sm);
+  background: var(--leiste);
+  color: var(--text);
+  line-height: 1.05;
+}
+
+.pz-datum-tag {
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.pz-datum-monat {
+  color: var(--leise);
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.pz-zeile {
+  display: block;
+}
+
+/* Treffer im Text: getönter Grund und kräftiger, nie nur Farbe */
+.palette-treffer {
+  border-radius: 3px;
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
+  color: inherit;
+  font-weight: 800;
+}
+
+.palette-eintrag.palette-mehr {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3rem;
+  color: var(--akzent);
+  font-weight: 700;
+}
+
+.palette-eintrag.palette-mehr .i {
+  width: 20px;
+  height: 20px;
+}
+
+.palette-lade,
+.palette-fehler {
+  margin: 0.5rem 0.25rem 0;
+}
+
+.palette-lade-text {
+  padding: 0.25rem 0.5rem;
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.palette-skelett {
+  display: block;
+  height: 3.5rem;
+  margin: 0.25rem 0;
+  border-radius: 12px;
+  background: var(--skeleton);
+}
+
+.palette-fehler {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 12px;
+  background: var(--fe-f);
+  color: var(--fe);
+  font-weight: 700;
+}
+
+.palette-fuss {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.5rem;
+  margin: 0;
+  padding: 0.625rem 1.25rem;
+  border-top: 1px solid var(--rand-leise);
+  color: var(--leise);
+  font-size: 0.8125rem;
+}
+
+.palette-fuss kbd + kbd {
+  margin-left: 0.25rem;
+}
+
+@media (max-width: 56rem) {
+  .palette-eintrag {
+    grid-template-columns: 2.5rem minmax(0, 1fr);
+  }
+
+  .pz-links {
+    grid-row: 1;
+    align-self: start;
+  }
+
+  .pz-haupt,
+  .pz-meta,
+  .pz-chips,
+  .pz-status {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .pz-status .chips {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 40rem) {
+  .palette-esc,
+  .palette-fuss {
+    display: none;
+  }
+
+  .palette-eingabe {
+    font-size: 1.125rem;
+  }
+}
+
+/* Ohne Tastatur braucht niemand die Tastenhilfe */
+@media (hover: none) and (pointer: coarse) {
+  .palette-fuss {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .palette[open] .palette-karte {
+    animation: palette-ein var(--dauer) var(--kurve);
+  }
+
+  .palette-skelett {
+    animation: palette-puls 1.6s ease-in-out infinite;
+  }
+
+  @keyframes palette-ein {
+    from {
+      opacity: 0;
+      transform: translateY(-0.5rem);
+    }
+  }
+
+  @keyframes palette-puls {
+    50% {
+      opacity: 0.55;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .palette-karte {
+    border-color: CanvasText;
+  }
+
+  .palette-eintrag[aria-selected="true"],
+  .palette-reiter-knopf[aria-selected="true"] {
+    outline: 2px solid Highlight;
+  }
+
+  .palette-treffer {
+    outline: 1px solid CanvasText;
   }
 }
 
@@ -246,7 +1307,17 @@
   font-weight: 700;
 }
 
-/* Rückmeldungen: gestapelt, jede mit «Hinweis schliessen»; nichts verschwindet von selbst */
+/* Rückmeldungen: gestapelt, jede mit «Hinweis schliessen». Erfolg und Info gehen nach 6 Sekunden von selbst (rahmen.js), Warnung und Fehler bleiben */
+
+.rueckmeldung .hinweis--geht {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rueckmeldung .hinweis--geht {
+    transition: opacity 0.3s ease-in;
+  }
+}
 
 .rueckmeldung {
   display: flex;

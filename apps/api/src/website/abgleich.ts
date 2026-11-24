@@ -1,5 +1,14 @@
 import { createHash } from "node:crypto";
-import { and, eq, inArray, isNotNull, isNull, sql as roh } from "drizzle-orm";
+import {
+  and,
+  eq,
+  inArray,
+  isNotNull,
+  isNull,
+  ne,
+  sql as roh,
+} from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
 import {
@@ -20,13 +29,11 @@ import {
   type Seitendokument,
 } from "./dokument.js";
 import { aufWebsiteEreignis } from "./ereignisse.js";
+import { ladeWebsitePersonen, PERSON_DATEI, personenIn } from "./personen.js";
 import {
   keineDaten,
   rendereAnmeldung,
-  rendereFehlerseite,
   rendereHuelle,
-  rendereServerfehler,
-  rendereWartung,
   rendereRobots,
   rendereSeite,
   rendereSitemap,
@@ -39,8 +46,26 @@ import {
   type Mitglied,
   type NavPunkt,
 } from "./rendern.js";
+import {
+  rendereFehlerseite,
+  rendereServerfehler,
+  rendereWartung,
+  stimmungsbild,
+  type FehlerBild,
+} from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
-import { rendereTermineSeiten, TERMINE_DATEIEN } from "./termine-seiten.js";
+import {
+  ZEICHEN_DATEIEN,
+  ZEICHEN_ICO,
+  zeichenVersion,
+  type ZeichenDateien,
+} from "./zeichen.js";
+import {
+  DATENPLAN_DATEI,
+  rendereDatenplan,
+  rendereTermineSeiten,
+  TERMINE_DATEIEN,
+} from "./termine-seiten.js";
 import {
   adresseSchema,
   adressenVon,
@@ -93,9 +118,14 @@ export type AbgleichOptionen = {
   datenquellen?: Datenquelle[];
   // Adresse, Telefon und E-Mail der Abteilung für Fuss und Kontaktkarte (aus der Konfiguration des Servers); Impressum und Datenschutz suchen die Seiten im Baum
   kontakt?: Pick<Kontakt, "adresse" | "telefon" | "email">;
+  // Favicon (#558): macht aus dem Zeichen der Abteilung (oder, ohne Wahl, aus dem Cevi-Zeichen der Plattform) die Dateien. Fehlt die Funktion, gibt es kein Favicon
+  zeichen?: (medium: ZeichenQuelle | null) => Promise<ZeichenDateien>;
   // Hash der zuletzt geschriebenen Gesamtdateien (Sitemap, robots.txt, ...); in Tests und beim Start leer
   merker?: Map<string, string>;
 };
+
+// Das gewählte Zeichen: ID und Schlüssel im Medienspeicher
+export type ZeichenQuelle = { id: string; speicherSchluessel: string };
 
 export type AbgleichErgebnis = {
   geschrieben: number;
@@ -125,7 +155,49 @@ const sichtbarePerson = and(
   isNotNull(user.ceviName),
 );
 
-// Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke)
+// Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke).
+// Die Fassung für den dunklen Modus (#558) kommt in derselben Abfrage mit; für sie gelten dieselben Bedingungen, sonst fehlt sie
+// Das Zeichen für das Favicon (#558): wie das Logo nur ein öffentliches Bild der eigenen Abteilung; sonst null (dann gilt das Cevi-Zeichen der Plattform)
+export async function ladeZeichen(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+): Promise<ZeichenQuelle | null> {
+  const [z] = await db
+    .select({ id: medium.id, speicherSchluessel: medium.speicherSchluessel })
+    .from(abteilung)
+    .innerJoin(medium, eq(medium.id, abteilung.websiteZeichenMediumId))
+    .where(
+      and(
+        eq(abteilung.id, abteilungId),
+        eq(medium.abteilungId, abteilungId),
+        eq(medium.sichtbarkeit, "oeffentlich"),
+        roh`${medium.mimeTyp} like 'image/%'`,
+      ),
+    );
+  return z ?? null;
+}
+
+// Das Bild der Fehlerseiten (#567): wie das Zeichen nur ein öffentliches Bild der eigenen Abteilung; sonst undefined (dann gilt das Titelbild der Startseite)
+export async function ladeFehlerbild(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+): Promise<FehlerBild | undefined> {
+  const [z] = await db
+    .select({ id: medium.id, breite: medium.breite, hoehe: medium.hoehe })
+    .from(abteilung)
+    .innerJoin(medium, eq(medium.id, abteilung.websiteFehlerbildMediumId))
+    .where(
+      and(
+        eq(abteilung.id, abteilungId),
+        eq(medium.abteilungId, abteilungId),
+        eq(medium.sichtbarkeit, "oeffentlich"),
+        roh`${medium.mimeTyp} like 'image/%'`,
+      ),
+    );
+  return z;
+}
+
+const logoDunkel = alias(medium, "logo_dunkel");
 export async function ladeLogo(
   db: Pick<Db, "select">,
   abteilungId: string,
@@ -136,9 +208,21 @@ export async function ladeLogo(
       altText: medium.altText,
       breite: medium.breite,
       hoehe: medium.hoehe,
+      dunkelId: logoDunkel.id,
+      dunkelBreite: logoDunkel.breite,
+      dunkelHoehe: logoDunkel.hoehe,
     })
     .from(abteilung)
     .innerJoin(medium, eq(medium.id, abteilung.websiteLogoMediumId))
+    .leftJoin(
+      logoDunkel,
+      and(
+        eq(logoDunkel.id, abteilung.websiteLogoDunkelMediumId),
+        eq(logoDunkel.abteilungId, abteilungId),
+        eq(logoDunkel.sichtbarkeit, "oeffentlich"),
+        roh`${logoDunkel.mimeTyp} like 'image/%'`,
+      ),
+    )
     .where(
       and(
         eq(abteilung.id, abteilungId),
@@ -147,7 +231,14 @@ export async function ladeLogo(
         roh`${medium.mimeTyp} like 'image/%'`,
       ),
     );
-  return z;
+  if (!z) return undefined;
+  const { dunkelId, dunkelBreite, dunkelHoehe, ...logo } = z;
+  return {
+    ...logo,
+    ...(dunkelId && {
+      dunkel: { id: dunkelId, breite: dunkelBreite, hoehe: dunkelHoehe },
+    }),
+  };
 }
 
 // nurOeffentlich: false beim Nachladen für eine angemeldete Person (#354): Dann gehören auch Medien dazu, die nur für Angemeldete sichtbar sind (Entscheid A8)
@@ -170,6 +261,8 @@ export async function ladeDaten(
   const personen: Map<string, Mitglied> = new Map();
   const teams: Map<string, { name: string; mitglieder: Mitglied[] }> =
     new Map();
+  // Stufen-Tags unter den Tags der Bausteine «leitungsteam»: Ihr Team zeigt Porträts mit Bild (#610)
+  const stufenIds: string[] = [];
 
   // Nur öffentliche Medien der Abteilung: Ein anderes Medium in einem öffentlichen Baustein erscheint nicht
   if (medienIds.size > 0) {
@@ -212,6 +305,8 @@ export async function ladeDaten(
       .where(
         and(
           eq(tag.abteilungId, abteilungId),
+          // Gruppen eines Anlasses (zum Beispiel ein OK) erscheinen nie auf der Website (#626)
+          ne(tag.typ, "anlass"),
           inArray(
             personTag.userId,
             zeilen.map((z) => z.id),
@@ -236,11 +331,16 @@ export async function ladeDaten(
 
   if (tagIds.size > 0) {
     const tags = await db
-      .select({ id: tag.id, name: tag.name })
+      .select({ id: tag.id, name: tag.name, typ: tag.typ })
       .from(tag)
       .where(
-        and(eq(tag.abteilungId, abteilungId), inArray(tag.id, [...tagIds])),
+        and(
+          eq(tag.abteilungId, abteilungId),
+          ne(tag.typ, "anlass"),
+          inArray(tag.id, [...tagIds]),
+        ),
       );
+    stufenIds.push(...tags.filter((t) => t.typ === "stufe").map((t) => t.id));
     const mitglieder = await db
       .select({
         tagId: personTag.tagId,
@@ -269,7 +369,22 @@ export async function ladeDaten(
       });
     }
   }
-  return { ...keineDaten(), medien, personen, teams };
+  // Personen mit einer Rolle mit Aussenwirkung und ihre Profilbilder für den Baustein «personen» (#560) und das Leitungsteam der Stufen (#610)
+  const frei = await ladeWebsitePersonen(
+    db,
+    abteilungId,
+    personenIn(dokumente),
+    stufenIds,
+  );
+  return {
+    ...keineDaten(),
+    medien,
+    personen,
+    teams,
+    websitePersonen: frei.personen,
+    stufenteams: frei.stufenteams,
+    personenDateien: frei.dateien,
+  };
 }
 
 // Pfad im Netz und Datei: die Seite «start» der obersten Ebene ist «/»; null, wenn die Adresse nie ausgeliefert wird
@@ -465,6 +580,20 @@ export async function erzeugeWebsite(
       ([id]) => dokumente.has(id) || behalten.has(oeffentlich.get(id)!.datei),
     ),
   );
+  // Seiten des Baums ohne Datei für Besucher (nicht öffentlich, nicht veröffentlicht): Karten mit einem Link dorthin entfallen (#560)
+  daten.verborgen = new Set(
+    zeilen.flatMap((z) => {
+      const pfad = sichtbar.has(z.id) ? undefined : ziel(knoten, z.id)?.pfad;
+      return pfad ? [pfad] : [];
+    }),
+  );
+  // Ein Termin, dessen Anlass eine öffentliche Seite hat, führt auf diese Seite (#560): Dort steht der Inhalt und der Weg zur Anmeldung
+  for (const liste of daten.termine.values()) {
+    for (const t of liste) {
+      const pfad = t.seiteId ? sichtbar.get(t.seiteId)?.pfad : undefined;
+      if (pfad) t.seitePfad = pfad;
+    }
+  }
   // Impressum und Datenschutz stehen im Fuss, nicht in der Leiste; ohne Seite «Datenschutz» führt der Fuss auf die Erklärung der Plattform, ein Impressum nennt er nur, wenn es die Seite gibt
   const fusspfad = (adresse: string) =>
     [...sichtbar.values()].find((z) => z.pfad === `/${adresse}`)?.pfad;
@@ -475,9 +604,14 @@ export async function erzeugeWebsite(
     ...(impressum && { impressum }),
     ...(datenschutz && { datenschutz }),
   };
+  // Favicon: Die Fassung in den Adressen ist ein Stück des Hashes, damit Browser ein neues Zeichen sofort holen
+  const zeichen = opt.zeichen
+    ? await opt.zeichen(await ladeZeichen(db, abteilungId))
+    : undefined;
   const kontext: Kontext = {
     abteilung: abt.name,
     logo: await ladeLogo(db, abteilungId),
+    ...(zeichen && { zeichen: zeichenVersion(zeichen[ZEICHEN_ICO]) }),
     basisUrl,
     navigation: baueNavigation(
       zeilen,
@@ -495,6 +629,7 @@ export async function erzeugeWebsite(
     abteilungId,
     abteilung: abt.name,
     basisUrl,
+    zeichen: kontext.zeichen,
     seiten: [...sichtbar.keys()].map((id) => ({
       pfad: oeffentlich.get(id)!.pfad,
       tagId: zeilen.find((z) => z.id === id)!.tagId,
@@ -510,7 +645,10 @@ export async function erzeugeWebsite(
     STYLESHEET,
     ANMELDUNG,
     ...TERMINE_DATEIEN,
+    DATENPLAN_DATEI,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
+    ...(zeichen ? ZEICHEN_DATEIEN : []),
+    ...(daten.personenDateien ?? []).map(([pfad]) => pfad),
     ...[...huellen.values()].map((h) => h.datei),
     ...weiterleitungen.map(([datei]) => datei),
   ]);
@@ -564,18 +702,36 @@ export async function erzeugeWebsite(
       ),
     ],
     [ROBOTS, rendereRobots(basisUrl)],
-    [FEHLERSEITE, rendereFehlerseite(kontext)],
+    [
+      FEHLERSEITE,
+      rendereFehlerseite(
+        kontext,
+        (await ladeFehlerbild(db, abteilungId)) ??
+          stimmungsbild(
+            [...dokumente].find(
+              ([id]) => oeffentlich.get(id)!.pfad === "/",
+            )?.[1].dok,
+            kontext.daten,
+          ),
+      ),
+    ],
     [SERVERFEHLER, rendereServerfehler(kontext)],
     [WARTUNG, rendereWartung(kontext)],
     [STYLESHEET, opt.stylesheet],
     [ANMELDUNG, rendereAnmeldung(kontext)],
     ...rendereTermineSeiten(kontext),
+    // Der öffentliche Datenplan (#564) als Datei: Die Seite «Termine» liest sie im Browser
+    rendereDatenplan(kontext),
     ...Object.entries(opt.skripte ?? {}).map(
       ([name, inhalt]): [string, string | Uint8Array] => [
         `website/${name}`,
         inhalt,
       ],
     ),
+    ...(zeichen
+      ? ZEICHEN_DATEIEN.map((d): [string, Uint8Array] => [d, zeichen[d]])
+      : []),
+    ...(daten.personenDateien ?? []),
     ...weiterleitungen,
   ];
   for (const [datei, inhalt] of gesamt) {
@@ -595,7 +751,11 @@ export async function erzeugeWebsite(
   for (const datei of vorhanden) {
     if (
       soll.has(datei) ||
-      !(SEITENDATEI.test(datei) || datei === CADDY_DATEI)
+      !(
+        SEITENDATEI.test(datei) ||
+        datei === CADDY_DATEI ||
+        PERSON_DATEI.test(datei)
+      )
     ) {
       continue;
     }

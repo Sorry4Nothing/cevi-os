@@ -106,6 +106,9 @@ const stand = async (abteilungId: string) => {
     .select({
       name: schema.abteilung.name,
       logo: schema.abteilung.websiteLogoMediumId,
+      logoDunkel: schema.abteilung.websiteLogoDunkelMediumId,
+      zeichen: schema.abteilung.websiteZeichenMediumId,
+      fehlerbild: schema.abteilung.websiteFehlerbildMediumId,
     })
     .from(schema.abteilung)
     .where(eq(schema.abteilung.id, abteilungId));
@@ -262,6 +265,90 @@ describe("Name und Logo der Website (#550)", () => {
       expect(((await antwort.json()) as { code: string }).code).toBe(code);
     }
     expect((await stand(welt.testabteilungId)).logo).toBeNull();
+  });
+
+  test("Fassung für den dunklen Modus (#558): setzen, dieselben Prüfungen, nicht löschbar, entfernen", async () => {
+    const m = await medium(welt.testabteilungId);
+    const intern = await medium(welt.testabteilungId, {
+      sichtbarkeit: "angemeldet",
+    });
+    const fremd = await medium(welt.demoAbteilungId);
+    for (const [id, code] of [
+      [intern, "MEDIUM_NICHT_OEFFENTLICH"],
+      [fremd, "MEDIUM_UNBEKANNT"],
+    ]) {
+      const nein = await anfrage(admin, "PATCH", { logoDunkelMediumId: id });
+      expect(nein.status, code).toBe(422);
+      expect(((await nein.json()) as { code: string }).code).toBe(code);
+    }
+    const antwort = await anfrage(admin, "PATCH", { logoDunkelMediumId: m });
+    expect(antwort.status).toBe(200);
+    expect(
+      ((await antwort.json()) as { logoDunkelMediumId: string })
+        .logoDunkelMediumId,
+    ).toBe(m);
+    // Das Logo selbst bleibt, wie es war
+    expect(await stand(welt.testabteilungId)).toMatchObject({
+      logo: null,
+      logoDunkel: m,
+    });
+    const loeschen = await app.request(`/api/v1/redaktion/medien/${m}`, {
+      method: "DELETE",
+      headers: admin.headers,
+    });
+    expect(loeschen.status).toBe(409);
+    const weg = await anfrage(admin, "PATCH", { logoDunkelMediumId: null });
+    expect(weg.status).toBe(200);
+    expect((await stand(welt.testabteilungId)).logoDunkel).toBeNull();
+  });
+
+  test("Zeichen für das Favicon (#558): setzen, dieselben Prüfungen, nicht löschbar, entfernen", async () => {
+    const m = await medium(welt.testabteilungId);
+    const fremd = await medium(welt.demoAbteilungId);
+    const nein = await anfrage(admin, "PATCH", { zeichenMediumId: fremd });
+    expect(nein.status).toBe(422);
+    expect(((await nein.json()) as { code: string }).code).toBe(
+      "MEDIUM_UNBEKANNT",
+    );
+    const antwort = await anfrage(admin, "PATCH", { zeichenMediumId: m });
+    expect(antwort.status).toBe(200);
+    expect(
+      ((await antwort.json()) as { zeichenMediumId: string }).zeichenMediumId,
+    ).toBe(m);
+    expect((await stand(welt.testabteilungId)).zeichen).toBe(m);
+    const loeschen = await app.request(`/api/v1/redaktion/medien/${m}`, {
+      method: "DELETE",
+      headers: admin.headers,
+    });
+    expect(loeschen.status).toBe(409);
+    const weg = await anfrage(admin, "PATCH", { zeichenMediumId: null });
+    expect(weg.status).toBe(200);
+    expect((await stand(welt.testabteilungId)).zeichen).toBeNull();
+  });
+
+  test("Bild der Fehlerseiten (#567): setzen, fremde IDs abgewiesen, nicht löschbar, entfernen", async () => {
+    const m = await medium(welt.testabteilungId);
+    const fremd = await medium(welt.demoAbteilungId);
+    const nein = await anfrage(admin, "PATCH", { fehlerbildMediumId: fremd });
+    expect(nein.status).toBe(422);
+    expect(((await nein.json()) as { code: string }).code).toBe(
+      "MEDIUM_UNBEKANNT",
+    );
+    const antwort = await anfrage(admin, "PATCH", { fehlerbildMediumId: m });
+    expect(antwort.status).toBe(200);
+    expect(
+      ((await antwort.json()) as { fehlerbildMediumId: string })
+        .fehlerbildMediumId,
+    ).toBe(m);
+    expect((await stand(welt.testabteilungId)).fehlerbild).toBe(m);
+    const loeschen = await app.request(`/api/v1/redaktion/medien/${m}`, {
+      method: "DELETE",
+      headers: admin.headers,
+    });
+    expect(loeschen.status).toBe(409);
+    const weg = await anfrage(admin, "PATCH", { fehlerbildMediumId: null });
+    expect(weg.status).toBe(200);
+    expect((await stand(welt.testabteilungId)).fehlerbild).toBeNull();
   });
 
   test("ein Medium, das als Logo dient, lässt sich nicht löschen (409 MEDIUM_VERWENDET)", async () => {

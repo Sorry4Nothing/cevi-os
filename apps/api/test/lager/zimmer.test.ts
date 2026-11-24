@@ -638,7 +638,9 @@ describe("Sicht je Rolle", () => {
     });
     // Nur Namen: keine IDs, Plätze, Notiz, Belegung; der Cevi-Name der Teilnehmenden gehört zu teilnehmer.bearbeiten (#384), das Team sieht den Vornamen
     expect(
-      z.mitglieder.every((m: object) => Object.keys(m).join() === "name"),
+      z.mitglieder.every(
+        (m: object) => Object.keys(m).join() === "name,bildUrl",
+      ),
     ).toBe(true);
     expect(z.mitglieder.map((m: { name: string }) => m.name)).toEqual(
       expect.arrayContaining(["Anna", "Ben"]),

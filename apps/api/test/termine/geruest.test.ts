@@ -57,7 +57,7 @@ describe("Gerüst der Termine: Register", () => {
   });
 });
 
-describe("Gerüst der Termine: Admin-Panel", () => {
+describe("Gerüst der Termine: Panel der Abteilungsleitung", () => {
   const dateien = readdirSync(panel).filter((d) => d.startsWith("termine"));
 
   test("jede Stilvorlage der Termine ist in index.html eingebunden", () => {
@@ -71,7 +71,14 @@ describe("Gerüst der Termine: Admin-Panel", () => {
 
   test("navigation.js bindet jedes Modul-Skript der Termine ein, und der Bereich «termine» steht dort", () => {
     const navigation = lies("../../public/admin/navigation.js");
-    for (const datei of dateien.filter((d) => /^termine-.*\.js$/.test(d))) {
+    // termine-monat.js ist ein Baustein des Kalenders (kein Modul einer Unterseite), termine-kalender.js lädt ihn; termine-anmeldungen.js leitet nur um
+    for (const datei of dateien.filter(
+      (d) =>
+        /^termine-.*\.js$/.test(d) &&
+        d !== "termine-monat.js" &&
+        // Weiterleitung der alten Adresse «Anmeldungen» (#608), solange die Navigation sie noch nennt
+        d !== "termine-anmeldungen.js",
+    )) {
       expect(navigation, datei).toContain(`"./${datei}"`);
     }
     expect(navigation).toContain('schluessel: "termine"');

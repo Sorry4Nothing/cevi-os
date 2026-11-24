@@ -6,7 +6,7 @@ export interface TestProgramm {
   id: string;
 }
 
-// Legt ein Programm mit Stufen an (Stufen-Tags in programm_tag, ohne Tag sehen es nur Admin und SL); mit tagVon ganztägig, sonst mit Zeit. Daten 2027, damit kein Fenster-Test versehentlich trifft
+// Legt ein Programm mit Stufen an (Stufen-Tags in programm_tag, ohne Tag sehen es nur Abteilungsleitung und SL); mit tagVon ganztägig, sonst mit Zeit. Daten 2027, damit kein Fenster-Test versehentlich trifft
 export async function legeProgrammAn(
   db: Db,
   {

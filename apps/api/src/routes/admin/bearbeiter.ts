@@ -6,7 +6,9 @@ import { OBJEKT_TYPEN } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, bearbeiter, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
 // Ein Sonderrecht gilt für genau ein Objekt (objektId Pflicht). «Alle Seiten» ist das Plattformrecht «Seiten bearbeiten» der Rolle Webmaster (/api/v1/admin/plattform/rollen), nicht mehr eine Zeile hier (#426). Genau eines von userId und tagId
 const setzenSchema = z
@@ -27,7 +29,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "rechte.verwalten");
       const zeilen = await db
         .select({
           id: bearbeiter.id,
@@ -47,7 +49,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", setzenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "rechte.verwalten");
       const { objektTyp, objektId, userId, tagId } = c.req.valid("json");
       // Person oder Tag einer anderen Abteilung ist für diese Route unbekannt
       const [ziel] = userId
@@ -58,6 +60,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
               and(
                 eq(user.id, userId),
                 eq(user.abteilungId, person.abteilungId),
+                keinKindKonto(user.id),
               ),
             )
         : await db
@@ -127,7 +130,7 @@ export function erstelleBearbeiterRouten({ db }: { db: Db }) {
           ),
         );
       if (!ziel) throw new HTTPException(404);
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "rechte.verwalten");
       await db.transaction(async (tx) => {
         // Ein gleichzeitiger Entzug hat die Zeile schon entfernt
         const entfernt = await tx

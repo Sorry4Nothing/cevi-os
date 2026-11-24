@@ -10,7 +10,7 @@ import {
   standardEintraege,
 } from "../../lager/rechte.js";
 
-// Antwort auf eine Änderung der Rechte; gleich für die Lager-Route und die Admin-Route (routes/admin/lager-rechte.ts)
+// Antwort auf eine Änderung der Rechte; gleich für die Lager-Route und die Verwaltungsroute (routes/admin/lager-rechte.ts)
 export function antwortAufAenderung(
   c: Context,
   ergebnis: Awaited<ReturnType<typeof aendereRechte>>,

@@ -20,14 +20,14 @@ import {
 } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import { log } from "../log.js";
-import { hatPlattformRecht, istEntwickler } from "../plattform.js";
 import { sendePush, type Fcm } from "../push.js";
 import { zweiterFaktorFehlt, type Person } from "../rechte.js";
+import { darf as darfRecht, darfEines } from "../rechtemodell/darf.js";
 import { beendeSitzungen } from "../sitzungen-beenden.js";
 import { meldeWebsiteEreignis } from "../website/ereignisse.js";
 
 // Wartungsmodus (#424) und Informationssperre (#425): schalten, aufheben, Zustand lesen. Die Routen liegen unter /api/v1/plattform und nicht unter /admin, weil auch Entwickler und Webmaster ohne Verwaltungskonto hier schalten; weder Wartung noch Sperre treffen diesen Pfad.
-// Wer schaltet (Entscheid vom 22.11.2026): Entwickler und Abteilungsleitung jeden Bereich und jede Art; weitere Rollen nur die Wartung der Website und nur mit dem Recht «wartungsmodus.website». Die Sperre lösen und heben nur Entwickler und Abteilungsleitung auf, nie der Webmaster. Jede Schaltung braucht den zweiten Faktor, wie jedes erweiterte Recht.
+// Wer schaltet (Entscheid vom 22.11.2026, erweitert mit #648): Entwickler und Abteilungsleitung jeden Bereich und jede Art. Rollen schalten die Wartung: die der Website mit dem Recht «wartungsmodus.website», die der übrigen Bereiche (Lager, Chat, Programme, Verwaltung) mit «wartung.bereiche». Die Sperre und die Wartung von «alles» lösen und heben nur Entwickler und Abteilungsleitung auf («plattform.sperren», fest), nie eine Rolle. Jede Schaltung braucht den zweiten Faktor, wie jedes erweiterte Recht.
 // Art und Bereich stehen im Body (PUT) und in der Query (DELETE), nicht im Pfad: Der Schalter gehört der Abteilung der Sitzung, es gibt kein fremdes Objekt, das ein Pfad nennen könnte.
 
 const zielSchema = {
@@ -94,20 +94,27 @@ export function erstellePlattformRouten({
     gibFrei: () => Promise<void>;
   };
 }) {
-  // Darf diese Person genau diesen Schalter lesen und schalten? Entwickler und Abteilungsleitung alle, andere Rollen nur die Wartung der Website mit ihrem Recht (nie die Sperre)
+  // Darf diese Person genau diesen Schalter lesen und schalten? Das Recht dazu steht im Katalog: Sperre und Wartung von «alles» fest, Wartung der Website und der übrigen Bereiche vergebbar
   async function darf(person: Person, art: SchalterArt, bereich: string) {
-    if (person.admin || (await istEntwickler(db, person))) return true;
-    return (
-      art === "wartung" &&
-      bereich === "website" &&
-      (await hatPlattformRecht(db, person, "wartungsmodus.website"))
-    );
+    const recht =
+      art === "sperre" || bereich === "alles"
+        ? "plattform.sperren"
+        : bereich === "website"
+          ? "wartungsmodus.website"
+          : "wartung.bereiche";
+    return darfRecht(db, person, recht);
   }
 
   // Vor jeder Prüfung des Inhalts: Wer gar nichts schalten darf, erfährt nichts über Eingabe oder Zustand; der zweite Faktor gilt für jede Route hier
   const berechtigt = createMiddleware<Env>(async (c, next) => {
     const person = c.get("person");
-    if (!(await darf(person, "wartung", "website"))) {
+    if (
+      !(await darfEines(db, person, [
+        "wartungsmodus.website",
+        "wartung.bereiche",
+        "plattform.sperren",
+      ]))
+    ) {
       throw new HTTPException(403);
     }
     if (!person.zweiterFaktor) {

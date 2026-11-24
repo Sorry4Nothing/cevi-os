@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/aufgaben/:aufgabeId/zusammenfuehren"
-order: 185000
+order: 233000
 method: POST
 url: "{{baseUrl}}{{pfad_L29}}"
 headers:

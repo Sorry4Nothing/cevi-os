@@ -1,7 +1,7 @@
 // Füllt die Platzhalter «data-geschuetzt» einer Seite, wenn eine Sitzung besteht (#354), und ersetzt die Hülle einer ganz geschützten Seite durch ihren Inhalt. Zustände nach dem Design W10.
 // Der Server liefert nur Knoten als JSON (GET /api/v1/website/inhalt); sie werden mit knoten.js zu DOM-Knoten, nie über innerHTML. Das Dokument im HTML bleibt unverändert, die Sitzung liegt nur im Cookie.
 import { baueKnoten } from "./knoten.js";
-import { el, symbol } from "./ui.js";
+import { el, skelett as skelettBaustein, symbol } from "./ui.js";
 
 const haupt = document.getElementById("inhalt");
 const pfad = haupt?.dataset.pfad;
@@ -53,22 +53,9 @@ function start() {
     raeume();
     behaelter.forEach((b) => {
       b.setAttribute("aria-busy", "true");
-      // Formgleich zum Inhalt (Design G3); der Schimmer läuft nur, wenn Bewegung erlaubt ist
-      const zeile = (breite) => el("span", `sk t ${breite}`);
-      const skelett = el(
-        "div",
-        "skel-rahmen",
-        el(
-          "div",
-          "skel karte",
-          el("span", "sk k w40"),
-          el("span", "sk t w90"),
-          zeile("w60"),
-          zeile("w90"),
-          el("span", "schimmer"),
-        ),
-      );
-      skelett.setAttribute("aria-hidden", "true");
+      // Formgleich zum Inhalt (Design G3, gemeinsamer Baustein aus ui.js)
+      const skelett = skelettBaustein("h24 b40", "t b90", "t b60", "t b90");
+      skelett.classList.add("karte");
       b.append(skelett);
     });
     status.textContent = "Geschützte Inhalte werden geladen.";

@@ -23,8 +23,18 @@ export class ApiFehler extends Error {
 
 // Läuft die Sitzung während der Arbeit ab (401 auf einer Daten-Route), führt die Seite zurück zur Anmeldung
 let beiAbgelaufen = () => {};
+// Ob ein Teil der Adresse eine echte Kennung (UUID) ist: Nur sie geht in Pfade der API, nie «../», «?» oder Freitext
+export const kennungGueltig = (wert) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(wert);
+
 export function beiSitzungsende(fn) {
   beiAbgelaufen = fn;
+}
+
+// Beim Verlassen der Seite (pagehide) führt die Verwaltung offene Aktionen mit «Rückgängig» aus (rueckgaengig.js): Diese Anfragen laufen mit keepalive weiter, auch wenn die Seite schon weg ist
+let verlassen = false;
+export function setzeVerlassen(wert = true) {
+  verlassen = wert;
 }
 
 function fehlerAus(status, daten, warten, pfad) {
@@ -68,13 +78,16 @@ export function hochladen(pfad, datei, { beiFortschritt, signal } = {}) {
   });
 }
 
-export async function anfrage(methode, pfad, body) {
+// signal: bricht die Anfrage ab (Suche mit Vorschlägen: eine neue Eingabe ersetzt die alte); die Antwort ist dann ein AbortError
+export async function anfrage(methode, pfad, body, signal) {
   let antwort;
   try {
     antwort = await fetch(pfad, {
       method: methode,
+      signal,
       credentials: "same-origin",
       cache: "no-store",
+      keepalive: verlassen || undefined,
       // Eine Datei geht unverändert hin (Logo-Upload), alles andere als JSON
       headers:
         body === undefined || body instanceof Blob
@@ -85,7 +98,8 @@ export async function anfrage(methode, pfad, body) {
           ? body
           : JSON.stringify(body),
     });
-  } catch {
+  } catch (f) {
+    if (signal?.aborted) throw f;
     throw new ApiFehler(0, "NETZ");
   }
   if (antwort.status === 204) return null;

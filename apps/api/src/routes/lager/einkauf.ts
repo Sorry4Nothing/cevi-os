@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../../bild.js";
 import type { Db } from "../../db/client.js";
 import { einkaufArtikel, einkaufVorschlag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
@@ -39,7 +40,12 @@ const KEIN_MITGLIED = {
   message: "Wer einkauft, muss Mitglied dieses Lagers sein.",
 } as const;
 
-type Person = { id: string; name: string | null; ceviName: string | null };
+type Person = {
+  id: string;
+  name: string | null;
+  ceviName: string | null;
+  bildUrl: string | null;
+};
 
 // Einkaufsliste des Lagers (#392). Lesen braucht einkauf.lesen, jede Änderung einkauf.bearbeiten (lager/rechte-katalog.ts; Standard: Lagerleitung, Leitung und Lesen lesen, Lagerleitung und Leitung schreiben, das Team nichts). Jede Schreibroute geht durch lager/sync.ts: Version prüfen (409 VERSION_KONFLIKT), Folgenummer, Eintrag im Änderungsfeed. Löschen ist endgültig (#427); das Entfernen ist endgültig (#427). Abhaken ist ein einzelnes PATCH mit erledigt
 export function erstelleEinkaufRouten({ db }: { db: Db }) {
@@ -64,6 +70,7 @@ export function erstelleEinkaufRouten({ db }: { db: Db }) {
         zeile: einkaufArtikel,
         kaeuferName: kaeufer.name,
         kaeuferCevi: kaeufer.ceviName,
+        kaeuferBild: bildUrlImLager(sql`${kaeufer.id}`, lagerId),
       })
       .from(einkaufArtikel)
       .leftJoin(kaeufer, eq(kaeufer.id, einkaufArtikel.einkaeuferPersonId))
@@ -89,6 +96,7 @@ export function erstelleEinkaufRouten({ db }: { db: Db }) {
             id: z.zeile.einkaeuferPersonId,
             name: z.kaeuferName,
             ceviName: z.kaeuferCevi,
+            bildUrl: z.kaeuferBild,
           } satisfies Person)
         : null,
     }));
@@ -189,8 +197,10 @@ export function erstelleEinkaufRouten({ db }: { db: Db }) {
             eintraege: string | { id: string; version: number }[];
             kaeufer_name: string | null;
             kaeufer_cevi: string | null;
+            kaeufer_bild: string | null;
           }>(sql`
-            select g.*, k.name as kaeufer_name, k.cevi_name as kaeufer_cevi
+            select g.*, k.name as kaeufer_name, k.cevi_name as kaeufer_cevi,
+              ${bildUrlImLager(sql`k.id`, lagerId)} as kaeufer_bild
             from (
               select
                 (array_agg(a.id order by a.id))[1] as erste,
@@ -222,6 +232,7 @@ export function erstelleEinkaufRouten({ db }: { db: Db }) {
                   id: z.einkaeufer_person_id,
                   name: z.kaeufer_name,
                   ceviName: z.kaeufer_cevi,
+                  bildUrl: z.kaeufer_bild,
                 } satisfies Person)
               : null,
             erledigt: z.erledigt,

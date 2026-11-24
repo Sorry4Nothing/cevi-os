@@ -547,6 +547,7 @@ describe("Informationssperre: öffentliche Website vom Netz", () => {
       await sperreFs.nimmVomNetz();
       expect(await ausgabeFs.liste()).toEqual([
         "404.html",
+        "gesperrt.css",
         "index.html",
         "weiterleitungen.caddy",
       ]);

@@ -98,7 +98,7 @@ describe("Stufenlogo", () => {
     ).toBe(true);
   });
 
-  test("Upload lehnt Nicht-Bilder mit 415 ab, Nicht-Admins mit 403", async () => {
+  test("Upload lehnt Nicht-Bilder mit 415 ab, alle anderen mit 403", async () => {
     expect(
       (await hochladen("admin", new TextEncoder().encode("<svg/>"))).status,
     ).toBe(415);

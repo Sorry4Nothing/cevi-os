@@ -350,7 +350,7 @@ describe("Typ-Täuschung", () => {
 });
 
 describe("Rechte", () => {
-  test("nur Admins laden hoch, listen und löschen", async () => {
+  test("nur die Abteilungsleitung laden hoch, listen und löschen", async () => {
     const { speicher, objekte } = attrappe();
     const app = neueApp(speicher);
     const res = await hochladen({
@@ -444,7 +444,7 @@ describe("Rechte", () => {
     ).toBe(204);
   });
 
-  test("Liste und Löschen bleiben in der Abteilung des Admins", async () => {
+  test("Liste und Löschen bleiben in der Abteilung der Abteilungsleitung", async () => {
     const { speicher, objekte } = attrappe();
     const app = neueApp(speicher);
     const admin = (await legePersonaAn(welt, "admin")).headers;
@@ -651,7 +651,10 @@ describe("Begrenzung", () => {
         erstelltAm: new Date(Date.UTC(2031, 0, 1, 0, 0, i)),
       });
     }
-    type Liste = { medien: { altText: string }[]; weitere: boolean };
+    type Liste = {
+      medien: { id: string; altText: string }[];
+      weitere: boolean;
+    };
     const hole = async (query: string, pfad = "/api/v1/admin/medien") =>
       (await (
         await app.request(`${pfad}?${query}`, { headers })
@@ -666,6 +669,14 @@ describe("Begrenzung", () => {
     expect((await hole("suche=Seitenwechsel&limit=2&offset=4")).medien).toEqual(
       [],
     );
+    // Nur die genannten Medien (#570), auch wenn sie nicht unter den jüngsten stehen; neueste zuerst
+    const nur = await hole(
+      `ids=${eins.medien[1]!.id},${zwei.medien[0]!.id}&limit=1`,
+    );
+    expect(nur.medien.map((m) => m.altText)).toEqual([texte[2]]);
+    expect(nur.weitere).toBe(true);
+    const beide = await hole(`ids=${eins.medien[1]!.id},${zwei.medien[0]!.id}`);
+    expect(beide.medien.map((m) => m.altText)).toEqual([texte[2], texte[1]]);
     // % und _ sind Text, keine Platzhalter; Gross- und Kleinschreibung gilt nicht
     const prozent = await hole("suche=100%25");
     expect(prozent.medien.map((m) => m.altText)).toEqual([texte[0]]);
@@ -682,6 +693,8 @@ describe("Begrenzung", () => {
       "limit=101",
       "offset=-1",
       "suche=",
+      "ids=",
+      "ids=kein-uuid",
       "x=1",
     ]) {
       expect(

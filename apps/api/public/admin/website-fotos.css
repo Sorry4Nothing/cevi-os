@@ -1,0 +1,97 @@
+/* Fotos aus Flickr (#690): Seite «Website, Fotos». Klassen mit dem Vorsatz «foto-». Nur Tokens, Masse in rem */
+.foto-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 56rem;
+}
+
+.foto-konto {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  max-width: 36rem;
+  align-items: flex-start;
+}
+
+.foto-konto .feld {
+  width: 100%;
+}
+
+.foto-schritte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.foto-schritte li {
+  padding-left: 0.25rem;
+}
+
+.foto-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.foto-info {
+  display: flex;
+  flex: 1 1 14rem;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.foto-titel {
+  overflow-wrap: anywhere;
+}
+
+.foto-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+
+.foto-schalter {
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.25rem 0.75rem;
+  padding: 0;
+}
+
+/* Der Text bricht nach Wörtern um, nie Zeichen für Zeichen; auf schmalen Zeilen steht er allein über dem Schalter */
+.foto-schalter-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 40em) {
+  .foto-schalter-text {
+    flex-basis: 100%;
+  }
+}
+
+.foto-zustand-feld {
+  min-width: 6.5rem;
+  font-weight: 600;
+}
+
+.foto-titelform {
+  flex-basis: 100%;
+  max-width: 32rem;
+}
+
+.foto-titelknoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}

@@ -1,0 +1,22 @@
+$kind: http-request
+name: "PATCH /api/v1/admin/laden/artikel/:id"
+order: 144000
+method: PATCH
+url: "{{baseUrl}}/api/v1/admin/laden/artikel/01a20640-4b9e-727a-b5a0-71d645bcaa37"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "preisRappen": 150
+    }

@@ -1,8 +1,8 @@
 $kind: http-request
 name: "GET /api/v1/redaktion/stufen/:stufeId/eckdaten/:tag"
-order: 130000
+order: 178000
 method: GET
-url: "{{baseUrl}}/api/v1/redaktion/stufen/{{ziel_135}}/eckdaten/2042-01-01"
+url: "{{baseUrl}}/api/v1/redaktion/stufen/{{ziel_183}}/eckdaten/2042-01-01"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

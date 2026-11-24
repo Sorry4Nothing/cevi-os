@@ -1,0 +1,738 @@
+/* Bereich «Lädeli» (#566): Bestellungen, Artikel, Einstellungen. Klassen mit dem Vorsatz «ld-»; Farben nur über die Tokens aus admin.css */
+
+/* Zweite Zeile in einer Zelle (Name im Konto, Zeitpunkt, Übergabe, Hinweis) */
+.ld-unter {
+  display: block;
+}
+
+.ld-positionen {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-artikel {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Das Bild in seiner ganzen Form auf hellem Grund, nie beschnitten */
+.ld-bild {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  background: var(--karte);
+  object-fit: contain;
+}
+
+.ld-bild--leer {
+  background: var(--leiste);
+}
+
+.ld-mehr {
+  margin-top: 16px;
+}
+
+/* «Artikel löschen» steht links im Fuss des Blatts, abgesetzt von Abbrechen und Speichern */
+.ld-fuss-links {
+  margin-right: auto;
+}
+
+.ld-einstellungen {
+  max-width: 640px;
+}
+
+/* Einstellungen (#642): Abschnitte mit Überschrift, getrennt durch eine Linie; die Vorschau rechts gliedert sich in Blöcke */
+.ld-einst-abschnitt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 24px;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.ld-einst-abschnitt:first-of-type {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ld-einst-abschnitt h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.ld-einst-abschnitt > .leise {
+  margin: -8px 0 0;
+}
+
+.ld-einst-abschnitt .feld .knopf {
+  align-self: flex-start;
+  margin-top: 8px;
+}
+
+.ld-einstellungen .feld textarea {
+  min-height: 7rem;
+}
+
+.ld-einstellungen .feld textarea.ld-kurz {
+  min-height: 4.5rem;
+}
+
+.ld-schalter {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ld-schalter .hilfe {
+  margin: 0 0 0 36px;
+}
+
+.ld-einst-vorschau {
+  gap: 16px;
+}
+
+.ld-einst-block {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ld-einst-block h3 {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+.ld-einst-leise {
+  color: var(--leise);
+}
+
+/* Vorschau der Übergabewahl: Ringe wie bei einer Auswahl, nur zur Ansicht */
+.ld-wahlvorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-wahlvorschau li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+}
+
+.ld-ring {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  border: 2px solid var(--outline);
+  border-radius: 9999px;
+}
+
+/* Pflichtangabe «Grösse» im Artikelblatt: zwei Wahlkarten, bei «Liste» darunter das Feld mit den Grössen */
+.ld-groesse {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ld-groesse legend {
+  margin-bottom: 8px;
+  padding: 0;
+  font-weight: 700;
+}
+
+.ld-wahl {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.ld-groesse .feld[hidden] {
+  display: none;
+}
+
+/* Artikelliste: feste Spalten, damit Überschrift und Werte untereinander stehen (Zahlen rechts, Text links, Aktionen rechts). Gilt für beide Zeilenarten, mit und ohne Zusatzzeile */
+.ld-tabelle .tabelle {
+  table-layout: fixed;
+  min-width: 72rem;
+}
+
+.ld-tabelle th,
+.ld-tabelle td {
+  text-align: left;
+}
+
+.ld-tabelle th.zahl,
+.ld-tabelle td.zahl {
+  width: 7.5rem;
+  text-align: right;
+}
+
+.ld-tabelle th.ld-griffspalte,
+.ld-tabelle td.ld-griffzelle {
+  width: 4rem;
+  padding-inline: 8px;
+}
+
+.ld-tabelle th:nth-child(4) {
+  width: 18rem;
+}
+
+.ld-tabelle th:nth-child(5) {
+  width: 12rem;
+}
+
+.ld-tabelle th.rechts,
+.ld-tabelle td.rechts {
+  width: 14rem;
+  text-align: right;
+}
+
+/* Griff zum Ziehen: 44 px, mit Maus, Finger und Tastatur bedienbar */
+.ld-griff {
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--leise);
+  cursor: grab;
+  touch-action: none;
+}
+
+.ld-griff:hover {
+  background: var(--leiste);
+  color: var(--text);
+}
+
+.ld-griff[aria-pressed="true"] {
+  background: var(--blau-f);
+  color: var(--akzent);
+}
+
+.ld-griff .i {
+  width: 20px;
+  height: 20px;
+}
+
+/* Die gehobene Zeile steht schon an ihrem neuen Platz; die Kante oben zeigt, wo sie landet */
+.ld-tabelle tr.ld-gehoben {
+  box-shadow: 0 8px 20px -10px rgb(0 0 0 / 40%);
+}
+
+.ld-tabelle tr.ld-gehoben > * {
+  background: var(--blau-f);
+  box-shadow: inset 0 3px 0 var(--akzent);
+}
+
+/* Ziehen mit Maus oder Finger: Die Zeile folgt dem Zeiger, die anderen rutschen weg, ein Platzhalter zeigt den Zielplatz (sortieren.js, werkzeuge.css). Die Spaltenbreiten bleiben, weil die Zeilen Tabellenzeilen bleiben */
+.ld-tabelle tr.wird-gezogen > * {
+  background: var(--karte);
+  border-top-color: transparent;
+}
+
+.ld-tabelle .sortier-platzhalter {
+  border-radius: var(--r-sm);
+}
+
+/* Bestellungen als Karten (Vorlage: Bestellkarten von Kokonut): Kopf mit Initialen, Schiene, Positionen mit Zeilensumme, Summe, Übergabe und Aktion */
+.ld-bestellungen {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.ld-bestellung {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+  padding: 1.25rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+.ld-bestellung[hidden] {
+  display: none;
+}
+
+.ld-bestellung-kopf {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+/* Kleine Kachel mit den Initialen: ruhig, nur Rand, keine Fläche */
+.ld-kuerzel {
+  display: grid;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  color: var(--on-surface-variant);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+}
+
+.ld-bestellung-wer {
+  flex: 1;
+  min-width: 0;
+}
+
+.ld-bestellung-name {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.ld-stand {
+  flex: none;
+  justify-content: flex-end;
+}
+
+.ld-bestellung--storniert .ld-positionen,
+.ld-bestellung--storniert .ld-uebergabe {
+  color: var(--on-surface-variant);
+}
+
+.ld-bestellung--storniert .ld-position-name {
+  text-decoration: line-through;
+}
+
+/* Positionen: Name und Grösse links, Zeilensumme rechts; feine Linien dazwischen; zuletzt die Summe */
+.ld-positionen {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-position {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.625rem 0;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.ld-position:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.ld-position-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ld-position-name {
+  overflow-wrap: anywhere;
+  font-weight: 600;
+}
+
+.ld-position-preis,
+.ld-summe {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ld-total {
+  font-weight: 800;
+}
+
+.ld-summe {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.ld-uebergabe {
+  margin: -0.5rem 0 0;
+}
+
+.ld-bestellung-aktion {
+  margin-top: auto;
+}
+
+/* Schiene: eine Linie mit drei Punkten, bis zum aktuellen Schritt gefüllt. Erledigt = Haken, jetzt = gefüllt mit Ring, noch offen = leerer Ring */
+.ld-schiene {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ld-schiene::before,
+.ld-schiene::after {
+  content: "";
+  position: absolute;
+  top: 0.6875rem;
+  left: 0.75rem;
+  height: 2px;
+  border-radius: 1px;
+}
+
+.ld-schiene::before {
+  right: 0.75rem;
+  background: var(--outline-variant);
+}
+
+.ld-schiene::after {
+  width: 0;
+  background: var(--accent);
+}
+
+.ld-schiene[data-schritt="1"]::after {
+  width: calc((100% - 1.5rem) / 2);
+}
+
+.ld-schiene[data-schritt="2"]::after {
+  width: calc(100% - 1.5rem);
+}
+
+.ld-schritt {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  text-align: center;
+}
+
+.ld-schritt:first-child {
+  align-items: flex-start;
+  text-align: left;
+}
+
+.ld-schritt:last-child {
+  align-items: flex-end;
+  text-align: right;
+}
+
+.ld-seit {
+  margin-top: -0.25rem;
+  font-weight: 400;
+}
+
+.ld-punkt {
+  display: grid;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  background: var(--karte);
+  border: 2px solid var(--outline);
+  border-radius: 9999px;
+}
+
+.ld-punkt .i {
+  width: 0.875rem;
+  height: 0.875rem;
+  stroke-width: 3;
+}
+
+.ld-schritt--erledigt .ld-punkt {
+  color: var(--on-accent);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ld-schritt--jetzt {
+  color: var(--on-surface);
+  font-weight: 800;
+}
+
+.ld-schritt--jetzt .ld-punkt {
+  background: var(--accent);
+  border-color: var(--accent);
+  box-shadow:
+    0 0 0 4px var(--karte),
+    0 0 0 6px var(--accent);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ld-punkt {
+    transition:
+      background var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve);
+  }
+
+  .ld-schiene::after {
+    transition: width var(--dauer-lang) var(--kurve);
+  }
+}
+
+.ld-skeleton .ld-bestellung {
+  min-height: 12rem;
+}
+
+/* Artikel: Bild gross neben den Feldern, darunter die Vorschau */
+.ld-grossbild {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+}
+
+.bild-box.ld-grossbild > img {
+  object-fit: contain;
+}
+
+.ld-grossbild--leer {
+  color: var(--leise);
+  background: var(--leiste);
+  border: 1px dashed var(--rand-leise);
+}
+
+.ld-vorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 16px;
+  background: var(--leiste);
+  border-radius: 12px;
+}
+
+.ld-vorschau p {
+  margin: 0;
+}
+
+.ld-vorschau-name {
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.ld-vorschau-preis {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Verfügbarkeit je Grösse (#629): Pillen-Schalter wie die Segment-Auswahl der Verwaltung (.seg): verfügbar ist gefüllt und trägt einen Haken, nicht verfügbar hat einen gestrichelten Rand, ein Kreuz und den durchgestrichenen Namen; das Wort steht unter der Pille. Eigene Datei, damit nichts anderes sie überschreibt. */
+
+ul.ld-groessen {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 12px 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+ul.ld-groessen > li.ld-gposten {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+ul.ld-groessen button.ld-gschalter {
+  -webkit-appearance: none;
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-width: 4.5rem;
+  min-height: 44px;
+  margin: 0;
+  padding: 0 16px 0 12px;
+  border: 2px solid var(--blau);
+  border-radius: 9999px;
+  background: var(--blau);
+  background-image: none;
+  box-shadow: none;
+  color: var(--auf-blau);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+
+ul.ld-groessen button.ld-gschalter .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.6;
+}
+
+ul.ld-groessen button.ld-gschalter:hover {
+  filter: brightness(1.12);
+}
+
+ul.ld-groessen button.ld-gschalter:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+ul.ld-groessen button.ld-gschalter--aus,
+ul.ld-groessen button.ld-gschalter--aus:hover {
+  border: 2px dashed var(--rand);
+  background: transparent;
+  color: var(--leise);
+  filter: none;
+}
+
+ul.ld-groessen button.ld-gschalter--aus s {
+  text-decoration-thickness: 2px;
+}
+
+.ld-gstand {
+  color: var(--leise);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.ld-gstand--aus {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.ld-gwahl {
+  margin-top: 16px;
+}
+
+.ld-gwahl[hidden] {
+  display: none;
+}
+
+.ld-gwahl-titel {
+  margin: 0 0 4px;
+  font-weight: 700;
+}
+
+.ld-gwahl .hilfe {
+  margin: 0 0 12px;
+}
+
+.ld-stand-weg {
+  margin: 4px 0 0;
+}
+
+@media (forced-colors: active) {
+  ul.ld-groessen button.ld-gschalter {
+    border: 2px solid ButtonText;
+  }
+
+  ul.ld-groessen button.ld-gschalter--aus {
+    border-style: dashed;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ul.ld-groessen button.ld-gschalter {
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      filter 0.15s ease;
+  }
+}
+
+/* Schmal (Handy): Jede Zeile der Artikelliste wird eine Karte, damit die Schalter ohne Seitwärtsscrollen erreichbar sind. Die Spaltenköpfe bleiben für Hilfstechnik, aber unsichtbar; Grösse und Stand tragen ihren Namen */
+@media (max-width: 48rem) {
+  .ld-tabelle .tabelle {
+    display: block;
+    min-width: 0;
+  }
+
+  .ld-tabelle thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .ld-tabelle tbody {
+    display: block;
+  }
+
+  .ld-tabelle tbody tr {
+    display: grid;
+    grid-template-columns: 3rem minmax(0, 1fr);
+    column-gap: 4px;
+    padding: 12px 12px 12px 4px;
+    border-top: 1px solid var(--rand-leise);
+  }
+
+  .ld-tabelle tbody tr:first-child {
+    border-top: 0;
+  }
+
+  .ld-tabelle tbody tr > * {
+    display: block;
+    width: auto;
+    padding: 4px 0;
+    border: 0;
+    text-align: left;
+  }
+
+  .ld-tabelle td.ld-griffzelle {
+    grid-column: 1;
+    grid-row: 1;
+    padding: 0;
+  }
+
+  .ld-tabelle tbody tr > th,
+  .ld-tabelle tbody tr > td:not(.ld-griffzelle) {
+    grid-column: 2;
+  }
+
+  .ld-tabelle td.zahl {
+    text-align: left;
+    color: var(--leise);
+  }
+
+  .ld-tabelle td[data-label]:not(.zahl)::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 4px;
+    color: var(--leise);
+    font-size: 0.8125rem;
+    font-weight: 700;
+  }
+
+  .ld-tabelle td.rechts {
+    width: auto;
+  }
+
+  .ld-tabelle td.rechts .aktionen {
+    justify-content: flex-start;
+  }
+}

@@ -1,0 +1,187 @@
+/* Seiten im Fluss statt Dialoge (#578, fluss.js): Anlegen, Bearbeiten und Details ersetzen die Ansicht im Inhalt, mit «Zurück», eigenem Verlaufseintrag und denselben Tokens wie die Website. Der Editor bekommt ein nicht modales Panel rechts im Layout. Farben, Radien und Bewegung nur aus tokens.css. */
+
+/* Die Ansicht darunter bleibt im DOM (Filter, Auswahl, Scrollposition), aber verborgen */
+.fluss-offen > :not(.fluss-seite) {
+  display: none;
+}
+
+.fluss-weg {
+  display: none;
+}
+
+.fluss-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-width: 0;
+}
+
+.fluss-formular {
+  max-width: 40rem;
+}
+
+.fluss-blatt {
+  max-width: 56rem;
+}
+
+.fluss-breit {
+  max-width: 64rem;
+}
+
+.ws-fluss {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Kopf: «Zurück» über dem Titel, wie ein Verweis auf den Ort, von dem man kommt */
+.fluss-kopf {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.fluss-kopf .knopf--still {
+  margin-left: -0.75rem;
+}
+
+.fluss-titelblock {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.fluss-karte {
+  padding: 1.5rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+/* Details und Bearbeiten (früher das Seitenblatt): Inhalt in einer Karte, die Knöpfe haften unten am Fenster */
+.fluss-blatt .blatt-inhalt {
+  padding: 1.5rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  overflow: visible;
+}
+
+.fluss-blatt .blatt-fuss {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  padding: 1rem 0;
+  background: var(--surface);
+  border-top: 1px solid var(--outline-variant);
+}
+
+/* Frage bei ungespeicherten Eingaben: eine Zeile über den Knöpfen, zweistufig statt Popup */
+.fluss-frage {
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.fluss-frage > span {
+  flex: 1 1 12rem;
+  font-weight: 700;
+}
+
+/* Startpasswort: eine Karte oben in der Ansicht, nicht modal */
+.fluss-geheimnis {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.5rem;
+  background: var(--karte);
+  border: 2px solid var(--accent);
+  border-radius: var(--r-md);
+}
+
+/* Editor: Panel rechts im Layout; der Inhalt rückt nach links, nichts wird verdeckt */
+body.panel-offen .app {
+  padding-right: min(36rem, 40vw);
+}
+
+.fluss-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  display: flex;
+  flex-direction: column;
+  width: min(36rem, 40vw);
+  background: var(--karte);
+  border-left: 1px solid var(--outline-variant);
+  box-shadow: var(--schatten);
+}
+
+.fluss-panel .fluss-kopf {
+  flex-direction: row;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1.5rem 1.5rem 0.75rem;
+}
+
+.fluss-panel .blatt-inhalt {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0.75rem 1.5rem 1.5rem;
+  overflow-y: auto;
+}
+
+.fluss-panel .blatt-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 1rem 1.5rem;
+  border-top: 1px solid var(--outline-variant);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .fluss-seite {
+    animation: fluss-ein var(--dauer) var(--kurve);
+  }
+
+  .fluss-panel {
+    animation: fluss-panel-ein var(--dauer) var(--kurve);
+  }
+}
+
+@keyframes fluss-ein {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@keyframes fluss-panel-ein {
+  from {
+    opacity: 0;
+    transform: translateX(1.5rem);
+  }
+}
+
+/* Das Seitenblatt war ein Fenster mit eigenem Grund (admin.css, .blatt); als Seite im Fluss oder Panel gelten die Flächen oben */
+.fluss-seite.blatt {
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.fluss-panel.blatt {
+  padding: 0;
+  border-radius: 0;
+}
+
+/* Mit dem Panel hat der Editor nur noch die Breite links davon: eine Spalte wie auf schmalen Fenstern */
+body.panel-offen .ws-editor {
+  grid-template-columns: minmax(0, 1fr);
+}

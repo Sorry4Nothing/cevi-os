@@ -126,13 +126,13 @@ interface Steckbrief {
 
 const STECKBRIEFE: Record<Exclude<Persona, "ohneLogin">, Steckbrief> = {
   admin: {
-    name: "Admin",
+    name: "Abteilungsleitung",
     benutzername: "admin",
     admin: true,
     zweiterFaktor: true,
   },
   adminOhneZweitenFaktor: {
-    name: "Admin ohne zweiten Faktor",
+    name: "Abteilungsleitung ohne zweiten Faktor",
     benutzername: "admin.ohne",
     admin: true,
   },
@@ -175,7 +175,7 @@ const STECKBRIEFE: Record<Exclude<Persona, "ohneLogin">, Steckbrief> = {
     deaktivieren: true,
   },
   demoAdmin: {
-    name: "Admin der Demo-Abteilung",
+    name: "Abteilungsleitung der Demo-Abteilung",
     benutzername: "demo.admin",
     demo: true,
     admin: true,
@@ -220,7 +220,7 @@ async function zweiterFaktorEin(welt: Welt, userId: string, cookie: string) {
   return cookiesAus(bestaetigt);
 }
 
-// Schaltet den zweiten Faktor eines bestehenden Kontos ein (#423): Tests brauchen Personen, die ihn haben, ohne Admin zu sein. Das neue Cookie steht danach in den Kopfzeilen des Kontos
+// Schaltet den zweiten Faktor eines bestehenden Kontos ein (#423): Tests brauchen Personen, die ihn haben, ohne Abteilungsleitung zu sein. Das neue Cookie steht danach in den Kopfzeilen des Kontos
 export async function schalteZweitenFaktorEin(
   welt: Welt,
   konto: PersonaKonto,
@@ -262,7 +262,7 @@ export async function legePersonaAn(
     ? erzeugeStartpasswort()
     : null;
 
-  // Ohne Header übergeht createUser die Rechteprüfung; so braucht die Fabrik keinen schon angemeldeten Admin
+  // Ohne Header übergeht createUser die Rechteprüfung; so braucht die Fabrik keine schon angemeldete Abteilungsleitung
   const { user } = await auth.api.createUser({
     body: {
       email: `${randomUUID()}@example.org`,

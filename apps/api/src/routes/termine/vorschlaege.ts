@@ -6,9 +6,9 @@ import type { Db } from "../../db/client.js";
 import { auditLog, tag } from "../../db/schema.js";
 import { terminVorschlag } from "../../db/schema-vorschlag.js";
 import { eingabe } from "../../eingabe.js";
+import { darf, verlange } from "../../rechtemodell/darf.js";
 import type { Fcm } from "../../push.js";
 import {
-  darfVorschlagen,
   idPfad,
   ladeTags,
   liegtInVergangenheit,
@@ -24,7 +24,7 @@ import type { TermineEnv } from "./index.js";
 const VORSCHLAEGE = 20;
 const FENSTER_MS = 10 * 60_000;
 
-// Terminvorschläge einreichen (#439, Epic #430). Vorschlagen darf, wer darfVorschlagen erfüllt (Annahme A9); lesen und zurückziehen darf jede Person ihre eigenen, die Abteilungsleitung liest jeden der Abteilung. Ein Vorschlag einer anderen Abteilung oder einer anderen Person (ohne Leserecht) ist 404. Entscheiden gehört zu #440. Cevi OS schreibt nie nach Outlook
+// Terminvorschläge einreichen (#439, Epic #430). Vorschlagen darf, wer das Recht «Termine vorschlagen» hat (rechtemodell/katalog.ts, Annahme A9: Abteilungsleitung, Stufenleitung, Leitung, Team und Funktion; einstellbar, #649); lesen und zurückziehen darf jede Person ihre eigenen, wer Vorschläge entscheiden darf liest jeden der Abteilung. Ein Vorschlag einer anderen Abteilung oder einer anderen Person (ohne Leserecht) ist 404. Entscheiden gehört zu #440. Cevi OS schreibt nie nach Outlook
 export function erstelleVorschlaegeRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   // shortcut: Zähler im Arbeitsspeicher, ein Neustart setzt ihn zurück und mehrere Instanzen zählen getrennt; in die Datenbank, sobald die API auf mehr als einer Instanz läuft
   const versuche = new Map<string, number[]>();
@@ -41,9 +41,9 @@ export function erstelleVorschlaegeRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
 
   // 403 vor der Eingabe (400)
   const einreichen = createMiddleware<TermineEnv>(async (c, next) => {
-    if (!(await darfVorschlagen(db, c.get("person")))) {
-      throw new HTTPException(403);
-    }
+    await verlange(db, c.get("person"), "vorschlag.einreichen", {
+      abteilungId: c.get("person").abteilungId,
+    });
     await next();
   });
 
@@ -52,15 +52,15 @@ export function erstelleVorschlaegeRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       // Ob die Person vorschlagen darf und welche Tags sie als Kategorie wählen kann: alle Tags der Abteilung; zwei Abfragen (Recht, Tags)
       .get("/termin-vorschlaege/optionen", async (c) => {
         const person = c.get("person");
-        const darf = await darfVorschlagen(db, person);
-        const tags = darf
+        const darfEinreichen = await darf(db, person, "vorschlag.einreichen");
+        const tags = darfEinreichen
           ? await db
               .select({ id: tag.id, name: tag.name, typ: tag.typ })
               .from(tag)
               .where(eq(tag.abteilungId, person.abteilungId))
               .orderBy(asc(tag.typ), asc(tag.name), asc(tag.id))
           : [];
-        return c.json({ darfVorschlagen: darf, tags });
+        return c.json({ darfVorschlagen: darfEinreichen, tags });
       })
       .post(
         "/termin-vorschlaege",
@@ -202,7 +202,12 @@ export function erstelleVorschlaegeRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               eq(terminVorschlag.abteilungId, person.abteilungId),
             ),
           );
-        if (!zeile || (!person.admin && zeile.vorgeschlagenVon !== person.id)) {
+        // Fremde Vorschläge liest, wer sie entscheiden darf (ohne zweiten Faktor, wie die Abteilungsleitung bisher)
+        if (
+          !zeile ||
+          (zeile.vorgeschlagenVon !== person.id &&
+            !(await darf(db, person, "vorschlag.entscheiden")))
+        ) {
           throw new HTTPException(404);
         }
         const tags = await ladeTags(db, person.abteilungId, [zeile]);
@@ -225,8 +230,12 @@ export function erstelleVorschlaegeRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               ),
             );
           const eigener = zeile?.von === person.id;
-          if (!zeile || (!person.admin && !eigener))
+          if (
+            !zeile ||
+            (!eigener && !(await darf(db, person, "vorschlag.entscheiden")))
+          ) {
             throw new HTTPException(404);
+          }
           if (!eigener) throw new HTTPException(403);
           const geloescht = await db.transaction(async (tx) => {
             const weg = await tx

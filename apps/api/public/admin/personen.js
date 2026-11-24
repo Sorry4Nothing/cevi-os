@@ -1,19 +1,16 @@
 import { anfrage, fehlertext } from "./api.js";
+import { flussOffen } from "./fluss.js";
 import {
   aktionenZelle,
   ankreuzen,
   auswahl,
-  avatar,
   chip,
-  dialogFormular,
   el,
   feld,
-  filterGruppe,
   icon,
   knopf,
-  neueId,
-  tabelle,
 } from "./dom.js";
+import { filterleiste } from "./filterleiste.js";
 import {
   aktionenKopfVerstecken,
   macheSortierbar,
@@ -22,43 +19,69 @@ import {
   sortiere,
 } from "./liste-hilfen.js";
 import {
-  kinderFelder,
-  oeffneBlatt,
-  rollenFelder,
-  startpasswortDialog,
-  statusChips,
+  fehltTelefon,
+  kontoChips,
+  oeffnePerson,
   systemRollen,
 } from "./personen-blatt.js";
+import { meldePersonen, nimmWunsch } from "./befehlspalette.js";
 import { typName } from "./tags-detail.js";
+import { skeletonTabelle } from "./lader.js";
+import {
+  abschnitte,
+  ansichtsleiste,
+  chipListe,
+  gespeicherteAnsicht,
+  gliedere,
+  marke,
+  mitgliedKarte,
+  mitgliedKopf,
+  skeletonKarten,
+  stufenKennzeichen,
+  zeichneAnsicht,
+} from "./mitglieder.js";
 import { leerKarte } from "./zustaende.js";
 
-// Personen (A6, A7): Liste mit Suche, Tag, Status und Rolle, Mehrfachauswahl für Tags, Seitenblatt zum Bearbeiten
+// Personen (A6, A7): Liste mit Filterleiste (Suche, Tag, Rolle, Konto, Trefferzahl), Auswahlleiste für Tags mit «Rückgängig» und eine Seite im Fluss zum Erfassen und Bearbeiten (personen-blatt.js)
 // Suche und Filter überleben das Neuladen nach einer Aktion; fokus: Person, deren Zeile danach den Fokus bekommt
 const zustand = {
   frage: "",
-  tag: "",
-  status: "alle",
-  rolle: "alle",
+  filter: { tag: "", rolle: "alle", konto: "alle" },
   sort: { schluessel: "name", richtung: "auf" },
+  gruppierung: "rolle",
   fokus: null,
 };
 
 export function zeige(bereich, ctx) {
-  zustand.frage = "";
-  zustand.tag = "";
-  zustand.status = "alle";
-  zustand.rolle = "alle";
+  // Wunsch der Befehlspalette: «Neue Person» öffnet das Formular, eine Person setzt die Suche
+  const wunsch = nimmWunsch();
+  zustand.frage = wunsch?.art === "person" ? wunsch.frage : "";
+  // Die gewählte Person bekommt den Fokus, sobald die Liste steht
+  const gesucht = wunsch?.art === "person" ? wunsch.id : null;
+  zustand.filter = { tag: "", rolle: "alle", konto: "alle" };
   zustand.sort = { schluessel: "name", richtung: "auf" };
-  zustand.fokus = null;
+  zustand.fokus = gesucht ?? null;
   ctx.lade(
     mitFehlertitel("Die Personen konnten nicht geladen werden.", ladeDaten),
-    (daten, neu) => zeichne(bereich, ctx, daten, neu),
-    { skeleton: "tabelle" },
+    (daten, neu) => {
+      meldePersonen(daten, { systemRollen, kontoChips, typName });
+      zeichne(bereich, ctx, daten, neu);
+      if (wunsch?.art === "neu") {
+        wunsch.art = "erledigt";
+        document.querySelector("#seitenkopf .kopf-aktion button")?.click();
+      }
+    },
+    {
+      skeleton: () =>
+        gespeicherteAnsicht() === "liste"
+          ? skeletonTabelle({ spalten: 6 })
+          : skeletonKarten(),
+    },
   );
 }
 
 // Die API nennt die Tags einer Person nicht; sie stehen im Einzelabruf des Tags. Darum: Personen und Tags in einer Runde, danach je ein Abruf für jeden Tag, den jemand trägt (nicht je Person).
-async function ladeDaten() {
+export async function ladeDaten() {
   const [liste, tagListe] = await Promise.all([
     anfrage("GET", "/api/v1/admin/personen"),
     anfrage("GET", "/api/v1/admin/tags"),
@@ -76,78 +99,16 @@ async function ladeDaten() {
       tagsJePerson.set(e.userId, eigene);
     }
   }
-  for (const eigene of tagsJePerson.values()) {
-    eigene.sort(
-      (a, b) =>
-        (a.tag.typ === "stufe" ? 0 : 1) - (b.tag.typ === "stufe" ? 0 : 1) ||
-        a.tag.name.localeCompare(b.tag.name, "de-CH"),
-    );
-  }
+  for (const eigene of tagsJePerson.values()) sortiereTags(eigene);
   return { ...liste, tags: tagListe.tags, tagsJePerson };
 }
 
-// Person erfassen: Konto mit Startpasswort, Stufenrollen und Kindern
-function erfassen(daten, ctx, neu) {
-  const vorname = feld({ label: "Vorname", maxlength: 100, required: true });
-  const nachname = feld({ label: "Nachname", maxlength: 100, required: true });
-  const ceviName = feld({ label: "Cevi-Name (optional)", maxlength: 50 });
-  const telefon = feld({
-    label: "Telefon (optional)",
-    typ: "tel",
-    hilfe:
-      "Nur für Stufenleitungen. Eltern, Leitende und Stufenleitung der Stufe sehen die Nummer bei den Kontakten. Leer lassen, um sie zu entfernen.",
-    maxlength: 30,
-    autocomplete: "off",
-  });
-  const benutzername = feld({
-    label: "Benutzername",
-    hilfe:
-      "2 bis 64 Zeichen: Buchstaben, Ziffern, Punkt, Unterstrich und Bindestrich. Gross- und Kleinschreibung zählt nicht.",
-    maxlength: 64,
-    autocapitalize: "none",
-    spellcheck: "false",
-    required: true,
-  });
-  const admin = ankreuzen({ label: "Admin-Rechte" });
-  const rollen = rollenFelder(daten.stufen, []);
-  const kinder = kinderFelder(daten.kinder, daten.stufen, []);
-  dialogFormular({
-    titel: "Person erfassen",
-    beschreibung:
-      "Die Person erhält ein Startpasswort. Es bleibt im Blatt der Person sichtbar, bis sie es ersetzt hat.",
-    felder: [
-      vorname.wurzel,
-      nachname.wurzel,
-      ceviName.wurzel,
-      telefon.wurzel,
-      benutzername.wurzel,
-      admin.wurzel,
-      rollen.wurzel,
-      kinder.wurzel,
-    ],
-    ok: "Erfassen",
-    senden: () =>
-      anfrage("POST", "/api/v1/admin/personen", {
-        vorname: vorname.eingabe.value.trim(),
-        nachname: nachname.eingabe.value.trim(),
-        ceviName: ceviName.eingabe.value,
-        telefon: telefon.eingabe.value,
-        benutzername: benutzername.eingabe.value.trim(),
-        admin: admin.eingabe.checked,
-        rollen: rollen.wert(),
-        elternteilVon: kinder.wert(),
-      }),
-    fehlertext: (f) =>
-      f.code === "BENUTZERNAME_VERGEBEN"
-        ? "Der Benutzername ist schon vergeben. Wähle einen anderen."
-        : fehlertext(f),
-    danach: (antwort) => {
-      neu();
-      ctx.melde(`Person «${antwort.benutzername}» ist erfasst.`);
-      startpasswortDialog(antwort.benutzername, antwort.startpasswort);
-    },
-  });
-}
+const sortiereTags = (eigene) =>
+  eigene.sort(
+    (a, b) =>
+      (a.tag.typ === "stufe" ? 0 : 1) - (b.tag.typ === "stufe" ? 0 : 1) ||
+      a.tag.name.localeCompare(b.tag.name, "de-CH"),
+  );
 
 // Tags für mehrere Personen: Die API kennt nur die Einzelzuordnung, darum je Person ein Aufruf, höchstens 5 gleichzeitig
 async function nacheinander(aufgaben) {
@@ -161,107 +122,26 @@ async function nacheinander(aufgaben) {
   return misslungen;
 }
 
-function sammelAktion({ art, auswahlIds, daten, ctx, neu, danach }) {
-  const hinzufuegen = art === "hinzufuegen";
-  const traeger = (tagId) =>
-    auswahlIds.filter((id) =>
-      daten.tagsJePerson.get(id)?.some((e) => e.tag.id === tagId),
-    );
-  const verfuegbar = hinzufuegen
-    ? daten.tags
-    : daten.tags.filter((t) => traeger(t.id).length > 0);
-  if (verfuegbar.length === 0) {
-    ctx.melde("Die gewählten Personen tragen keinen Tag.", "info");
-    return;
-  }
-  const tag = auswahl({
-    label: "Tag",
-    optionen: [
-      ["", "Tag wählen"],
-      ...verfuegbar.map((t) => [t.id, `${t.name} (${typName(t.typ)})`]),
-    ],
-    wert: "",
-  });
-  const rolle = hinzufuegen
-    ? feld({
-        label: "Rolle (optional)",
-        hilfe: "Freier Text, höchstens 50 Zeichen.",
-        maxlength: 50,
-      })
-    : null;
-  const n = auswahlIds.length;
-  dialogFormular({
-    titel: hinzufuegen ? "Tag hinzufügen" : "Tag entfernen",
-    beschreibung: `${n === 1 ? "1 Person ist" : `${n} Personen sind`} gewählt.`,
-    felder: [tag.wurzel, rolle?.wurzel].filter(Boolean),
-    ok: hinzufuegen ? "Hinzufügen" : "Entfernen",
-    gefaehrlich: !hinzufuegen,
-    pruefe: () => {
-      if (tag.eingabe.value) return false;
-      const fehler = el(
-        "p",
-        { class: "feld-fehler", role: "alert" },
-        "Wähle einen Tag.",
-      );
-      tag.wurzel.querySelector(".feld-fehler")?.remove();
-      tag.wurzel.append(fehler);
-      tag.wurzel.querySelector(".auswahl-knopf").focus();
-      return true;
-    },
-    senden: async () => {
-      const tagId = tag.eingabe.value;
-      const text = rolle?.eingabe.value.trim();
-      const ziele = hinzufuegen
-        ? auswahlIds.filter((id) => !traeger(tagId).includes(id))
-        : traeger(tagId);
-      const misslungen = await nacheinander(
-        ziele.map(
-          (id) => () =>
-            hinzufuegen
-              ? anfrage(
-                  "PUT",
-                  `/api/v1/admin/tags/${tagId}/personen/${id}`,
-                  text ? { rolle: text } : {},
-                )
-              : anfrage("DELETE", `/api/v1/admin/tags/${tagId}/personen/${id}`),
-        ),
-      );
-      return { tagId, ziele: ziele.length, misslungen };
-    },
-    danach: ({ tagId, ziele, misslungen }) => {
-      const name = daten.tags.find((t) => t.id === tagId)?.name ?? "Tag";
-      neu();
-      danach();
-      if (misslungen > 0) {
-        ctx.melde(
-          `«${name}»: ${misslungen} von ${ziele} Änderungen gingen nicht durch. Prüfe die Liste und versuche es nochmals.`,
-          "warn",
-        );
-      } else {
-        ctx.melde(
-          hinzufuegen
-            ? `«${name}» gilt jetzt für ${ziele === 1 ? "1 Person" : `${ziele} Personen`}.`
-            : `«${name}» ist ${ziele === 1 ? "1 Person" : `${ziele} Personen`} entzogen.`,
-        );
-      }
-    },
-  });
-}
-
-const FILTER = {
+const ROLLE = {
   alle: () => true,
   eltern: (p) => p.elternteilVon.length > 0,
   leitung: (p) => p.rollen.length > 0,
   admin: (p) => p.admin,
 };
-const STATUS = {
+const KONTO = {
   alle: () => true,
-  offen: (p) => p.mussPasswortAendern,
+  aktiv: (p) => !p.deaktiviert && !p.mussPasswortAendern,
+  offen: (p) => !p.deaktiviert && p.mussPasswortAendern,
   deaktiviert: (p) => p.deaktiviert,
 };
+const personen = (n) => (n === 1 ? "1 Person" : `${n} Personen`);
 
 function zeichne(bereich, ctx, daten, neu) {
-  const erfassenKnopf = () => erfassen(daten, ctx, neu);
+  const erfassenKnopf = () =>
+    oeffnePerson({ person: null, daten, ctx, neu, beiFokus });
+  const beiFokus = (id) => {
+    zustand.fokus = id;
+  };
   ctx.kopfAktion(
     knopf("Person erfassen", {
       art: "haupt",
@@ -273,13 +153,64 @@ function zeichne(bereich, ctx, daten, neu) {
     bereich.append(
       leerKarte(
         "Es gibt noch keine Personen. Erfasse die erste oder übernimm eine Liste über «Import».",
-        [knopf("Person erfassen", { symbol: "plus", onclick: erfassenKnopf })],
+        [],
       ),
     );
     return;
   }
   const gewaehlt = new Set();
   const tagsVon = (p) => daten.tagsJePerson.get(p.id) ?? [];
+  const stufenname = new Map(daten.stufen.map((s) => [s.id, s.name]));
+  // Die Stufenrolle steht schon als Rolle da; der gleichnamige Stufen-Tag mit derselben Funktion wäre doppelt
+  const eigeneTags = (person) => {
+    const stufenrollen = new Set(
+      person.rollen.map((r) => stufenname.get(r.stufeId)),
+    );
+    return tagsVon(person).filter(
+      (e) =>
+        !(
+          e.tag.typ === "stufe" &&
+          ["leitung", "stufenleitung"].includes(e.rolle) &&
+          stufenrollen.has(e.tag.name)
+        ),
+    );
+  };
+  const tagChips = (person) =>
+    eigeneTags(person).map((e) =>
+      chip(
+        `${e.tag.name} · ${typName(e.tag.typ)}`,
+        e.tag.typ === "stufe" ? "stufe" : undefined,
+        "tag",
+      ),
+    );
+  const rollenChips = (person) =>
+    [
+      person.admin && chip("Abteilungsleitung", undefined, false),
+      ...person.rollen.map((r) =>
+        chip(
+          `${r.typ === "stufenleitung" ? "Stufenleitung" : "Leitung"} · ${stufenname.get(r.stufeId) ?? "Stufe"}`,
+          "stufe",
+          false,
+        ),
+      ),
+      person.elternteilVon.length > 0 && chip("Eltern", undefined, false),
+      fehltTelefon(person) && chip("Telefon fehlt", "warn", "telefon"),
+    ].filter(Boolean);
+  // Konto: Ein aktives Konto ist eine ruhige Marke, alles andere (Startpasswort, Sperre) bleibt ein Chip
+  const kontoMarken = (person) => {
+    const [zustandChip] = kontoChips(person);
+    return [
+      zustandChip.classList.contains("chip--ok")
+        ? marke("Konto aktiv", "haken", "ok")
+        : el("ul", { class: "chips" }, zustandChip),
+      person.zweiterFaktor && marke("Zweiter Faktor", "schild"),
+    ];
+  };
+  const chipSpalte = (chips) =>
+    chips.length
+      ? el("ul", { class: "chips" }, chips)
+      : el("span", { class: "leise" }, "–");
+
   const eintraege = daten.personen.map((person) => {
     const eigenes = person.id === ctx.ich.id;
     const box = ankreuzen({ label: `${person.name} wählen`, wert: person.id });
@@ -289,95 +220,104 @@ function zeichne(bereich, ctx, daten, neu) {
       else gewaehlt.delete(person.id);
       zeichneAuswahl();
     });
-    const tags = tagsVon(person);
-    const status = statusChips(person);
-    const rollen = systemRollen(person);
-    const bearbeiten = knopf("Bearbeiten", {
+    const eintrag = {
+      person,
+      eigenes,
+      box,
+      knoten: null, // Karte oder Zeile, je nach Ansicht neu gebaut
+      knopf: null,
+      tagNamen: "",
+      tagIds: [],
+    };
+    eintrag.knopf = knopf("Bearbeiten", {
       klein: true,
       kontext: person.name,
       symbol: "bearbeiten",
       onclick: () =>
-        oeffneBlatt({
+        oeffnePerson({
           person,
           daten,
           ctx,
           neu,
-          beiFokus: (id) => {
-            zustand.fokus = id;
-          },
-          tr,
+          beiFokus,
+          tr: eintrag.knoten,
         }),
     });
-    const tr = el(
+    return eintrag;
+  });
+  // Kontakt nur dort, wo die Verwaltung die Nummer ohnehin sieht (Stufenleitung)
+  const anrufen = (e) =>
+    e.person.telefon &&
+    el(
+      "a",
+      {
+        class: "knopf knopf--klein mg-anruf",
+        href: `tel:${e.person.telefon.replace(/[^\d+]/g, "")}`,
+        "aria-label": `Anrufen: ${e.person.name}`,
+        "data-tipp": "Anrufen",
+      },
+      icon("telefon"),
+    );
+  const ton = (p) => (p.admin || p.rollen.length > 0 ? "blau" : "hell");
+  const karte = (e) => {
+    const p = e.person;
+    e.knoten = mitgliedKarte({
+      id: p.id,
+      aus: p.deaktiviert,
+      kopf: mitgliedKopf({
+        name: p.name,
+        ceviName: p.ceviName,
+        bildUrl: p.bildUrl,
+        du: e.eigenes,
+        gross: true,
+        ton: ton(p),
+        zusatz: kontoMarken(p),
+      }),
+      rollen: chipListe(rollenChips(p), { max: 3 }),
+      tags: chipListe(tagChips(p), { max: 3 }),
+      aktionen: [anrufen(e), e.knopf],
+      wahl: e.box.wurzel,
+    });
+    return e.knoten;
+  };
+  const zeile = (e) => {
+    const p = e.person;
+    e.knoten = el(
       "tr",
-      { class: person.deaktiviert ? "inaktiv" : undefined },
-      el("td", { class: "pe-wahl" }, box.wurzel),
+      { class: p.deaktiviert ? "inaktiv" : undefined },
+      el("td", { class: "pe-wahl" }, e.box.wurzel),
       el(
         "th",
         { scope: "row" },
-        el(
-          "div",
-          { class: "wer" },
-          avatar(person.name, { hell: !eigenes, bildUrl: person.bildUrl }),
-          el(
-            "div",
-            {},
-            el("span", { class: "name" }, person.name, eigenes && " (du)"),
-            person.ceviName &&
-              el("span", { class: "klein leise" }, person.ceviName),
-          ),
-        ),
+        mitgliedKopf({
+          name: p.name,
+          ceviName: p.ceviName,
+          bildUrl: p.bildUrl,
+          du: e.eigenes,
+          ton: ton(p),
+        }),
       ),
-      el(
-        "td",
-        {},
-        tags.length
-          ? el(
-              "ul",
-              { class: "chips" },
-              tags.map((e) =>
-                chip(
-                  `${e.tag.name} · ${typName(e.tag.typ)}`,
-                  e.tag.typ === "stufe" ? "stufe" : undefined,
-                  "tag",
-                ),
-              ),
-            )
-          : el("span", { class: "leise" }, "–"),
-      ),
-      el(
-        "td",
-        {},
-        rollen.length ? rollen.join(", ") : el("span", { class: "leise" }, "–"),
-      ),
-      el(
-        "td",
-        {},
-        status.length
-          ? el("ul", { class: "chips" }, status)
-          : el("span", { class: "leise" }, "–"),
-      ),
-      aktionenZelle(bearbeiten),
+      el("td", {}, chipSpalte(rollenChips(p))),
+      el("td", {}, chipSpalte(tagChips(p))),
+      el("td", {}, el("div", { class: "mg-zustand" }, kontoMarken(p))),
+      aktionenZelle(anrufen(e), e.knopf),
     );
-    return {
-      person,
-      tr,
-      box,
-      knopf: bearbeiten,
-      tagNamen: tags.map((e) => e.tag.name).join(" "),
-      tagIds: tags.map((e) => e.tag.id),
-    };
-  });
-  const { wurzel, koerper } = tabelle({
-    beschriftung: "Personen",
-    spalten: ["Auswahl", "Name", "Tags", "Rolle", "Status", "Aktionen"],
-    zeilen: [],
-  });
-  // Kopfzelle der Auswahlspalte: «Alle wählen» betrifft die Zeilen der Seite
-  const alleBox = ankreuzen({ label: "Alle wählen" });
-  alleBox.wurzel.querySelector("label").classList.add("nur-leser");
-  wurzel.querySelector("thead th").replaceChildren(alleBox.wurzel);
-  wurzel.querySelector("thead th").classList.add("pe-wahl");
+    return e.knoten;
+  };
+  // Filterwerte nach einer Änderung der Tags neu aus den Daten ableiten
+  const frischeTags = (ids) => {
+    for (const e of eintraege) {
+      if (ids && !ids.includes(e.person.id)) continue;
+      e.tagNamen = tagsVon(e.person)
+        .map((t) => t.tag.name)
+        .join(" ");
+      e.tagIds = tagsVon(e.person).map((t) => t.tag.id);
+    }
+  };
+  frischeTags();
+
+  // «Alle wählen» betrifft die Einträge der Seite und steht in der Leiste über der Ansicht, für Karten und Liste gleich
+  const alleBox = ankreuzen({ label: "Alle auf der Seite wählen" });
   alleBox.eingabe.addEventListener("change", () => {
     for (const e of sichtbar) {
       e.box.eingabe.checked = alleBox.eingabe.checked;
@@ -388,8 +328,109 @@ function zeichne(bereich, ctx, daten, neu) {
   });
   let sichtbar = [];
   let treffer = [];
-  const zaehler = el("p", { class: "klein leise", role: "status" });
   const keine = el("div");
+  const ansichtBox = el("div", { class: "mg-ansicht" });
+  const seiten = seitenleiste({ beiWechsel: () => aktualisiere() });
+  const tabellenBox = el("div", {}, ansichtBox, seiten.wurzel);
+
+  // Abschnitte nach Rolle (Leitende, Abteilungsleitung, Eltern, Weitere) oder nach Stufe; «keine» zeigt alle in einem Raster
+  const stufenRang = new Map(daten.stufen.map((s, i) => [s.id, i]));
+  const kindStufe = new Map(daten.kinder.map((k) => [k.id, k.stufeId]));
+  const stufeVon = (p) =>
+    [
+      ...p.rollen.map((r) => r.stufeId),
+      ...p.elternteilVon.map((id) => kindStufe.get(id)),
+    ]
+      .filter((id) => stufenRang.has(id))
+      .sort((a, b) => stufenRang.get(a) - stufenRang.get(b))[0] ?? "";
+  const gruppenFuer = (art) =>
+    art === "rolle"
+      ? {
+          gruppen: [
+            { schluessel: "leitung", titel: "Leitende" },
+            { schluessel: "admin", titel: "Abteilungsleitung" },
+            { schluessel: "eltern", titel: "Eltern" },
+            { schluessel: "weitere", titel: "Weitere Personen" },
+          ],
+          schluesselVon: ({ person: p }) =>
+            p.rollen.length > 0
+              ? "leitung"
+              : p.admin
+                ? "admin"
+                : p.elternteilVon.length > 0
+                  ? "eltern"
+                  : "weitere",
+        }
+      : art === "stufe"
+        ? {
+            gruppen: [
+              ...daten.stufen.map((s) => ({
+                schluessel: s.id,
+                titel: s.name,
+                kennzeichen: stufenKennzeichen(s),
+              })),
+              { schluessel: "", titel: "Ohne Stufe" },
+            ],
+            schluesselVon: ({ person }) => stufeVon(person),
+          }
+        : { gruppen: null, schluesselVon: () => "" };
+  const ansicht = ansichtsleiste({
+    links: alleBox.wurzel,
+    gruppierungen: [
+      ["rolle", "Rolle"],
+      ["stufe", "Stufe"],
+      ["keine", "Keine"],
+    ],
+    gruppierung: zustand.gruppierung,
+    beiAenderung: (stand) => {
+      zustand.gruppierung = stand.gruppierung;
+      seiten.anfang();
+      aktualisiere(true);
+    },
+  });
+
+  const leiste = filterleiste({
+    suche: { label: "Name oder Cevi-Name", wert: zustand.frage },
+    filter: [
+      {
+        schluessel: "tag",
+        label: "Tag",
+        optionen: [["", "Alle Tags"], ...daten.tags.map((t) => [t.id, t.name])],
+        wert: zustand.filter.tag,
+      },
+      {
+        schluessel: "rolle",
+        label: "Rolle",
+        optionen: [
+          ["alle", "Alle Rollen"],
+          ["eltern", "Eltern"],
+          ["leitung", "Leitung"],
+          ["admin", "Abteilungsleitung"],
+        ],
+        wert: zustand.filter.rolle,
+      },
+      {
+        schluessel: "konto",
+        label: "Konto",
+        optionen: [
+          ["alle", "Alle Konten"],
+          ["aktiv", "Aktiv"],
+          ["offen", "Startpasswort offen"],
+          ["deaktiviert", "Deaktiviert"],
+        ],
+        wert: zustand.filter.konto,
+      },
+    ],
+    namen: { einzahl: "Person", mehrzahl: "Personen" },
+    beiAenderung: ({ suche, filter }) => {
+      zustand.frage = suche;
+      zustand.filter = filter;
+      seiten.anfang();
+      aktualisiere();
+    },
+  });
+
+  // Auswahlleiste (Muster «action-toolbar»): sagt, wie viele gewählt sind, und bietet die Sammelaktionen; Tags setzen und entziehen lassen sich zurücknehmen
   const auswahlLeiste = el("div", {
     class: "auswahlleiste",
     role: "region",
@@ -401,38 +442,29 @@ function zeichne(bereich, ctx, daten, neu) {
       e.box.eingabe.checked = gewaehlt.has(e.person.id);
     zeichneAuswahl();
   };
+  let offeneAktion = null; // "hinzufuegen" | "entfernen"
   function zeichneAuswahl() {
     auswahlLeiste.hidden = gewaehlt.size === 0;
+    if (gewaehlt.size === 0) offeneAktion = null;
     const n = gewaehlt.size;
-    auswahlLeiste.replaceChildren(
-      el("span", { role: "status" }, `${n} gewählt`),
-      knopf("Tag hinzufügen", {
+    const kopfZeile = el(
+      "div",
+      { class: "auswahlleiste-zeile" },
+      el("span", { role: "status", class: "auswahl-zahl" }, `${n} gewählt`),
+      knopf("Tag setzen", {
         klein: true,
         symbol: "tag",
-        onclick: () =>
-          sammelAktion({
-            art: "hinzufuegen",
-            auswahlIds: [...gewaehlt],
-            daten,
-            ctx,
-            neu,
-            danach: () => gewaehlt.clear(),
-          }),
+        "aria-expanded": String(offeneAktion === "hinzufuegen"),
+        onclick: () => oeffneAktion("hinzufuegen"),
       }),
-      knopf("Tag entfernen", {
+      knopf("Tag entziehen", {
         klein: true,
-        onclick: () =>
-          sammelAktion({
-            art: "entfernen",
-            auswahlIds: [...gewaehlt],
-            daten,
-            ctx,
-            neu,
-            danach: () => gewaehlt.clear(),
-          }),
+        "aria-expanded": String(offeneAktion === "entfernen"),
+        onclick: () => oeffneAktion("entfernen"),
       }),
       knopf("Auswahl aufheben", {
         klein: true,
+        art: "still",
         onclick: () => {
           gewaehlt.clear();
           nachAuswahl();
@@ -440,85 +472,171 @@ function zeichne(bereich, ctx, daten, neu) {
         },
       }),
     );
+    auswahlLeiste.replaceChildren(
+      kopfZeile,
+      offeneAktion ? aktionsFormular(offeneAktion) : false,
+    );
     alleBox.eingabe.checked =
       sichtbar.length > 0 && sichtbar.every((e) => gewaehlt.has(e.person.id));
   }
-  const seiten = seitenleiste({ beiWechsel: () => aktualisiere() });
-  const tabellenBox = el("div", {}, wurzel, seiten.wurzel);
-  const suchId = neueId("suche");
-  const suche = el("input", {
-    class: "eingabe",
-    id: suchId,
-    type: "search",
-    placeholder: "Name oder Cevi-Name",
-    autocomplete: "off",
-    oninput: () => {
-      zustand.frage = suche.value;
-      vonVorn();
-    },
-  });
-  suche.value = zustand.frage;
-  const vonVorn = () => {
-    seiten.anfang();
-    aktualisiere();
-  };
-  const tagWahl = auswahl({
-    label: "Tag",
-    optionen: [["", "Alle Tags"], ...daten.tags.map((t) => [t.id, t.name])],
-    wert: zustand.tag,
-  });
-  tagWahl.wurzel.classList.add("pe-filterfeld");
-  tagWahl.eingabe.addEventListener("change", () => {
-    zustand.tag = tagWahl.eingabe.value;
-    vonVorn();
-  });
-  const statusWahl = auswahl({
-    label: "Status",
-    optionen: [
-      ["alle", "Alle"],
-      ["offen", "Startpasswort offen"],
-      ["deaktiviert", "Deaktiviert"],
-    ],
-    wert: zustand.status,
-  });
-  statusWahl.wurzel.classList.add("pe-filterfeld");
-  statusWahl.eingabe.addEventListener("change", () => {
-    zustand.status = statusWahl.eingabe.value;
-    vonVorn();
-  });
-  const anzahl = (wert) => daten.personen.filter(FILTER[wert]).length;
-  const rollenFilter = filterGruppe({
-    beschriftung: "Rolle",
-    wert: zustand.rolle,
-    eintraege: [
-      { text: "Alle", wert: "alle" },
-      { text: "Eltern", wert: "eltern" },
-      { text: "Leitung", wert: "leitung" },
-      { text: "Admin", wert: "admin" },
-    ].map((e) => ({ ...e, n: anzahl(e.wert) })),
-    beiAenderung: (wert) => {
-      zustand.rolle = wert;
-      vonVorn();
-    },
-  });
-  // Die eigenen Auswahlfelder zeigen einen von aussen gesetzten Wert nicht an: Die Ansicht entsteht mit den Vorgaben neu
-  const zuruecksetzen = () => {
-    zustand.frage = "";
-    zustand.tag = "";
-    zustand.status = "alle";
-    zustand.rolle = "alle";
-    bereich.replaceChildren();
-    zeichne(bereich, ctx, daten, neu);
-    bereich.querySelector(".suche input")?.focus();
-  };
-  function aktualisiere() {
+  function oeffneAktion(art) {
+    offeneAktion = offeneAktion === art ? null : art;
+    zeichneAuswahl();
+    auswahlLeiste.querySelector(".auswahl-knopf, input")?.focus();
+  }
+
+  // Der Tag wird für die Auswahl gesetzt oder entzogen: sofort sichtbar, die Anfragen gehen nach der Frist (ctx.mitRueckgaengig)
+  function aktionsFormular(art) {
+    const hinzufuegen = art === "hinzufuegen";
+    const ids = [...gewaehlt];
+    const traeger = (tagId) =>
+      ids.filter((id) => tagsVon({ id }).some((e) => e.tag.id === tagId));
+    const verfuegbar = hinzufuegen
+      ? daten.tags
+      : daten.tags.filter((t) => traeger(t.id).length > 0);
+    if (verfuegbar.length === 0) {
+      return el(
+        "p",
+        { class: "auswahlleiste-hinweis" },
+        "Die gewählten Personen tragen keinen Tag.",
+      );
+    }
+    const tag = auswahl({
+      label: "Tag",
+      optionen: [
+        ["", "Tag wählen"],
+        ...verfuegbar.map((t) => [t.id, `${t.name} (${typName(t.typ)})`]),
+      ],
+      wert: "",
+    });
+    const rolle = hinzufuegen
+      ? feld({
+          label: "Rolle (optional)",
+          hilfe: "Freier Text, höchstens 50 Zeichen.",
+          maxlength: 50,
+        })
+      : null;
+    const fehlerText = el(
+      "p",
+      { class: "feld-fehler", role: "alert", hidden: true },
+      "Wähle einen Tag.",
+    );
+    const anwenden = knopf(hinzufuegen ? "Tag setzen" : "Tag entziehen", {
+      art: hinzufuegen ? "haupt" : "gefahr",
+      klein: true,
+      onclick: () => {
+        const tagId = tag.eingabe.value;
+        if (!tagId) {
+          fehlerText.hidden = false;
+          tag.wurzel.querySelector(".auswahl-knopf").focus();
+          return;
+        }
+        wende(art, tagId, ids, rolle?.eingabe.value.trim() || null);
+      },
+    });
+    return el(
+      "div",
+      { class: "auswahlleiste-formular" },
+      el("div", { class: "auswahlleiste-felder" }, tag.wurzel, rolle?.wurzel),
+      fehlerText,
+      el(
+        "div",
+        { class: "aktionen" },
+        anwenden,
+        knopf("Abbrechen", {
+          klein: true,
+          art: "still",
+          onclick: () => oeffneAktion(art),
+        }),
+      ),
+    );
+  }
+
+  function wende(art, tagId, ids, rolleText) {
+    const hinzufuegen = art === "hinzufuegen";
+    const tag = daten.tags.find((t) => t.id === tagId);
+    const hat = (id) => tagsVon({ id }).some((e) => e.tag.id === tagId);
+    const ziele = hinzufuegen
+      ? ids.filter((id) => !hat(id))
+      : ids.filter((id) => hat(id));
+    const alt = new Map(
+      ziele.map((id) => [id, daten.tagsJePerson.get(id)?.slice()]),
+    );
+    const setzeLokal = () => {
+      for (const id of ziele) {
+        const liste = (daten.tagsJePerson.get(id) ?? []).filter(
+          (e) => e.tag.id !== tagId,
+        );
+        if (hinzufuegen) liste.push({ tag, rolle: rolleText });
+        daten.tagsJePerson.set(id, sortiereTags(liste));
+      }
+      frischeTags(ziele);
+      aktualisiere();
+    };
+    const holeZurueck = () => {
+      for (const [id, liste] of alt) {
+        if (liste === undefined) daten.tagsJePerson.delete(id);
+        else daten.tagsJePerson.set(id, liste);
+      }
+      frischeTags(ziele);
+      aktualisiere();
+    };
+    if (ziele.length === 0) {
+      ctx.melde(
+        hinzufuegen
+          ? `Alle gewählten Personen tragen «${tag.name}» schon.`
+          : `Keine der gewählten Personen trägt «${tag.name}».`,
+        "info",
+      );
+      return;
+    }
+    gewaehlt.clear();
+    offeneAktion = null;
+    nachAuswahl();
+    ctx.mitRueckgaengig({
+      text: hinzufuegen
+        ? `«${tag.name}» gilt für ${personen(ziele.length)}`
+        : `«${tag.name}» ist ${personen(ziele.length)} entzogen`,
+      ansicht: { weg: setzeLokal, zurueck: holeZurueck },
+      ausfuehren: () =>
+        nacheinander(
+          ziele.map(
+            (id) => () =>
+              hinzufuegen
+                ? anfrage(
+                    "PUT",
+                    `/api/v1/admin/tags/${tagId}/personen/${id}`,
+                    rolleText ? { rolle: rolleText } : {},
+                  )
+                : anfrage(
+                    "DELETE",
+                    `/api/v1/admin/tags/${tagId}/personen/${id}`,
+                  ),
+          ),
+        ),
+      fehlertext,
+      danach: (misslungen) => {
+        if (misslungen > 0) {
+          ctx.melde(
+            `«${tag.name}»: ${misslungen} von ${ziele.length} Änderungen gingen nicht durch. Prüfe die Liste und versuche es nochmals.`,
+            "warn",
+          );
+        }
+        // Der Stand der API ist die Wahrheit: Liste neu holen
+        neu();
+      },
+    });
+  }
+
+  function aktualisiere(animiert = false) {
     const frage = zustand.frage.trim().toLowerCase();
-    treffer = sortiere(
+    const f = zustand.filter;
+    const gefiltert = sortiere(
       eintraege.filter(
         (e) =>
-          FILTER[zustand.rolle](e.person) &&
-          STATUS[zustand.status](e.person) &&
-          (!zustand.tag || e.tagIds.includes(zustand.tag)) &&
+          ROLLE[f.rolle](e.person) &&
+          KONTO[f.konto](e.person) &&
+          (!f.tag || e.tagIds.includes(f.tag)) &&
           `${e.person.name} ${e.person.ceviName ?? ""} ${e.person.benutzername ?? ""}`
             .toLowerCase()
             .includes(frage),
@@ -526,65 +644,79 @@ function zeichne(bereich, ctx, daten, neu) {
       zustand.sort,
       (e, k) => (k === "tags" ? e.tagNamen : e.person.name),
     );
+    const { gruppen, schluesselVon } = gruppenFuer(ansicht.stand().gruppierung);
+    const geordnet = gliedere(gefiltert, gruppen, schluesselVon);
+    treffer = geordnet.geordnet;
     const [von, bis] = seiten.fenster(treffer.length);
     sichtbar = treffer.slice(von, bis);
-    koerper.replaceChildren(...sichtbar.map((e) => e.tr));
+    const tabelleKnoten = zeichneAnsicht(ansichtBox, {
+      ansicht: ansicht.stand().ansicht,
+      beschriftung: "Personen",
+      spalten: ["Auswahl", "Person", "Rolle", "Tags", "Konto", "Aktionen"],
+      abschnitte: abschnitte(sichtbar, gruppen, schluesselVon, geordnet.gesamt),
+      karte,
+      zeile,
+      animiert,
+    });
+    // Die Tabelle entsteht bei jeder Zeichnung neu: Sortierknöpfe gehen mit, der Fokus bleibt auf dem Knopf
+    if (tabelleKnoten) {
+      tabelleKnoten
+        .querySelector("thead th")
+        .replaceChildren(el("span", { class: "nur-leser" }, "Auswahl"));
+      macheSortierbar(
+        tabelleKnoten,
+        [
+          { index: 1, schluessel: "name", name: "Person" },
+          { index: 3, schluessel: "tags", name: "Tags" },
+        ],
+        zustand.sort,
+        () => {
+          seiten.anfang();
+          aktualisiere();
+          ansichtBox
+            .querySelector("th:not([aria-sort='none']) .pe-sortieren")
+            ?.focus();
+        },
+      );
+      aktionenKopfVerstecken(tabelleKnoten);
+    }
     tabellenBox.hidden = treffer.length === 0;
-    zaehler.textContent = `${treffer.length} von ${daten.personen.length} Personen`;
+    leiste.setzeTreffer(treffer.length, daten.personen.length);
     keine.replaceChildren(
       treffer.length === 0
         ? leerKarte(
             frage.trim()
               ? `Keine Treffer für «${zustand.frage.trim()}».`
-              : "Keine Personen für diesen Filter.",
-            [knopf("Filter zurücksetzen", { onclick: zuruecksetzen })],
+              : "Keine Personen für diese Filter.",
+            [
+              knopf("Filter zurücksetzen", {
+                onclick: () => leiste.setzeAlles(),
+              }),
+            ],
           )
         : [],
     );
     zeichneAuswahl();
   }
-  macheSortierbar(
-    wurzel,
-    [
-      { index: 1, schluessel: "name", name: "Name" },
-      { index: 2, schluessel: "tags", name: "Tags" },
-    ],
-    zustand.sort,
-    vonVorn,
-  );
-  aktionenKopfVerstecken(wurzel);
-  aktualisiere();
+  aktualisiere(true);
   bereich.append(
-    el(
-      "div",
-      { class: "werkzeuge" },
-      el(
-        "div",
-        { class: "suche" },
-        el("label", { class: "nur-leser", for: suchId }, "Name oder Cevi-Name"),
-        icon("lupe"),
-        suche,
-      ),
-      tagWahl.wurzel,
-      statusWahl.wurzel,
-      rollenFilter.wurzel,
-    ),
+    leiste.wurzel,
+    ansicht.wurzel,
     auswahlLeiste,
-    zaehler,
     keine,
     tabellenBox,
   );
-  // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn kein Dialog den Fokus hält
+  // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn keine Seite im Fluss den Fokus hält
   if (zustand.fokus) {
     const ziel = eintraege.find((e) => e.person.id === zustand.fokus);
     zustand.fokus = null;
     // Steht die Person auf einer späteren Seite, blättert die Liste zu ihr, damit der Fokus eine sichtbare Zeile trifft
-    if (ziel && !ziel.tr.isConnected && treffer.includes(ziel)) {
+    if (ziel && !ziel.knoten?.isConnected && treffer.includes(ziel)) {
       seiten.zu(treffer.indexOf(ziel));
       aktualisiere();
     }
-    if (!document.querySelector("dialog[open]")) {
-      (ziel?.tr.isConnected
+    if (!flussOffen()) {
+      (ziel?.knoten?.isConnected
         ? ziel.knopf
         : document.querySelector("h1")
       )?.focus();

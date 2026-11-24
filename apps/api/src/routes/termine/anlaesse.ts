@@ -2,6 +2,9 @@ import { and, asc, eq, isNull, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { merkeNummer } from "../../cevi-db/vorschlag.js";
+import type { CeviDbDienst } from "../../cevi-db/dienst.js";
+import { log } from "../../log.js";
 import type { Db } from "../../db/client.js";
 import {
   anlass,
@@ -9,7 +12,7 @@ import {
   anlassFeld,
   auditLog,
   kind,
-  kindEltern,
+  kindZugang,
   programm,
   tag,
   user,
@@ -62,7 +65,13 @@ export const ANFRAGEN_PRO_MINUTE = 30;
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-export function erstelleAnlaesseRouten({ db }: { db: Db }) {
+export function erstelleAnlaesseRouten({
+  db,
+  ceviDb,
+}: {
+  db: Db;
+  ceviDb?: CeviDbDienst;
+}) {
   // shortcut: Zähler im Arbeitsspeicher, ein Neustart setzt ihn zurück und mehrere Instanzen zählen getrennt; in die Datenbank, sobald die API auf mehr als einer Instanz läuft
   const anfragen = new Map<string, number[]>();
   const zuViele = (personId: string) => {
@@ -105,6 +114,7 @@ export function erstelleAnlaesseRouten({ db }: { db: Db }) {
           typ: anlassFeld.typ,
           optionen: anlassFeld.optionen,
           pflicht: anlassFeld.pflicht,
+          ceviQuelle: anlassFeld.ceviQuelle,
         },
       })
       .from(anlass)
@@ -137,8 +147,8 @@ export function erstelleAnlaesseRouten({ db }: { db: Db }) {
       .select({ id: kind.id })
       .from(kind)
       .innerJoin(
-        kindEltern,
-        and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+        kindZugang,
+        and(eq(kindZugang.kindId, kind.id), eq(kindZugang.userId, person.id)),
       )
       .where(
         and(
@@ -222,10 +232,10 @@ export function erstelleAnlaesseRouten({ db }: { db: Db }) {
           })
           .from(kind)
           .innerJoin(
-            kindEltern,
+            kindZugang,
             and(
-              eq(kindEltern.kindId, kind.id),
-              eq(kindEltern.userId, person.id),
+              eq(kindZugang.kindId, kind.id),
+              eq(kindZugang.userId, person.id),
             ),
           )
           .innerJoin(tag, eq(tag.id, kind.stufeId))
@@ -358,8 +368,24 @@ export function erstelleAnlaesseRouten({ db }: { db: Db }) {
             zielId: zeile.id,
             details: { anlassId: id, kind: kindId !== undefined },
           });
-          return { status: 200 as const, body: ausgabe(zeile) };
+          return {
+            status: 200 as const,
+            body: ausgabe(zeile),
+            nutztCevi: a.felder.some(
+              (f) =>
+                f.ceviQuelle !== null &&
+                typeof geprueft.antworten[f.schluessel] === "string",
+            ),
+          };
         });
+        // Hat die Anmeldung ein Feld aus der Cevi-Datenbank beantwortet, merkt sich der Server die Nummer der eindeutig zugeordneten Person (#691). Fällt das aus, bleibt die Anmeldung gespeichert
+        if (ceviDb && ergebnis.status === 200 && ergebnis.nutztCevi) {
+          try {
+            await merkeNummer({ db, dienst: ceviDb, person, kindId });
+          } catch {
+            log(c, { ereignis: "cevi_db_merken_fehler" });
+          }
+        }
         return c.json(ergebnis.body, ergebnis.status);
       },
     )

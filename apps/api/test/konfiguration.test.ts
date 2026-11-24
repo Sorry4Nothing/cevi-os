@@ -278,3 +278,88 @@ describe("WEBSITE_* (#351)", () => {
     ).toBe("Fehlende oder ungültige Umgebungsvariablen: WEBSITE_BASIS_URL");
   });
 });
+
+// Fotos aus Flickr (#690): Geheimnisse nur aus der Umgebung; Schlüssel und Secret, Token und Token-Secret gehören zusammen
+describe("Flickr", () => {
+  const SCHLUESSEL = {
+    FLICKR_API_KEY: "TestSchluesselNurFuerTests",
+    FLICKR_API_SECRET: "ffeeddccbbaa9988",
+  };
+  const TOKEN = {
+    FLICKR_OAUTH_TOKEN: "72157600000000000-0123456789abcdef",
+    FLICKR_OAUTH_TOKEN_SECRET: "fedcba9876543210",
+  };
+
+  test("ohne alle vier Werte gibt es keine Fotos, und das ist erlaubt", () => {
+    const k = ladeKonfiguration(GUELTIG);
+    expect(k.FLICKR_API_KEY).toBeUndefined();
+    expect(k.FLICKR_OAUTH_TOKEN).toBeUndefined();
+    // Eine leere Zeile in deploy/.env gilt als nicht gesetzt
+    expect(
+      ladeKonfiguration({
+        ...GUELTIG,
+        FLICKR_API_KEY: "",
+        FLICKR_API_SECRET: "",
+      }).FLICKR_API_KEY,
+    ).toBeUndefined();
+  });
+
+  test("Schlüssel mit Secret genügt (nur öffentliche Fotos); mit Token auch die privaten", () => {
+    expect(
+      ladeKonfiguration({ ...GUELTIG, ...SCHLUESSEL }).FLICKR_API_KEY,
+    ).toBe(SCHLUESSEL.FLICKR_API_KEY);
+    expect(
+      ladeKonfiguration({ ...GUELTIG, ...SCHLUESSEL, ...TOKEN })
+        .FLICKR_OAUTH_TOKEN,
+    ).toBe(TOKEN.FLICKR_OAUTH_TOKEN);
+  });
+
+  test("einzelne Werte eines Paares scheitern, und die Meldung nennt nur Namen, nie Werte", () => {
+    expect(
+      meldung({ ...GUELTIG, FLICKR_API_KEY: SCHLUESSEL.FLICKR_API_KEY }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: FLICKR_API_SECRET");
+    expect(
+      meldung({
+        ...GUELTIG,
+        ...SCHLUESSEL,
+        FLICKR_OAUTH_TOKEN: TOKEN.FLICKR_OAUTH_TOKEN,
+      }),
+    ).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: FLICKR_OAUTH_TOKEN_SECRET",
+    );
+    // Ein Token ohne Schlüssel kann nichts signieren
+    const ohneSchluessel = meldung({ ...GUELTIG, ...TOKEN });
+    expect(ohneSchluessel).toContain("FLICKR_API_KEY");
+    expect(ohneSchluessel).toContain("FLICKR_API_SECRET");
+    expect(ohneSchluessel).not.toContain(TOKEN.FLICKR_OAUTH_TOKEN);
+    // Ein ungültiger Wert: nur der Name
+    const falsch = meldung({
+      ...GUELTIG,
+      ...SCHLUESSEL,
+      FLICKR_API_KEY: "geheim-mit-Leerzeichen und /",
+    });
+    expect(falsch).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: FLICKR_API_KEY",
+    );
+    expect(falsch).not.toContain("geheim");
+  });
+
+  test("eigene Adressen für Tests: lokal erlaubt, in Produktion verboten", () => {
+    const basis = {
+      ...GUELTIG,
+      ...SCHLUESSEL,
+      FLICKR_API_BASIS: "http://127.0.0.1:4999/rest/",
+      FLICKR_BILD_BASIS: "http://127.0.0.1:4999",
+    };
+    expect(ladeKonfiguration(basis).FLICKR_API_BASIS).toBe(
+      "http://127.0.0.1:4999/rest/",
+    );
+    const produktion = meldung({
+      ...basis,
+      NODE_ENV: "production",
+      BETTER_AUTH_URL: "https://api.example.org",
+    });
+    expect(produktion).toContain("FLICKR_API_BASIS");
+    expect(produktion).toContain("FLICKR_BILD_BASIS");
+  });
+});

@@ -6,9 +6,14 @@ const lies = (datei: string) =>
 
 const DATEIEN = [
   "lager.js",
+  "lager-detail.js",
+  "lager-rahmen.js",
+  "lager-module.js",
   "lager-gemeinsam.js",
   "lager-anlegen.js",
   "lager-mitglieder.js",
+  "lager-personenwahl.js",
+  "lager-rechte.js",
   "lager-ausdrucke.js",
   "lager-vorlagen.js",
 ];
@@ -17,15 +22,16 @@ const methoden = (quelle: string) =>
   [...quelle.matchAll(/anfrage\(\s*"(\w+)"/g)].map((t) => t[1]);
 
 // Bereich «Lager» der Verwaltung (#527): Er ruft nur Routen auf, die die API kennt
-describe("Admin-Panel: Lager", () => {
+describe("Panel der Abteilungsleitung: Lager", () => {
   test("Module und Stilvorlage sind eingebunden", () => {
     expect(lies("index.html")).toContain('href="/admin/lager.css"');
+    expect(lies("index.html")).toContain('href="/admin/lager-rahmen.css"');
     const navigation = lies("navigation.js");
     expect(navigation).toContain('"./lager.js"');
     expect(navigation).toContain('"./lager-vorlagen.js"');
   });
 
-  test("Lager, Mitglieder und Rechte nur über die Admin-Routen", () => {
+  test("Lager, Mitglieder und Rechte nur über die Verwaltungsrouten", () => {
     expect(alle).toContain('"/api/v1/admin/lager"');
     expect(alle).toContain("/mitglieder");
     expect(alle).toContain("/rechte");
@@ -46,12 +52,13 @@ describe("Admin-Panel: Lager", () => {
     );
   });
 
-  test("Löschen nur mit Rückfrage und Titel im Body, nie rot-primär", () => {
-    const lager = lies("lager.js");
+  test("Löschen nur am Ort mit der Eingabe des Namens und dem Titel im Body", () => {
+    const lager = lies("lager-detail.js");
     expect(lager).toMatch(
       /anfrage\(\s*"DELETE",\s*`\$\{BASIS\}\/\$\{lager\.id\}`,\s*\{/,
     );
-    expect(lager).toContain("gefaehrlich: true");
+    expect(lager).toContain("bestaetigungAmOrt");
+    expect(lager).toContain("erwartet: lager.titel");
     expect(methoden(alle)).toContain("DELETE");
   });
 

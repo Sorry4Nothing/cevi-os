@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/admin/system/syncs"
-order: 70000
+order: 103000
 method: GET
 url: "{{baseUrl}}/api/v1/admin/system/syncs"
 headers:

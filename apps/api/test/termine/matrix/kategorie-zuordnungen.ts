@@ -3,7 +3,7 @@ import type { Welt } from "../../hilfen/personas.js";
 import type { TermineMatrix, TerminePersona } from "../matrix.js";
 
 // Matrix-Zeilen von TA3 (#434): Kategorie-Zuordnungen verwalten. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
-// Nur die Abteilungsleitung (Admin mit zweitem Faktor): jede andere Rolle der Abteilung 403, auch Stufenleitung und Leitung. Mit der Zuordnung im Pfad ist eine fremde 404 (auch für die Abteilungsleitung der anderen Abteilung); ohne Objekt im Pfad bekommt sie die Antwort ihrer eigenen Abteilung.
+// Nur die Abteilungsleitung (Abteilungsleitung mit zweitem Faktor): jede andere Rolle der Abteilung 403, auch Stufenleitung und Leitung. Mit der Zuordnung im Pfad ist eine fremde 404 (auch für die Abteilungsleitung der anderen Abteilung); ohne Objekt im Pfad bekommt sie die Antwort ihrer eigenen Abteilung.
 const status = (
   werte: Partial<Record<TerminePersona, number>>,
 ): Record<TerminePersona, number> => ({

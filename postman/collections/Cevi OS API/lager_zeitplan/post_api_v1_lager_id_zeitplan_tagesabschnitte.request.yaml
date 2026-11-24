@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/zeitplan/tagesabschnitte"
-order: 390000
+order: 443000
 method: POST
-url: "{{baseUrl}}{{pfad_L235}}"
+url: "{{baseUrl}}{{pfad_L240}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"
@@ -18,5 +18,5 @@ body:
   type: json
   content: |-
     {
-      "name": "Matrix 3c90e0d3"
+      "name": "Matrix 436a441d"
     }

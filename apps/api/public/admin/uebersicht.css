@@ -1,0 +1,1452 @@
+/* Kachel: Fläche mit feinem Rand, wie .flaeche; die Kopfzeile trägt Titel und, wenn es einen gibt, den Verweis */
+
+.ub-kachel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+  padding: 20px 24px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.ub-kachel-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px 12px;
+}
+
+.ub-kachel-titel {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.ub-kachel--fehler {
+  border-color: var(--rand);
+}
+
+.ub-zustand {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ub-leer-satz {
+  font-weight: 700;
+}
+
+/* Verweis in der Kopfzeile einer Kachel: mindestens 44 px hoch, Pfeil rückt beim Hovern ein Stück */
+
+.ub-verweis {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-block: -12px;
+  color: var(--akzent);
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ub-verweis:hover {
+  text-decoration: underline;
+}
+
+.ub-verweis:focus-visible,
+.ub-grafik:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.ub-pfeil {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ub-erledigt {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.ub-erledigt .i {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  color: var(--ok);
+}
+
+.ub-leer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  color: var(--ok);
+  background: var(--ok-f);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.ub-leer .i {
+  flex: none;
+  width: 24px;
+  height: 24px;
+}
+
+/* 2. Kennzahlen: gleichmässiges Raster über die volle Breite; wenige Kacheln werden breiter, nie schmal */
+
+.ub-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 16px;
+}
+
+.ub-wert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 8px;
+  margin: 0;
+}
+
+.ub-wert-zahl {
+  font-size: 2.5rem;
+  line-height: 3rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+.ub-wert-einheit {
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Veränderung: Marke mit Pfeil und Vorzeichen, daneben der Vergleich in Worten (nie nur Farbe: Pfeil und Vorzeichen tragen die Richtung) */
+
+.ub-delta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ub-marke-delta {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 24px;
+  padding: 0 8px 0 6px;
+  color: var(--text);
+  background: var(--leiste);
+  border: 1px solid var(--rand-leise);
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ub-marke-delta .ub-pfeil {
+  width: 14px;
+  height: 14px;
+}
+
+.ub-diagramm {
+  margin-top: auto;
+  padding-top: 8px;
+}
+
+.ub-diagramm svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.ub-grafik {
+  border-radius: 8px;
+}
+
+.ub-lese {
+  min-height: 1.25rem;
+  margin-top: 8px;
+}
+
+/* Grafiken: de-betonte Randfarbe für die Vergangenheit, der Akzent für den aktuellen Zeitraum */
+
+.ub-achse {
+  stroke: var(--rand-leise);
+  stroke-width: 1;
+}
+
+.ub-linie {
+  fill: none;
+  stroke: var(--rand);
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ub-linie--jetzt {
+  stroke: var(--akzent);
+}
+
+.ub-punkt {
+  fill: var(--akzent);
+  stroke: var(--karte);
+  stroke-width: 2;
+  opacity: 0;
+}
+
+.ub-punkt.ist-jetzt,
+.ub-punkt.ist-aktiv {
+  opacity: 1;
+}
+
+.ub-traeger {
+  fill: transparent;
+}
+
+.ub-marke.ist-aktiv .ub-traeger {
+  fill: var(--leiste);
+}
+
+.ub-saeule {
+  fill: var(--rand);
+}
+
+.ub-saeule.ist-jetzt,
+.ub-marke.ist-aktiv .ub-saeule {
+  fill: var(--akzent);
+}
+
+.ub-saeule--fehler,
+.ub-marke.ist-aktiv .ub-saeule--fehler {
+  fill: var(--fe);
+}
+
+.ub-kachel .werte {
+  margin: 0;
+}
+
+/* Bewegung nur, wenn erlaubt: Säulen wachsen von der Basis, Pfeil und Rand antworten auf Zeiger und Fokus */
+
+@media (prefers-reduced-motion: no-preference) {
+  .ub-pfeil,
+  .ub-traeger {
+    transition:
+      background-color 120ms ease-out,
+      border-color 120ms ease-out,
+      transform 120ms ease-out,
+      fill 120ms ease-out;
+  }
+
+  .ub-verweis:hover .ub-pfeil {
+    transform: translateX(2px);
+  }
+
+  .ub-saeule {
+    transform-box: fill-box;
+    transform-origin: bottom;
+    animation: ub-wachsen 240ms ease-out;
+  }
+
+  @keyframes ub-wachsen {
+    from {
+      transform: scaleY(0.2);
+      opacity: 0;
+    }
+  }
+
+  /* Die grosse Zahl schiebt sich beim Laden und Aktualisieren kurz von unten ein (Vorlage: laufende Zahl in clinic-dashboard) */
+
+  .ub-wert-zahl {
+    animation: ub-zahl-ein 300ms ease-out;
+  }
+
+  @keyframes ub-zahl-ein {
+    from {
+      transform: translateY(40%);
+      opacity: 0;
+    }
+  }
+}
+
+/* Mittlere Breiten: zwei Spalten statt drei und einer einzelnen Kachel in der letzten Zeile */
+
+@media (max-width: 1099px) {
+  .ub-raster {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 639px) {
+  .ub-raster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .ub-kachel,
+  .ub-leer {
+    padding: 16px;
+  }
+
+  .ub-wert-zahl {
+    font-size: 2rem;
+    line-height: 2.25rem;
+  }
+}
+
+/* Erzwungene Farben: Zustand über Form statt Farbe, Fehleranteil nur als Umriss */
+
+@media (forced-colors: active) {
+  .ub-linie {
+    stroke: CanvasText;
+  }
+
+  .ub-linie--jetzt,
+  .ub-punkt {
+    stroke: Highlight;
+  }
+
+  .ub-punkt {
+    fill: Highlight;
+    stroke: Canvas;
+  }
+
+  .ub-saeule {
+    fill: CanvasText;
+  }
+
+  .ub-saeule.ist-jetzt,
+  .ub-marke.ist-aktiv .ub-saeule {
+    fill: Highlight;
+  }
+
+  .ub-saeule--fehler,
+  .ub-marke.ist-aktiv .ub-saeule--fehler {
+    fill: Canvas;
+    stroke: CanvasText;
+    stroke-width: 1.5;
+  }
+
+  .ub-traeger,
+  .ub-marke.ist-aktiv .ub-traeger {
+    fill: transparent;
+  }
+
+  .ub-marke.ist-aktiv .ub-traeger {
+    stroke: Highlight;
+  }
+
+  .ub-kachel,
+  .ub-leer,
+  .ub-marke-delta {
+    border-color: CanvasText;
+  }
+}
+
+/* ============================================================================================
+   Dashboard der Abteilung (#620). Klassenvorsatz «ud-». Karten im Zwölfspaltenraster in der Breite der Website, feine Ränder, keine Verläufe, keine Schatten, keine Glows. Farben nur aus den Tokens (Tag und Nacht). Abstände aus der Skala 4 · 8 · 12 · 16 · 24 · 32. Bewegung nur unter prefers-reduced-motion: no-preference (ganz unten).
+   ============================================================================================ */
+
+.ud-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.ud-zeile {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  gap: 24px;
+}
+
+.ud-s4 {
+  grid-column: span 4;
+}
+
+.ud-s5 {
+  grid-column: span 5;
+}
+
+.ud-s7 {
+  grid-column: span 7;
+}
+
+.ud-s8 {
+  grid-column: span 8;
+}
+
+.ud-s12 {
+  grid-column: span 12;
+}
+
+/* Ohne Hauptdiagramm: die vorhandenen Karten gleichmässig nebeneinander */
+.ud-zeile--auto {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+}
+
+.ud-zeile--auto > * {
+  grid-column: auto;
+}
+
+.ud-stand {
+  margin: 0;
+}
+
+/* Karte */
+.ud-karte {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 20px 24px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--r-md);
+}
+
+.ud-karte--fehler {
+  border-color: var(--rand);
+}
+
+.ud-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 4px 16px;
+}
+
+.ud-kopf-text {
+  min-width: 0;
+}
+
+.ud-titel {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.ud-untertitel {
+  margin: 0;
+}
+
+.ud-lbl {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.ud-gross {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  margin: 0;
+  color: var(--text);
+  font-size: 3rem;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ud-gross--mittel {
+  font-size: 2.5rem;
+}
+
+.ud-einheit {
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.ud-delta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  min-height: 1.5rem;
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Jetzt zu tun: Liste in zwei Gruppen, jede Zeile ein Link mit Marke, Satz und Aktion */
+.ud-aufgabenkarte {
+  gap: 12px;
+}
+
+.ud-aufgabenkarte .ub-erledigt {
+  margin-top: auto;
+}
+
+.ud-gruppe-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0 4px;
+  color: var(--leise);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.ud-gruppe:first-of-type .ud-gruppe-name {
+  margin-top: 0;
+}
+
+.ud-gruppe-zahl {
+  min-width: 1.5rem;
+  padding: 0 6px;
+  color: var(--text);
+  background: var(--leiste);
+  border-radius: 9999px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ud-aufgaben {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ud-aufgabe {
+  display: grid;
+  grid-template-columns: 2.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 3.5rem;
+  margin-inline: -12px;
+  padding: 8px 12px;
+  color: var(--text);
+  border-radius: var(--r-sm);
+  text-decoration: none;
+}
+
+a.ud-aufgabe:hover {
+  background: var(--leiste);
+}
+
+a.ud-aufgabe:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 0;
+}
+
+.ud-marke {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--auf-blau-f);
+  background: var(--blau-f);
+  border-radius: 10px;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ud-marke .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ud-marke--stoerung {
+  color: var(--fe);
+  background: var(--fe-f);
+}
+
+.ud-marke--sicher {
+  color: var(--wa);
+  background: var(--wa-f);
+}
+
+.ud-aufgabe-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ud-aufgabe-titel {
+  font-weight: 700;
+  line-height: 1.25rem;
+}
+
+.ud-aufgabe-satz {
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.ud-aufgabe-aktion {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--akzent);
+  font-size: 0.875rem;
+  font-weight: 700;
+}
+
+/* Kennzahlenband: eine Fläche, die Zellen durch feine Linien geteilt (die Lücke zeigt die Randfarbe) */
+.ud-band {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.ud-band-liste {
+  display: grid;
+  grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: var(--rand-leise);
+}
+
+.ud-zelle {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  padding: 20px 24px;
+  background: var(--karte);
+}
+
+.ud-spur {
+  margin-top: auto;
+  padding-top: 12px;
+}
+
+.ud-spur-svg {
+  display: block;
+  width: 100%;
+  max-width: 14rem;
+  height: 40px;
+  overflow: visible;
+}
+
+.ud-spur-svg .ub-linie {
+  vector-effect: non-scaling-stroke;
+}
+
+.ud-spur-punkt {
+  fill: none;
+  stroke: var(--akzent);
+  stroke-width: 8px;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* Hauptdiagramm */
+.ud-verlauf {
+  gap: 20px;
+}
+
+.ud-umschalter-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+}
+
+.ud-umschalter {
+  flex-wrap: nowrap;
+}
+
+.ud-zahlzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 24px;
+}
+
+.ud-zahlblock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ud-datum {
+  text-align: right;
+}
+
+.ud-woche {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9375rem;
+  font-weight: 700;
+}
+
+.ud-woche-note {
+  margin: 2px 0 0;
+}
+
+.ud-flaeche {
+  position: relative;
+  height: 280px;
+  min-width: 0;
+}
+
+.ud-raster,
+.ud-linie {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ud-schieber {
+  position: absolute;
+  inset: 0;
+  border-radius: 8px;
+  cursor: crosshair;
+  touch-action: pan-y;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ud-schieber:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.ud-gitter {
+  stroke: var(--rand-leise);
+  stroke-width: 1;
+  stroke-dasharray: 3 4;
+}
+
+.ud-boden {
+  stroke: var(--rand-leise);
+  stroke-width: 1;
+}
+
+.ud-tick {
+  fill: var(--leise);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+.ud-linie-grau,
+.ud-linie-akzent {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.ud-linie-grau {
+  stroke: var(--rand);
+  stroke-width: 1.5;
+}
+
+.ud-linie-akzent {
+  stroke: var(--akzent);
+  stroke-width: 2.5;
+}
+
+.ud-flaeche-fuell {
+  fill: var(--akzent);
+  fill-opacity: 0.08;
+  stroke: none;
+}
+
+.ud-kreuz {
+  stroke: var(--text);
+  stroke-width: 1;
+  stroke-opacity: 0.35;
+  opacity: 0;
+}
+
+.ud-kreuz.ist-sichtbar {
+  opacity: 1;
+}
+
+.ud-punkt {
+  fill: var(--akzent);
+  stroke: var(--karte);
+  stroke-width: 2.5;
+}
+
+.ud-frist line {
+  stroke: var(--rand);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+
+.ud-frist path {
+  fill: var(--leise);
+  stroke: var(--karte);
+  stroke-width: 1.5;
+}
+
+.ud-frist.ist-aktiv line {
+  stroke: var(--text);
+}
+
+.ud-frist.ist-aktiv path {
+  fill: var(--text);
+}
+
+.ud-fuss {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ud-note {
+  min-height: 1.25rem;
+  margin: 0;
+}
+
+.ud-werte {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  margin: 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.ud-werte > div {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 2px;
+  min-width: 0;
+  padding: 12px 16px;
+  border-left: 1px solid var(--rand-leise);
+}
+
+.ud-werte > div:first-child {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.ud-werte dt {
+  color: var(--leise);
+  font-size: 0.8125rem;
+}
+
+.ud-werte dd {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kommendes: Wochenleiste und Zeitleiste */
+.ud-wochen {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ud-wochen-spalten {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ud-wochen-spalten > li {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 4px;
+  min-width: 0;
+  text-align: center;
+}
+
+.ud-wochen-n {
+  min-height: 1.25rem;
+  color: var(--text);
+  font-size: 0.8125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.ud-wochen-bahn {
+  display: flex;
+  align-items: flex-end;
+  height: 48px;
+  background: var(--leiste);
+  border-radius: 6px;
+}
+
+.ud-wochen-saeule {
+  display: block;
+  width: 100%;
+  height: calc(var(--h, 0) * 1%);
+  background: var(--rand);
+  border-radius: 6px;
+}
+
+.ist-jetzt .ud-wochen-saeule {
+  background: var(--akzent);
+}
+
+.ud-wochen-d {
+  color: var(--leise);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.ud-lagerleiste {
+  position: relative;
+  height: 8px;
+}
+
+.ud-lagerbalken {
+  position: absolute;
+  top: 0;
+  left: calc(var(--von, 0) * 1%);
+  width: calc(var(--breit, 2) * 1%);
+  height: 8px;
+  background: var(--st);
+  border-radius: 4px;
+}
+
+.ud-wochen-legende {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.ud-lager-punkt {
+  width: 16px;
+  height: 8px;
+  background: var(--st);
+  border-radius: 4px;
+}
+
+.ud-zeitleiste {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ud-zeitleiste > li {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1rem minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 0 12px;
+  padding: 10px 0;
+}
+
+.ud-zeitleiste > li::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 7px;
+  width: 2px;
+  background: var(--rand-leise);
+  content: "";
+}
+
+.ud-zeitleiste > li:first-child::before {
+  top: 50%;
+}
+
+.ud-zeitleiste > li:last-child::before {
+  bottom: 50%;
+}
+
+.ud-zeitleiste > li:only-child::before {
+  display: none;
+}
+
+.ud-punkt-zeit {
+  z-index: 1;
+  box-sizing: border-box;
+  width: 16px;
+  height: 16px;
+  background: var(--karte);
+  border: 3px solid var(--rand);
+  border-radius: 50%;
+}
+
+.ud-zeitleiste > li.ist-heute .ud-punkt-zeit {
+  background: var(--akzent);
+  border-color: var(--akzent);
+}
+
+.ud-zeile-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.ud-zeile-titel {
+  font-weight: 700;
+  line-height: 1.375rem;
+}
+
+.ud-zeile-meta {
+  line-height: 1.25rem;
+}
+
+.ud-zeile-in {
+  min-width: 5rem;
+  color: var(--leise);
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Aktivität */
+.ud-feed {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ud-feed > li {
+  display: grid;
+  grid-template-columns: 2rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  min-height: 3.5rem;
+  padding: 8px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.ud-feed > li:first-child {
+  border-top: 0;
+}
+
+.ud-feed-symbol {
+  display: grid;
+  place-items: center;
+  width: 2rem;
+  height: 2rem;
+  color: var(--text);
+  background: var(--leiste);
+  border-radius: 9999px;
+}
+
+.ud-feed-symbol .i {
+  width: 1rem;
+  height: 1rem;
+}
+
+.ud-feed-zeit {
+  white-space: nowrap;
+}
+
+/* Teilnahme: Balken auf gemeinsamer Basis */
+.ud-verteilung {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ud-verteilung > li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 6px 12px;
+}
+
+.ud-verteilung-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  grid-column: 1;
+  grid-row: 1;
+  font-weight: 700;
+}
+
+.ud-verteilung-zahl {
+  grid-column: 2;
+  grid-row: 1;
+  font-weight: 800;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.ud-balken {
+  display: block;
+  grid-column: 1 / -1;
+  grid-row: 2;
+  height: 10px;
+  overflow: hidden;
+  background: var(--leiste);
+  border-radius: 9999px;
+}
+
+.ud-balken-fuell {
+  display: block;
+  width: calc(var(--w, 0) * 1%);
+  height: 100%;
+  background: var(--akzent);
+  border-radius: 9999px;
+}
+
+.ud-verteilung-meta {
+  grid-column: 1 / -1;
+  grid-row: 3;
+}
+
+.ud-chip-frist {
+  margin: 0;
+}
+
+/* Zustand: ein schmaler Streifen */
+.ud-streifen {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 32px;
+  padding: 8px 24px;
+}
+
+.ud-streifen-titel {
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.ud-streifen-liste {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  gap: 0 40px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ud-streifen-punkt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 2.75rem;
+}
+
+.ud-streifen-name {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.ud-streifen-satz {
+  margin: 0;
+}
+
+/* Mittlere Breiten: eine Spalte; das Band in zwei */
+@media (max-width: 1100px) {
+  .ud-zeile {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ud-zeile > * {
+    grid-column: 1;
+  }
+
+  .ud-zeile--auto {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .ud-band-liste {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ud-band-liste > li:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 760px) {
+  .ud-streifen {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .ud-seite,
+  .ud-zeile {
+    gap: 16px;
+  }
+
+  .ud-karte {
+    padding: 16px;
+  }
+
+  .ud-zelle {
+    padding: 16px;
+  }
+
+  .ud-streifen {
+    padding: 8px 16px;
+  }
+
+  .ud-gross {
+    font-size: 2.5rem;
+  }
+
+  .ud-gross--mittel {
+    font-size: 2rem;
+  }
+
+  .ud-datum {
+    text-align: left;
+  }
+
+  .ud-umschalter-zeile,
+  .ud-umschalter {
+    width: 100%;
+  }
+
+  .ud-umschalter button {
+    flex: 1;
+    padding-inline: 8px;
+  }
+
+  .ud-aufgabe {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    margin-inline: -8px;
+    padding-inline: 8px;
+  }
+
+  .ud-aufgabe-aktion {
+    grid-column: 2;
+  }
+
+  .ud-zeitleiste > li {
+    grid-template-columns: 1rem minmax(0, 1fr);
+  }
+
+  .ud-zeitleiste .chips,
+  .ud-zeile-in {
+    grid-column: 2;
+    justify-content: flex-start;
+    text-align: left;
+  }
+
+  .ud-werte > div {
+    padding: 12px 8px;
+  }
+
+  .ud-werte dd {
+    font-size: 0.9375rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .ud-band-liste {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Bewegung nur, wenn erlaubt: Karten und Zeilen gestaffelt, Linie und Balken zeichnen sich ein */
+@media (prefers-reduced-motion: no-preference) {
+  .ud-karte {
+    animation: ud-ein 480ms var(--kurve) calc(var(--k, 0) * 70ms) backwards;
+  }
+
+  .ud-aufgaben > li,
+  .ud-zelle,
+  .ud-zeitleiste > li,
+  .ud-feed > li,
+  .ud-verteilung > li {
+    animation: ud-ein-klein 400ms var(--kurve) calc(150ms + var(--i, 0) * 60ms)
+      backwards;
+  }
+
+  a.ud-aufgabe {
+    transition: background-color 120ms ease-out;
+  }
+
+  .ud-aufgabe-aktion .ub-pfeil {
+    transition: transform 120ms ease-out;
+  }
+
+  a.ud-aufgabe:hover .ud-aufgabe-aktion .ub-pfeil {
+    transform: translateX(3px);
+  }
+
+  .ud-linie.ud-zeichnen {
+    animation: ud-zeichnen 1000ms var(--kurve) 250ms backwards;
+  }
+
+  .ud-spur-svg {
+    animation: ud-zeichnen 900ms var(--kurve) 300ms backwards;
+  }
+
+  .ud-balken-fuell {
+    animation: ud-zeichnen 800ms var(--kurve) 350ms backwards;
+  }
+
+  .ud-wochen-saeule {
+    animation: ud-hoch 600ms var(--kurve) 300ms backwards;
+  }
+
+  @keyframes ud-hoch {
+    from {
+      clip-path: inset(100% 0 0 0);
+    }
+
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+
+  @keyframes ud-ein {
+    from {
+      opacity: 0;
+      transform: translateY(14px);
+    }
+  }
+
+  @keyframes ud-ein-klein {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+  }
+
+  @keyframes ud-zeichnen {
+    from {
+      clip-path: inset(0 100% 0 0);
+    }
+
+    to {
+      clip-path: inset(0 0 0 0);
+    }
+  }
+}
+
+/* Erzwungene Farben: Linien, Balken und Marken in Systemfarben, Zustand über Form */
+@media (forced-colors: active) {
+  .ud-karte,
+  .ud-marke,
+  .ud-balken,
+  .ud-gruppe-zahl,
+  .ud-feed-symbol {
+    border: 1px solid CanvasText;
+  }
+
+  .ud-linie-grau {
+    stroke: GrayText;
+  }
+
+  .ud-linie-akzent,
+  .ud-punkt {
+    stroke: Highlight;
+  }
+
+  .ud-punkt {
+    fill: Highlight;
+    stroke: Canvas;
+  }
+
+  .ud-flaeche-fuell {
+    fill: Highlight;
+  }
+
+  .ud-kreuz,
+  .ud-gitter,
+  .ud-boden {
+    stroke: CanvasText;
+  }
+
+  .ud-tick {
+    fill: CanvasText;
+  }
+
+  .ud-frist path {
+    fill: CanvasText;
+  }
+
+  .ud-balken-fuell {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  .ud-wochen-bahn {
+    border: 1px solid CanvasText;
+  }
+
+  .ud-wochen-saeule {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
+
+  .ud-lagerbalken {
+    forced-color-adjust: none;
+    background: CanvasText;
+  }
+
+  .ud-spur-punkt {
+    stroke: Highlight;
+  }
+
+  .ud-punkt-zeit {
+    border-color: CanvasText;
+  }
+
+  .ud-zeitleiste > li.ist-heute .ud-punkt-zeit {
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .ud-zeitleiste > li::before {
+    background: CanvasText;
+  }
+
+  .ud-band-liste {
+    background: CanvasText;
+  }
+
+  a.ud-aufgabe:hover {
+    outline: 2px solid Highlight;
+  }
+}

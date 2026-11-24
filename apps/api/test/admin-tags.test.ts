@@ -120,7 +120,7 @@ const auditZeilen = (zielId: string) =>
     .orderBy(schema.auditLog.erstelltAm);
 
 describe("POST /api/v1/admin/tags", () => {
-  test("legt den Tag in der Abteilung des Admins an, getrimmt, und schreibt das Audit-Log ohne Namen", async () => {
+  test("legt den Tag in der Abteilung der Abteilungsleitung an, getrimmt, und schreibt das Audit-Log ohne Namen", async () => {
     const id = await legeTagAn(admin, {
       typ: "funktion",
       name: "  Kasse Geheim  ",
@@ -627,5 +627,237 @@ describe("PUT und DELETE /api/v1/admin/tags/:id/personen/:userId", () => {
     expect(await zuordnung(id, wegwerf.id)).toBeDefined();
     await db.delete(schema.user).where(eq(schema.user.id, wegwerf.id));
     expect(await zuordnung(id, wegwerf.id)).toBeUndefined();
+  });
+});
+
+describe("Gruppentyp «anlass» (#626)", () => {
+  // Ein Anlass mit Termin; art «lager» legt sonst das Lager-Modul an
+  async function legeAnlassAn(
+    abteilungId: string,
+    art: "anlass" | "lager" = "anlass",
+    titel = "Anlass für Gruppen",
+  ) {
+    const [p] = await db
+      .insert(schema.programm)
+      .values({
+        abteilungId,
+        googleEventId: `test-${crypto.randomUUID()}`,
+        titel,
+        ganztaegig: true,
+        tagVon: "2027-05-01",
+        tagBis: "2027-05-01",
+        sichtbarkeit: "intern",
+      })
+      .returning({ id: schema.programm.id });
+    const [a] = await db
+      .insert(schema.anlass)
+      .values({
+        abteilungId,
+        programmId: p.id,
+        art,
+        anmeldungFuer: "person",
+        sichtbarkeit: "angemeldet",
+      })
+      .returning({ id: schema.anlass.id });
+    return a.id;
+  }
+  const legeGruppeAn = (anlassId: string, name = neuerName()) =>
+    anfrage(admin, "POST", BASIS, { typ: "anlass", name, anlassId });
+  const idVon = async (antwort: Response) =>
+    ((await antwort.json()) as { id: string }).id;
+
+  test("legt die Gruppe zum Anlass an, ohne Seite, und schreibt das Audit-Log ohne Namen", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    const seiten = () =>
+      db
+        .select()
+        .from(schema.seite)
+        .where(eq(schema.seite.abteilungId, welt.testabteilungId));
+    const vorher = (await seiten()).length;
+    const antwort = await legeGruppeAn(anlassId, "  OK Geheim  ");
+    expect(antwort.status).toBe(201);
+    const id = await idVon(antwort);
+    expect(await zeile(id)).toMatchObject({
+      typ: "anlass",
+      anlassId,
+      name: "OK Geheim",
+      abteilungId: welt.testabteilungId,
+    });
+    // Der Typ legt keine Seite der Website an
+    expect(await seiten()).toHaveLength(vorher);
+    const [audit] = await auditZeilen(id);
+    expect(audit).toMatchObject({
+      aktion: "tag_angelegt",
+      details: { typ: "anlass", anlassId },
+    });
+    expect(JSON.stringify(audit)).not.toContain("Geheim");
+  });
+
+  test("Liste und Detail nennen den Anlass mit Titel und Datum; andere Typen haben keinen", async () => {
+    const anlassId = await legeAnlassAn(
+      welt.testabteilungId,
+      "anlass",
+      "Sitzungsanlass",
+    );
+    const id = await idVon(await legeGruppeAn(anlassId));
+    const andere = await legeTagAn();
+    const liste = (await (await anfrage(admin, "GET", BASIS)).json()) as {
+      tags: { id: string; anlass: Record<string, unknown> | null }[];
+    };
+    expect(liste.tags.find((t) => t.id === id)?.anlass).toMatchObject({
+      id: anlassId,
+      titel: "Sitzungsanlass",
+      ganztaegig: true,
+      tagVon: "2027-05-01",
+    });
+    expect(liste.tags.find((t) => t.id === andere)?.anlass).toBeNull();
+    const detail = (await (
+      await anfrage(admin, "GET", `${BASIS}/${id}`)
+    ).json()) as { typ: string; anlass: { titel: string } | null };
+    expect(detail).toMatchObject({
+      typ: "anlass",
+      anlass: { titel: "Sitzungsanlass" },
+    });
+    const anderesDetail = (await (
+      await anfrage(admin, "GET", `${BASIS}/${andere}`)
+    ).json()) as { anlass: unknown };
+    expect(anderesDetail.anlass).toBeNull();
+  });
+
+  test("der Anlass zeigt seine Gruppe in Detail und Liste", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    const pfad = `/api/v1/admin/anlaesse/${anlassId}`;
+    const ohne = await anfrage(admin, "GET", pfad);
+    expect(((await ohne.json()) as { gruppe: unknown }).gruppe).toBeNull();
+    const id = await idVon(await legeGruppeAn(anlassId, "OK Test"));
+    const mit = await anfrage(admin, "GET", pfad);
+    expect(((await mit.json()) as { gruppe: unknown }).gruppe).toEqual({
+      id,
+      name: "OK Test",
+    });
+    const liste = (await (
+      await anfrage(admin, "GET", "/api/v1/admin/anlaesse?limit=100")
+    ).json()) as { anlaesse: { id: string; gruppe: { id: string } | null }[] };
+    expect(liste.anlaesse.find((a) => a.id === anlassId)?.gruppe?.id).toBe(id);
+  });
+
+  test("höchstens eine Gruppe je Anlass: die zweite gibt 409, ein Namenskonflikt bleibt TAGNAME_VERGEBEN", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    await legeGruppeAn(anlassId);
+    const zweite = await legeGruppeAn(anlassId);
+    expect(zweite.status).toBe(409);
+    expect(await zweite.json()).toMatchObject({ code: "ANLASS_HAT_GRUPPE" });
+    const name = neuerName();
+    await legeTagAn(admin, { name });
+    const andererAnlass = await legeAnlassAn(welt.testabteilungId);
+    const doppelt = await legeGruppeAn(andererAnlass, name);
+    expect(doppelt.status).toBe(409);
+    expect(await doppelt.json()).toMatchObject({ code: "TAGNAME_VERGEBEN" });
+  });
+
+  test("fremder, unbekannter und Lager-Anlass geben 400, nichts entsteht", async () => {
+    const fremd = await legeAnlassAn(demoAdmin.abteilungId!);
+    const lager = await legeAnlassAn(welt.testabteilungId, "lager");
+    for (const anlassId of [fremd, lager, crypto.randomUUID()]) {
+      const name = neuerName();
+      const antwort = await legeGruppeAn(anlassId, name);
+      expect(antwort.status).toBe(400);
+      expect(await antwort.json()).toMatchObject({ code: "ANLASS_UNBEKANNT" });
+      expect(
+        await db.select().from(schema.tag).where(eq(schema.tag.name, name)),
+      ).toEqual([]);
+    }
+  });
+
+  test.each([
+    ["Typ «anlass» ohne anlassId", { typ: "anlass" }],
+    ["anlassId bei einem anderen Typ", { typ: "team", anlassId: "x" }],
+    ["anlassId keine UUID", { typ: "anlass", anlassId: "x" }],
+  ])("%s gibt 400", async (_titel, extra) => {
+    const antwort = await anfrage(admin, "POST", BASIS, {
+      name: neuerName(),
+      ...extra,
+    });
+    expect(antwort.status).toBe(400);
+  });
+
+  test("anlassId bei einem anderen Typ gibt 400, und die Datenbank hält es auch", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    const antwort = await anfrage(admin, "POST", BASIS, {
+      typ: "team",
+      name: neuerName(),
+      anlassId,
+    });
+    expect(antwort.status).toBe(400);
+    await expect(
+      db.insert(schema.tag).values({
+        abteilungId: welt.testabteilungId,
+        typ: "team",
+        name: neuerName(),
+        kuerzel: "",
+        anlassId,
+      }),
+    ).rejects.toThrow();
+  });
+
+  test("Eltern und Leitung bekommen 403, auch für den Typ «anlass»", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    for (const konto of [eltern, sl]) {
+      const antwort = await anfrage(konto, "POST", BASIS, {
+        typ: "anlass",
+        name: neuerName(),
+        anlassId,
+      });
+      expect(antwort.status).toBe(403);
+    }
+  });
+
+  test("Mitglieder wie bei Teams: Rolle als Freitext, Entfernen, Löschen erst ohne Mitglieder", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    const id = await idVon(await legeGruppeAn(anlassId));
+    const url = `${BASIS}/${id}/personen/${eltern.id}`;
+    expect(
+      (await anfrage(admin, "PUT", url, { rolle: "verantwortlich" })).status,
+    ).toBe(204);
+    expect((await zuordnung(id, eltern.id!))?.rolle).toBe("verantwortlich");
+    expect((await anfrage(admin, "DELETE", `${BASIS}/${id}`)).status).toBe(409);
+    expect((await anfrage(admin, "DELETE", url)).status).toBe(204);
+    expect((await anfrage(admin, "DELETE", `${BASIS}/${id}`)).status).toBe(204);
+    expect(await zeile(id)).toBeUndefined();
+  });
+
+  test("der Typ gibt keine Rechte: Ein Mitglied bleibt Eltern und erreicht keine Verwaltung", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    const id = await idVon(await legeGruppeAn(anlassId));
+    await anfrage(admin, "PUT", `${BASIS}/${id}/personen/${eltern.id}`, {
+      rolle: "verantwortlich",
+    });
+    for (const pfad of [
+      BASIS,
+      `${BASIS}/${id}`,
+      "/api/v1/admin/anlaesse",
+      `/api/v1/admin/anlaesse/${anlassId}`,
+    ]) {
+      expect((await anfrage(eltern, "GET", pfad)).status).toBe(403);
+    }
+    await anfrage(admin, "DELETE", `${BASIS}/${id}/personen/${eltern.id}`);
+  });
+
+  test("fällt der Anlass weg, bleibt die Gruppe mit ihren Mitgliedern, ohne Verknüpfung", async () => {
+    const anlassId = await legeAnlassAn(welt.testabteilungId);
+    const id = await idVon(await legeGruppeAn(anlassId));
+    await anfrage(admin, "PUT", `${BASIS}/${id}/personen/${sl.id}`, {});
+    expect(
+      (await anfrage(admin, "DELETE", `/api/v1/admin/anlaesse/${anlassId}`))
+        .status,
+    ).toBe(204);
+    expect(await zeile(id)).toMatchObject({ typ: "anlass", anlassId: null });
+    expect(await zuordnung(id, sl.id!)).toBeDefined();
+    const detail = (await (
+      await anfrage(admin, "GET", `${BASIS}/${id}`)
+    ).json()) as { anlass: unknown; verwendung: { personen: number } };
+    expect(detail.anlass).toBeNull();
+    expect(detail.verwendung.personen).toBe(1);
+    await anfrage(admin, "DELETE", `${BASIS}/${id}/personen/${sl.id}`);
   });
 });

@@ -6,6 +6,7 @@ import type { Db } from "../../db/client.js";
 import { personTag, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
+import { hatAussenrolle } from "../../website/personen.js";
 import { hatWebsiteZugang } from "../../website/seiten.js";
 
 // Auswahllisten für den Editor (#353): nur was eine Auswahl braucht. Nie Telefon, E-Mail, Benutzername oder Rolle des Kontos.
@@ -46,6 +47,8 @@ export function erstelleAuswahlRouten({ db }: { db: Db }) {
             id: user.id,
             anzeigename: sql<string>`coalesce(${user.ceviName}, ${user.name})`,
             funktion: personTag.rolle,
+            // Nur Personen mit einer Rolle mit Aussenwirkung erscheinen im Baustein «personen» (#610)
+            aufWebsite: hatAussenrolle,
           })
           .from(personTag)
           .innerJoin(user, eq(user.id, personTag.userId))

@@ -195,7 +195,7 @@ describe("öffentliche Seite mit geschützten Bausteinen", () => {
     // Stufenleitung ohne den Tag: Die Sichtbarkeit hängt nur an Tags, nicht an der Rolle
     ["Stufenleitung A", () => slA, ["angemeldet"]],
     ["Leitende mit Tag", () => leitendeA, ["angemeldet", "tag"]],
-    ["Admin der Abteilung", () => admin, ["angemeldet", "tag"]],
+    ["Abteilungsleitung der Abteilung", () => admin, ["angemeldet", "tag"]],
   ] as const)(
     "%s sieht genau die erlaubten Bausteine",
     async (_n, konto, erwartet) => {
@@ -296,7 +296,7 @@ describe("ganz geschützte Seite", () => {
   beforeAll(async () => {
     tagSeite = slug();
     angSeite = slug();
-    const eng = text(`Nur Admin und Leitende ${GEHEIM}`, nurTag());
+    const eng = text(`Nur Abteilungsleitung und Leitende ${GEHEIM}`, nurTag());
     eigene = eng.id;
     await seite(
       tagSeite,
@@ -315,7 +315,7 @@ describe("ganz geschützte Seite", () => {
     expect((await inhalt(ohneLogin, `/${angSeite}`)).status).toBe(401);
   });
 
-  test("Seite für einen Tag: nur wer ihn trägt (und der Admin) bekommt Titel und Inhalt, alle anderen 404", async () => {
+  test("Seite für einen Tag: nur wer ihn trägt (und die Abteilungsleitung) bekommt Titel und Inhalt, alle anderen 404", async () => {
     for (const k of [elternA, elternB, slA, demoEltern, demoAdmin]) {
       const a = await inhalt(k, `/${tagSeite}`);
       expect(a.status).toBe(404);
@@ -370,7 +370,7 @@ describe("Pfad und Seite", () => {
     expect((await inhalt(elternA, "/gibt-es-nicht")).status).toBe(404);
   });
 
-  test("eine Seite ohne veröffentlichte Version: 404, auch für den Admin", async () => {
+  test("eine Seite ohne veröffentlichte Version: 404, auch für die Abteilungsleitung", async () => {
     const adresse = slug();
     await seite(
       adresse,
@@ -431,7 +431,7 @@ describe("Inhalte der Bausteine", () => {
       const e = k as { tag: string; attr?: object; kinder?: unknown[] };
       tags.add(e.tag);
       for (const attr of Object.keys(e.attr ?? {})) {
-        expect(attr).toMatch(/^(href|rel|class)$/);
+        expect(attr).toMatch(/^(href|rel|class|id)$/);
       }
       e.kinder?.forEach(sammle);
     };

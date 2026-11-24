@@ -20,14 +20,19 @@ import { bausteinSchema } from "../src/website/bausteine.js";
 import { pruefeDokument } from "../src/website/dokument.js";
 import {
   keineDaten,
-  rendereFehlerseite,
   rendereSeite,
   type Daten,
   type Kontext,
   type NavPunkt,
   type TerminEintrag,
 } from "../src/website/rendern.js";
-import { ladeTerminlisten } from "../src/website/termine-liste.js";
+import { rendereFehlerseite } from "../src/website/fehlerseiten.js";
+import {
+  DATENPLAN,
+  ladeDatenplan,
+  ladeTerminlisten,
+} from "../src/website/termine-liste.js";
+import { DATENPLAN_DATEI } from "../src/website/termine-seiten.js";
 import { API_URL } from "./hilfen/datenbank.js";
 
 // Darstellung nach dem Design «Cevi Web» (#549): Stufenkarten, Termin-Liste, Hinweisband, Kontaktkarte, Titelbild, Navigation in einer Zeile, Fuss
@@ -114,9 +119,9 @@ describe("Hinweisband", () => {
         }),
       ),
     );
-    expect(html).toContain('<div class="band" role="status"><svg');
+    expect(html).toContain('<div class="band hinweisband" role="status"><svg');
     expect(html).toContain(
-      '<div class="text"><strong>Anmeldung offen bis 15. März</strong><a href="/anlaesse/lager">Zum Lager</a></div>',
+      '<div class="text"><strong>Anmeldung offen bis 15. März</strong><a href="/anlaesse/lager" class="verweis">Zum Lager</a></div>',
     );
   });
 
@@ -144,26 +149,139 @@ describe("Kontaktkarte", () => {
       personen: new Map([
         [personId, { name: "Mara Muster", funktion: "Abteilungsleitung" }],
       ]),
-      kontakt: { telefon: "043 543 96 82", email: "info@example.org" },
+      kontakt: {
+        telefon: "043 543 96 82",
+        email: "info@example.org",
+        adresse: "Beispielweg 1, 8000 Beispielstadt",
+      },
     };
   };
 
-  test("Frage, Ansprechperson links, Telefon und E-Mail als Links rechts", () => {
+  test("Frage, Ansprechperson, E-Mail als Hauptaktion und Anrufen als zweite Möglichkeit, dazu die Angaben zum Nachlesen (#580)", () => {
     const d = daten();
     const personId = [...d.personen.keys()][0]!;
     const html = seite(dok("T", b("kontaktkarte", { personId })), d);
     expect(html).toContain("<h2>Fragen? Melde dich bei uns.</h2>");
     expect(html).toContain(
-      '<p class="leise">Mara Muster, Abteilungsleitung</p>',
+      '<p class="kontakt-person">Mara Muster, Abteilungsleitung</p>',
     );
-    expect(html).toContain('<a href="tel:+41435439682">043 543 96 82</a>');
+    // Eine Hauptaktion (rot), die zweite Möglichkeit mit Rand: Knöpfe des Repertoires, nie ein eigener Knopf
     expect(html).toContain(
-      '<a href="mailto:info@example.org">info@example.org</a>',
+      '<div class="knopfreihe aktionen"><a href="mailto:info@example.org" class="btn p gross">E-Mail schreiben</a><a href="tel:+41435439682" class="btn s gross">Anrufen</a></div>',
+    );
+    // Die Angaben sind ganze Zeilen mit Symbol, Art und Wert: E-Mail und Telefon als Link, die Anschrift ohne Link; in dieser Reihenfolge (#605)
+    expect(html).toContain('<address class="kontakt-angaben"><ul>');
+    expect(html).toMatch(
+      /<a href="mailto:info@example.org" class="kontakt-zeile"><span class="kontakt-symbol"><svg class="i"[^>]*aria-hidden="true">.*?<\/svg><\/span><span class="kontakt-text"><span class="kontakt-art">E-Mail<\/span> <span class="kontakt-wert">info@example\.org<\/span><\/span><span class="kontakt-pfeil">/,
+    );
+    expect(html).toContain(
+      '<span class="kontakt-art">Telefon</span> <span class="kontakt-wert">043 543 96 82</span>',
+    );
+    expect(html).toContain('<a href="tel:+41435439682" class="kontakt-zeile">');
+    expect(html).toContain(
+      '<div class="kontakt-zeile"><span class="kontakt-symbol">',
+    );
+    expect(html).toContain(
+      '<span class="kontakt-art">Anschrift</span> <span class="kontakt-wert">Beispielweg 1, 8000 Beispielstadt</span>',
+    );
+    const reihenfolge = [
+      "E-Mail</span>",
+      "Telefon</span>",
+      "Anschrift</span>",
+    ].map((w) => html.indexOf(`kontakt-art">${w}`));
+    expect(reihenfolge).toEqual([...reihenfolge].sort((x, y) => x - y));
+    expect(reihenfolge.every((i) => i > 0)).toBe(true);
+    // Hinweis, Bild und Verweise sind freiwillig
+    expect(html).not.toContain("kontakt-hinweis");
+    expect(html).not.toContain("kontakt-bild");
+    expect(html).not.toContain("kontakt-verweise");
+    expect(html).toContain('<section class="kontaktkarte">');
+  });
+
+  test("ohne E-Mail ist das Telefon die Hauptaktion; fehlt beides, gibt es keine Knöpfe", () => {
+    const nurTelefon = seite(dok("T", b("kontaktkarte", {})), {
+      ...keineDaten(),
+      kontakt: { telefon: "043 543 96 82" },
+    });
+    expect(nurTelefon).toContain('class="btn p gross">Anrufen</a>');
+    expect(nurTelefon).not.toContain("E-Mail schreiben");
+    const nurAdresse = seite(dok("T", b("kontaktkarte", {})), {
+      ...keineDaten(),
+      kontakt: { adresse: "Beispielweg 1" },
+    });
+    expect(nurAdresse).toContain('class="kontakt-angaben"');
+    expect(nurAdresse).not.toContain('class="knopfreihe aktionen"');
+  });
+
+  test("ohne Telefonnummer steht die Karte mit E-Mail und Anschrift, ohne «Anrufen» und ohne leere Zeile (#605)", () => {
+    const html = seite(dok("T", b("kontaktkarte", {})), {
+      ...keineDaten(),
+      kontakt: { email: "info@example.org", adresse: "Beispielweg 1" },
+    });
+    expect(html).toContain("E-Mail schreiben");
+    expect(html).not.toContain("Anrufen");
+    expect(html).not.toContain("Telefon");
+    expect(html).not.toContain("tel:");
+    expect(html.match(/class="kontakt-zeile"/g)).toHaveLength(2);
+  });
+
+  test("Hinweis zur Erreichbarkeit, Bild und Verweise: der fremde Link trägt Pfeil-Zusatz und rel, die Seite der Website nicht (#580)", () => {
+    const medium = id();
+    const html = seite(
+      dok(
+        "T",
+        b("kontaktkarte", {
+          hinweis: "Wir antworten, sobald wir können.",
+          bild: medium,
+          verweise: [
+            { beschriftung: "Cevi Schweiz", ziel: "https://www.cevi.ch" },
+            { beschriftung: "Mitmachen", ziel: "/mitmachen" },
+          ],
+        }),
+      ),
+      {
+        ...daten(),
+        medien: new Map([
+          [
+            medium,
+            {
+              mimeTyp: "image/webp",
+              groesse: 10,
+              breite: 1920,
+              hoehe: 1280,
+              altText: "Kinder auf einer Wiese",
+            },
+          ],
+        ]),
+      },
+    );
+    expect(html).toContain(
+      '<p class="kontakt-hinweis">Wir antworten, sobald wir können.</p>',
+    );
+    expect(html).toContain('<section class="kontaktkarte kontaktkarte--bild">');
+    expect(html).toContain(
+      `<figure class="kontakt-bild"><img src="/api/v1/medien/${medium}" alt="Kinder auf einer Wiese" width="1920" height="1280" decoding="async"></figure>`,
+    );
+    // Steht die Karte weit unten, lädt das Bild erst beim Scrollen (loading="lazy", wie jedes Bild unterhalb des ersten Bildschirms); als erster Abschnitt lädt es sofort
+    expect(html).toContain("<h3>Weitere Informationen</h3>");
+    expect(html).toContain(
+      '<a href="https://www.cevi.ch" rel="noopener noreferrer" class="verweis">Cevi Schweiz<span class="nur-sr"> (externe Seite)</span></a>',
+    );
+    expect(html).toContain(
+      '<a href="/mitmachen" class="verweis">Mitmachen</a>',
     );
   });
 
+  test("ein Bild, das nicht (mehr) da ist, entfällt: die Karte steht ohne Bild", () => {
+    const html = seite(dok("T", b("kontaktkarte", { bild: id() })), daten());
+    expect(html).not.toContain("kontakt-bild");
+    expect(html).toContain('<section class="kontaktkarte">');
+  });
+
   test("ohne Person und ohne Kontaktdaten entfällt die Karte", () => {
-    expect(seite(dok("T", b("kontaktkarte", {})))).not.toContain("kontaktband");
+    expect(seite(dok("T", b("kontaktkarte", {})))).not.toContain(
+      'class="kontaktkarte"',
+    );
   });
 
   test("Telefon: Landesvorwahl bleibt, +41 steht für eine Nummer mit 0", () => {
@@ -201,12 +319,13 @@ describe("Termin-Liste", () => {
   test("Datumsfeld, Titel, Zeit und Ort, Chips der Stufen, Link «Alle Termine»", () => {
     const html = mitTermine([termin()]);
     expect(html).toContain(
-      '<div class="abschnitt-kopf"><h2>Nächste Termine</h2><a class="mehr" href="/termine">Alle Termine</a></div>',
+      '<div class="abschnitt-kopf"><h2>Das steht an</h2><a class="btn s" href="/termine">Alle Termine</a></div>',
     );
     expect(html).toContain(
       '<span class="datum" aria-hidden="true"><span class="tag">Sa</span><span class="nr">6</span><span class="mo">Feb.</span></span>',
     );
     expect(html).toContain('<span class="titel">Waldspiel</span>');
+    expect(html).toContain('<span class="termin-text">');
     expect(html).toContain(
       '<span class="meta">14:00–17:00 · Pfadiheim Beispielwald</span>',
     );
@@ -268,12 +387,12 @@ describe("Termin-Liste", () => {
 
   test("ohne geladene Daten (zum Beispiel in der Vorschau) entfällt der Baustein", () => {
     expect(seite(dok("T", b("terminliste", { anzahl: 5 })))).not.toContain(
-      "Nächste Termine",
+      "Das steht an",
     );
   });
 });
 
-describe("Titelbild und Foto auf der Startseite", () => {
+describe("Titelbild", () => {
   const medium = () => ({
     mimeTyp: "image/webp",
     groesse: 1,
@@ -285,48 +404,80 @@ describe("Titelbild und Foto auf der Startseite", () => {
     ...keineDaten(),
     medien: new Map(ids.map((m) => [m, medium()])),
   });
+  const absatz = (t: string) =>
+    b("text", { inhalt: [{ typ: "absatz", inhalt: [{ text: t }] }] });
 
-  test("zwei Bilder am Anfang: das erste ist das Titelbild ausserhalb der Spalte, das zweite das Foto im Teaser", () => {
-    const [a, f] = [id(), id()];
+  test("Startseite: das erste Bild geht bis zum Fensterrand, das Teaser-Feld überlappt es", () => {
+    const a = id();
     const html = seite(
-      dok(
-        "Start",
-        b("bild", { mediumId: a }),
-        b("bild", { mediumId: f }),
-        b("text", { inhalt: [{ typ: "absatz", inhalt: [{ text: "Hallo" }] }] }),
-      ),
-      mit(a, f),
+      dok("Start", b("bild", { mediumId: a }), absatz("Hallo")),
+      mit(a),
       "/",
     );
     expect(html).toMatch(
       new RegExp(
-        `<main[^>]*>\\n<figure class="titelbild"><img src="/api/v1/medien/${a}"[^>]*fetchpriority="high"[^>]*></figure>\\n<div class="wrap">`,
+        `<main[^>]*>\\n<div class="hero"><figure class="titelbild"><img src="/api/v1/medien/${a}"[^>]*fetchpriority="high"[^>]*></figure>\\n<section class="teaser teaser--ueber-bild"`,
       ),
     );
-    expect(html).toMatch(
-      new RegExp(
-        `<section class="teaser"[^>]*>\\n<figure><img src="/api/v1/medien/${f}"`,
-      ),
-    );
-    // Bilder im sichtbaren Bereich laden sofort
+    // Das Titelbild lädt sofort und mit Vorrang
     expect(html).not.toContain('loading="lazy"');
+    // Der Titel steht in der Fahne, der Text daneben; kein Etikett über dem Titel
+    expect(html).toContain(
+      '<div class="fahne"><h1 id="h1">Start</h1></div>\n<div class="teaser-text"><div class="text lesetext"><p>Hallo</p></div></div>',
+    );
+    expect(html).not.toContain("kicker");
   });
 
-  test("ein Bild: nur das Foto im Teaser, kein Titelbild", () => {
+  test("ein Bild ohne Text: Titelbild mit dem Seitentitel in der Fahne, auf der Startseite und auf jeder anderen Seite", () => {
     const a = id();
-    const html = seite(dok("Start", b("bild", { mediumId: a })), mit(a), "/");
-    expect(html).not.toContain("titelbild");
+    for (const pfad of ["/", "/seite"]) {
+      const html = seite(
+        dok("Start", b("bild", { mediumId: a })),
+        mit(a),
+        pfad,
+      );
+      expect(html).not.toContain('class="teaser');
+      expect(html).toMatch(
+        /<div class="hero hero--seite"><figure class="titelbild"><img [^>]*fetchpriority="high"[^>]*><\/figure>\n<div class="seitenband seitenband--ueber-bild"><div class="wrap"><div class="fahne"><h1>Start<\/h1><\/div><\/div><\/div><\/div>/,
+      );
+      expect(zaehle(html, "<h1")).toBe(1);
+    }
   });
 
-  test("nur die Startseite hat ein Titelbild", () => {
+  test("ohne Bild steht der Seitentitel allein im Band", () => {
+    const html = seite(dok("Start", absatz("Hallo")), mit(), "/seite");
+    expect(html).toContain(
+      '<div class="seitenband"><div class="wrap"><h1>Start</h1></div></div>',
+    );
+    expect(html).not.toContain("fahne");
+  });
+
+  test("jede Seite: das erste Bild ist das Titelbild vor dem Seitentitel, ein zweites steht im Inhalt", () => {
     const [a, f] = [id(), id()];
     const html = seite(
       dok("Seite", b("bild", { mediumId: a }), b("bild", { mediumId: f })),
       mit(a, f),
       "/seite",
     );
-    expect(html).not.toContain("titelbild");
-    expect(zaehle(html, 'loading="lazy"')).toBe(2);
+    expect(zaehle(html, 'class="titelbild"')).toBe(1);
+    expect(html.indexOf("titelbild")).toBeLessThan(html.indexOf("seitenband"));
+    expect(html).toContain(`<img src="/api/v1/medien/${f}"`);
+  });
+
+  test("Bilder oberhalb der Falz laden sofort, ab dem vierten Abschnitt erst beim Scrollen", () => {
+    const ids = [id(), id(), id(), id(), id()];
+    const abschnitte = ids.flatMap((m, i) => [
+      b("ueberschrift", { ebene: 2, text: `Abschnitt ${i}` }),
+      b("bild", { mediumId: m }),
+    ]);
+    const html = seite(dok("Seite", ...abschnitte), mit(...ids), "/seite");
+    const lazy = (m: string) =>
+      new RegExp(`<img src="/api/v1/medien/${m}"[^>]*loading="lazy"`).test(
+        html,
+      );
+    expect(ids.map(lazy)).toEqual([false, false, false, true, true]);
+    // Das Seitenverhältnis steht im Markup, damit nichts springt
+    expect(html).toContain('width="1264" height="379"');
   });
 });
 
@@ -347,27 +498,9 @@ describe("Navigation in einer Zeile", () => {
     html.indexOf("</nav>"),
   );
 
-  test("höchstens sechs Punkte und nicht mehr als 80 Zeichen, der Rest steht unter «Mehr»", () => {
-    expect(
-      zaehle(leiste, '<li class="mit-unter">') + zaehle(leiste, "<li><a"),
-    ).toBeGreaterThan(0);
-    expect(leiste).toContain(
-      '<li class="mit-unter weitere"><details><summary>Mehr</summary>',
-    );
-    const mehr = leiste.slice(leiste.indexOf("<details>"));
-    expect(mehr).toContain(">Fotos</a>");
-    expect(mehr).toContain(">Dokumente</a>");
-    // Die Unterseiten eines Punktes unter «Mehr» bleiben erreichbar
-    expect(mehr).toContain(">Statuten</a>");
-    expect(leiste.slice(0, leiste.indexOf("<details>"))).not.toContain(
-      ">Fotos</a>",
-    );
-  });
-
-  test("ein Punkt mit Unterseiten hat ein Untermenü, auch ohne Skript; die Punkte bleiben Links", () => {
-    expect(leiste).toContain(
-      '<li class="mit-unter"><a href="/unsere-gruppen">Unsere Gruppen</a><ul class="unter"><li><a href="/bienli">Bienli</a></li><li><a href="/wölfe">Wölfe</a></li></ul></li>',
-    );
+  // Aufteilung der Zeile, Untermenüs und «Mehr»: test/website-kopf.test.ts (#558)
+  test("die Navigation steht in der Hülle jeder Seite", () => {
+    expect(leiste).toContain(">Unsere Gruppen</a>");
   });
 
   test("wenige Punkte: kein «Mehr»", () => {
@@ -391,18 +524,19 @@ describe("Navigation in einer Zeile", () => {
     expect(html).toMatch(
       /script-src &#39;self&#39;; style-src &#39;self&#39;; font-src &#39;self&#39;/,
     );
-    expect(html).not.toContain("connect-src");
+    // Verbinden darf der Kopf wegen des Konto-Menüs (konto-menue.js, #669), nur zur eigenen Herkunft
+    expect(html).toContain("connect-src &#39;self&#39;");
     expect(html).not.toMatch(/<script(?![^>]* src=)/);
   });
 });
 
-describe("Fuss", () => {
-  const fuss = (daten: Daten) =>
-    rendereFehlerseite({ ...kontext(daten) }).split(
+describe("Fuss (#580)", () => {
+  const fuss = (daten: Daten, rest: Partial<Kontext> = {}) =>
+    rendereFehlerseite({ ...kontext(daten), ...rest }).split(
       '<footer class="fuss">',
     )[1]!;
 
-  test("drei Spalten: Name und Anschrift, Telefon und E-Mail, Impressum und Datenschutz, dazu ©", () => {
+  test("ein Raster: Marke, Hauptbereiche, Kontakt und Rechtliches als Spalten, dazu «©» und «Nach oben»", () => {
     const html = fuss({
       ...keineDaten(),
       kontakt: {
@@ -413,23 +547,80 @@ describe("Fuss", () => {
         datenschutz: "/datenschutz-website",
       },
     });
+    // Ohne Logo steht die Wortmarke
     expect(html).toContain(
-      "<strong>Cevi Beispielstadt</strong><p>Beispielweg 1, 8000 Beispielstadt</p>",
+      '<a class="fuss-marke" href="/"><b>CEVI</b><span>Beispielstadt</span></a>',
     );
-    expect(html).toContain('href="tel:+41000000000"');
     expect(html).toContain(
-      '<a href="mailto:info@example.org">info@example.org</a>',
+      '<div class="fuss-kontakt"><h2>Kontakt</h2><address><ul>',
     );
-    expect(html).toContain('<a href="/impressum">Impressum</a>');
-    expect(html).toContain('<a href="/datenschutz-website">Datenschutz</a>');
-    expect(html).toMatch(/© \d{4} Cevi Beispielstadt/);
+    expect(html).toContain(
+      '<li><a href="mailto:info@example.org">info@example.org</a></li><li><a href="tel:+41000000000">+41 00 000 00 00</a></li><li>Cevi Beispielstadt<br>Beispielweg 1, 8000 Beispielstadt</li>',
+    );
+    expect(html).toContain(
+      '<nav class="fuss-recht" aria-labelledby="fuss-recht"><h2 id="fuss-recht">Rechtliches</h2><ul><li><a href="/impressum">Impressum</a></li><li><a href="/datenschutz-website">Datenschutz</a></li></ul></nav>',
+    );
+    // «Nach oben» ist ein Verweis des Repertoires (ohne Knopf), «©» und «Nach oben» stehen in einer Zeile
+    expect(html).toMatch(
+      /<div class="fuss-unten"><p class="fuss-copy">© \d{4} Cevi Beispielstadt<\/p><a class="verweis fuss-oben" href="#">Nach oben<\/a><\/div>/,
+    );
   });
 
-  test("ohne Angaben: kein erfundenes Impressum, Datenschutz führt auf die Erklärung der Plattform, keine leeren Spalten", () => {
+  test("ohne Telefon fehlt es im Fuss, ohne Angaben fehlt die ganze Spalte Kontakt", () => {
+    const ohneTelefon = fuss({
+      ...keineDaten(),
+      kontakt: { email: "info@example.org" },
+    });
+    expect(ohneTelefon).toContain("info@example.org");
+    expect(ohneTelefon).not.toContain("tel:");
+    expect(fuss(keineDaten())).not.toContain("fuss-kontakt");
+  });
+
+  test("nur die oberste Ebene der Navigation steht im Fuss, nie die Unterseiten", () => {
+    const html = fuss(keineDaten(), {
+      navigation: [
+        { pfad: "/gruppen", titel: "Unsere Gruppen", kinder: [nav("Bienli")] },
+        { pfad: "/mitmachen", titel: "Mitmachen", kinder: [] },
+      ],
+    });
+    expect(html).toContain(
+      '<nav class="fuss-seiten" aria-labelledby="fuss-seiten"><h2 id="fuss-seiten">Bereiche</h2><ul><li><a href="/gruppen">Unsere Gruppen</a></li><li><a href="/mitmachen">Mitmachen</a></li></ul></nav>',
+    );
+    expect(html).not.toContain("Bienli");
+  });
+
+  test("Logo: mit Fassung für Dunkel steht sie auf Blau, mit nur einer hellen Fassung auf einem hellen Feld", () => {
+    const logo = {
+      id: "01a20580-3c5d-7c70-8783-e931b4402523",
+      altText: "Cevi",
+      breite: 800,
+      hoehe: 165,
+    };
+    const zwei = fuss(keineDaten(), {
+      logo: {
+        ...logo,
+        dunkel: {
+          id: "01a20580-3d31-7782-abdd-2cc5b954ab90",
+          breite: 800,
+          hoehe: 165,
+        },
+      },
+    });
+    expect(zwei).toContain(
+      '<img class="fuss-logo" src="/api/v1/medien/01a20580-3d31-7782-abdd-2cc5b954ab90" alt="Cevi" width="800" height="165"><span class="nur-sr">Beispielstadt</span>',
+    );
+    const eins = fuss(keineDaten(), { logo });
+    expect(eins).toContain(
+      '<img class="fuss-logo fuss-logo--feld" src="/api/v1/medien/01a20580-3c5d-7c70-8783-e931b4402523"',
+    );
+  });
+
+  test("ohne Angaben: kein erfundenes Impressum, Datenschutz führt auf die Erklärung der Plattform, keine leeren Angaben", () => {
     const html = fuss(keineDaten());
     expect(html).not.toContain("Impressum");
     expect(html).toContain('<a href="/datenschutz">Datenschutz</a>');
-    expect(zaehle(html, "<div>")).toBe(2);
+    expect(html).not.toContain("<address>");
+    expect(html).not.toContain("fuss-kontakt");
   });
 });
 
@@ -622,10 +813,129 @@ describe("Abgleich", () => {
     const t = termine!.get(lager.id)![0]!;
     expect(t.zeitVon).toBeNull();
     expect(t.von < t.bis).toBe(true);
+    // Ohne Bausteine bleibt nur der öffentliche Datenplan (#564)
+    expect([
+      ...(
+        await ladeTerminlisten(db, abteilungId, [], new Map([["s", dok("T")]]))
+      ).termine!.keys(),
+    ]).toEqual([DATENPLAN]);
+  });
+
+  test("öffentlicher Datenplan (#564): nur aktive Termine für Eltern und öffentliche Anlässe; nie intern, leitende, abgesagt, unklar, fremd; Datei ohne IDs", async () => {
+    const woelfe = await stufe("Wölfe");
+    const team = (
+      await db
+        .insert(schema.tag)
+        .values({ abteilungId, typ: "team", name: "Küchenteam", kuerzel: "KT" })
+        .returning()
+    )[0]!.id;
+    await termin("Programm Wölfe", 3, { tags: [woelfe, team] });
+    const mitSeite = await termin("Weihnachtsfest", 5, {
+      anlass: "oeffentlich",
+    });
+    await termin("Anlass ohne Seite", 6, { anlass: "oeffentlich" });
+    await termin("Anlass nur für Angemeldete", 4, { anlass: "angemeldet" });
+    await termin("Intern", 1, { sichtbarkeit: "intern", tags: [woelfe] });
+    await termin("Leitende", 1, { sichtbarkeit: "leitende", tags: [woelfe] });
+    await termin("Abgesagt", 1, { status: "abgesagt", tags: [woelfe] });
+    await termin("Unklar", 1, { status: "pruefen", tags: [woelfe] });
+    await termin("Längst vorbei", -70, { tags: [woelfe] });
+    await termin("Zu weit weg", 450, { tags: [woelfe] });
+    const [fremd] = await db
+      .insert(schema.abteilung)
+      .values({ name: "Fremd" })
+      .returning();
+    await db.insert(schema.programm).values({
+      abteilungId: fremd!.id,
+      googleEventId: id(),
+      titel: "Fremdes Programm",
+      ganztaegig: false,
+      beginn: tage(3),
+      ende: tage(3),
+    });
+    const seiteId = await neueSeite(
+      "weihnachtsfest",
+      { v: 1, titel: "Fest", bausteine: [b("trenner", { art: "linie" })] },
+      "Fest",
+    );
+    await db
+      .update(schema.anlass)
+      .set({ seiteId })
+      .where(eq(schema.anlass.programmId, mitSeite));
+
+    const erlaubt = ["Programm Wölfe", "Weihnachtsfest", "Anlass ohne Seite"];
     expect(
-      (await ladeTerminlisten(db, abteilungId, [], new Map([["s", dok("T")]])))
-        .termine!.size,
-    ).toBe(0);
+      (await ladeDatenplan(db, abteilungId)).map((t) => t.titel).sort(),
+    ).toEqual([...erlaubt].sort());
+
+    await erzeugeWebsite(db, {
+      ausgabe,
+      abteilungId,
+      basisUrl: "https://www.example.org",
+      stylesheet: "body{}",
+      datenquellen: [ladeTerminlisten],
+    });
+    const roh = await readFile(join(wurzel, DATENPLAN_DATEI), "utf8");
+    const plan = JSON.parse(roh) as {
+      von: string;
+      bis: string;
+      termine: Record<string, unknown>[];
+    };
+    expect(plan.termine.map((t) => t.titel).sort()).toEqual(
+      [...erlaubt].sort(),
+    );
+    // Nur, was die Zeile zeigt: keine IDs, keine Personen, keine Zahlen; Gruppen nur als Namen der Stufen
+    expect(roh).not.toMatch(/[0-9a-f]{8}-[0-9a-f]{4}-/);
+    for (const t of plan.termine) {
+      expect(
+        Object.keys(t).filter(
+          (k) =>
+            ![
+              "titel",
+              "von",
+              "bis",
+              "zeitVon",
+              "zeitBis",
+              "ort",
+              "stufen",
+              "seite",
+            ].includes(k),
+        ),
+      ).toEqual([]);
+    }
+    const nach = (titel: string) =>
+      plan.termine.find((t) => t.titel === titel)!;
+    expect(nach("Programm Wölfe")).toMatchObject({
+      ort: "Treffpunkt",
+      stufen: ["Wölfe"],
+    });
+    // Ein Link nur auf die öffentliche Seite des Anlasses, nie auf «/anlass?id=»
+    expect(nach("Weihnachtsfest").seite).toBe("/weihnachtsfest");
+    expect(nach("Anlass ohne Seite").seite).toBeUndefined();
+    expect(plan.von).toMatch(/^\d{4}-\d\d-01$/);
+
+    // Dieselben Termine als Liste im HTML, lesbar ohne Skript
+    const html = await readFile(join(wurzel, "termine", "index.html"), "utf8");
+    expect(html).toContain('<div class="plan" id="tm-plan">');
+    for (const titel of erlaubt) {
+      expect(html).toContain(`<span class="titel">${titel}</span>`);
+    }
+    expect(html).toContain('<a class="termin" href="/weihnachtsfest"');
+    expect(html).not.toContain("/anlass?id=");
+    for (const nie of [
+      "Intern",
+      "Leitende",
+      "Abgesagt",
+      "Unklar",
+      "Fremdes Programm",
+      "Anlass nur für Angemeldete",
+      "Küchenteam",
+      "Längst vorbei",
+      "Zu weit weg",
+    ]) {
+      expect(roh, nie).not.toContain(nie);
+      expect(html, nie).not.toContain(nie);
+    }
   });
 
   test("die erzeugte Startseite zeigt die Termine, der Fuss die Seiten des Baums; die Schrift kommt unverändert als Datei", async () => {
@@ -671,7 +981,7 @@ describe("Abgleich", () => {
     const fuss = start.split('<footer class="fuss">')[1]!;
     expect(fuss).toContain('<a href="/impressum">Impressum</a>');
     expect(fuss).toContain('<a href="/datenschutz-website">Datenschutz</a>');
-    expect(fuss).toContain("<p>Beispielweg 1</p>");
+    expect(fuss).toContain("<li>Cevi Testabteilung<br>Beispielweg 1</li>");
     const leiste = start.slice(
       start.indexOf('<nav class="hauptnav"'),
       start.indexOf("</nav>"),

@@ -272,6 +272,13 @@
   cursor: pointer;
 }
 
+/* Trefferfläche 44 px hoch, ohne dass der Schalter grösser aussieht */
+.schalter::before {
+  content: "";
+  position: absolute;
+  inset: -6px -2px;
+}
+
 .schalter::after {
   content: "";
   position: absolute;

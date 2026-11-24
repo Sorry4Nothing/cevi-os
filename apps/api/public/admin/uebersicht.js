@@ -1,283 +1,210 @@
-// Übersicht (A1, A2): «Das braucht dich» (was auf eine Entscheidung wartet), «Bestand» und der Zustand der Datenbank. Nur die Abteilungsleitung bekommt Zahlen; alle anderen Rollen sehen den Hinweis, dass die Seite nur zeigt, was ihre Rolle betrifft. Der alte Zustand der API (Anfragen, letzte Fehler) steht unter «System».
+// Übersicht (#583, neu gebaut in #620 als Dashboard der Abteilung): oben die Begrüssung mit Datum und einem Satz zum Stand, dann «Jetzt zu tun» als Liste neben dem Hauptdiagramm, das Kennzahlenband, Kommendes und Aktivität, die Teilnahme (Kinder je Stufe, Anmeldungen je Anlass) und am Ende ein schmaler Streifen für den Zustand. Ein einziger Abruf, GET /api/v1/admin/uebersicht; der Server gibt jeder Person nur die Teile, die sie sehen darf (docs/rechte.md). Die Oberfläche blendet nur aus, was fehlt, und verlässt sich auf nichts.
 //
-// Datenbanklast (eine Abfrage je Route beim Öffnen der Seite, kein Polling): GET /api/v1/admin/termin-vorschlaege?status=offen&limit=100 · GET /api/v1/raeume/anfragen/offen?limit=100 · GET /api/v1/admin/termine/warnungen?limit=100 (im Server zwei Abfragen) · GET /api/v1/admin/system · GET /api/v1/admin/tags · GET /api/v1/lager · GET /api/v1/termine/alle?limit=5.
-// Lücken der API: Keine Route liefert nur eine Zahl; die Zähler sind die Länge der ersten Seite (bis 100, «100+» bei mehr). Die «Sicherung» des Designs entfällt (Sicherungen sind gestrichen). Die Rolle «Team» kommt nicht in die Verwaltung (nur Konten mit Admin- oder Redaktionsrecht): Die Raumanfragen des eigenen Teams (A1, «Rolle eingeschränkt») siehst du dort also nicht.
+// Datenbanklast: ein Abruf beim Öffnen und auf «Aktualisieren», kein Polling. Der Server hält die Antwort 45 Sekunden je Person im Speicher.
+// Aufbau: Karten im Zwölfspaltenraster in der Breite der Website (4/8, Band, 7/5, 5/7, Streifen), auf schmalem Schirm eine Spalte. Fehlt das Hauptdiagramm (Stufenleitung, Webmaster), stehen die vorhandenen Karten in einer Reihe. Bausteine: uebersicht-kacheln.js (Aufgaben, Kennzahlen, Zustand), uebersicht-verlauf.js (Hauptdiagramm), uebersicht-kommend.js (Kommendes, Aktivität, Teilnahme), uebersicht-diagramme.js (Zeichenhilfen), Stile in uebersicht.css.
+// Fehlt ein Teil (kein Recht), fehlt seine Karte. Scheitert ein Teil auf dem Server, zeigt nur diese Karte «Nochmals versuchen».
 import { anfrage } from "./api.js";
-import { chip, el, knopf } from "./dom.js";
+import { el, knopf } from "./dom.js";
 import { sk } from "./lader.js";
+import {
+  aufgabenKarte,
+  kennzahlenBand,
+  offeneAufgaben,
+  zustandStreifen,
+} from "./uebersicht-kacheln.js";
+import {
+  aktivitaetKarte,
+  anlaesseKarte,
+  kommendKarte,
+  stufenKarte,
+} from "./uebersicht-kommend.js";
+import { verlaufKarte } from "./uebersicht-verlauf.js";
 import { leerKarte } from "./zustaende.js";
 
-const SEITE = 100;
 const ZONE = "Europe/Zurich";
-
-// Wohin die Knöpfe führen; die Ansichten bauen die Folge-Issues neu auf, die Adresse bleibt hier an einer Stelle
-const ZIEL = {
-  vorschlaege: "#termine/vorschlaege",
-  anfragen: "#raeume/raeume",
-  ohneKategorie: "#termine/warnliste",
-};
-
-const tagFormat = new Intl.DateTimeFormat("de-CH", {
-  weekday: "short",
+const de = (optionen) =>
+  new Intl.DateTimeFormat("de-CH", { timeZone: ZONE, ...optionen });
+const uhr = de({ hour: "2-digit", minute: "2-digit" });
+const stunde = de({ hour: "numeric", hourCycle: "h23" });
+const datumLang = de({
+  weekday: "long",
   day: "numeric",
-  month: "short",
-  timeZone: ZONE,
+  month: "long",
+  year: "numeric",
 });
-const heuteIso = () =>
-  new Intl.DateTimeFormat("en-CA", { timeZone: ZONE }).format(new Date());
-const plusTage = (iso, tage) => {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + tage);
-  return d.toISOString().slice(0, 10);
-};
+const kurz = de({ weekday: "short", day: "numeric", month: "short" });
 
-// «Sa. 6. Feb.»: ganztägige Termine haben nur einen Kalendertag, die anderen einen Zeitpunkt
-function terminTag(t) {
-  const roh = t.ganztaegig ? `${t.tagVon}T12:00:00Z` : t.beginn;
-  return tagFormat.format(new Date(roh));
-}
-
-function laden() {
-  const heute = heuteIso();
-  const bis = plusTage(heute, 365);
-  const g = (pfad) => anfrage("GET", pfad);
-  return Promise.allSettled([
-    g(`/api/v1/admin/termin-vorschlaege?status=offen&limit=${SEITE}`),
-    g(`/api/v1/raeume/anfragen/offen?limit=${SEITE}`),
-    g(`/api/v1/admin/termine/warnungen?limit=${SEITE}`),
-    g("/api/v1/admin/system"),
-    g("/api/v1/admin/tags"),
-    g("/api/v1/lager"),
-    g(`/api/v1/termine/alle?von=${heute}&bis=${bis}&limit=5`),
-  ]).then(([vor, anf, ohne, system, tags, lager, termine]) => {
-    // Fehlen die offenen Punkte ganz, gibt es nichts Sinnvolles zu zeigen: Fehlerkarte wie in A1
-    if ([vor, anf, ohne].every((r) => r.status === "rejected")) {
-      throw vor.reason;
-    }
-    return { vor, anf, ohne, system, tags, lager, termine };
-  });
-}
-
-// Zahl mit «+» bei weiteren Seiten
-const anzeige = (n, weitere) => (weitere ? `${n}+` : String(n));
-
-// Zeilen von «Das braucht dich»; Zähler: [Bereich, Unterseite] der Unterleiste
-function offenePunkte(daten) {
-  const zeilen = [];
-  const punkt = (r, f) => {
-    if (r.status !== "fulfilled") return;
-    const n = f.liste(r.value).length;
-    if (n > 0) zeilen.push({ ...f, n, weitere: r.value.weitere });
-  };
-  punkt(daten.vor, {
-    liste: (w) => w.vorschlaege,
-    text: (n) =>
-      n === 1
-        ? "Terminvorschlag wartet auf dich"
-        : "Terminvorschläge warten auf dich",
-    knopf: "Prüfen",
-    ziel: ZIEL.vorschlaege,
-  });
-  punkt(daten.anf, {
-    liste: (w) => w.anfragen,
-    text: (n) => (n === 1 ? "Raumanfrage wartet" : "Raumanfragen warten"),
-    knopf: "Ansehen",
-    ziel: ZIEL.anfragen,
-  });
-  punkt(daten.ohne, {
-    liste: (w) => w.termine,
-    text: (n) =>
-      n === 1
-        ? "Termin hat keine Kategorie und ist für niemanden sichtbar"
-        : "Termine haben keine Kategorie und sind für niemanden sichtbar",
-    knopf: "Beheben",
-    ziel: ZIEL.ohneKategorie,
-  });
-  return zeilen;
-}
-
-function braucht(zeilen) {
-  const id = "ueb-braucht";
-  return el(
-    "section",
-    { class: "flaeche", "aria-labelledby": id },
-    el("h2", { id, class: "gross" }, "Das braucht dich"),
+// Skelett in der Form des echten Inhalts: zwei Karten, das Band, zwei Karten
+function skelett() {
+  const karte = (zeilen, klasse) =>
     el(
-      "ul",
-      { class: "liste-zeilen braucht" },
-      zeilen.map((z) =>
-        el(
-          "li",
-          {},
-          el(
-            "span",
-            { class: "zahl-kreis" },
-            anzeige(z.n, z.weitere),
-            z.weitere && el("span", { class: "nur-leser" }, " oder mehr"),
-          ),
-          el("span", { class: "text" }, z.text(z.n)),
-          el("a", { class: "knopf knopf--klein", href: z.ziel }, z.knopf),
-        ),
-      ),
-    ),
+      "div",
+      { class: `ud-karte ${klasse}`, "aria-hidden": "true" },
+      sk("t", 120),
+      ...Array.from({ length: zeilen }, () => sk("t", 260)),
+    );
+  return el(
+    "div",
+    { class: "ud-seite" },
+    el("div", { class: "ud-zeile" }, karte(5, "ud-s4"), karte(8, "ud-s8")),
+    el("div", { class: "ud-zeile" }, karte(2, "ud-s12")),
+    el("div", { class: "ud-zeile" }, karte(6, "ud-s7"), karte(6, "ud-s5")),
   );
 }
 
-const wertZeile = (name, wert) =>
-  el("div", {}, el("dt", {}, name), el("dd", {}, wert));
-
-function bestand(daten) {
-  const zeilen = [];
-  const system = daten.system.status === "fulfilled" && daten.system.value;
-  if (system) {
-    zeilen.push(wertZeile("Personen", String(system.bestand.aktivePersonen)));
-  }
-  if (daten.tags.status === "fulfilled") {
-    // Gruppen sind Stufen, Teams und Lager; Funktionen sind reine Tags
-    const gruppen = daten.tags.value.tags.filter((t) => t.typ !== "funktion");
-    zeilen.push(wertZeile("Gruppen", String(gruppen.length)));
-  }
-  if (daten.lager.status === "fulfilled") {
-    const aktiv = daten.lager.value.lager.filter((l) => l.status === "aktiv");
-    zeilen.push(wertZeile("Aktive Lager", String(aktiv.length)));
-  }
-  if (daten.termine.status === "fulfilled") {
-    const naechster = daten.termine.value.termine.find(
-      (t) => t.status === "aktiv",
-    );
-    zeilen.push(
-      wertZeile(
-        "Nächster Termin",
-        naechster ? `${terminTag(naechster)}, ${naechster.titel}` : "Keiner",
-      ),
-    );
-  }
-  const bloecke = [];
-  if (zeilen.length > 0) {
-    bloecke.push(
-      el(
-        "section",
-        { class: "flaeche" },
-        el("h2", {}, "Bestand"),
-        el("dl", { class: "werte" }, zeilen),
-      ),
-    );
-  }
-  if (
-    [daten.system, daten.tags, daten.lager, daten.termine].some(
-      (r) => r.status === "rejected",
-    )
-  ) {
-    bloecke.push(
-      el(
-        "div",
-        { class: "hinweis hinweis--warn", role: "status" },
-        el("span", {}, "Nicht alle Zahlen konnten geladen werden."),
-      ),
-    );
-  }
-  if (system) {
-    const ok = system.datenbank.erreichbar;
-    bloecke.push(
-      el(
-        "section",
-        { class: "flaeche" },
-        el(
-          "dl",
-          { class: "werte" },
-          wertZeile(
-            "Datenbank",
-            el(
-              "ul",
-              { class: "chips" },
-              chip(
-                ok ? "Erreichbar" : "Nicht erreichbar",
-                ok ? "ok" : "fehler",
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-  return bloecke;
+// Zähler der Unterleiste aus denselben Zahlen, ohne eigene Abfrage
+function melde(ctx, a) {
+  if (!a) return;
+  const z = (bereich, unter, n) =>
+    n !== undefined && ctx.zaehler(unter, n, bereich);
+  z("termine", "vorschlaege", a.terminVorschlaege);
+  z("termine", "warnliste", a.termineOhneKategorie);
+  z("raeume", "anfragen", a.raumanfragen);
 }
 
-// Formgleich zu «Das braucht dich» und «Bestand» (A1, Laden)
-function skeleton() {
-  const zeilen = el(
-    "section",
-    { class: "flaeche", "aria-hidden": "true" },
-    sk("t", 200),
-    [260, 320, 380, 260].map((b) =>
-      el(
-        "div",
-        { class: "sk-zeile sk-zeile--knopf" },
-        sk("k", 36),
-        sk("t", b),
-        sk("r", 96),
-      ),
-    ),
-  );
-  const werte = el(
-    "section",
-    { class: "flaeche", "aria-hidden": "true" },
-    sk("t", 136),
-    [112, 160, 200, 112].map((b) =>
-      el("div", { class: "sk-zeile sk-zeile--paar" }, sk("t", b), sk("t", 80)),
-    ),
-  );
-  return el("div", { class: "spalte" }, zeilen, werte);
+// «Guten Morgen, Anna»: Tageszeit in Schweizer Zeit, Vorname aus dem eigenen Konto
+function gruss(ctx) {
+  const std = Number(stunde.format(new Date()));
+  const teil =
+    std < 11 ? "Guten Morgen" : std < 17 ? "Guten Tag" : "Guten Abend";
+  const vorname = String(ctx.ich.name ?? "")
+    .trim()
+    .split(/\s+/)[0];
+  return vorname ? `${teil}, ${vorname}` : teil;
+}
+
+// Ein Satz zum Stand: was offen ist und was als Nächstes ansteht (nur Titel und Zeit, nie Personen)
+function stand(daten) {
+  const teile = [`${datumLang.format(new Date())}.`];
+  if (daten.aufgaben) {
+    const n = offeneAufgaben(daten);
+    teile.push(
+      n === 0
+        ? "Nichts ist offen."
+        : n === 1
+          ? "Ein Punkt ist offen."
+          : `${n} Punkte sind offen.`,
+    );
+  }
+  const k = daten.kommend;
+  const naechster = k
+    ? [
+        ...k.termine.map((t) => ({
+          titel: t.titel,
+          von: t.beginn
+            ? new Date(t.beginn)
+            : new Date(`${t.tagVon}T12:00:00Z`),
+        })),
+        ...k.lager.map((l) => ({
+          titel: l.titel,
+          von: new Date(`${l.von}T12:00:00Z`),
+        })),
+      ].sort((a, b) => a.von - b.von)[0]
+    : null;
+  if (naechster) {
+    teile.push(
+      `Als Nächstes: ${naechster.titel}, ${kurz.format(naechster.von).replace(/.$/, "")}.`,
+    );
+  }
+  return teile.join(" ");
+}
+
+// Eine Reihe im Zwölfspaltenraster; [Knoten, Spalten]. Ohne zweite Karte füllt die erste die Reihe.
+function reihe(...teile) {
+  const da = teile.filter(([k]) => k);
+  if (da.length === 0) return null;
+  const wurzel = el("div", { class: "ud-zeile" });
+  for (const [knoten, spalten] of da) {
+    knoten.classList.add(`ud-s${da.length === 1 ? 12 : spalten}`);
+    wurzel.append(knoten);
+  }
+  return wurzel;
 }
 
 function zeichne(bereich, ctx, daten, neuLaden) {
-  const zeilen = offenePunkte(daten);
-  // Zähler der Unterleiste aus denselben Antworten, ohne eigene Abfrage; nur vollständige Zahlen
-  for (const [r, bereichName, unter] of [
-    [daten.vor, "termine", "vorschlaege"],
-    [daten.anf, "raeume", "anfragen"],
-    [daten.ohne, "termine", "warnliste"],
-  ]) {
-    if (r.status !== "fulfilled" || r.value.weitere) continue;
-    const liste = r.value.vorschlaege ?? r.value.anfragen ?? r.value.termine;
-    ctx.zaehler(unter, liste.length, bereichName);
-  }
-  const teile = [];
-  const fehlt = [daten.vor, daten.anf, daten.ohne].some(
-    (r) => r.status === "rejected",
-  );
-  if (fehlt) {
-    teile.push(
-      el(
-        "div",
-        { class: "hinweis hinweis--warn", role: "status" },
-        el("span", {}, "Nicht alle offenen Punkte konnten geladen werden."),
-        knopf("Nochmals versuchen", { klein: true, onclick: neuLaden }),
-      ),
-    );
-  }
-  if (zeilen.length > 0) teile.push(braucht(zeilen));
-  else if (!fehlt) teile.push(leerKarte("Gerade ist nichts offen."));
-  teile.push(...bestand(daten));
-  bereich.append(...teile);
-}
+  melde(ctx, daten.aufgaben);
+  const aufgaben = aufgabenKarte(daten, ctx, neuLaden);
+  const kommend = kommendKarte(daten, ctx, neuLaden);
+  const aktivitaet = aktivitaetKarte(daten);
+  const stufen = stufenKarte(daten, ctx, neuLaden);
+  const anlaesse = anlaesseKarte(daten, ctx, neuLaden);
+  const band = kennzahlenBand(daten, ctx, neuLaden);
+  const verlauf = daten.kennzahlen ? verlaufKarte(daten) : null;
+  const streifen = zustandStreifen(daten, ctx, neuLaden);
 
-export function zeige(bereich, ctx) {
-  // Rollen ohne Zahlen: nur der Hinweis und der Leer-Zustand, es werden keine Daten geladen
-  if (ctx.ich.role !== "admin") {
+  // Mit Hauptdiagramm (Abteilungsleitung): feste Reihen. Ohne: alles, was da ist, in einer Reihe nebeneinander.
+  const reihen = verlauf
+    ? [
+        reihe([aufgaben, 4], [verlauf, 8]),
+        reihe([band, 12]),
+        reihe([kommend, 7], [aktivitaet, 5]),
+        reihe([stufen, 5], [anlaesse, 7]),
+        reihe([streifen, 12]),
+      ]
+    : [
+        reihe(
+          [aufgaben, 4],
+          [kommend, 4],
+          [aktivitaet, 4],
+          [stufen, 4],
+          [anlaesse, 4],
+        ),
+        reihe([band, 12]),
+        reihe([streifen, 12]),
+      ];
+  reihen[0]?.classList.toggle("ud-zeile--auto", !verlauf);
+  const wurzel = el("div", { class: "ud-seite" }, reihen.filter(Boolean));
+  if (wurzel.childElementCount === 0) {
     bereich.append(
-      el(
-        "div",
-        { class: "hinweis", role: "status" },
-        el("span", {}, "Du siehst nur, was deine Rolle betrifft."),
-      ),
-      leerKarte("Gerade ist nichts offen."),
+      leerKarte("Für deine Rolle gibt es hier gerade nichts zu zeigen."),
     );
     return;
   }
-  ctx.lade(laden, (daten, neuLaden) => zeichne(bereich, ctx, daten, neuLaden), {
-    skeleton,
-    fehlerTitel: "Die offenen Punkte konnten nicht geladen werden.",
-    fehlerText: "Prüfe die Verbindung und versuche es nochmals.",
+  // Gestaffelter Auftritt: jede Karte ein Stück später
+  wurzel.querySelectorAll(".ud-karte").forEach((k, i) => {
+    k.style.setProperty("--k", String(i));
   });
+  wurzel.append(
+    el(
+      "p",
+      { class: "ud-stand klein leise", role: "status" },
+      `Stand ${uhr.format(new Date(daten.erzeugtAm))} Uhr. Die Zahlen sind höchstens eine Minute alt.`,
+    ),
+  );
+  bereich.append(wurzel);
+}
+
+export function zeige(bereich, ctx) {
+  let frisch = false;
+  let neu = null;
+  const laden = () =>
+    anfrage("GET", `/api/v1/admin/uebersicht${frisch ? "?frisch=1" : ""}`);
+  ctx.kopfAktion(
+    knopf("Aktualisieren", {
+      art: "still",
+      symbol: "aktualisieren",
+      onclick: () => {
+        frisch = true;
+        neu?.();
+      },
+    }),
+  );
+  ctx.lade(
+    laden,
+    (daten, neuLaden) => {
+      neu = neuLaden;
+      // Begrüssung und Satz im Seitenkopf; der Fenstertitel bleibt «Übersicht»
+      ctx.titel(gruss(ctx), stand(daten));
+      document.title = "Übersicht – Verwaltung – Cevi OS";
+      zeichne(bereich, ctx, daten, () => {
+        frisch = true;
+        neuLaden();
+      });
+    },
+    {
+      skeleton: skelett,
+      fehlerTitel: "Die Übersicht konnte nicht geladen werden.",
+      fehlerText: "Prüfe die Verbindung und versuche es nochmals.",
+    },
+  );
 }

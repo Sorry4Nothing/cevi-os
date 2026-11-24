@@ -1,9 +1,6 @@
 import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
-import {
-  holeOpenMeteo,
-  type WetterHolen,
-} from "../../lager/wetter-openmeteo.js";
+import { openMeteo, type Wetterdienst } from "../../lager/wetter-openmeteo.js";
 import type { Fcm } from "../../push.js";
 import type { LagerEnv } from "../../lager/policy.js";
 import { erstelleAggregateRouten } from "./aggregate.js";
@@ -56,12 +53,12 @@ import { erstelleZeitplanRouten } from "./zeitplan.js";
 export function erstelleLagerRouten({
   db,
   fcm,
-  wetter = holeOpenMeteo,
+  wetter = openMeteo,
   jetzt = () => new Date(),
 }: {
   db: Db;
   fcm?: Fcm;
-  wetter?: WetterHolen;
+  wetter?: Wetterdienst;
   // Die Uhr der Aggregate «Heute», «Meine Woche» und Start (#395) und der Lager-Check (#377); die Tests spritzen eine feste Zeit ein
   jetzt?: () => Date;
 }) {

@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, isNull, ne, or, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   anwesenheit,
@@ -151,6 +152,8 @@ export type SchichtplanSchicht = {
   teilnehmerId: string | null;
   name: string;
   ceviName: string | null;
+  // Pfad des Profilbilds der Person (Mitglied mit Bild), sonst null; Teilnehmende immer null
+  bildUrl: string | null;
   stufe: string | null;
 };
 
@@ -176,7 +179,7 @@ export async function ladeSchichtplan(db: Leser, lagerId: string) {
           'datum', t.datum::text, 'tagesabschnittId', s.tagesabschnitt_id,
           'personId', u.id, 'teilnehmerId', k.id,
           'name', coalesce(u.name, k.vorname || ' ' || k.nachname),
-          'ceviName', u.cevi_name, 'stufe', k.stufe)
+          'ceviName', u.cevi_name, 'bildUrl', ${bildUrlImLager(sql`u.id`, lagerId)}, 'stufe', k.stufe)
           order by t.datum, a.reihenfolge, a.id, d.reihenfolge, d.name, d.id, coalesce(u.name, k.nachname), s.id)
         from schicht s
         join lager l on l.id = s.lager_id
@@ -201,6 +204,7 @@ export function statistikVon(plan: {
       personId: string | null;
       teilnehmerId: string | null;
       name: string;
+      bildUrl: string | null;
       anzahl: number;
       nachtwachen: number;
     }
@@ -211,6 +215,7 @@ export function statistikVon(plan: {
       personId: s.personId,
       teilnehmerId: s.teilnehmerId,
       name: s.name,
+      bildUrl: s.bildUrl,
       anzahl: 0,
       nachtwachen: 0,
     };
@@ -340,6 +345,7 @@ export const aktiveMitglieder = (
       id: lagerMitglied.personId,
       name: user.name,
       ceviName: user.ceviName,
+      bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
     })
     .from(lagerMitglied)
     .innerJoin(user, eq(user.id, lagerMitglied.personId))
@@ -542,14 +548,24 @@ export async function planeVorschlag(
 
   const wer = new Map<
     string,
-    { name: string; personId?: string; teilnehmerId?: string }
+    {
+      name: string;
+      bildUrl: string | null;
+      personId?: string;
+      teilnehmerId?: string;
+    }
   >();
   for (const m of mitglieder) {
-    wer.set(`p:${m.id}`, { name: m.name, personId: m.id });
+    wer.set(`p:${m.id}`, {
+      name: m.name,
+      bildUrl: m.bildUrl,
+      personId: m.id,
+    });
   }
   for (const c of kinder) {
     wer.set(`t:${c.id}`, {
       name: `${c.vorname} ${c.nachname}`,
+      bildUrl: null,
       teilnehmerId: c.id,
     });
   }
@@ -603,6 +619,7 @@ export async function planeVorschlag(
         ...zeilen[i]!,
         datum: datumVon.get(n.lagertagId)!,
         name: wer.get(n.schluessel)!.name,
+        bildUrl: wer.get(n.schluessel)!.bildUrl,
       })),
       unbesetzt: ergebnis.unbesetzt,
       // Nur wer nach dem Vorschlag mindestens eine Schicht hat: wer nirgends anwesend ist, würde die Liste nur füllen
@@ -614,6 +631,7 @@ export async function planeVorschlag(
             personId: w.personId ?? null,
             teilnehmerId: w.teilnehmerId ?? null,
             name: w.name,
+            bildUrl: w.bildUrl,
             vorher: s.vorher,
             neu: s.neu,
             gesamt: s.vorher + s.neu,

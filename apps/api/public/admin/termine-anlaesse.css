@@ -1,4 +1,432 @@
-/* Unterseiten «Anlässe» (A17, A18) und «Anmeldungen» (A19). Klassen mit dem Vorsatz «tm-» */
+/* Bereich «Anlässe» (A17 bis A19, neu gestaltet in #608): Liste nach Monaten, Anlass mit Reitern, Rückmeldungen als Balkenzeilen, Export, Einstellungen. Klassen mit dem Vorsatz «anl-». Farben nur aus den Tokens; keine Verläufe, keine Schatten. Bewegung nur bei prefers-reduced-motion: no-preference. */
+
+/* ---------- Werkzeuge (Liste und Anmeldungen) ---------- */
+
+.anl-werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.anl-kopfzeile {
+  display: grid;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+/* ---------- Liste: Monat links, Karten rechts ---------- */
+
+.anl-gruppen {
+  display: grid;
+  gap: 32px;
+  margin-top: 24px;
+}
+
+.anl-gruppe {
+  display: grid;
+  gap: 12px 24px;
+}
+
+@media (min-width: 52rem) {
+  .anl-gruppe {
+    grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.anl-monat {
+  display: grid;
+  gap: 2px;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+@media (min-width: 52rem) {
+  .anl-monat {
+    padding-top: 22px;
+  }
+}
+
+.anl-liste {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.anl-karte {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) 12rem 8.5rem auto;
+  grid-template-areas: "datum haupt status zahl pfeil";
+  align-items: center;
+  gap: 8px 20px;
+  min-height: 5.5rem;
+  padding: 14px 20px 14px 16px;
+  color: var(--text);
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+  text-decoration: none;
+  transition:
+    border-color var(--dauer) var(--kurve),
+    background-color var(--dauer) var(--kurve);
+}
+
+.anl-karte:hover {
+  color: var(--text);
+  border-color: var(--akzent);
+}
+
+.anl-karte > .i {
+  grid-area: pfeil;
+  width: 20px;
+  height: 20px;
+  color: var(--leise);
+}
+
+.anl-datum {
+  grid-area: datum;
+  display: grid;
+  justify-items: center;
+  width: 4.25rem;
+  padding: 8px 0;
+  color: var(--auf-blau-f);
+  background: var(--blau-f);
+  border-radius: 10px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.anl-datum-wt,
+.anl-datum-mon {
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.anl-datum-tag {
+  font-size: 1.75rem;
+  font-weight: 800;
+}
+
+.anl-zeile--vorbei .anl-datum {
+  color: var(--leise);
+  background: var(--leiste);
+}
+
+.anl-haupt {
+  grid-area: haupt;
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.anl-titel {
+  color: var(--titel);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.anl-status {
+  grid-area: status;
+  justify-content: flex-end;
+  margin: 0;
+  padding: 0;
+}
+
+.anl-zahl {
+  grid-area: zahl;
+  display: grid;
+  text-align: right;
+}
+
+.anl-zahl-gross {
+  color: var(--titel);
+  font-size: 1.75rem;
+  line-height: 2rem;
+  font-weight: 800;
+}
+
+@media (max-width: 60rem) {
+  .anl-karte {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      "datum haupt pfeil"
+      "datum status status"
+      "datum zahl zahl";
+    align-items: start;
+  }
+
+  .anl-zahl {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+    text-align: left;
+  }
+
+  .anl-zahl-gross {
+    font-size: 1.25rem;
+    line-height: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .anl-zeile {
+    animation: anl-ein 0.32s var(--kurve) both;
+  }
+
+  .anl-zeile:nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .anl-zeile:nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .anl-zeile:nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  .anl-zeile:nth-child(n + 5) {
+    animation-delay: 160ms;
+  }
+
+  .anl-karte > .i {
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .anl-karte:hover > .i {
+    transform: translateX(4px);
+  }
+
+  @keyframes anl-ein {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .anl-karte,
+  .anl-erg {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* ---------- Anlass mit Reitern ---------- */
+
+.anl-tabs {
+  margin-bottom: 24px;
+}
+
+/* Zähler im Reiter: rund, zentriert */
+.anl-tabzahl {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  margin-left: 8px;
+  padding: 0 6px;
+  color: var(--text);
+  background: var(--leiste);
+  border-radius: 9999px;
+  font-size: 0.8125rem;
+  line-height: 1;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.anl-reiter {
+  display: grid;
+  gap: 24px;
+}
+
+/* Leere Platzhalter (Meldungen, Editor) dürfen keine Lücke lassen */
+.anl-reiter :where(div):empty,
+.anl-einstellungen > div:empty {
+  display: none;
+}
+
+.anl-uebersicht {
+  display: grid;
+  gap: 24px;
+}
+
+@media (min-width: 64rem) {
+  .anl-uebersicht {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+    align-items: start;
+  }
+}
+
+.anl-spalte {
+  display: grid;
+  gap: 24px;
+  min-width: 0;
+}
+
+.anl-frist {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+}
+
+.anl-frist .i {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+
+/* ---------- Rückmeldungen: Der Balken ist der Hintergrund der Zeile ---------- */
+
+.anl-erg-liste {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.anl-erg {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 3rem;
+  padding: 0 16px;
+  overflow: hidden;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 10px;
+}
+
+.anl-erg--fuehrt {
+  border-color: var(--akzent);
+}
+
+.anl-erg-balken {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.anl-erg-fuell {
+  fill: var(--blau-f);
+}
+
+.anl-erg--nein .anl-erg-fuell {
+  fill: var(--leiste);
+}
+
+.anl-erg-name,
+.anl-erg-zahl,
+.anl-erg-anteil {
+  position: relative;
+}
+
+.anl-erg-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.anl-erg--fuehrt .anl-erg-name,
+.anl-erg--fuehrt .anl-erg-anteil {
+  color: var(--titel);
+  font-weight: 800;
+}
+
+.anl-erg-zahl {
+  color: var(--leise);
+}
+
+.anl-erg-anteil {
+  min-width: 3.25rem;
+  text-align: right;
+}
+
+.anl-erg-hinweis {
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .anl-erg-fuell {
+    transform-box: fill-box;
+    transform-origin: left center;
+    animation: anl-wachse 0.5s var(--kurve) both;
+  }
+
+  .anl-erg:nth-child(2) .anl-erg-fuell {
+    animation-delay: 45ms;
+  }
+
+  @keyframes anl-wachse {
+    from {
+      transform: scaleX(0);
+    }
+
+    to {
+      transform: none;
+    }
+  }
+}
+
+/* ---------- Export (Reiter «Anmeldungen») ---------- */
+
+.anl-export {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 12px 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.anl-export-text {
+  display: flex;
+  flex: 1 1 18rem;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.anl-export-text .text {
+  display: grid;
+  min-width: 0;
+}
+
+.anl-export-zeile {
+  flex: 1 1 100%;
+  margin: 0;
+}
+
+/* ---------- Einstellungen ---------- */
+
+.anl-einstellungen {
+  display: grid;
+  gap: 24px;
+  max-width: 48rem;
+}
+
+.anl-gefahr > h2 {
+  color: var(--fe);
+}
 
 /* Konflikt der Zusatzfelder: Hinweis, zwei Fassungen, Knöpfe */
 .tm-konflikt-block {

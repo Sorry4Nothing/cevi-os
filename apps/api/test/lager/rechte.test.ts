@@ -502,7 +502,7 @@ describe("Zweiter Faktor (#523)", () => {
     }
   });
 
-  test("die Admin-Route zum Ändern der Rechte bleibt gesperrt (403 ZWEITER_FAKTOR_FEHLT, #23)", async () => {
+  test("die Verwaltungsroute zum Ändern der Rechte bleibt gesperrt (403 ZWEITER_FAKTOR_FEHLT, #23)", async () => {
     const id = await legeLager();
     const antwort = await anfrage(
       adminOhne,
@@ -638,7 +638,7 @@ describe("Eskalationsversuche", () => {
         expect((await anfrage(konto, "GET", pfad)).status).toBe(404);
       }
     }
-    // Die Admin der fremden Abteilung ändert unser Lager nicht
+    // Die Abteilungsleitung der fremden Abteilung ändert unser Lager nicht
     expect(
       (await anfrage(demoAdmin, "PUT", `${ADMIN}/${id}/rechte`, body)).status,
     ).toBe(404);

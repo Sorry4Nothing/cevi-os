@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/pinnwand/:beitragId/umfrage"
-order: 365000
+order: 417000
 method: POST
-url: "{{baseUrl}}{{pfad_L210}}"
+url: "{{baseUrl}}{{pfad_L214}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

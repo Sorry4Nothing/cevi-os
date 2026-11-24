@@ -15,7 +15,7 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import {
   kind,
-  kindEltern,
+  kindZugang,
   leitungAnmeldung,
   programm,
   programmEckdaten,
@@ -34,19 +34,23 @@ import type { Fcm } from "../push.js";
 import {
   aktivesKonto,
   darfLeitungAnmelden,
-  hatRolle,
   programmBeginn,
-  programmSichtbar,
   stufenleitungDerStufen,
   type Person,
 } from "../rechte.js";
+import { programmSichtbar } from "../programmsicht.js";
+import { darf } from "../rechtemodell/darf.js";
+import {
+  hatRechtMitFaktor,
+  stufeObjekt,
+} from "../rechtemodell/personenrechte.js";
 
 // PostgreSQL 18 lehnt das Jahr 0000 ab (Fehler 22008), zod lässt es durch
 // «offen» hat keine Zeile; die Routen füllen es mit coalesce
 type Antwort = "ja" | "nein" | "offen";
 
 const tag = z.iso.date().refine((wert) => !wert.startsWith("0000"));
-// «alle=1» holt auch ausgeblendete (intern) Programme, nur für Admins; für alle anderen gilt es nicht
+// «alle=1» holt auch ausgeblendete (intern) Programme, nur für die Abteilungsleitung; für alle anderen gilt es nicht
 const fensterSchema = z.strictObject({
   von: tag,
   bis: tag,
@@ -110,8 +114,8 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       })
       .from(kind)
       .innerJoin(
-        kindEltern,
-        and(eq(kindEltern.kindId, kind.id), eq(kindEltern.userId, person.id)),
+        kindZugang,
+        and(eq(kindZugang.kindId, kind.id), eq(kindZugang.userId, person.id)),
       )
       .innerJoin(
         programmStufen,
@@ -143,14 +147,16 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
     .get("/", eingabe("query", fensterSchema), async (c) => {
       const person = c.get("person");
       const { von, bis, alle } = c.req.valid("query");
+      const internSehen =
+        alle && (await darf(db, person, "programm.intern_sehen"));
       const programme = await db
         .select(programmFelder())
         .from(programm)
         .where(
           and(
             programmSichtbar(person),
-            // «intern» heisst in der App für niemanden sichtbar; die Verwaltung holt sie mit alle=1 zum Einblenden
-            person.admin && alle
+            // «intern» heisst in der App für niemanden sichtbar; die Verwaltung holt sie mit alle=1 zum Einblenden, wer das Recht dazu hat (#650)
+            alle && internSehen
               ? undefined
               : ne(programm.sichtbarkeit, "intern"),
             // Inklusive Schweizer Kalendertage: Ein Lager zählt an jedem seiner Tage
@@ -261,12 +267,20 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           ),
         )
         .where(eq(programmStufen.programmId, id));
-      // Ganze Liste: Admins und die Leitung der Stufe (SL eingeschlossen); sonst nur die eigenen Kinder
-      const leitungStufen = stufen
-        .map((s) => s.id)
-        .filter(
-          (stufeId) => person.admin || hatRolle(person, stufeId, "leitung"),
-        );
+      // Ganze Liste: die Abteilungsleitung, die Leitung der Stufe (SL eingeschlossen) und wer «Teilnahmen und Kontakte der Stufe sehen» als Rolle trägt (#650); sonst nur die eigenen Kinder
+      const leitungStufen: string[] = [];
+      for (const s of stufen) {
+        if (
+          await hatRechtMitFaktor(
+            db,
+            person,
+            "stufe.einblick",
+            stufeObjekt(person, s.id),
+          )
+        ) {
+          leitungStufen.push(s.id);
+        }
+      }
       const kinder = await db
         .select({
           id: kind.id,
@@ -296,11 +310,11 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
               exists(
                 db
                   .select({ eins: sql`1` })
-                  .from(kindEltern)
+                  .from(kindZugang)
                   .where(
                     and(
-                      eq(kindEltern.kindId, kind.id),
-                      eq(kindEltern.userId, person.id),
+                      eq(kindZugang.kindId, kind.id),
+                      eq(kindZugang.userId, person.id),
                     ),
                   ),
               ),
@@ -308,8 +322,15 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           ),
         )
         .orderBy(asc(kind.vorname), asc(kind.nachname), asc(kind.id));
-      // Sichtbar, aber weder Admin noch Leitung einer Stufe noch Elternteil eines Kindes im Programm (z. B. SL einer anderen Stufe): kein Recht
-      if (!person.admin && leitungStufen.length === 0 && kinder.length === 0) {
+      // Sichtbar, aber weder Einblick in eine Stufe des Programms (die Abteilungsleitung hat ihn abteilungsweit) noch Elternteil eines Kindes im Programm (z. B. SL einer anderen Stufe): kein Recht
+      if (
+        leitungStufen.length === 0 &&
+        kinder.length === 0 &&
+        !(await hatRechtMitFaktor(db, person, "stufe.einblick", {
+          abteilungId: person.abteilungId,
+          abteilungsweit: true,
+        }))
+      ) {
         throw new HTTPException(403);
       }
       const leitende =
@@ -472,17 +493,21 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
         if (!zeile || !ziel) throw new HTTPException(404);
         const [eigenes] = await db
           .select({ eins: sql`1` })
-          .from(kindEltern)
+          .from(kindZugang)
           .where(
             and(
-              eq(kindEltern.kindId, kindId),
-              eq(kindEltern.userId, person.id),
+              eq(kindZugang.kindId, kindId),
+              eq(kindZugang.userId, person.id),
             ),
           );
         const zustaendig =
-          person.admin ||
-          hatRolle(person, ziel.stufeId, "leitung") ||
-          !!eigenes;
+          !!eigenes ||
+          (await hatRechtMitFaktor(
+            db,
+            person,
+            "stufe.einblick",
+            stufeObjekt(person, ziel.stufeId),
+          ));
         const [zugeordnet] = await db
           .select({ eins: sql`1` })
           .from(programmStufen)

@@ -1,0 +1,14 @@
+$kind: http-request
+name: "GET /admin/liste-hilfen.js"
+order: 27000
+method: GET
+url: "{{baseUrl}}/admin/liste-hilfen.js"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"

@@ -5,7 +5,7 @@ const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
 // Unterseite «Vorschläge» (#441, A9, A10): Sie ruft nur die Routen der Abteilungsleitung auf und schreibt nie anders als über «entscheid» und «eingetragen»
-describe("Admin-Panel: Termine, Vorschläge", () => {
+describe("Panel der Abteilungsleitung: Termine, Vorschläge", () => {
   const modul = lies("termine-vorschlaege.js");
 
   test("Modul und Stilvorlage sind eingebunden", () => {

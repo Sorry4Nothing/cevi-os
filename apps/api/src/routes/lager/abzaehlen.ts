@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../../bild.js";
 import type { Db } from "../../db/client.js";
 import { abzaehlen, lagerMitglied, teilnehmer, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
@@ -133,6 +134,7 @@ export function erstelleAbzaehlenRouten({ db }: { db: Db }) {
           id: lagerMitglied.personId,
           name: user.name,
           ceviName: user.ceviName,
+          bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
           geprueft: sql<boolean>`coalesce(${abzaehlen.geprueft}, false)`,
           geprueftAm: abzaehlen.geprueftAm,
         })

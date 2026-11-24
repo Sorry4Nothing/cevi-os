@@ -16,6 +16,7 @@ import { LAGER_RECHTE } from "../../src/lager/rechte-katalog.js";
 import { erstelleApp } from "../../src/app.js";
 import { erstelleDb } from "../../src/db/client.js";
 import * as schema from "../../src/db/schema.js";
+import { dienst } from "./wetter-hilfen.js";
 import { ladeSeiten } from "../../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "../hilfen/auth.js";
 import { API_URL } from "../hilfen/datenbank.js";
@@ -37,6 +38,11 @@ const app = erstelleApp({
   db,
   auth,
   seiten: ladeSeiten(),
+  // Kein Abruf ins Netz: Beim Anlegen mit Ort sucht der Server den Wetterort
+  wetter: dienst(
+    async () => [],
+    async () => [],
+  ),
 });
 afterAll(() => sql.end());
 
@@ -269,7 +275,7 @@ describe("GET /api/v1/admin/lager und /{id}", () => {
     expect(ids).not.toContain(fremdes);
   });
 
-  test("das Lager einer anderen Abteilung ist 404, auch für deren Admin; Nicht-Admins 403", async () => {
+  test("das Lager einer anderen Abteilung ist 404, auch für deren Abteilungsleitung; alle anderen 403", async () => {
     const id = await legeLager();
     expect((await anfrage(demoAdmin, "GET", `${ADMIN}/${id}`)).status).toBe(
       404,
@@ -464,6 +470,7 @@ describe("Mitglieder: /api/v1/admin/lager/{id}/mitglieder", () => {
     expect(mitglieder).toHaveLength(2);
     for (const m of mitglieder) {
       expect(Object.keys(m).sort()).toEqual([
+        "bildUrl",
         "ceviName",
         "name",
         "personId",
@@ -471,6 +478,29 @@ describe("Mitglieder: /api/v1/admin/lager/{id}/mitglieder", () => {
       ]);
     }
     expect(text).not.toMatch(/passw|hash|secret|token|mail|username|cookie/i);
+  });
+
+  test("die Liste nennt den Pfad des Profilbilds, ohne Bild null (#668)", async () => {
+    const id = await legeLager("aktiv", [
+      [sl, "lagerleitung"],
+      [leitende, "team"],
+    ]);
+    await db
+      .insert(schema.profilbild)
+      .values({ userId: leitende.id!, inhalt: new Uint8Array([1, 2, 3]) })
+      .onConflictDoNothing();
+    const { mitglieder } = (await (
+      await anfrage(admin, "GET", `${ADMIN}/${id}/mitglieder`)
+    ).json()) as { mitglieder: { personId: string; bildUrl: string | null }[] };
+    const bild = (pid?: string | null) =>
+      mitglieder.find((m) => m.personId === pid)?.bildUrl;
+    expect(bild(leitende.id)).toMatch(
+      new RegExp(`^/api/v1/personen/${leitende.id}/bild[?]v=[0-9]+$`),
+    );
+    expect(bild(sl.id)).toBeNull();
+    await db
+      .delete(schema.profilbild)
+      .where(eq(schema.profilbild.userId, leitende.id!));
   });
 
   test("nur ein aktives Konto der Abteilung wird Mitglied; unbekannt, deaktiviert und fremd sind 404", async () => {
@@ -679,6 +709,7 @@ describe("Rolle bei jeder Anfrage: /api/v1/lager", () => {
       status: "archiviert",
       farbe: null,
       logoMediumId: null,
+      wetterOrt: { status: "kein_ort", name: null },
       uebung: false,
       rolle: "team",
       schreibgeschuetzt: true,

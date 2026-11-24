@@ -14,8 +14,9 @@ import {
   VORLAGEN_MAX,
 } from "../../lager/vorlagen.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
-// Admin-Routen für Vorlagen (#376): Aufgaben- und Packlisten-Vorlagen der Abteilung. Nur die Abteilungsleitung (403), die Vorlage der eigenen Abteilung (fremd oder unbekannt 404, vor dem Recht). Die Lagerleitung wendet eine Vorlage im Lager an (POST /lager/{id}/vorlagen/{vorlageId}/anwenden), ändert sie aber nicht. Inhalt und Fristen: lager/vorlagen.ts. Das Audit-Log nennt Vorlage und Art, nie den Inhalt
+// Verwaltungsrouten für Vorlagen (#376): Aufgaben- und Packlisten-Vorlagen der Abteilung. Nur die Abteilungsleitung (403), die Vorlage der eigenen Abteilung (fremd oder unbekannt 404, vor dem Recht). Die Lagerleitung wendet eine Vorlage im Lager an (POST /lager/{id}/vorlagen/{vorlageId}/anwenden), ändert sie aber nicht. Inhalt und Fristen: lager/vorlagen.ts. Das Audit-Log nennt Vorlage und Art, nie den Inhalt
 const name = z.string().trim().min(1).max(100);
 const art = z.enum(VORLAGE_ARTEN);
 const inhalt = z.record(z.string(), z.unknown());
@@ -42,21 +43,20 @@ const pgCode = (fehler: unknown) =>
   (fehler as { cause?: { code?: string } })?.cause?.code;
 
 export function erstelleAdminVorlagenRouten({ db }: { db: Db }) {
-  const admin = (person: Person) => {
-    if (!person.admin) throw new HTTPException(403);
-  };
+  const admin = (person: Person) =>
+    verlange(db, person, "lager.vorlagen_pflegen");
   // Erst die Vorlage der eigenen Abteilung (404), dann das Recht (403)
   async function laden(person: Person, id: string) {
     const zeile = await ladeVorlage(db, person.abteilungId, id);
     if (!zeile) throw new HTTPException(404);
-    admin(person);
+    await admin(person);
     return zeile;
   }
 
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", eingabe("query", liste), async (c) => {
       const person = c.get("person");
-      admin(person);
+      await admin(person);
       // Eine Abfrage, höchstens VORLAGEN_MAX Zeilen: kein Seitenwechsel nötig
       const zeilen = await db
         .select()
@@ -75,7 +75,7 @@ export function erstelleAdminVorlagenRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", anlegen), async (c) => {
       const person = c.get("person");
-      admin(person);
+      await admin(person);
       const w = c.req.valid("json");
       const [stand] = await db
         .select({ n: count() })

@@ -2,6 +2,7 @@ import { anfrage, fehlertext } from "./api.js";
 import { auswahl, chip, dialogFormular, el, feld, knopf } from "./dom.js";
 import {
   sortKopf,
+  speicherLeiste,
   zaehlwort,
   ersetze,
   termineTabelle,
@@ -18,6 +19,7 @@ const TYPEN = {
   funktion: "Funktion",
   team: "Team",
   lager: "Lager",
+  anlass: "Anlass",
 };
 const BASIS = "/api/v1/admin/kategorie-zuordnungen";
 const WIRKT =
@@ -77,7 +79,7 @@ function ergaenzen({ tags, ctx, neu }) {
   });
   dialogFormular({
     titel: "Kategorie ergänzen",
-    beschreibung: `Die Zuordnung wirkt beim nächsten Abgleich mit Outlook, in höchstens 5 Minuten.`,
+    beschreibung: `Nur nötig, wenn du die Kategorie in Outlook schon angelegt hast, sie aber an keinem kommenden Termin hängt. Die Zuordnung wirkt beim nächsten Abgleich mit Outlook, in höchstens 5 Minuten.`,
     felder: [name.wurzel, gruppe.wurzel],
     ok: "Speichern",
     senden: () => {
@@ -130,18 +132,28 @@ function zeichne(bereich, ctx, { zuordnungen, tags, unbekannt }, neu, vorgabe) {
   }
   let richtung = "ascending";
 
-  ctx.kopfAktion(
-    knopf("Speichern", {
-      art: "haupt",
-      symbol: "haken",
-      onclick: (e) => speichern(e.currentTarget),
-    }),
-  );
+  // Kein Speichern-Knopf im Kopf (auch nicht bei leerer Seite): Die Leiste unten erscheint, sobald eine Zuordnung geändert ist
+  const leiste = speicherLeiste({
+    beiSpeichern: (k) => speichern(k),
+    beiVerwerfen: () => {
+      for (const z of zeilen) z.aktuell = undefined;
+      zeichneListe();
+      leiste.verstecke();
+    },
+  });
+  const aktualisiereLeiste = () => {
+    const n = zeilen.filter((z) => z.wert?.() !== z.start).length;
+    if (n === 0) leiste.verstecke();
+    else
+      leiste.zeige(
+        `${zaehlwort(n, "Zuordnung", "Zuordnungen")} geändert, noch nicht gespeichert.`,
+      );
+  };
 
   const hinweis = el(
     "div",
     { class: "hinweis", role: "status" },
-    `Eine Kategorie, die genau so heisst wie eine Gruppe, braucht keine Zuordnung. Änderungen wirken beim nächsten Abgleich mit Outlook, in höchstens 5 Minuten.`,
+    `Kategorien legst du in Outlook an, nicht hier. Cevi OS liest sie beim Abgleich mit Outlook und schreibt nie etwas zurück. Hier legst du nur fest, zu welcher Gruppe eine Kategorie gehört, wenn sie nicht genau so heisst wie die Gruppe. Änderungen wirken beim nächsten Abgleich, in höchstens 5 Minuten.`,
   );
   const ergaenzenKnopf = knopf("Kategorie ergänzen", {
     symbol: "plus",
@@ -170,6 +182,7 @@ function zeichne(bereich, ctx, { zuordnungen, tags, unbekannt }, neu, vorgabe) {
     z.auswahl.eingabe.addEventListener("change", () => {
       z.aktuell = z.wert();
       zeichneZustand();
+      aktualisiereLeiste();
     });
     zeichneZustand();
     z.zeichneZustand = zeichneZustand;
@@ -266,6 +279,7 @@ function zeichne(bereich, ctx, { zuordnungen, tags, unbekannt }, neu, vorgabe) {
       // Die Kennung fehlt dann bis zum nächsten Laden; die Seite lässt sich neu laden
     }
     for (const z of zeilen) z.zeichneZustand?.();
+    aktualisiereLeiste();
     ctx.melde(
       `Nicht gespeichert. ${meldungVon(fehler)} Deine Zuordnungen sind noch da, speichere nochmals.`,
       "fehler",
@@ -276,6 +290,7 @@ function zeichne(bereich, ctx, { zuordnungen, tags, unbekannt }, neu, vorgabe) {
     hinweis,
     el("div", { class: "werkzeuge" }, ergaenzenKnopf),
     liste,
+    leiste.wurzel,
   );
   zeichneListe();
   // Aus der Warnliste: Die Zeile dieser Kategorie ist gemeint

@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import postgres from "postgres";
 import {
   afterAll,
@@ -71,6 +72,7 @@ const ADMIN_TYPEN: Record<string, string> = {
   css: "text/css; charset=UTF-8",
   js: "text/javascript; charset=UTF-8",
   svg: "image/svg+xml",
+  woff2: "font/woff2",
 };
 
 describe("Verwaltung unter /admin", () => {
@@ -88,7 +90,13 @@ describe("Verwaltung unter /admin", () => {
       expect(antwort.headers.get("content-type")).toBe(
         ADMIN_TYPEN[datei.split(".").pop()!],
       );
-      expect(await antwort.text()).toBe(admin[datei]);
+      // Die Schrift der Vorschau liegt als Bytes vor
+      if (typeof admin[datei] === "string")
+        expect(await antwort.text()).toBe(admin[datei]);
+      else
+        expect(new Uint8Array(await antwort.arrayBuffer())).toEqual(
+          admin[datei],
+        );
       const csp = antwort.headers.get("content-security-policy")!;
       for (const regel of [
         "default-src 'none'",
@@ -125,30 +133,92 @@ describe("Verwaltung unter /admin", () => {
     expect(html).not.toMatch(/<style/i);
   });
 
-  test("die Verwaltung folgt Tag und Nacht des Geräts, ohne Umschalter", () => {
-    expect(admin["index.html"]).toContain(
-      'name="color-scheme" content="light dark"',
+  test("die Verwaltung folgt Tag und Nacht des Geräts und der Wahl im Kopf; die Tokens sind die der Website (#578)", () => {
+    const html = String(admin["index.html"]);
+    expect(html).toContain('name="color-scheme" content="light dark"');
+    // Eine Token-Datei für beide: dieselben Bytes wie unter /website/tokens.css, vor admin.css geladen
+    expect(admin["tokens.css"]).toBe(
+      readFileSync(
+        new URL("../public/website/tokens.css", import.meta.url),
+        "utf8",
+      ),
     );
-    expect(admin["admin.css"]).toContain("color-scheme: light dark;");
-    expect(admin["admin.css"]).toContain("prefers-color-scheme: dark");
+    expect(html.indexOf("/admin/tokens.css")).toBeGreaterThan(-1);
+    expect(html.indexOf("/admin/tokens.css")).toBeLessThan(
+      html.indexOf("/admin/admin.css"),
+    );
+    expect(html).toContain('<script src="/admin/theme.js"></script>');
+    const tokens = String(admin["tokens.css"]);
+    expect(tokens).toContain("color-scheme: light dark;");
+    expect(tokens).toContain("prefers-color-scheme: dark");
+    expect(tokens).toContain('[data-theme="dark"]');
+    // Die Werte stehen nur dort: admin.css verweist in seinem Token-Block auf sie
+    const kopfBlock = String(admin["admin.css"]).split("\n").slice(0, 45);
+    expect(kopfBlock.join("\n")).not.toMatch(/--[a-z-]+:\s*#[0-9a-f]{3,8}\b/i);
   });
 
-  test.each(Object.keys(admin).filter((d) => d.endsWith(".js")))(
-    "%s schreibt keine Daten als HTML und lädt nichts von aussen",
-    (datei) => {
-      expect(admin[datei]).not.toMatch(
-        /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|localStorage|sessionStorage/,
-      );
-      // Die CSP erlaubt keine Inline-Stile: Klassen statt style-Attribut
-      expect(admin[datei]).not.toMatch(
-        /setAttribute\(\s*["'`]style|\.style\.cssText/,
-      );
-      // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
-      expect(
-        admin[datei].replaceAll("http://www.w3.org/2000/svg", ""),
-      ).not.toMatch(/https?:\/\//);
-    },
-  );
+  test("Kopf: Name und Logo kommen aus den Einstellungen der Website, nie aus dem Code (#578)", () => {
+    for (const datei of ["rahmen.js", "admin.js"]) {
+      expect(String(admin[datei])).not.toContain("Stäfa");
+    }
+    expect(String(admin["admin.js"])).toContain("/api/v1/redaktion/website");
+    expect(String(admin["rahmen.js"])).toContain("/api/v1/medien/");
+    expect(String(admin["rahmen.js"])).toContain('"aria-pressed"');
+  });
+
+  // Entscheid des Auftraggebers (#570): nur Erfolg und Info ohne Aktion vergehen; Warnung, Fehler und alles mit Aktion bleiben (docs/barrierefreiheit.md 8.2)
+  test("Rückmeldungen: Erfolg und Info ohne Aktion vergehen von selbst, alles andere bleibt", async () => {
+    // dom.js hängt beim Laden einen Klick-Zuhörer an document: Ohne Browser genügt eine Attrappe
+    vi.stubGlobal("document", { addEventListener: () => {} });
+    // fluss.js hört auf popstate und pagehide (#578)
+    vi.stubGlobal("window", { addEventListener: () => {} });
+    // Als Text, damit tsc die Browserdatei nicht als Modul des Programms prüft
+    const rahmenPfad = "../public/admin/rahmen.js";
+    const { vergehtVonSelbst } = (await import(
+      /* @vite-ignore */ rahmenPfad
+    )) as { vergehtVonSelbst: (art: string, aktion?: object) => boolean };
+    vi.unstubAllGlobals();
+    expect(vergehtVonSelbst("ok", undefined)).toBe(true);
+    expect(vergehtVonSelbst("info", undefined)).toBe(true);
+    for (const art of ["warn", "fehler"])
+      expect(vergehtVonSelbst(art, undefined)).toBe(false);
+    for (const art of ["ok", "info", "warn", "fehler"])
+      expect(vergehtVonSelbst(art, { text: "Beheben" })).toBe(false);
+  });
+
+  test("Rückmeldungen: Zeiger und Fokus halten die Zeit an, mit «Bewegung reduzieren» ohne Übergang", () => {
+    const rahmen = String(admin["rahmen.js"]);
+    for (const ereignis of [
+      "pointerenter",
+      "pointerleave",
+      "focusin",
+      "focusout",
+    ])
+      expect(rahmen).toContain(`"${ereignis}"`);
+    expect(rahmen).toContain("prefers-reduced-motion: reduce");
+    expect(rahmen).toContain("Hinweis schliessen");
+    // Der Übergang steht nur im Zweig für erlaubte Bewegung
+    expect(String(admin["geruest.css"])).toMatch(
+      /@media \(prefers-reduced-motion: no-preference\) \{\s*\.rueckmeldung \.hinweis--geht \{\s*transition:/,
+    );
+  });
+
+  // theme.js (die Datei der Website, #578) speichert die Wahl von Hell und Dunkel im Browser; es schreibt kein HTML
+  test.each(
+    Object.keys(admin).filter((d) => d.endsWith(".js") && d !== "theme.js"),
+  )("%s schreibt keine Daten als HTML und lädt nichts von aussen", (datei) => {
+    expect(admin[datei]).not.toMatch(
+      /innerHTML|outerHTML|insertAdjacentHTML|document\.write|\beval\(|new Function|localStorage|sessionStorage/,
+    );
+    // Die CSP erlaubt keine Inline-Stile: Klassen statt style-Attribut
+    expect(admin[datei]).not.toMatch(
+      /setAttribute\(\s*["'`]style|\.style\.cssText/,
+    );
+    // Ausser dem Namensraum von SVG: eine Kennung, nichts wird geladen
+    expect(
+      String(admin[datei]).replaceAll("http://www.w3.org/2000/svg", ""),
+    ).not.toMatch(/https?:\/\//);
+  });
 });
 
 describe("Seiten für die Stores", () => {
@@ -197,14 +267,14 @@ describe("Seiten für die Stores", () => {
   });
 
   test.each(alle)(
-    "%s: Sprache, Hauptbereich, eine Überschrift 1, nichts von aussen, kein Eszett",
+    "%s: Sprache, Hauptbereich, eine Überschrift 1, nichts von aussen (ausser dem Favicon der Plattform), kein Eszett",
     (_name, html) => {
       expect(html).toContain('<html lang="de-CH">');
       expect(html).toContain("<main>");
       expect(html.match(/<h1[ >]/g)).toHaveLength(1);
       expect(html).toContain('name="viewport"');
       expect(html).not.toMatch(
-        /<script|<img|<iframe|<link|\ssrc\s*=|@import|url\(/i,
+        /<script|<img|<iframe|<link(?![^>]*href="\/(favicon\.ico|apple-touch-icon\.png)")|\ssrc\s*=|@import|url\(/i,
       );
       // Verweise nach aussen: nur die Aufsichtsbehörde und die Standardvertragsklauseln der EU-Kommission
       const aussen = [...html.matchAll(/href="(https?:[^"]+)"/g)].map(
@@ -237,5 +307,75 @@ describe("Seiten für die Stores", () => {
       "Auf Anfrage löscht die Leitung Daten.",
     );
     expect(seiten.kontoLoeschen).toContain("mailto:kontakt@example.org");
+  });
+});
+
+// Favicon überall (#581): Plattformseiten und Verwaltung zeigen dasselbe Zeichen wie die Website
+describe("Favicon der Plattformseiten und der Verwaltung", () => {
+  const SEITEN = [
+    ["/datenschutz", geladen.datenschutz],
+    ["/konto-loeschen", geladen.kontoLoeschen],
+    ["/support", geladen.support],
+    ["/admin", String(admin["index.html"])],
+  ] as const;
+
+  test.each(SEITEN)(
+    "%s trägt die Einträge für /favicon.ico und /apple-touch-icon.png, und beide Adressen antworten",
+    async (_pfad, html) => {
+      expect(html).toContain('<link rel="icon" type="image/x-icon"');
+      expect(html).toContain('href="/favicon.ico"');
+      expect(html).toContain(
+        '<link rel="apple-touch-icon" href="/apple-touch-icon.png"',
+      );
+      // Nichts von aussen: Die CSP der Verwaltung (img-src 'self') lässt nur eigene Adressen zu
+      expect(html).not.toMatch(
+        /<link rel="(icon|apple-touch-icon)"[^>]*https?:/,
+      );
+      for (const [adresse, typ] of [
+        ["/favicon.ico", "image/x-icon"],
+        ["/apple-touch-icon.png", "image/png"],
+      ]) {
+        const antwort = await app.request(adresse!);
+        expect(antwort.status).toBe(200);
+        expect(antwort.headers.get("content-type")).toBe(typ);
+        expect(antwort.headers.get("cache-control")).toBe("no-cache");
+        expect(antwort.headers.get("etag")).toBeTruthy();
+        expect((await antwort.arrayBuffer()).byteLength).toBeGreaterThan(100);
+      }
+    },
+  );
+
+  test("das gewählte Zeichen der Abteilung ersetzt das Cevi-Zeichen, ohne neue Abfrage", async () => {
+    const eigene = ladeSeiten();
+    const eigeneApp = erstelleApp({
+      appMinVersion: "1.2.0",
+      sql,
+      db,
+      auth,
+      seiten: eigene,
+    });
+    const png = new Uint8Array([1, 2, 3]);
+    eigene.zeichen.setze({
+      "favicon.ico": png,
+      "website/zeichen-32.png": png,
+      "website/zeichen-192.png": png,
+      "apple-touch-icon.png": new Uint8Array([9, 9]),
+    });
+    expect([
+      ...new Uint8Array(
+        await (await eigeneApp.request("/favicon.ico")).arrayBuffer(),
+      ),
+    ]).toEqual([1, 2, 3]);
+    expect([
+      ...new Uint8Array(
+        await (await eigeneApp.request("/apple-touch-icon.png")).arrayBuffer(),
+      ),
+    ]).toEqual([9, 9]);
+    // Mit passendem ETag: 304
+    const erste = await eigeneApp.request("/favicon.ico");
+    const bedingt = await eigeneApp.request("/favicon.ico", {
+      headers: { "If-None-Match": erste.headers.get("etag")! },
+    });
+    expect(bedingt.status).toBe(304);
   });
 });

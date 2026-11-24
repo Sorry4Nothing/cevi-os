@@ -10,6 +10,7 @@ import {
 } from "../../admins.js";
 import type { erstelleAuth } from "../../auth.js";
 import { bildUrl } from "../../bild.js";
+import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import { ceviNameFeld } from "../../cevi-name.js";
 import {
   BENUTZERNAME_MAX,
@@ -30,14 +31,29 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { telefonSchema } from "../../telefon.js";
+import { keinKindKonto as keinKindKontoVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
+import {
+  geschuetzteKonten,
+  personenSicht,
+  sichtbareKinderStufen,
+  stufeObjekt,
+} from "../../rechtemodell/personenrechte.js";
 import {
   entschluesseleStartpasswort,
   erzeugeStartpasswort,
   normalisiereStartpasswort,
   startpasswortFelder,
 } from "../../startpasswort.js";
+import {
+  beendeSitzungen,
+  entferneKonto,
+  entsperreKonto,
+  setzePasswort,
+  sperreKonto,
+} from "../../konto-verwaltung.js";
 import { setzeZweitenFaktorZurueck } from "../../zweiter-faktor.js";
 
 // Eigene 409-Codes mit eigener Antwort: onError machte aus einer HTTPException(409) nur «FEHLER»
@@ -54,7 +70,8 @@ const KONFLIKT = {
   },
   EIGENER_ZWEITER_FAKTOR: {
     code: "EIGENER_ZWEITER_FAKTOR",
-    message: "Den eigenen zweiten Faktor setzt ein anderer Admin zurück.",
+    message:
+      "Den eigenen zweiten Faktor setzt eine andere Person der Abteilungsleitung zurück.",
   },
   KEIN_ZWEITER_FAKTOR: {
     code: "KEIN_ZWEITER_FAKTOR",
@@ -91,7 +108,10 @@ const elternteilVonFeld = z
   .max(50)
   .refine((kinder) => new Set(kinder).size === kinder.length);
 
-// Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
+// Das eigene Konto eines Kindes (#644) gehört auf die Seite «Kinder», nie in die Personen: Hier erhielte es Rollen oder die Abteilungsleitung
+const keinKindKonto = keinKindKontoVon(user.id);
+
+// Ein Schema pro Route, mit keiner Route ausserhalb der Verwaltung geteilt
 const anlegenSchema = z.strictObject({
   vorname: text(100),
   nachname: text(100),
@@ -121,15 +141,103 @@ export function erstellePersonenRouten({
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
 }) {
-  // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht
+  // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
   async function ladeZiel(person: Person, id: string) {
     const [ziel] = await db
-      .select({ id: user.id })
+      .select({ id: user.id, admin: sql<boolean>`${user.role} = 'admin'` })
       .from(user)
-      .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
+      .where(
+        and(
+          eq(user.id, id),
+          eq(user.abteilungId, person.abteilungId),
+          keinKindKonto,
+        ),
+      );
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    await verlange(db, person, "personen.verwalten", {
+      abteilungId: person.abteilungId,
+    });
+    // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst
+    if (ziel.admin && !person.admin) throw new HTTPException(403);
     return ziel;
+  }
+
+  // Zurücksetzen, aktivieren, deaktivieren und löschen übernehmen oder sperren ein Konto: Hat es Rechte (Rolle in einer Gruppe, Plattformrolle, Entwickler, Sonderrecht), betreut es nur die Abteilungsleitung, sonst gäbe «Personen verwalten» jedes Recht der Abteilung (#650, SR-10)
+  async function schuetzeKonto(person: Person, id: string) {
+    if (person.admin) return;
+    if ((await geschuetzteKonten(db, person.abteilungId, [id])).has(id)) {
+      throw new HTTPException(403);
+    }
+  }
+
+  // Kinder, deren Eltern sich ändern: Wer Eltern einem Kind zuordnet, gibt ihnen Einblick in dessen Daten, also braucht er «Kinder verwalten» in der Stufe jedes Kindes (#650)
+  async function verlangeKinderRecht(
+    person: Person,
+    kindIds: readonly string[],
+  ) {
+    if (kindIds.length === 0) return;
+    const stufen = await db
+      .selectDistinct({ stufeId: kind.stufeId })
+      .from(kind)
+      .where(
+        and(
+          inArray(kind.id, [...kindIds]),
+          eq(kind.abteilungId, person.abteilungId),
+        ),
+      );
+    for (const { stufeId } of stufen) {
+      await verlange(
+        db,
+        person,
+        "kinder.verwalten",
+        stufeObjekt(person, stufeId),
+      );
+    }
+  }
+
+  // Was Rechte vergibt, bleibt bei der Abteilungsleitung: die Abteilungsleitung selbst und die Stufenrollen. Ein Rollen-Editor schickt das ganze Formular; geprüft wird nur, was sich ändert. Die Zuordnung zu Kindern braucht «Kinder verwalten» in deren Stufe (#650)
+  async function pruefeRechteAenderung(
+    person: Person,
+    id: string,
+    aenderung: z.infer<typeof aendernSchema>,
+  ) {
+    if (
+      aenderung.admin === undefined &&
+      aenderung.rollen === undefined &&
+      aenderung.elternteilVon === undefined
+    ) {
+      return;
+    }
+    const [[bisher], rollen, eltern] = await Promise.all([
+      db.select({ role: user.role }).from(user).where(eq(user.id, id)),
+      db
+        .select({ stufeId: rolle.stufeId, typ: rolle.typ })
+        .from(rolle)
+        .where(eq(rolle.userId, id)),
+      db
+        .select({ kindId: kindEltern.kindId })
+        .from(kindEltern)
+        .where(eq(kindEltern.userId, id)),
+    ]);
+    const adminGeaendert =
+      aenderung.admin !== undefined &&
+      (bisher.role === "admin") !== aenderung.admin;
+    const alt = new Map(rollen.map((r) => [r.stufeId, r.typ]));
+    const rollenGeaendert =
+      aenderung.rollen !== undefined &&
+      (alt.size !== aenderung.rollen.length ||
+        aenderung.rollen.some((r) => alt.get(r.stufeId) !== r.typ));
+    if (adminGeaendert || rollenGeaendert) {
+      await verlange(db, person, "rechte.verwalten");
+    }
+    if (aenderung.elternteilVon !== undefined) {
+      const vorher = new Set(eltern.map((e) => e.kindId));
+      const nachher = new Set(aenderung.elternteilVon);
+      await verlangeKinderRecht(person, [
+        ...[...vorher].filter((k) => !nachher.has(k)),
+        ...[...nachher].filter((k) => !vorher.has(k)),
+      ]);
+    }
   }
 
   // Fremde wie unbekannte Stufen- und Kind-IDs sind eine ungültige Eingabe, vor jedem Schreibzugriff geprüft
@@ -182,7 +290,7 @@ export function erstellePersonenRouten({
       details,
     });
 
-  // Ziel gelistet und keine zweite aktive Admin-ID: der letzte Admin bleibt
+  // Ziel gelistet und keine zweite aktive ID der Abteilungsleitung: die letzte Abteilungsleitung bleibt
   async function sperreLetztenAdmin(
     tx: Pick<Db, "select">,
     abteilungId: string,
@@ -194,21 +302,14 @@ export function erstellePersonenRouten({
 
   // Neues Startpasswort setzen, alle Sitzungen beenden (Push-Tokens enden mit ihnen, #42), danach Pflichtwechsel, 7 Tage und Bremse von vorn
   async function setzeStartpasswortNeu(
-    headers: Headers,
     person: Person,
     id: string,
     aktion: string,
     weitereFelder: Partial<typeof user.$inferInsert> = {},
   ) {
     const startpasswort = erzeugeStartpasswort();
-    await auth.api.setUserPassword({
-      body: {
-        userId: id,
-        newPassword: normalisiereStartpasswort(startpasswort),
-      },
-      headers,
-    });
-    await auth.api.revokeUserSessions({ body: { userId: id }, headers });
+    await setzePasswort(auth, id, normalisiereStartpasswort(startpasswort));
+    await beendeSitzungen(auth, id);
     await db.transaction(async (tx) => {
       await tx
         .update(user)
@@ -225,7 +326,8 @@ export function erstellePersonenRouten({
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      // «Personen verwalten» sieht alles, «Personen sehen» alles ausser den Startpasswörtern (#650)
+      const sicht = await personenSicht(db, person);
       const abteilungId = person.abteilungId;
       const [personen, rollenZeilen, elternZeilen, stufen, kinder] =
         await Promise.all([
@@ -246,7 +348,7 @@ export function erstellePersonenRouten({
             })
             .from(user)
             .leftJoin(profilbild, eq(profilbild.userId, user.id))
-            .where(eq(user.abteilungId, abteilungId))
+            .where(and(eq(user.abteilungId, abteilungId), keinKindKonto))
             .orderBy(asc(user.name), asc(user.id)),
           db
             .select({
@@ -276,7 +378,11 @@ export function erstellePersonenRouten({
             )
             .orderBy(asc(kind.id)),
           db
-            .select({ id: stufe.id, name: stufe.name, kuerzel: stufe.kuerzel })
+            .select({
+              id: stufe.id,
+              name: stufe.name,
+              kuerzel: stufe.kuerzel,
+            })
             .from(stufe)
             .where(eq(stufe.abteilungId, abteilungId))
             .orderBy(asc(stufe.name), asc(stufe.id)),
@@ -292,6 +398,29 @@ export function erstellePersonenRouten({
             .where(eq(kind.abteilungId, abteilungId))
             .orderBy(asc(kind.nachname), asc(kind.vorname), asc(kind.id)),
         ]);
+      // Kinder nur der Stufen, die die Person sehen darf; die Zuordnung der Eltern nur zu diesen Kindern
+      const sichtbareStufen = await sichtbareKinderStufen(
+        db,
+        person,
+        kinder.map((k) => k.stufeId),
+      );
+      const sichtbareKinder = kinder.filter((k) =>
+        sichtbareStufen.has(k.stufeId),
+      );
+      const kindIds = new Set(sichtbareKinder.map((k) => k.id));
+      // Ein Startpasswort zeigt nur, wer Personen verwalten darf, und nur von Konten ohne Rechte, ausser der Abteilungsleitung (#650)
+      const offeneStartpasswoerter = personen
+        .filter(
+          (p) =>
+            p.mussPasswortAendern &&
+            p.startpasswortGueltigBis &&
+            p.startpasswortGueltigBis > new Date(),
+        )
+        .map((p) => p.id);
+      const geschuetzt =
+        sicht === "voll" && !person.admin && offeneStartpasswoerter.length > 0
+          ? await geschuetzteKonten(db, abteilungId, offeneStartpasswoerter)
+          : new Set<string>();
       // Nie email, banReason, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors: Der Rollen-Editor braucht nur das hier
       return c.json({
         personen: personen.map((p) => ({
@@ -308,6 +437,8 @@ export function erstellePersonenRouten({
           startpasswortGueltigBis: p.startpasswortGueltigBis,
           // Nur solange es offen und gültig ist
           startpasswort:
+            sicht === "voll" &&
+            !geschuetzt.has(p.id) &&
             p.mussPasswortAendern &&
             p.startpasswortGueltigBis &&
             p.startpasswortGueltigBis > new Date()
@@ -321,25 +452,34 @@ export function erstellePersonenRouten({
               prioritaet,
             })),
           elternteilVon: elternZeilen
-            .filter((zeile) => zeile.userId === p.id)
+            .filter(
+              (zeile) => zeile.userId === p.id && kindIds.has(zeile.kindId),
+            )
             .map((zeile) => zeile.kindId),
         })),
         stufen,
-        kinder,
+        kinder: sichtbareKinder,
       });
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "personen.verwalten", {
+        abteilungId: person.abteilungId,
+      });
       const eingaben = c.req.valid("json");
+      // Die Abteilungsleitung und die Stufenrollen sind Rechte: Sie vergibt nur, wer Rechte vergeben darf (#650)
+      if (eingaben.admin || eingaben.rollen.length > 0) {
+        await verlange(db, person, "rechte.verwalten");
+      }
       await pruefeIds(person, eingaben.rollen, eingaben.elternteilVon);
+      await verlangeKinderRecht(person, eingaben.elternteilVon);
       if (eingaben.telefon && !eingaben.rollen.some(istSl)) {
         throw new HTTPException(400);
       }
       const startpasswort = erzeugeStartpasswort();
       try {
         const angelegt = await db.transaction((tx) =>
-          legePersonAn(tx, person, c.req.raw.headers, {
+          legePersonAn(tx, person, {
             ...eingaben,
             startpasswort,
           }),
@@ -370,6 +510,7 @@ export function erstellePersonenRouten({
           aenderung.rollen ?? [],
           aenderung.elternteilVon ?? [],
         );
+        await pruefeRechteAenderung(person, id, aenderung);
         // Eine Nummer speichern nur SL, gemessen an den Rollen nach dieser Änderung; entfernen geht immer
         if (aenderung.telefon) {
           const [sl] = aenderung.rollen
@@ -523,18 +664,59 @@ export function erstellePersonenRouten({
           }
           throw fehler;
         }
+        // Die Website zeigt oder vergisst die Person nach ihrer Rolle und ihrem Namen beim nächsten Abgleich (#610)
+        if (
+          aenderung.rollen !== undefined ||
+          aenderung.ceviName !== undefined ||
+          aenderung.name !== undefined
+        ) {
+          meldeWebsiteEreignis({
+            art: "seite_geaendert",
+            abteilungId: person.abteilungId,
+          });
+        }
         return c.body(null, 204);
       },
     )
+    .delete("/:id/bild", eingabe("param", pfad()), async (c) => {
+      // Entfernt das Profilbild einer Person (sie setzt es selbst). Erst das Objekt (404, auch fremde Abteilung), dann das Recht (403). Ohne Bild ebenfalls 204; der Protokolleintrag nennt nur die Person, nie das Bild
+      const person = c.get("person");
+      const { id } = c.req.valid("param");
+      const [ziel] = await db
+        .select({ id: user.id })
+        .from(user)
+        .where(and(eq(user.id, id), eq(user.abteilungId, person.abteilungId)));
+      if (!ziel) throw new HTTPException(404);
+      // Das Recht «profilbild.entfernen» (Katalog): Abteilungsleitung und Entwickler, beide mit zweitem Faktor; die einzige Stelle dieser Regel
+      await verlange(db, person, "profilbild.entfernen");
+      const entfernt = await db.transaction(async (tx) => {
+        const weg = await tx
+          .delete(profilbild)
+          .where(eq(profilbild.userId, id))
+          .returning({ userId: profilbild.userId });
+        if (weg.length > 0) {
+          await protokolliere(tx, person, "profilbild_entfernt", id);
+        }
+        return weg.length > 0;
+      });
+      // Die Website vergisst das Bild beim nächsten Abgleich (Leitungsteams zeigen es)
+      if (entfernt) {
+        meldeWebsiteEreignis({
+          art: "seite_geaendert",
+          abteilungId: person.abteilungId,
+        });
+      }
+      return c.body(null, 204);
+    })
     .post("/:id/startpasswort", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
-      // Vor jedem Aufruf: Ein Reset auf sich selbst meldete den Admin ab, bevor das Passwort notiert ist
+      await schuetzeKonto(person, id);
+      // Vor jedem Aufruf: Ein Reset auf sich selbst meldete die Abteilungsleitung ab, bevor das Passwort notiert ist
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       return c.json({
         startpasswort: await setzeStartpasswortNeu(
-          c.req.raw.headers,
           person,
           id,
           "startpasswort_neu",
@@ -545,6 +727,7 @@ export function erstellePersonenRouten({
       const person = c.get("person");
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
+      await schuetzeKonto(person, id);
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       try {
         await db.transaction(async (tx) => {
@@ -552,10 +735,7 @@ export function erstellePersonenRouten({
           // Vor banUser: Scheitert das, nimmt die Transaktion den Eintrag zurück
           await protokolliere(tx, person, "person_deaktiviert", id);
           // banUser löscht auch die Sitzungen und läuft auf eigener Verbindung; die Transaktion fasst vorher keine Zeile der Zielperson an, sonst drohte ein Deadlock
-          await auth.api.banUser({
-            body: { userId: id },
-            headers: c.req.raw.headers,
-          });
+          await sperreKonto(auth, id);
           await tx
             .update(user)
             .set({ deaktiviertAm: sql`now()` })
@@ -575,17 +755,16 @@ export function erstellePersonenRouten({
       const person = c.get("person");
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
+      await schuetzeKonto(person, id);
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
-      const headers = c.req.raw.headers;
       // Zuerst das neue Startpasswort, dann die Sperre weg: Scheitert ein Schritt, bleibt das alte Passwort ungültig und die Person gesperrt. Das alte konnte während der Sperre in falsche Hände geraten (#226)
       const startpasswort = await setzeStartpasswortNeu(
-        headers,
         person,
         id,
         "person_aktiviert",
         { deaktiviertAm: null },
       );
-      await auth.api.unbanUser({ body: { userId: id }, headers });
+      await entsperreKonto(auth, id);
       return c.json({ startpasswort });
     })
     .post(
@@ -595,6 +774,7 @@ export function erstellePersonenRouten({
         const person = c.get("person");
         const { id } = c.req.valid("param");
         await ladeZiel(person, id);
+        await schuetzeKonto(person, id);
         if (id === person.id)
           return c.json(KONFLIKT.EIGENER_ZWEITER_FAKTOR, 409);
         const zurueckgesetzt = await setzeZweitenFaktorZurueck(db, {
@@ -610,6 +790,8 @@ export function erstellePersonenRouten({
       const person = c.get("person");
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
+      // Konto löschen ist fest (konto.loeschen): nur die Abteilungsleitung (#650)
+      await verlange(db, person, "konto.loeschen");
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       try {
         await db.transaction(async (tx) => {
@@ -618,10 +800,7 @@ export function erstellePersonenRouten({
           // Ohne Fremdschlüssel: Der zweite Faktor legt die Person-ID als Wert ab; better-auth räumt sie nicht weg
           await tx.delete(verification).where(eq(verification.value, id));
           // removeUser läuft auf eigener Verbindung; Rollen, Kinder-Verknüpfungen und Sitzungen löscht die Datenbank per CASCADE
-          await auth.api.removeUser({
-            body: { userId: id },
-            headers: c.req.raw.headers,
-          });
+          await entferneKonto(auth, id);
         });
       } catch (fehler) {
         if (fehler instanceof Konflikt) {

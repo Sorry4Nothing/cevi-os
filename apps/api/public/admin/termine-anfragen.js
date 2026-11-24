@@ -15,6 +15,7 @@ import { leerKarte } from "./zustaende.js";
 
 // Unterseite «Anfragen» (A16, #447): Offene Raumanfragen, über die die angemeldete Person entscheidet (Räume ohne Team: die Abteilungsleitung; sonst das Team des Raums). Bestätigen oder ablehnen.
 // Datenbanklast: eine Abfrage beim Öffnen und je «Weitere laden» (50 Anfragen), eine je Entscheid. Die Zahl für die Unterleiste kommt aus derselben Abfrage. Kein Polling.
+// Wofür der Raum gedacht ist (#622): Eine Anfrage trägt heute nur den Zweck als Freitext (zum Beispiel «Sitzung OK»), keine Stufe, Gruppe oder Verknüpfung auf einen Anlass. Der Zweck steht darum an erster Stelle (erste Spalte, Titel des Details); der Raum ist die zweite Angabe. Eine strukturierte Stufe oder ein Anlass braucht eine Erweiterung von API und Apps (Entwurf, Entscheid offen).
 // Lücke gegenüber dem Design: Bei einer Überschneidung nennt die API den Termin nicht, mit dem sie sich überschneidet; der Hinweis sagt nur, dass der Raum belegt ist.
 
 const BASIS = "/api/v1/raeume/anfragen";
@@ -90,7 +91,7 @@ function zeichne(bereich, ctx, erste, neu) {
     detail.hidden = false;
     const t = termineTabelle({
       beschriftung: "Offene Raumanfragen",
-      spalten: ["Raum", "Person", "Zeitraum", "Zweck", "Status"],
+      spalten: ["Wofür", "Raum", "Zeitraum", "Person", "Status"],
       zeilen: anfragen.map((a) =>
         el(
           "tr",
@@ -104,23 +105,23 @@ function zeichne(bereich, ctx, erste, neu) {
                 type: "button",
                 class: "tm-wahl name",
                 "aria-pressed": String(a.id === gewaehlt),
-                "aria-label": `${a.raumName}, ${terminAnzeige(a).tag}: Details zeigen`,
+                "aria-label": `${a.zweck}, ${a.raumName}, ${terminAnzeige(a).tag}: Details zeigen`,
                 onclick: () => {
                   gewaehlt = a.id;
                   zeichneAlles();
                   liste.querySelector('[aria-pressed="true"]')?.focus();
                 },
               },
-              a.raumName,
+              a.zweck,
             ),
           ),
-          el("td", {}, a.vonName),
+          el("td", {}, a.raumName),
           el(
             "td",
             { class: "tm-ziffern" },
             `${terminAnzeige(a).tag}, ${terminAnzeige(a).zeit}`,
           ),
-          el("td", {}, a.zweck),
+          el("td", {}, a.vonName),
           el(
             "td",
             {},
@@ -147,7 +148,8 @@ function zeichne(bereich, ctx, erste, neu) {
     });
     ersetze(
       detail,
-      el("h2", {}, a.raumName),
+      el("p", { class: "klein leise" }, "Wofür der Raum gedacht ist"),
+      el("h2", { class: "tm-wofuer" }, a.zweck),
       rueck &&
         el(
           "div",
@@ -159,9 +161,9 @@ function zeichne(bereich, ctx, erste, neu) {
         "dl",
         { class: "werte" },
         ...[
+          ["Raum", a.raumName],
           ["Zeitraum", langZeit(a)],
           ["Person", a.vonName],
-          ["Zweck", a.zweck],
         ].map(([n, w]) => el("div", {}, el("dt", {}, n), el("dd", {}, w))),
       ),
       el(
@@ -225,7 +227,7 @@ function zeichne(bereich, ctx, erste, neu) {
     }
     entschieden(
       a,
-      `Die Anfrage von ${a.vonName} für «${a.raumName}» ist bestätigt. ${a.vonName} bekommt eine Mitteilung.`,
+      `Die Anfrage von ${a.vonName} («${a.zweck}», ${a.raumName}) ist bestätigt. ${a.vonName} bekommt eine Mitteilung.`,
     );
   }
 
@@ -239,7 +241,7 @@ function zeichne(bereich, ctx, erste, neu) {
     });
     dialogFormular({
       titel: "Anfrage ablehnen?",
-      beschreibung: `«${a.raumName}», ${langZeit(a)}. Die Anfrage wird abgelehnt. Das lässt sich nicht rückgängig machen.`,
+      beschreibung: `«${a.zweck}», ${a.raumName}, ${langZeit(a)}. Die Anfrage wird abgelehnt. Das lässt sich nicht rückgängig machen.`,
       felder: [grund.wurzel],
       ok: "Ablehnen",
       gefaehrlich: true,
@@ -269,7 +271,7 @@ function zeichne(bereich, ctx, erste, neu) {
       danach: () =>
         entschieden(
           a,
-          `Die Anfrage von ${a.vonName} für «${a.raumName}» ist abgelehnt.`,
+          `Die Anfrage von ${a.vonName} («${a.zweck}», ${a.raumName}) ist abgelehnt.`,
         ),
     });
   }
@@ -298,7 +300,14 @@ function zeichne(bereich, ctx, erste, neu) {
     }
   }
 
-  bereich.append(liste, meldung, el("div", { class: "tm-mehr" }, mehr), detail);
+  bereich.append(
+    el(
+      "div",
+      { class: "tm-anfragen" },
+      el("div", {}, liste, meldung, el("div", { class: "tm-mehr" }, mehr)),
+      detail,
+    ),
+  );
   meldeZaehler();
   zeichneAlles();
 }

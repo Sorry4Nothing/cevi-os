@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
+import { bildUrlImLager } from "../../bild.js";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
 import { darf, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
@@ -9,7 +10,7 @@ import { anzeigeNamenLager, nurEigenes } from "../../lager/zimmer.js";
 const lagerPfad = z.strictObject({ id: z.uuid() });
 const MAX = 500;
 
-// Mitglieder des Lagers ohne Adminrecht (#520), für Namen und Auswahllisten der Apps (Schichtplan, Diensttausch, Gruppen, Einkäufer, Tageschef). Pro Person nur: ID, Anzeigename, Rolle und die Kürzel ihrer Ressorts (zugeordnet, Leitung oder Stellvertretung); nie Cevi-Name ohne Recht (Regel von anzeigeNamenLager), keine Telefonnummer, keine E-Mail.
+// Mitglieder des Lagers ohne Abteilungsleitung (#520), für Namen und Auswahllisten der Apps (Schichtplan, Diensttausch, Gruppen, Einkäufer, Tageschef). Pro Person nur: ID, Anzeigename, Profilbild (bildUrl, null ohne Bild), Rolle und die Kürzel ihrer Ressorts (zugeordnet, Leitung oder Stellvertretung); nie Cevi-Name ohne Recht (Regel von anzeigeNamenLager), keine Telefonnummer, keine E-Mail.
 // Wer sieht wen: Recht einteilung.lesen wie bei Zimmern, Gruppen und Schichtplan. Rollen, die dort alles sehen (Lagerleitung, Leitung, Lesen), sehen alle aktiven Mitglieder. Das Team ohne einteilung.bearbeiten sieht dort nur das Eigene (nurEigenes); hier sieht es darum nur sich selbst und die Mitglieder, die es heute schon in den Listen sieht: im selben Zimmer, in einer Gruppe oder im Schichtplan. Zwei Abfragen, unabhängig von der Zahl der Mitglieder
 export function erstelleMitgliederRouten({ db }: { db: Db }) {
   return new Hono<LagerEnv>().get(
@@ -21,8 +22,13 @@ export function erstelleMitgliederRouten({ db }: { db: Db }) {
       const lagerId = zugriff.lager.id;
       const eng = nurEigenes(zugriff);
       const [zeilen, namen] = await Promise.all([
-        db.execute<{ id: string; rolle: string; ressorts: string[] }>(sql`
-          select m.person_id as id, m.rolle,
+        db.execute<{
+          id: string;
+          rolle: string;
+          bildUrl: string | null;
+          ressorts: string[];
+        }>(sql`
+          select m.person_id as id, m.rolle, ${bildUrlImLager(sql`m.person_id`, lagerId)} as "bildUrl",
             coalesce((
               select array_agg(distinct r.kuerzel order by r.kuerzel) from ressort r
               where r.lager_id = m.lager_id
@@ -49,7 +55,15 @@ export function erstelleMitgliederRouten({ db }: { db: Db }) {
           .flatMap((z) => {
             const name = namen.get(z.id);
             return name
-              ? [{ personId: z.id, name, rolle: z.rolle, ressorts: z.ressorts }]
+              ? [
+                  {
+                    personId: z.id,
+                    name,
+                    bildUrl: z.bildUrl,
+                    rolle: z.rolle,
+                    ressorts: z.ressorts,
+                  },
+                ]
               : [];
           })
           .sort((a, b) => a.name.localeCompare(b.name, "de")),

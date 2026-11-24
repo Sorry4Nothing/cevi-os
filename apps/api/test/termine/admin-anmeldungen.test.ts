@@ -370,7 +370,7 @@ describe("Anmeldungen ansehen", () => {
     ).toBe(400);
   });
 
-  test("Liste: höchstens 2 Abfragen, unabhängig von der Seitengrösse", async () => {
+  test("Liste: höchstens 3 Abfragen (Anlass, Seite, Rechte der Person), unabhängig von der Seitengrösse", async () => {
     const anlassId = await neuerAnlass("person");
     for (const p of [
       "slA",
@@ -395,7 +395,8 @@ describe("Anmeldungen ansehen", () => {
         zaehlApp,
       );
       expect(antwort.status).toBe(200);
-      expect(abfragen.filter((q) => /anlass/.test(q))).toHaveLength(2);
+      // Die dritte ist der RechteSatz: eine Abfrage je Anfrage (rechtemodell/satz.ts)
+      expect(abfragen.filter((q) => /anlass/.test(q))).toHaveLength(3);
     }
   });
 });

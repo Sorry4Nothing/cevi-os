@@ -78,7 +78,7 @@ beforeEach(() => {
 });
 afterEach(() => ausgabe.mockRestore());
 
-// 200 nur für Leitung oder SL der Stufe; Admins haben keine Stufenrolle (403), Demo-Personas sehen fremde Objekte nicht (404)
+// 200 nur für Leitung oder SL der Stufe; die Abteilungsleitung haben keine Stufenrolle (403), Demo-Personas sehen fremde Objekte nicht (404)
 const ERWARTET: Record<Persona, { a: number; b: number }> = {
   admin: { a: 403, b: 403 },
   adminOhneZweitenFaktor: { a: 403, b: 403 },

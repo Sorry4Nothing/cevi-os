@@ -1,7 +1,17 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { serve } from "@hono/node-server";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import {
+  erstelleAktivitaetsprotokoll,
+  loescheAlteAktivitaet,
+  systemzeileAus,
+} from "./aktivitaet.js";
 import { erstelleApp } from "./app.js";
+import { erstelleCeviDbClient } from "./cevi-db/client.js";
+import { erstelleCeviDbDienst } from "./cevi-db/dienst.js";
+import { speichereStand } from "./cevi-db/stand.js";
+import { sucheBeiGeoAdmin } from "./ortssuche/geoadmin.js";
+import { erstelleOrtssuche } from "./ortssuche/index.js";
 import { erstelleAuth } from "./auth.js";
 import {
   erstelleAnmeldungGesperrt,
@@ -9,6 +19,7 @@ import {
 } from "./bereichsschalter.js";
 import {
   kodiereMedienbild,
+  kodiereZeichen,
   kodiereProfilbild,
   kodiereStufenlogo,
 } from "./bild-sharp.js";
@@ -16,6 +27,7 @@ import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
 import { erstelleFcm } from "./fcm.js";
+import { erstelleFlickr } from "./fotos/flickr.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
@@ -30,13 +42,15 @@ import {
 import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { loescheAlteAnmeldungen } from "./termine/anlass-anmeldungen.js";
 import { loescheAlteBuchungen } from "./termine/raum-buchung.js";
+import { ladeLadenDaten, loescheAlteBestellungen } from "./laden/laden.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
   raeumeAenderungenAuf,
   starteAenderungenAufraeumen,
 } from "./lager/aufraeumen.js";
-import { log } from "./log.js";
+import { log, setzeLogSenke } from "./log.js";
+import { setzeRechteModus } from "./rechtemodell/modus.js";
 import { erstelleMedienspeicher } from "./medien-speicher-sdk.js";
 import { ladeSeiten } from "./seiten.js";
 import {
@@ -44,11 +58,12 @@ import {
   starteSitzungenAufraeumen,
 } from "./sitzungen-aufraeumen.js";
 import {
+  ladeZeichen,
   starteWebsiteAbgleich,
   synchronisiereWebsite,
 } from "./website/abgleich.js";
 import { ladeStufenfakten } from "./website/stufenfakten.js";
-import { ladeTerminlisten } from "./website/termine-liste.js";
+import { ladeAnlassSeiten, ladeTerminlisten } from "./website/termine-liste.js";
 import { dateisystemAusgabe } from "./website/ausgabe.js";
 import { erstelleWebsiteSperre, mitSperre } from "./website/sperre.js";
 import {
@@ -87,8 +102,31 @@ const medienspeicher =
     : undefined;
 if (!medienspeicher)
   log(undefined, { ereignis: "medien", code: "ohne-speicher" });
+// Fotos aus Flickr (#690): ohne Schlüssel und Secret der App startet die API ohne Fotos; mit Token sieht sie auch die nicht öffentlichen Fotos des Kontos. Nichts davon gelangt in Log oder Antworten
+const fotos = konfiguration.FLICKR_API_KEY
+  ? erstelleFlickr({
+      apiKey: konfiguration.FLICKR_API_KEY,
+      apiSecret: konfiguration.FLICKR_API_SECRET,
+      token: konfiguration.FLICKR_OAUTH_TOKEN,
+      tokenSecret: konfiguration.FLICKR_OAUTH_TOKEN_SECRET,
+      apiBasis: konfiguration.FLICKR_API_BASIS,
+      bildBasis: konfiguration.FLICKR_BILD_BASIS,
+    })
+  : undefined;
+if (!fotos) log(undefined, { ereignis: "fotos", code: "ohne-schluessel" });
 const sql = verbindeDatenbank(konfiguration.DATABASE_URL);
 const db = erstelleDb(sql);
+// Cevi-Datenbank (#691): ohne Adresse und Token (die Konfiguration prüft, dass beide oder keines gesetzt sind) füllt die Anmeldung nichts vor
+const ceviDb =
+  konfiguration.CEVI_DB_URL && konfiguration.CEVI_DB_TOKEN
+    ? erstelleCeviDbDienst({
+        client: erstelleCeviDbClient({
+          url: konfiguration.CEVI_DB_URL,
+          token: konfiguration.CEVI_DB_TOKEN,
+        }),
+        beiAbruf: speichereStand(db),
+      })
+    : undefined;
 // Wartungsmodus und Sperre (#424, #425): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet
 const schalter = erstelleSchalterZustand();
 await schalter.lade(db);
@@ -106,26 +144,52 @@ const websiteAusgabe =
     : undefined;
 const websiteSperre =
   websiteAusgabe && konfiguration.WEBSITE_ABTEILUNG_ID
-    ? erstelleWebsiteSperre(websiteAusgabe, konfiguration.WEBSITE_ABTEILUNG_ID)
+    ? erstelleWebsiteSperre(
+        websiteAusgabe,
+        konfiguration.WEBSITE_ABTEILUNG_ID,
+        seiten.zeichen.holen,
+      )
     : undefined;
 // Derselbe Lauf für den Takt im Hintergrund und den Knopf in der Verwaltung
 const kalenderLauf = () =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
   });
+// Aktivitätsprotokoll (#637): Ereignisse ohne Anfrage (Läufe, Versand) kommen über log() hinein; der Start steht als eigene Zeile
+const aktivitaet = erstelleAktivitaetsprotokoll(db);
+setzeLogSenke((felder) => systemzeileAus(aktivitaet, felder));
+setzeRechteModus(konfiguration.RECHTE_MODELL ?? "schatten");
+aktivitaet.system("start", { bereich: "system" });
+// Beim Beenden schreibt der Prozess den Puffer zu Ende (höchstens eine Sekunde Zeilen)
+for (const signal of ["SIGTERM", "SIGINT"] as const) {
+  process.once(signal, () => {
+    aktivitaet.stopp();
+    void aktivitaet.leere().finally(() => process.exit(0));
+  });
+}
 const app = erstelleApp({
+  aktivitaet,
   appMinVersion: konfiguration.APP_MIN_VERSION,
   sql,
   db,
   auth,
   fcm,
+  ceviDb,
+  // Adresssuche der Orte (#695): Suche des Bundes, mit Zwischenspeicher und Obergrenze
+  ortssuche: erstelleOrtssuche(sucheBeiGeoAdmin),
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
   kodiereMedienbild,
   medienspeicher,
+  fotos,
   seiten,
   schalter,
   website: websiteSperre,
+  websiteKontakt: {
+    adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
+    telefon: konfiguration.KONTAKT_TELEFON,
+    email: konfiguration.KONTAKT_EMAIL,
+  },
   syncs: {
     kalender: kalenderLauf,
   },
@@ -134,6 +198,15 @@ const app = erstelleApp({
 serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+// Aktivitätsprotokoll (#637): nach der Frist (Vorgabe 90 Tage) und über der Obergrenze löschen
+starteSitzungenAufraeumen(
+  () =>
+    loescheAlteAktivitaet(db, {
+      tage: konfiguration.PROTOKOLL_TAGE ?? 90,
+      maxZeilen: konfiguration.PROTOKOLL_MAX_ZEILEN ?? 500_000,
+    }),
+  "aktivitaet_aufraeumen",
+);
 starteAenderungenAufraeumen(() => raeumeAenderungenAuf(db));
 starteSitzungenAufraeumen(
   () => loescheGeleseneBenachrichtigungen(db),
@@ -166,6 +239,11 @@ starteSitzungenAufraeumen(
 );
 // Raumanfragen und Buchungen 180 Tage nach ihrem Ende löschen (#447)
 starteSitzungenAufraeumen(() => loescheAlteBuchungen(db), "raum_buchungen");
+// Bestellungen des Lädelis 180 Tage nach dem Abschluss löschen, nie abgeschlossene nach einem Jahr (#566)
+starteSitzungenAufraeumen(
+  () => loescheAlteBestellungen(db),
+  "laden_bestellungen",
+);
 // Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
 starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));
 // Statische Auslieferung der Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht
@@ -179,8 +257,8 @@ if (
     new URL("../public/website/website.css", import.meta.url),
     "utf8",
   );
-  // Die Dateien neben website.css (#354, #530): alle .js, die weiteren Stylesheets (website.css geht als «stylesheet» mit), die Schrift (Bytes) und ihre Lizenz
-  const textEndung = /\.(js|css|txt)$/;
+  // Die Dateien neben website.css (#354, #530): alle .js, das Zeichen für fehlende Bilder (.svg), die weiteren Stylesheets (website.css geht als «stylesheet» mit), die Schrift (Bytes) und ihre Lizenz
+  const textEndung = /\.(js|css|txt|svg)$/;
   const skripte = Object.fromEntries(
     readdirSync(new URL("../public/website/", import.meta.url))
       .filter(
@@ -198,8 +276,45 @@ if (
       }),
   );
   const merker = new Map<string, string>();
+  // Favicon (#558): aus dem gewählten Zeichen, sonst (oder wenn es sich nicht laden lässt) aus dem Cevi-Zeichen der Plattform. Gemerkt je Medium: Der Speicher wird nur gefragt, wenn sich die Wahl ändert
+  const standardZeichen = readFileSync(
+    new URL("../public/admin/favicon.svg", import.meta.url),
+  );
+  let gemerktesZeichen:
+    | { id: string | null; dateien: Awaited<ReturnType<typeof kodiereZeichen>> }
+    | undefined;
+  const zeichen = async (
+    quelle: { id: string; speicherSchluessel: string } | null,
+  ) => {
+    const id = medienspeicher && quelle ? quelle.id : null;
+    if (gemerktesZeichen?.id === id) return gemerktesZeichen.dateien;
+    let dateien: Awaited<ReturnType<typeof kodiereZeichen>>;
+    try {
+      dateien = await kodiereZeichen(
+        id && quelle && medienspeicher
+          ? await medienspeicher.holen(quelle.speicherSchluessel)
+          : standardZeichen,
+      );
+    } catch {
+      // Nicht gemerkt: Der nächste Lauf versucht es wieder
+      log(undefined, { ereignis: "website_zeichen", code: "nicht-lesbar" });
+      dateien = await kodiereZeichen(standardZeichen);
+      seiten.zeichen.setze(dateien);
+      return dateien;
+    }
+    gemerktesZeichen = { id, dateien };
+    // Dasselbe Zeichen zeigen die Verwaltung und die Plattformseiten (#581)
+    seiten.zeichen.setze(dateien);
+    return dateien;
+  };
   const abteilungId = konfiguration.WEBSITE_ABTEILUNG_ID;
   const basisUrl = konfiguration.WEBSITE_BASIS_URL;
+  // Gleich beim Start, auch unter einer Sperre (dann läuft der Abgleich nicht): Die Verwaltung zeigt von Anfang an das Zeichen der Abteilung
+  void ladeZeichen(db, abteilungId)
+    .then(zeichen)
+    .catch(() =>
+      log(undefined, { ereignis: "website_zeichen", code: "start-fehler" }),
+    );
   starteWebsiteAbgleich(
     // Unter einer Sperre, die die Website vom Netz nimmt, läuft der Abgleich nicht (#425)
     mitSperre(
@@ -212,7 +327,13 @@ if (
           basisUrl,
           stylesheet,
           skripte,
-          datenquellen: [ladeStufenfakten, ladeTerminlisten],
+          zeichen,
+          datenquellen: [
+            ladeStufenfakten,
+            ladeTerminlisten,
+            ladeAnlassSeiten,
+            ladeLadenDaten,
+          ],
           kontakt: {
             adresse: konfiguration.VERANTWORTLICHE_ADRESSE,
             telefon: konfiguration.KONTAKT_TELEFON,

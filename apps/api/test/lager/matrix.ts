@@ -8,7 +8,7 @@ import type { Persona, PersonaKonto, Welt } from "../hilfen/personas.js";
 
 // Die Personas gegenüber einem Lager der Testabteilung. Konten statt eigener Fabrik: Jede Lager-Persona ist ein Konto der 14 Personas der Rechte-Matrix (KONTO_FUER), die Lager-Rolle kommt aus lager_mitglied
 export const LAGER_PERSONAS = [
-  // Admin der Abteilung ohne Zeile in lager_mitglied: gilt als Lagerleitung
+  // Abteilungsleitung der Abteilung ohne Zeile in lager_mitglied: gilt als Lagerleitung
   "abteilungsleitung",
   "lagerleitung",
   "leitung",

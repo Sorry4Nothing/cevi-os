@@ -18,13 +18,15 @@ const seiten = rendereTermineSeiten(kontext);
 const PUBLIC = new URL("../public/website/", import.meta.url);
 
 describe("Seiten für Termine und Anlässe", () => {
-  test("vier Dateien an den Adressen termine und anlass", () => {
+  test("sechs Dateien an den Adressen termine, anlass, termin und konto", () => {
     expect(seiten.map(([d]) => d)).toEqual(TERMINE_DATEIEN);
     expect(TERMINE_DATEIEN).toEqual([
       "termine/index.html",
       "termine/vorschlagen/index.html",
       "anlass/index.html",
       "anlass/anmeldung/index.html",
+      "termin/index.html",
+      "konto/index.html",
     ]);
   });
 
@@ -46,12 +48,16 @@ describe("Seiten für Termine und Anlässe", () => {
   );
 
   test.each(seiten)(
-    "%s: theme.js und ein Modul der eigenen Herkunft, nie inline",
+    "%s: theme.js, ladezustand.js, das Konto-Menü und ein Modul der eigenen Herkunft, nie inline",
     (datei, inhalt) => {
       const skripte = [...inhalt.matchAll(/<script([^>]*)>/g)];
-      expect(skripte).toHaveLength(2);
+      expect(skripte).toHaveLength(4);
       expect(skripte[0][1]).toBe(' src="/website/theme.js"');
-      expect(skripte[1][1]).toMatch(
+      expect(skripte[1][1]).toBe(' src="/website/ladezustand.js"');
+      expect(skripte[2][1]).toBe(
+        ' type="module" src="/website/konto-menue.js"',
+      );
+      expect(skripte[3][1]).toMatch(
         /^ type="module" src="\/website\/[a-z-]+\.js"$/,
       );
       expect(inhalt).not.toMatch(/<script[^>]*>[^<]+<\/script>/);
@@ -74,6 +80,10 @@ describe("Seiten für Termine und Anlässe", () => {
       expect(dateien).toContain(skript);
     }
     expect(dateien).toContain("termine.css");
+    // Das eigene Auswahlfeld (#564): Stil und Skript liegen daneben
+    expect(seiten[0]![1]).toContain('href="/website/auswahl.css"');
+    expect(dateien).toContain("auswahl.css");
+    expect(dateien).toContain("auswahl.js");
     expect(existsSync(new URL("termine.css", PUBLIC))).toBe(true);
   });
 
@@ -85,6 +95,18 @@ describe("Seiten für Termine und Anlässe", () => {
       seiten.find(([d]) => d === "anlass/anmeldung/index.html")![1],
     ).toContain('<h1 id="tm-titel">Anmeldung</h1>');
   });
+
+  test("Termin (#671) hat Platz für Datum und Titel, Mein Konto einen festen Titel", () => {
+    const termin = seiten.find(([d]) => d === "termin/index.html")![1];
+    expect(termin).toContain('<p class="kicker" hidden></p>');
+    expect(termin).toContain('data-seite="termin"');
+    const konto = seiten.find(([d]) => d === "konto/index.html")![1];
+    expect(konto).toContain('<h1 id="tm-titel">Mein Konto</h1>');
+    expect(konto).toContain('data-seite="konto"');
+    // Beide sind ohne Anmeldung leer: kein Inhalt im HTML, kein Kind, keine Person
+    expect(termin).not.toMatch(/Kind|Telefon/);
+    expect(konto).not.toMatch(/Telefon|Benutzername/);
+  });
 });
 
 describe("Stil und Module der Seiten", () => {
@@ -95,9 +117,29 @@ describe("Stil und Module der Seiten", () => {
     expect(css).toContain("forced-colors: active");
     expect(css).not.toMatch(/url\(|@import|https?:\/\//);
   });
+  test("Mein Konto (#689) lädt seinen eigenen Stil, nur diese Seite; er gilt unter .tm, mit Bewegung nur bei erlaubter Bewegung", () => {
+    const konto = seiten.find(([d]) => d === "konto/index.html")![1];
+    expect(konto).toContain(
+      '<link rel="stylesheet" href="/website/konto.css">',
+    );
+    for (const [d, inhalt] of seiten) {
+      if (d !== "konto/index.html") expect(inhalt).not.toContain("konto.css");
+    }
+    const k = readFileSync(new URL("konto.css", PUBLIC), "utf8");
+    expect(k).not.toMatch(/url\(|@import|https?:\/\//);
+    expect(k).toContain("prefers-reduced-motion: no-preference");
+    expect(k).toContain("forced-colors: active");
+    // Jede Regel steht unter .tm, nie global
+    const regeln = k
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .match(/^\s*\.[^{}]*\{/gm)!;
+    for (const r of regeln) expect(r.trim(), r).toMatch(/^\.tm /);
+  });
   test("kein innerHTML, kein eval in den Modulen", () => {
     for (const n of readdirSync(PUBLIC).filter((n) =>
-      /^(tm|termine|termine-link|vorschlag|anlass|anmeldung)\.js$/.test(n),
+      /^(tm|termine|termine-link|vorschlag|anlass|anmeldung|auswahl)\.js$/.test(
+        n,
+      ),
     )) {
       const q = readFileSync(new URL(n, PUBLIC), "utf8").replace(
         /\/\/.*$/gm,

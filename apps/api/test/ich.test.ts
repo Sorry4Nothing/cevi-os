@@ -94,6 +94,13 @@ describe("GET /api/v1/ich", () => {
       pushProgramme: true,
       pushAnmeldungen: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
+      // Die Rechte der Leitung: Standard der Stufenrolle, ohne zweiten Faktor sichtbar (#650)
+      rechte: [
+        { recht: "vorschlag.einreichen", geltung: "alle" },
+        { recht: "raum.belegung", geltung: "alle" },
+        { recht: "anwesenheit.fuehren", geltung: "eigene" },
+        { recht: "stufe.einblick", geltung: "eigene" },
+      ],
       // Die Stufen der Rollen und der Kinder, nach Name
       stufen: [
         { id: welt.stufeAId, name: "Stufe A", kuerzel: "A" },
@@ -110,7 +117,7 @@ describe("GET /api/v1/ich", () => {
     });
   });
 
-  test("Admin ohne Rollen und Kinder: admin true, leere Listen", async () => {
+  test("Abteilungsleitung ohne Rollen und Kinder: admin true, leere Listen", async () => {
     const konto = await legePersonaAn(welt, "admin");
     const koerper = await (await ich(konto)).json();
     expect(koerper).toMatchObject({
@@ -405,5 +412,20 @@ describe("Kein Löschen durch die Person", () => {
     });
     expect(antwort.status).toBe(404);
     expect((await ich(konto)).status).toBe(200);
+  });
+});
+
+describe("Keine Freigabe für die Website (#610)", () => {
+  test("«Mein Profil» kennt das Feld nicht mehr: PATCH lehnt es ab, GET nennt es nicht", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const antwort = await app.request("/api/v1/ich", {
+      method: "PATCH",
+      headers: { ...konto.headers, "content-type": "application/json" },
+      body: JSON.stringify({ websiteFreigabe: true }),
+    });
+    expect(antwort.status).toBe(400);
+    expect(await (await ich(konto)).json()).not.toHaveProperty(
+      "websiteFreigabe",
+    );
   });
 });

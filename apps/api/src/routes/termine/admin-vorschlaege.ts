@@ -6,6 +6,7 @@ import type { Db } from "../../db/client.js";
 import { auditLog, kategorieZuordnung, user } from "../../db/schema.js";
 import { terminVorschlag } from "../../db/schema-vorschlag.js";
 import { eingabe } from "../../eingabe.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import {
   idPfad,
   ladeTags,
@@ -17,7 +18,7 @@ import { pushEntscheid } from "../../termine/vorschlag-push.js";
 import type { Fcm } from "../../push.js";
 import type { TermineEnv } from "./index.js";
 
-// Terminvorschläge entscheiden (#440, Epic #430): Nur die Abteilungsleitung (Admin; den zweiten Faktor verlangt schon der Pfad /api/v1/admin/*). Erst den Vorschlag der eigenen Abteilung laden (fremd = 404), dann das Recht (403). Cevi OS schreibt nie nach Outlook: «freigegeben» heisst, die Abteilungsleitung trägt den Termin dort von Hand ein und meldet es dann mit /eingetragen.
+// Terminvorschläge entscheiden (#440, Epic #430): Das Recht «Terminvorschläge entscheiden» (rechtemodell/katalog.ts, erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einstellbar für Rollen (#649). Erst den Vorschlag der eigenen Abteilung laden (fremd = 404), dann das Recht (403). Cevi OS schreibt nie nach Outlook: «freigegeben» heisst, die Abteilungsleitung trägt den Termin dort von Hand ein und meldet es dann mit /eingetragen.
 const STATI = [
   "offen",
   "freigegeben",
@@ -103,7 +104,9 @@ export function erstelleAdminVorschlaegeRouten({
         ),
       );
     if (!zeile) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    await verlange(db, person, "vorschlag.entscheiden", {
+      abteilungId: person.abteilungId,
+    });
     return zeile;
   }
 
@@ -158,7 +161,9 @@ export function erstelleAdminVorschlaegeRouten({
         eingabe("query", listeSchema),
         async (c) => {
           const person = c.get("person");
-          if (!person.admin) throw new HTTPException(403);
+          await verlange(db, person, "vorschlag.entscheiden", {
+            abteilungId: person.abteilungId,
+          });
           const { status, limit, nach } = c.req.valid("query");
           const zeilen = await db
             .select({ v: terminVorschlag, name: user.name })
@@ -205,7 +210,9 @@ export function erstelleAdminVorschlaegeRouten({
               ),
             );
           if (!zeile) throw new HTTPException(404);
-          if (!person.admin) throw new HTTPException(403);
+          await verlange(db, person, "vorschlag.entscheiden", {
+            abteilungId: person.abteilungId,
+          });
           const tags = await ladeTags(db, person.abteilungId, [zeile.v]);
           const gefunden = zeile.v.tagIds.flatMap((t) => tags.get(t) ?? []);
           return c.json({
@@ -223,7 +230,7 @@ export function erstelleAdminVorschlaegeRouten({
           const { id } = c.req.valid("param");
           const b = c.req.valid("json");
           const ziel = await lade(person, id);
-          // Auch ein Admin entscheidet nie über den eigenen Vorschlag
+          // Auch eine Person der Abteilungsleitung entscheidet nie über den eigenen Vorschlag
           if (ziel.von === person.id) return c.json(EIGENER_VORSCHLAG, 403);
           const status =
             b.entscheid === "freigeben" ? "freigegeben" : "abgelehnt";

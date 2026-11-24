@@ -1,7 +1,8 @@
 import { anfrage, fehlertext } from "./api.js";
 import { el, knopf, neueId, seitenblatt } from "./dom.js";
-import { band, beschaeftigt, bei, fenster, kuerze } from "./website-dialoge.js";
+import { band, beschaeftigt, bei } from "./website-dialoge.js";
 import { sk } from "./lader.js";
+import { schliesseOffenePanels, unteransicht } from "./website-unteransicht.js";
 import { nochmals, zustandsDaten, zustandsKarte } from "./zustaende.js";
 
 // Sichtbarkeit einer Seite oder eines Bausteins (Boards E5): Seitenblatt mit den Wahlkarten «Öffentlich», «Nur angemeldet» und
@@ -17,6 +18,7 @@ const ARTEN = [
 // opt: { typ: "seite" | "baustein", titel, untertitel, start, erbtText?, ladeTags, tagNamen, speichere(wert) → Promise, rechte? }
 // start: { art, tagIds? } oder «erbt» (nur bei einem Baustein); wert() in speichere hat dieselbe Form
 export function sichtbarkeitBlatt(opt) {
+  if (!opt.in && !schliesseOffenePanels()) return null;
   const { start, erbtText, ladeTags, tagNamen } = opt;
   let art = start === "erbt" ? "erbt" : start.art;
   const gewaehlt = new Set(
@@ -200,23 +202,34 @@ export function sichtbarkeitBlatt(opt) {
   });
 
   const rechteBox = opt.rechte ? rechteBereich(opt.rechte, tagNamen) : null;
-  const blatt = seitenblatt({
-    titel: opt.titel,
-    untertitel: opt.untertitel,
-    inhalt: [
-      el(
-        "div",
-        { class: "ws-blattinhalt" },
-        arten,
-        gruppen,
-        warnung,
-        rechteBox,
-        fehlerPlatz,
-      ),
-    ],
-    fusszeile: [abbrechen, speichern],
-    schliessen: opt.beimSchliessen,
-  });
+  const inhalt = [
+    el(
+      "div",
+      { class: "ws-blattinhalt" },
+      arten,
+      gruppen,
+      warnung,
+      rechteBox,
+      fehlerPlatz,
+    ),
+  ];
+  // Im Panel eines Bausteins ersetzt die Auswahl dessen Inhalt (nie ein zweites Panel über dem ersten)
+  const blatt = opt.in
+    ? unteransicht(opt.in, {
+        titel: opt.titel,
+        untertitel: opt.untertitel,
+        inhalt,
+        fusszeile: [abbrechen, speichern],
+        zurueckText: "Zurück zum Baustein",
+      })
+    : seitenblatt({
+        panel: true,
+        titel: opt.titel,
+        untertitel: opt.untertitel,
+        inhalt,
+        fusszeile: [abbrechen, speichern],
+        schliessen: opt.beimSchliessen,
+      });
   zeichneGruppen();
   laden();
   return blatt;
@@ -320,7 +333,7 @@ function rechteBereich(r, tagNamen) {
       platz.replaceChildren(
         knopf("Hinzufügen", {
           klein: true,
-          onclick: () => hinzufuegen(p.personen, ladeSonder),
+          onclick: (e) => hinzufuegen(p.personen, ladeSonder, e.currentTarget),
         }),
       );
     } catch (f) {
@@ -336,7 +349,7 @@ function rechteBereich(r, tagNamen) {
   }
 
   // Gruppe oder Person wählen und das Recht erteilen
-  function hinzufuegen(personenListe, nachher) {
+  function hinzufuegen(personenListe, nachher, ausloeser) {
     const tagListe = [...tagNamen];
     let art = tagListe.length > 0 ? "tagId" : "userId";
     const name = neueId("recht");
@@ -406,31 +419,50 @@ function rechteBereich(r, tagNamen) {
           [art]: wert,
         });
         f.schliesse();
-        nachher();
+        await nachher();
+        platz.querySelector("button")?.focus();
         melde("Das Recht ist erteilt.");
       } catch (fehler) {
         f.fehler(fehlertext(fehler));
         beschaeftigt(ok, false);
       }
     });
-    const f = fenster({
-      titel: "Recht erteilen",
-      beschreibung: `«${kuerze(seite.titel, 60)}». Eine Gruppe gibt das Recht allen Personen, die sie tragen.`,
-      inhalt: [
-        el(
-          "fieldset",
-          {},
-          el("legend", { class: "legende" }, "Recht erteilen an"),
-          el("div", { class: "seg" }, [
-            ...radio("tagId", "Gruppe"),
-            ...radio("userId", "Person"),
-          ]),
-        ),
-        feldGruppe,
-        feldPerson,
-      ],
-      fuss: [abbr, ok],
-    });
+    // Im Panel selbst, nie als Seite über dem Panel
+    const fehlerZeile = el("div", { class: "ws-fehlerplatz" });
+    const f = {
+      schliesse: () => {
+        karte.remove();
+        ausloeser.hidden = false;
+        ausloeser.focus();
+      },
+      fehler: (text) =>
+        fehlerZeile.replaceChildren(...(text ? [band("fehler", text)] : [])),
+    };
+    const karte = el(
+      "div",
+      { class: "ws-recht-neu", role: "group", "aria-label": "Recht erteilen" },
+      el(
+        "p",
+        { class: "hilfe" },
+        `Eine Gruppe gibt das Recht allen Personen, die sie tragen.`,
+      ),
+      el(
+        "fieldset",
+        {},
+        el("legend", { class: "legende" }, "Recht erteilen an"),
+        el("div", { class: "seg" }, [
+          ...radio("tagId", "Gruppe"),
+          ...radio("userId", "Person"),
+        ]),
+      ),
+      feldGruppe,
+      feldPerson,
+      fehlerZeile,
+      el("div", { class: "ws-reihe" }, abbr, ok),
+    );
+    ausloeser.hidden = true;
+    ausloeser.after(karte);
+    (art === "tagId" ? gruppeSel : personSel).focus();
   }
 
   ladeSonder();

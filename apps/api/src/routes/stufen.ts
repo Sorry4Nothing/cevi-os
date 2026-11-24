@@ -19,9 +19,13 @@ import { programmStufen } from "../termine/stufen-sicht.js";
 import { logoUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import { kontakteMitTelefon, stufenMitKind } from "../kontakte.js";
+import { verlange } from "../rechtemodell/darf.js";
+import {
+  hatRechtMitFaktor,
+  stufeObjekt,
+} from "../rechtemodell/personenrechte.js";
 import {
   aktivesKonto,
-  hatRolle,
   programmBeginn,
   stufenleitungDerStufen,
   type Person,
@@ -61,16 +65,14 @@ const quote = (da: number, von: number) => ({
 });
 
 export function erstelleStufenRouten({ db }: { db: Db }) {
-  // Stufen und Anwesenheit sehen nur Admins und die Leitung der Stufe; fremde Stufen sind 404
+  // Stufen und Anwesenheit sehen die Abteilungsleitung, die Leitung der Stufe und wer «Anwesenheit führen» als Rolle trägt (#650); fremde Stufen sind 404
   async function stufeMitLeitung(person: Person, id: string) {
     const [zeile] = await db
       .select({ id: stufe.id, name: stufe.name })
       .from(stufe)
       .where(and(eq(stufe.id, id), eq(stufe.abteilungId, person.abteilungId)));
     if (!zeile) throw new HTTPException(404);
-    if (!(person.admin || hatRolle(person, id, "leitung"))) {
-      throw new HTTPException(403);
-    }
+    await verlange(db, person, "anwesenheit.fuehren", stufeObjekt(person, id));
     return zeile;
   }
 
@@ -426,13 +428,16 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
         .where(
           and(eq(stufe.id, id), eq(stufe.abteilungId, person.abteilungId)),
         );
-      // Fremde Stufen bleiben verborgen: Wer weder Admin noch Leitung noch Elternteil der Stufe ist, bekommt 404
+      // Fremde Stufen bleiben verborgen: Wer weder Einblick in die Stufe (Abteilungsleitung, Leitung, Rolle mit dem Recht) noch Elternteil der Stufe ist, bekommt 404
       if (
         !zeile ||
         !(
-          person.admin ||
-          hatRolle(person, id, "leitung") ||
-          (await stufenMitKind(db, person, [id])).has(id)
+          (await hatRechtMitFaktor(
+            db,
+            person,
+            "stufe.einblick",
+            stufeObjekt(person, id),
+          )) || (await stufenMitKind(db, person, [id])).has(id)
         )
       ) {
         throw new HTTPException(404);

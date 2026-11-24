@@ -465,7 +465,7 @@ describe("Fremde Chats liefern per ID 404", () => {
     ];
   });
 
-  // 200 nur für Mitglieder (SL der Stufe oder das Elternteil selbst), alles andere 404, auch für Admins; ohne gültige Sitzung 401, vor dem Pflichtwechsel 403 (#15)
+  // 200 nur für Mitglieder (SL der Stufe oder das Elternteil selbst), alles andere 404, auch für die Abteilungsleitung; ohne gültige Sitzung 401, vor dem Pflichtwechsel 403 (#15)
   const ERWARTET: Record<Persona, number[]> = {
     admin: [404, 404, 404, 404, 404, 404, 404],
     adminOhneZweitenFaktor: [404, 404, 404, 404, 404, 404, 404],

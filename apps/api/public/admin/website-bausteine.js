@@ -9,6 +9,7 @@ import {
   sichtbarkeitText,
   zeigeFeldFehler,
 } from "./website-dialoge.js";
+import { schliesseOffenePanels, unteransicht } from "./website-unteransicht.js";
 import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
 import {
   KATALOG,
@@ -160,6 +161,7 @@ export function katalogDialog(k) {
 // k: Kontext des Editors; b: der Baustein (bei neu: noch nicht im Dokument); position: Index im Dokument bzw. Einfügeposition
 // opt: { neu, fehler: [{ pfad, text }] (Meldungen des Servers, die gleich zu den Feldern kommen) }
 export function bearbeitenBlatt(k, b, position, opt = {}) {
+  if (!schliesseOffenePanels()) return null;
   const typ = TYPEN[b.typ];
   const arbeit = kopie(b);
   const alt = new Map();
@@ -172,7 +174,7 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
     personNamen: k.personNamen,
     medien: k.medien,
     kannAlt: k.kannAlt,
-    waehleBild: k.waehleBild,
+    waehleBild: (beiWahl) => bildDialog(k, beiWahl, { in: blatt }),
     aendere: () => {
       // Das Formular schreibt in die Kopie; die Fehler eines Feldes verschwinden dort selbst
     },
@@ -204,6 +206,7 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
         "aria-label": "Sichtbarkeit des Bausteins ändern",
         onclick: () =>
           sichtbarkeitBlatt({
+            in: blatt,
             typ: "baustein",
             frage: "Wer sieht den Baustein?",
             titel: "Sichtbarkeit des Bausteins",
@@ -237,7 +240,7 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
 
   // Nach einer Änderung an einer Liste (Karte, Galeriebild): derselbe Knopf, sonst der andere, sonst das erste Feld
   function setzeFokus({ index, was }) {
-    const teil = formular.querySelectorAll(".ws-teil-karte")[index];
+    const teil = formular.querySelectorAll(".sortier-eintrag")[index];
     const namen = {
       hoch: ["Nach oben", "Nach unten"],
       runter: ["Nach unten", "Nach oben"],
@@ -245,8 +248,11 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
     const knopfEl = (n) =>
       teil?.querySelector(`button[aria-label^="${n}"]:not(:disabled)`);
     const ziel =
+      (was === "griff" && teil?.querySelector(".sortier-griff")) ||
       (namen && (knopfEl(namen[0]) ?? knopfEl(namen[1]))) ||
-      teil?.querySelector("input, textarea, select, button:not(:disabled)") ||
+      teil?.querySelector(
+        ".sortier-inhalt input, .sortier-inhalt textarea, .sortier-inhalt select, .sortier-inhalt button:not(:disabled)",
+      ) ||
       formular.querySelector('[data-teil="hinzu"]');
     ziel?.focus();
   }
@@ -296,8 +302,15 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
   bei(uebernehmen, async () => {
     const fehler = typ
       .pruefe(arbeit.daten, kk)
+      // Ein geleerter Alt-Text: Das Medium nähme ihn nicht an
+      .concat(
+        [...alt]
+          .filter(([, text]) => !text.trim())
+          .map(([id]) => [`alt.${id}`, "fehlt."]),
+      )
+      .filter(([pfad], i, alle) => alle.findIndex((x) => x[0] === pfad) === i)
       .map(([pfad, text]) =>
-        pfad === "alt"
+        pfad.startsWith("alt.")
           ? [
               pfad,
               "Gib einen Alt-Text ein. Ohne ihn kannst du das Bild nicht übernehmen.",
@@ -361,6 +374,7 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
     blatt.close();
   });
   const blatt = seitenblatt({
+    panel: true,
     titel: `${typName(b)} ${opt.neu ? "hinzufügen" : "bearbeiten"}`,
     untertitel: `Baustein ${nr} von ${von} · ${k.seite.titel}`,
     inhalt: [
@@ -383,7 +397,9 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
 
 // Die Bilder kommen seitenweise vom Server, die Suche läuft dort (nach Alt-Text); nichts wird vorab geladen
 const MEDIEN_SEITE = 24;
-export function bildDialog(k, beiWahl) {
+// opt.in: das Panel des Bausteins; dann ersetzt die Wahl dessen Inhalt (nie ein zweites Panel über dem ersten)
+export function bildDialog(k, beiWahl, opt = {}) {
+  if (!opt.in && !schliesseOffenePanels()) return;
   const suche = feld({
     label: "Bild suchen (nach Beschreibung)",
     type: "search",
@@ -402,27 +418,31 @@ export function bildDialog(k, beiWahl) {
     hidden: true,
     onclick: () => lade(false),
   });
-  const blatt = seitenblatt({
-    titel: "Bild wählen",
-    inhalt: [
+  const inhalt = [
+    el(
+      "div",
+      { class: "ws-blattinhalt" },
+      suche.wurzel,
+      zaehler,
+      fehler,
+      raster,
+      weitere,
       el(
-        "div",
-        { class: "ws-blattinhalt" },
-        suche.wurzel,
-        zaehler,
-        fehler,
-        raster,
-        weitere,
-        el(
-          "p",
-          { class: "hilfe" },
-          "Neue Bilder lädst du unter ",
-          el("a", { href: "#website/medien" }, "Medien"),
-          " hoch.",
-        ),
+        "p",
+        { class: "hilfe" },
+        "Neue Bilder lädst du unter ",
+        el("a", { href: "#website/medien" }, "Medien"),
+        " hoch.",
       ),
-    ],
-  });
+    ),
+  ];
+  const blatt = opt.in
+    ? unteransicht(opt.in, {
+        titel: "Bild wählen",
+        inhalt,
+        zurueckText: "Zurück zum Baustein",
+      })
+    : seitenblatt({ panel: true, titel: "Bild wählen", inhalt });
   let anzahl = 0;
   let lauf = 0;
   const karte = (m) =>

@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import { mkdir, writeFile } from "node:fs/promises";
 import postgres from "postgres";
 import sharp from "sharp";
@@ -85,6 +86,8 @@ const app = erstelleApp({
   kodiereLogo: kodiereStufenlogo,
   kodiereMedienbild,
   medienspeicher,
+  // Eine Attrappe statt der Ortssuche des Bundes (#695)
+  ortssuche: async () => [],
   // Eine Attrappe statt firebase-admin: Ohne Push-Dienst antwortet die Mitteilung mit 503, und kein Test der Matrix soll ins Netz gehen
   fcm: {
     sendEach: async (nachrichten) => ({
@@ -126,15 +129,21 @@ const MATRIX: Record<string, Zeile> = {
   "GET /datenschutz": { erwartet: alle(200) },
   "GET /konto-loeschen": { erwartet: alle(200) },
   "GET /support": { erwartet: alle(200) },
-  // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
+  "GET /favicon.ico": { erwartet: alle(200) },
+  "GET /apple-touch-icon.png": { erwartet: alle(200) },
+  // Verwaltung im Browser (#141): statische Dateien, die Daten kommen erst über die abgesicherten Verwaltungsrouten
   "GET /admin": { erwartet: alle(200) },
   "GET /admin/admin.css": { erwartet: alle(200) },
   "GET /admin/admin.js": { erwartet: alle(200) },
+  "GET /admin/archivo-latin.woff2": { erwartet: alle(200) },
   "GET /admin/api.js": { erwartet: alle(200) },
   "GET /admin/dom.js": { erwartet: alle(200) },
   "GET /admin/favicon.svg": { erwartet: alle(200) },
   "GET /admin/hintergrund.svg": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
+  "GET /admin/website-fotos.js": { erwartet: alle(200) },
+  "GET /admin/website-fotos.css": { erwartet: alle(200) },
+  "GET /admin/kinder-konto.js": { erwartet: alle(200) },
   "GET /admin/mitteilungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
   "GET /admin/stufen.js": { erwartet: alle(200) },
@@ -142,16 +151,38 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/plattform.js": { erwartet: alle(200) },
   "GET /admin/tags.js": { erwartet: alle(200) },
   "GET /admin/uebersicht.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht-kacheln.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht-diagramme.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht-verlauf.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht-kommend.js": { erwartet: alle(200) },
+  "GET /admin/uebersicht.css": { erwartet: alle(200) },
+  "GET /admin/hinweisband.js": { erwartet: alle(200) },
+  "GET /admin/system.css": { erwartet: alle(200) },
+  "GET /admin/konto.js": { erwartet: alle(200) },
+  "GET /admin/konto.css": { erwartet: alle(200) },
+  "GET /admin/zuschneiden.js": { erwartet: alle(200) },
+  "GET /admin/zuschneiden.css": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
+  "GET /admin/cevi-db.js": { erwartet: alle(200) },
+  "GET /admin/laedeli.js": { erwartet: alle(200) },
+  "GET /admin/mitglieder.js": { erwartet: alle(200) },
+  "GET /admin/laedeli.css": { erwartet: alle(200) },
   "GET /admin/csv.js": { erwartet: alle(200) },
   "GET /admin/anwesenheit.js": { erwartet: alle(200) },
   "GET /admin/anwesenheit.css": { erwartet: alle(200) },
   "GET /admin/liste-hilfen.js": { erwartet: alle(200) },
   "GET /admin/personen-blatt.js": { erwartet: alle(200) },
+  "GET /admin/personen-wahl.js": { erwartet: alle(200) },
+  "GET /admin/telefon.js": { erwartet: alle(200) },
+  "GET /admin/tags-anlass.js": { erwartet: alle(200) },
+  "GET /admin/tags-raeume.js": { erwartet: alle(200) },
   "GET /admin/tags-detail.js": { erwartet: alle(200) },
   "GET /admin/personen.css": { erwartet: alle(200) },
   "GET /admin/import.js": { erwartet: alle(200) },
   "GET /admin/website-baum.js": { erwartet: alle(200) },
+  "GET /admin/website-baumansicht.js": { erwartet: alle(200) },
+  "GET /admin/website-skizzen.js": { erwartet: alle(200) },
+  "GET /admin/website-unteransicht.js": { erwartet: alle(200) },
   "GET /admin/website-bausteine.js": { erwartet: alle(200) },
   "GET /admin/website-dialoge.js": { erwartet: alle(200) },
   "GET /admin/website-felder.js": { erwartet: alle(200) },
@@ -169,10 +200,37 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.css": { erwartet: alle(200) },
+  "GET /admin/website-orte.js": { erwartet: alle(200) },
+  "GET /admin/website-orte.css": { erwartet: alle(200) },
+  "GET /admin/orte-logik.js": { erwartet: alle(200) },
+  "GET /admin/ort-suche.js": { erwartet: alle(200) },
+  "GET /admin/bildwahl.js": { erwartet: alle(200) },
+  "GET /admin/bildwahl.css": { erwartet: alle(200) },
+  "GET /admin/website-einstellungen.css": { erwartet: alle(200) },
   "GET /admin/website-einstellungen.js": { erwartet: alle(200) },
-  // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Admin-Routen
+  // Bereich «Termine» (Epic #430, Gerüst #431): statische Dateien, die Daten kommen erst über die abgesicherten Verwaltungsrouten
   "GET /admin/geruest.css": { erwartet: alle(200) },
   "GET /admin/komponenten.css": { erwartet: alle(200) },
+  "GET /admin/fluss.css": { erwartet: alle(200) },
+  "GET /admin/fluss.js": { erwartet: alle(200) },
+  "GET /admin/verlauf.js": { erwartet: alle(200) },
+  "GET /admin/toast.css": { erwartet: alle(200) },
+  "GET /admin/tipp.css": { erwartet: alle(200) },
+  "GET /admin/tipp.js": { erwartet: alle(200) },
+  "GET /admin/ungespeichert.js": { erwartet: alle(200) },
+  "GET /admin/rueckgaengig.js": { erwartet: alle(200) },
+  "GET /admin/tokens.css": { erwartet: alle(200) },
+  "GET /admin/theme.js": { erwartet: alle(200) },
+  "GET /admin/werkzeuge.css": { erwartet: alle(200) },
+  "GET /admin/sortieren.js": { erwartet: alle(200) },
+  "GET /admin/schrittfolge.js": { erwartet: alle(200) },
+  "GET /admin/filterleiste.js": { erwartet: alle(200) },
+  "GET /admin/datumsfeld.js": { erwartet: alle(200) },
+  "GET /admin/aktionen.js": { erwartet: alle(200) },
+  "GET /admin/befehlspalette.js": { erwartet: alle(200) },
+  "GET /admin/formularraster.js": { erwartet: alle(200) },
+  "GET /admin/auswahl.js": { erwartet: alle(200) },
+  "GET /admin/auswahl.css": { erwartet: alle(200) },
   "GET /admin/navigation.js": { erwartet: alle(200) },
   "GET /admin/rahmen.js": { erwartet: alle(200) },
   "GET /admin/lader.js": { erwartet: alle(200) },
@@ -190,11 +248,18 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/termine-anlaesse.css": { erwartet: alle(200) },
   "GET /admin/termine-raeume.js": { erwartet: alle(200) },
   "GET /admin/termine-raeume.css": { erwartet: alle(200) },
+  "GET /admin/termine-belegung.js": { erwartet: alle(200) },
+  "GET /admin/termine-belegung.css": { erwartet: alle(200) },
+  "GET /admin/belegung-layout.js": { erwartet: alle(200) },
   "GET /admin/kalenderhilfen.js": { erwartet: alle(200) },
   "GET /admin/termine-kalender.js": { erwartet: alle(200) },
+  "GET /admin/termine-monat.js": { erwartet: alle(200) },
   "GET /admin/termine-outlook.js": { erwartet: alle(200) },
   "GET /admin/termine-anfragen.js": { erwartet: alle(200) },
   "GET /admin/termine-anmeldungen.js": { erwartet: alle(200) },
+  "GET /admin/anlass-anmeldungen.js": { erwartet: alle(200) },
+  "GET /admin/anlass-felder.js": { erwartet: alle(200) },
+  "GET /admin/anlass-gemeinsam.js": { erwartet: alle(200) },
   "GET /admin/lager.js": { erwartet: alle(200) },
   "GET /admin/lager.css": { erwartet: alle(200) },
   "GET /admin/lager-gemeinsam.js": { erwartet: alle(200) },
@@ -202,6 +267,81 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/lager-mitglieder.js": { erwartet: alle(200) },
   "GET /admin/lager-ausdrucke.js": { erwartet: alle(200) },
   "GET /admin/lager-vorlagen.js": { erwartet: alle(200) },
+  "GET /admin/lager-personenwahl.js": { erwartet: alle(200) },
+  "GET /admin/lager-rechte.js": { erwartet: alle(200) },
+  "GET /admin/lager-detail.js": { erwartet: alle(200) },
+  "GET /admin/lager-ereignisse.js": { erwartet: alle(200) },
+  "GET /admin/lager-konflikt.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-benachrichtigungen.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-check.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-heute.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-ressorts.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-suche.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-woche.js": { erwartet: alle(200) },
+  "GET /admin/lager-module.js": { erwartet: alle(200) },
+  "GET /admin/lager-rahmen.css": { erwartet: alle(200) },
+  "GET /admin/lager-rahmen.js": { erwartet: alle(200) },
+  "GET /admin/lager-start-teile.js": { erwartet: alle(200) },
+  "GET /admin/lager-anim.css": { erwartet: alle(200) },
+  "GET /admin/lager-anim.js": { erwartet: alle(200) },
+  "GET /admin/lager-einteilung-laden.js": { erwartet: alle(200) },
+  "GET /admin/lager-bewegung.js": { erwartet: alle(200) },
+  "GET /admin/lager-skeleton.js": { erwartet: alle(200) },
+  "GET /admin/lager-status.js": { erwartet: alle(200) },
+  "GET /admin/lager-aufgaben-detail.js": { erwartet: alle(200) },
+  "GET /admin/lager-aufgaben-gemeinsam.js": { erwartet: alle(200) },
+  "GET /admin/lager-aufgaben-logik.js": { erwartet: alle(200) },
+  "GET /admin/lager-aufgaben-neu.js": { erwartet: alle(200) },
+  "GET /admin/lager-aufgaben.css": { erwartet: alle(200) },
+  "GET /admin/lager-m-aufgaben.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-todos.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-zeitplan.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-abzaehlen.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-adressbuch.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-anwesenheit.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-diensttausch.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-fahrten.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-gruppen.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-schichtplan.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-teilnehmer.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-zimmer.js": { erwartet: alle(200) },
+  "GET /admin/lager-menschen-logik.js": { erwartet: alle(200) },
+  "GET /admin/lager-menschen.css": { erwartet: alle(200) },
+  "GET /admin/lager-menschen.js": { erwartet: alle(200) },
+  "GET /admin/lager-ziehen.js": { erwartet: alle(200) },
+  "GET /admin/raeume-meine.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-dokumente.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-eingang.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-erwaehnungen.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-hoecks.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-pinnwand.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-protokolle.js": { erwartet: alle(200) },
+  "GET /admin/lager-sitzungen.css": { erwartet: alle(200) },
+  "GET /admin/lager-sm-gemeinsam.js": { erwartet: alle(200) },
+  "GET /admin/lager-sm-traktanden.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-einkauf.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-hilfen.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-infos.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-notfall.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-packliste.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-tagesseiten.js": { erwartet: alle(200) },
+  "GET /admin/lager-m-wetter.js": { erwartet: alle(200) },
+  "GET /admin/lager-material.css": { erwartet: alle(200) },
+  "GET /admin/rechte.js": { erwartet: alle(200) },
+  "GET /admin/rechte.css": { erwartet: alle(200) },
+  "GET /admin/rechte-rollen.js": { erwartet: alle(200) },
+  "GET /admin/rechte-gruppen.js": { erwartet: alle(200) },
+  "GET /admin/rechte-uebersicht.js": { erwartet: alle(200) },
+  "GET /admin/rechte-gemeinsam.js": { erwartet: alle(200) },
+  "GET /admin/rechte-api.js": { erwartet: alle(200) },
+  "GET /admin/rechte-matrix.js": { erwartet: alle(200) },
+  "GET /admin/rechte-modell.js": { erwartet: alle(200) },
+  "GET /admin/rechte-rolle.js": { erwartet: alle(200) },
+  "GET /admin/rechte-anlass.js": { erwartet: alle(200) },
+  "GET /admin/protokoll.js": { erwartet: alle(200) },
+  "GET /admin/protokoll-liste.js": { erwartet: alle(200) },
+  "GET /admin/protokoll-text.js": { erwartet: alle(200) },
+  "GET /admin/protokoll.css": { erwartet: alle(200) },
   "GET /.well-known/apple-app-site-association": { erwartet: alle(200) },
   "GET /.well-known/assetlinks.json": { erwartet: alle(200) },
   "POST /api/auth/sign-in/username": {
@@ -332,7 +472,7 @@ const MATRIX: Record<string, Zeile> = {
     url: () => `/api/v1/programme/${programmId}/teilnahmen/${welt.kindAId}`,
     // Immer dieselbe Antwort: Der Matrix-Lauf überschreibt sie nur mit sich selbst
     body: () => ({ status: "ja" }),
-    // Zuständig sind Admins, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
+    // Zuständig sind die Abteilungsleitung, die Leitung der Stufe des Kindes (SL eingeschlossen) und die Eltern des Kindes; slB sieht das Programm, ist aber für Stufe A nicht zuständig
     erwartet: {
       ...alle(204),
       slB: 403,
@@ -345,7 +485,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Übersicht (#38): Admin sowie Leitung und SL der Stufe sehen die Liste, Eltern ihr Kind; slB sieht das Programm, hat aber kein Recht darauf. Die Inhalte je Rolle prüft test/teilnahmen-uebersicht.test.ts
+  // Übersicht (#38): Abteilungsleitung sowie Leitung und SL der Stufe sehen die Liste, Eltern ihr Kind; slB sieht das Programm, hat aber kein Recht darauf. Die Inhalte je Rolle prüft test/teilnahmen-uebersicht.test.ts
   "GET /api/v1/programme/:id/teilnahmen": {
     url: () => `/api/v1/programme/${programmId}/teilnahmen`,
     erwartet: {
@@ -360,7 +500,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Eigenes Programm mit Beginn in einem Jahr: Das von programmId hat am 6. März 2027 begonnen, ab dann wäre jedes 204 ein 409. Admin und SL anderer Stufen sehen es, haben aber kein Recht
+  // Eigenes Programm mit Beginn in einem Jahr: Das von programmId hat am 6. März 2027 begonnen, ab dann wäre jedes 204 ein 409. Abteilungsleitung und SL anderer Stufen sehen es, haben aber kein Recht
   "PUT /api/v1/programme/:id/leitung": {
     url: () => `/api/v1/programme/${leitungProgrammId}/leitung`,
     body: () => ({ status: "ja" }),
@@ -379,8 +519,8 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Verwaltung (#18): nur Admins, und ohne zweiten Faktor sperrt die Middleware (#23) jede Admin-Route mit 403. Status in test/admin-personen.test.ts begründet
-  // Betriebszahlen (#143): nur Admins, wie die übrigen Admin-Routen; Inhalt in test/admin-system.test.ts
+  // Verwaltung (#18): nur die Abteilungsleitung, und ohne zweiten Faktor sperrt die Middleware (#23) jede Verwaltungsroute mit 403. Status in test/admin-personen.test.ts begründet
+  // Betriebszahlen (#143): nur die Abteilungsleitung, wie die übrigen Verwaltungsrouten; Inhalt in test/admin-system.test.ts
   "GET /api/v1/admin/system": {
     erwartet: {
       ...alle(403),
@@ -401,12 +541,25 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Ausgaben der Hintergrund-Abrufe (#267): nur Admins; Inhalt in test/admin-system.test.ts. Die Matrix-App hat keine Abrufe, darum antwortet der Knopf 501
+  // Ausgaben der Hintergrund-Abrufe (#267): nur die Abteilungsleitung; Inhalt in test/admin-system.test.ts. Die Matrix-App hat keine Abrufe, darum antwortet der Knopf 501
   "GET /api/v1/admin/system/syncs": {
     erwartet: {
       ...alle(403),
       admin: 200,
       adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Übersicht der Verwaltung (#583): Tür ist die Abteilungsleitung oder der Zugang zur Verwaltung der Website (Stufenleitung); die Teile der Antwort hängen je an ihrem Recht (test/admin-uebersicht.test.ts)
+  "GET /api/v1/admin/uebersicht": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      slA: 200,
+      slB: 200,
       demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
@@ -515,7 +668,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "DELETE /api/v1/admin/personen/:id": {
-    // Jede Anfrage löscht ihr Ziel; eine feste URL nähme es allen nach dem ersten Admin weg
+    // Jede Anfrage löscht ihr Ziel; eine feste URL nähme es allen nach dem ersten Abteilungsleitung weg
     urlJeAnfrage: async () =>
       `/api/v1/admin/personen/${await wegwerfPersonId()}`,
     erwartet: {
@@ -528,7 +681,20 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur Admins. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
+  // Profilbild einer Person entfernen (#642): Abteilungsleitung mit zweitem Faktor; der Entwickler mit zweitem Faktor kommt in test/profilbild-entfernen.test.ts vor, die Matrix hat keine Person mit dieser Funktion. Ziel in fremder Abteilung 404 vor dem 403
+  "DELETE /api/v1/admin/personen/:id/bild": {
+    url: () => `/api/v1/admin/personen/${startpasswortZielId}/bild`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  // Stufen und Kinder (#19): GET /stufen liest jede Person mit Sitzung, die übrigen Routen nur die Abteilungsleitung. PATCH-Bodies mit den aktuellen Werten, damit der Lauf nichts verändert; Status in test/admin-stufen.test.ts und test/admin-kinder.test.ts begründet
   "GET /api/v1/stufen": {
     erwartet: {
       ...alle(200),
@@ -537,7 +703,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Medienspeicher (#335): Hochladen, Liste und Löschen nur Admins; ein Medium mit Sichtbarkeit «angemeldet» liest jede Person der Abteilung mit Sitzung, fremde Abteilungen sehen es nicht. Öffentliche Medien (ohne Sitzung, auch für gesperrte Konten) und Typ, Grösse, Alt-Text und Ausfall des Speichers prüft test/medien.test.ts. Der Upload ist binär und fehlt darum in der Postman-Collection
+  // Medienspeicher (#335): Hochladen, Liste und Löschen nur die Abteilungsleitung; ein Medium mit Sichtbarkeit «angemeldet» liest jede Person der Abteilung mit Sitzung, fremde Abteilungen sehen es nicht. Öffentliche Medien (ohne Sitzung, auch für gesperrte Konten) und Typ, Grösse, Alt-Text und Ausfall des Speichers prüft test/medien.test.ts. Der Upload ist binär und fehlt darum in der Postman-Collection
   "POST /api/v1/admin/medien": {
     url: () => "/api/v1/admin/medien?sichtbarkeit=angemeldet&altText=Matrix",
     bild: true,
@@ -586,7 +752,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Stufenlogo (#212): Hochladen und Löschen nur Admins; ansehen darf jede Person der Abteilung. Typ und Grösse prüft test/stufenlogo.test.ts
+  // Stufenlogo (#212): Hochladen und Löschen nur die Abteilungsleitung; ansehen darf jede Person der Abteilung. Typ und Grösse prüft test/stufenlogo.test.ts
   "PUT /api/v1/admin/stufen/:id/logo": {
     url: () => `/api/v1/admin/stufen/${patchStufeId}/logo`,
     bild: true,
@@ -623,7 +789,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Kontakte der Stufe (#39): Admin, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
+  // Kontakte der Stufe (#39): Abteilungsleitung, Leitende und SL der Stufe sowie Eltern mit aktivem Kind darin; alle anderen und fremde Abteilungen sehen die Stufe nicht
   "GET /api/v1/stufen/:id/kontakte": {
     url: () => `/api/v1/stufen/${welt.stufeAId}/kontakte`,
     erwartet: {
@@ -638,7 +804,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Anwesenheit (#192): Admin sowie Leitende und SL der Stufe lesen und erfassen; Eltern und fremde Stufen haben kein Recht. Die Inhalte, die Frist und die Ziele prüft test/anwesenheit.test.ts
+  // Anwesenheit (#192): Abteilungsleitung sowie Leitende und SL der Stufe lesen und erfassen; Eltern und fremde Stufen haben kein Recht. Die Inhalte, die Frist und die Ziele prüft test/anwesenheit.test.ts
   "GET /api/v1/stufen/:id/anwesenheit": {
     url: () => `/api/v1/stufen/${welt.stufeAId}/anwesenheit`,
     erwartet: {
@@ -712,7 +878,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Ziel ist eine SL der Stufe A ohne Chat und ohne Abmeldung: Es bleiben die Kontakte der Stufe (Admin, Leitende und SL der Stufe, Eltern mit aktivem Kind darin) und die Kontakte der Programme der Stufe A (slB: Eine SL sieht jedes Programm, und «offen» bleibt Kontakt)
+  // Ziel ist eine SL der Stufe A ohne Chat und ohne Abmeldung: Es bleiben die Kontakte der Stufe (Abteilungsleitung, Leitende und SL der Stufe, Eltern mit aktivem Kind darin) und die Kontakte der Programme der Stufe A (slB: Eine SL sieht jedes Programm, und «offen» bleibt Kontakt)
   "GET /api/v1/personen/:id/bild": {
     url: () => `/api/v1/personen/${bildZielId}/bild`,
     erwartet: {
@@ -751,7 +917,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Reihenfolge der SL einer Stufe (#287): nur Admins; Wirkung und Fehler in test/admin-stufen.test.ts
+  // Reihenfolge der SL einer Stufe (#287): nur die Abteilungsleitung; Wirkung und Fehler in test/admin-stufen.test.ts
   "PUT /api/v1/admin/stufen/:id/stufenleitung": {
     url: () => `/api/v1/admin/stufen/${patchStufeId}/stufenleitung`,
     body: () => ({ ids: [] }),
@@ -778,9 +944,21 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Mitteilung per Push (#240): nur Admins; Inhalt, Empfänger, Audit-Log und Limit in test/admin-mitteilungen.test.ts
+  // Mitteilung per Push (#240): nur die Abteilungsleitung; Inhalt, Empfänger, Audit-Log und Limit in test/admin-mitteilungen.test.ts
   "POST /api/v1/admin/mitteilungen": {
     body: () => ({ titel: "Matrix-Mitteilung", empfaenger: "alle" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Empfänger einer Mitteilung zählen (#625): nur die Abteilungsleitung, nur Zahlen; Auflösung und Grenzen in test/admin-mitteilungen.test.ts
+  "POST /api/v1/admin/mitteilungen/vorschau": {
+    body: () => ({ empfaenger: "alle" }),
     erwartet: {
       ...alle(403),
       admin: 200,
@@ -801,7 +979,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/kinder": {
-    // Die Stufe der eigenen Abteilung: Mit einer fremden gäbe der Demo-Admin 400
+    // Die Stufe der eigenen Abteilung: Mit einer fremden gäbe der Demo-Abteilungsleitung 400
     body: (konto) => ({
       vorname: "Matrix",
       nachname: "Kind",
@@ -886,6 +1064,116 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  "GET /api/v1/admin/kinder/konto-einstellung": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/kinder/konto-einstellung": {
+    body: () => ({
+      erlaubt: true,
+      chat: "aus",
+      mindestalter: null,
+      elternEinsichtVorgabe: true,
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto": {
+    // Jede Anfrage legt ein Konto an (Passwort-Hash): ein frisches Kind pro Persona
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/kinder/${await wegwerfKindId()}/konto`,
+    body: () => ({
+      benutzername: `matrix.${randomUUID().slice(0, 8)}`,
+      elternInformiertAm: new Date().toLocaleDateString("sv-SE", {
+        timeZone: "Europe/Zurich",
+      }),
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PATCH /api/v1/admin/kinder/:id/konto": {
+    url: () => `/api/v1/admin/kinder/${kontoAendernKindId}/konto`,
+    body: () => ({ elternEinsicht: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto/startpasswort": {
+    url: () =>
+      `/api/v1/admin/kinder/${kontoStartpasswortKindId}/konto/startpasswort`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto/sperren": {
+    url: () => `/api/v1/admin/kinder/${kontoSperrenKindId}/konto/sperren`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/kinder/:id/konto/entsperren": {
+    url: () => `/api/v1/admin/kinder/${kontoEntsperrenKindId}/konto/entsperren`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/kinder/:id/konto": {
+    // Jede Anfrage verbraucht das Konto
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/kinder/${await wegwerfKindMitKontoId()}/konto`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "GET /api/v1/admin/zeitregeln": {
     erwartet: {
       ...alle(403),
@@ -940,7 +1228,258 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Tags (#331): nur Admins; Wirkung, Fehler und Audit-Log in test/admin-tags.test.ts
+  // Lädeli (#566): Laden lesen, bestellen und eigene Bestellungen sehen kann jede angemeldete Person; Verwaltung nur die Abteilungsleitung mit zweitem Faktor. Summen, Grenzen, Stand und Löschfrist prüft test/laden.test.ts
+  "GET /api/v1/laden": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/laden/bestellungen/meine": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/laden/bestellungen": {
+    // Jede Person bestellt einen Artikel ihrer eigenen Abteilung (eine offene Bestellung je Person, Grenze 5)
+    body: (konto) => ({
+      positionen: [
+        {
+          artikelId:
+            konto.abteilungId === welt.demoAbteilungId
+              ? ladenArtikelDemoId
+              : ladenArtikelId,
+          menge: 1,
+        },
+      ],
+      uebergabe: "Abholung im Lädeli",
+    }),
+    erwartet: {
+      ...alle(201),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/laden/bestellungen/:id": {
+    // Die Bestellung gehört einer Wegwerf-Person: Für alle anderen ist sie unbekannt (404), auch für die Abteilungsleitung. Das eigene Stornieren prüft test/laden.test.ts
+    url: () => `/api/v1/laden/bestellungen/${ladenBestellungId}`,
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/laden/artikel": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/laden/artikel": {
+    body: () => ({
+      name: "Matrix Artikel",
+      preisRappen: 100,
+      groessenart: "einheit",
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/laden/artikel/reihenfolge": {
+    // Die Liste nennt einen Artikel der Testabteilung: In der Demo-Abteilung ist er unbekannt (404)
+    body: () => ({ ids: [ladenArtikelId] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+    },
+  },
+  "PATCH /api/v1/admin/laden/artikel/:id": {
+    url: () => `/api/v1/admin/laden/artikel/${ladenArtikelId}`,
+    body: () => ({ preisRappen: 150 }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/laden/artikel/:id": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/laden/artikel/${await wegwerfLadenArtikelId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/laden/bestellungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/laden/bestellungen/:id/status": {
+    url: () => `/api/v1/admin/laden/bestellungen/${ladenBestellungId}/status`,
+    // Derselbe Stand ein zweites Mal ist wieder 200
+    body: () => ({ status: "bereit" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/laden/einstellungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/laden/einstellungen": {
+    body: () => ({ uebergabearten: ["Abholung im Lädeli"] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Fotos aus Flickr (#690): lesen darf jede Person mit Sitzung (das Konto eines Kindes nicht, siehe test/fotos-routen.test.ts), die Verwaltung nur das Recht fotos.verwalten; Wirkung und Fehler in test/fotos-routen.test.ts
+  "GET /api/v1/fotos/alben": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/fotos/alben/:id": {
+    // Ohne Quelle (die Matrix hat keine Zugangsdaten zu Flickr) gibt es kein Album: 404 für jede Person mit Sitzung
+    url: () => "/api/v1/fotos/alben/1234567890",
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/fotos/alben/:id/titel": {
+    // Ohne Quelle (die Matrix hat keine Zugangsdaten zu Flickr) gibt es kein Album: 404 für jede Person mit Sitzung
+    url: () => "/api/v1/fotos/alben/1234567890/titel",
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/fotos/alben/:id/bilder/:bildId": {
+    // Ohne Quelle (die Matrix hat keine Zugangsdaten zu Flickr) gibt es kein Album: 404 für jede Person mit Sitzung
+    url: () => "/api/v1/fotos/alben/1234567890/bilder/1234567891",
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/fotos": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/fotos/verbindung": {
+    body: () => ({}),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/fotos/einstellung": {
+    body: () => ({ flickrKonto: null, flickrLinkZeigen: false, version: 0 }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/fotos/alben/reihenfolge": {
+    body: () => ({ ids: ["1234567890"] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/fotos/alben/:id": {
+    url: () => "/api/v1/admin/fotos/alben/987654321",
+    body: () => ({ titel: "Matrix", version: 0 }),
+    // Ohne Zugang zu Flickr gibt es kein Album: erst das Objekt (404), dann das Recht
+    erwartet: {
+      ...alle(404),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Tags (#331): nur die Abteilungsleitung; Wirkung, Fehler und Audit-Log in test/admin-tags.test.ts
   "GET /api/v1/admin/tags": {
     erwartet: {
       ...alle(403),
@@ -1028,13 +1567,145 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Bearbeitungsrechte (#334): nur Admins; Wirkung der Rechte in test/bearbeiten.test.ts
+  // Bearbeitungsrechte (#334): nur die Abteilungsleitung; Wirkung der Rechte in test/bearbeiten.test.ts
   "GET /api/v1/admin/bearbeiter": {
     erwartet: {
       ...alle(403),
       admin: 200,
       adminOhneZweitenFaktor: 403,
       demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Zuordnungen für «Rollen und Rechte» (#623): nur lesen, nur Abteilungsleitung; Wirkung in test/admin-rechte.test.ts
+  "GET /api/v1/admin/rechte/zuordnungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Aktivitätsprotokoll (#637): nur der Entwickler (mit zweitem Faktor); die Matrix hat keine Person mit dieser Funktion, darum 403 für alle Angemeldeten, auch für die Abteilungsleitung. Lesen, Filter, Export und der Zugriff auf Fremdes stehen in test/aktivitaet.test.ts
+  "GET /api/v1/admin/protokoll": {
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/protokoll/verlauf": {
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/protokoll/export.csv": {
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/protokoll/:id": {
+    url: () => `/api/v1/admin/protokoll/${randomUUID()}`,
+    // Erst das Objekt, dann die Funktion: Eine unbekannte Kennung ist f�r jede angemeldete Person 404
+    erwartet: {
+      ...alle(404),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Orte der Abteilung (#646): Abteilungsleitung und jede Stufenleitung pflegen sie (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, Orte einer fremden Abteilung 404. Die Wirkung steht in test/redaktion-orte.test.ts
+  "GET /api/v1/redaktion/orte": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/orte": {
+    body: () => ({ name: `Matrix ${randomUUID()}`, standort: "47.2, 8.7" }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      slA: 201,
+      slB: 201,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Adresssuche (#695): wie die Orte; der Dienst ist eine Attrappe (kein Abruf im Test). Die Wirkung steht in test/redaktion-orte.test.ts
+  "GET /api/v1/redaktion/orte/suche": {
+    url: () => "/api/v1/redaktion/orte/suche?q=Beispielweg",
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/redaktion/orte/vorschau": {
+    body: () => ({ standort: "47.2, 8.7" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/redaktion/orte/reihenfolge": {
+    body: () => ({ ids: [ortId] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/redaktion/orte/:id": {
+    url: () => `/api/v1/redaktion/orte/${ortId}`,
+    body: () => ({ aktiv: true }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      demoEltern: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "DELETE /api/v1/redaktion/orte/:id": {
+    urlJeAnfrage: async () => `/api/v1/redaktion/orte/${await wegwerfOrtId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      slA: 204,
+      slB: 204,
+      demoAdmin: 404,
+      demoEltern: 404,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -1154,7 +1825,198 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Seiten der Website (#348): Zugang für Admin, Stufenleitung und Webmaster, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
+  // Rechte-Matrix (#643): nur die Abteilungsleitung mit zweitem Faktor; fremde Abteilung 404 vor dem 403. Wirkung, Version, Vorschau und Eskalation stehen in test/rechte-matrix-api.test.ts
+  "GET /api/v1/admin/rechte/katalog": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/rechte/gruppen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/rechte/gruppen/:tagId/rollen": {
+    url: () => `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/rechte/gruppen/:tagId/rollen": {
+    url: () => `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen`,
+    // Ein Name je Anfrage: Namen sind je Gruppe eindeutig
+    body: () => ({
+      name: `Matrix ${randomUUID().slice(0, 8)}`,
+      rechte: [{ recht: "seiten.bearbeiten", geltung: "eigene" }],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PATCH /api/v1/admin/rechte/gruppen/:tagId/rollen/:rolleId": {
+    url: () =>
+      `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen/${matrixGruppenRolleId}`,
+    body: () => ({ version: 1, beschreibung: "Matrix" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/rechte/gruppen/:tagId/rollen/:rolleId": {
+    // Jede Anfrage loescht ihre Rolle
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen/${await wegwerfGruppenRolleId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "POST /api/v1/admin/rechte/gruppen/:tagId/rollen/vorschau": {
+    url: () => `/api/v1/admin/rechte/gruppen/${matrixTagId}/rollen/vorschau`,
+    body: () => ({
+      rolleId: matrixGruppenRolleId,
+      rechte: [{ recht: "seiten.bearbeiten", geltung: "eigene" }],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "PUT /api/v1/admin/rechte/gruppen/:tagId/personen/:userId/rolle": {
+    url: () =>
+      `/api/v1/admin/rechte/gruppen/${matrixTagId}/personen/${tagPersonId}/rolle`,
+    body: () => ({ rolleId: matrixGruppenRolleId }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/rechte/rollen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/rechte/rollen": {
+    // Ein Name je Anfrage: Namen sind je Abteilung eindeutig
+    body: () => ({
+      name: `Matrix ${randomUUID()}`,
+      rechte: ["mitteilung.senden"],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 201,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PATCH /api/v1/admin/rechte/rollen/:id": {
+    url: () => `/api/v1/admin/rechte/rollen/${matrixPlattformRolleId}`,
+    body: () => ({ version: 1, rechte: ["laden.ansehen"] }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/rechte/rollen/:id": {
+    // Jede Anfrage loescht ihre Rolle
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/rechte/rollen/${await wegwerfPlattformRolleId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/rechte/personen/:userId": {
+    url: () => `/api/v1/admin/rechte/personen/${tagPersonId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/rechte/aenderungen": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Die Rechte der Abteilungsleitung (#663): nur der Entwickler mit zweitem Faktor; die Matrix hat keine Person mit dieser Funktion, darum 403 fuer alle Angemeldeten, auch fuer die Abteilungsleitung (sie aendert ihre eigenen Rechte nie). Die Wirkung steht in test/rechte-abteilungsleitung.test.ts
+  "PATCH /api/v1/admin/rechte/abteilungsleitung": {
+    body: () => ({ version: 1, rechte: ["seiten.bearbeiten"] }),
+    erwartet: {
+      ...alle(403),
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Seiten der Website (#348): Zugang für Abteilungsleitung, Stufenleitung und Webmaster, Recht je Seite über bearbeiten.ts; die Wirkung steht in test/redaktion-seiten.test.ts. Die Seite der Matrix gehört zur Stufe A: Stufenleitung A bearbeitet sie, Stufenleitung B nicht
   "GET /api/v1/redaktion/seiten": {
     erwartet: {
       ...alle(403),
@@ -1285,7 +2147,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Stufenfelder der Stufenseite (#355), an der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, fremde Abteilung 404. Die Wirkung steht in test/redaktion-eckdaten.test.ts
+  // Samstagsangaben der Stufenseite (#355), an der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht (ohne zweiten Faktor für die Stufenleitung), alle anderen 403, fremde Abteilung 404. Die Wirkung steht in test/redaktion-eckdaten.test.ts
   "GET /api/v1/redaktion/stufen/:stufeId/eckdaten": {
     url: (w) => `/api/v1/redaktion/stufen/${w.stufeAId}/eckdaten`,
     erwartet: {
@@ -1341,7 +2203,7 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
-  // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Der Admin schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
+  // Entwurf, Versionen und Veröffentlichen (#350), alle an der Seite der Stufe A: Abteilungsleitung und Stufenleitung A haben das Recht, alle anderen 403, fremde Abteilung 404. Die Zeilen laufen in dieser Reihenfolge und teilen die Seite: Die Abteilungsleitung schreibt zuerst (Zähler 0, dann Version 1, dann Zurückziehen), die Stufenleitung A kommt danach, ihr Recht zeigt sich im Zustand (409) statt im 403. Die Wirkung steht in test/redaktion-seiten-inhalt.test.ts
   "GET /api/v1/redaktion/seiten/:id/entwurf": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/entwurf`,
     erwartet: {
@@ -1396,7 +2258,7 @@ const MATRIX: Record<string, Zeile> = {
   },
   "POST /api/v1/redaktion/seiten/:id/veroeffentlichen": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/veroeffentlichen`,
-    // Der Admin veröffentlicht Version 1; für die Stufenleitung A ist nichts mehr zu veröffentlichen (409)
+    // Die Abteilungsleitung veröffentlicht Version 1; für die Stufenleitung A ist nichts mehr zu veröffentlichen (409)
     erwartet: {
       ...alle(403),
       admin: 201,
@@ -1445,7 +2307,7 @@ const MATRIX: Record<string, Zeile> = {
   },
   "POST /api/v1/redaktion/seiten/:id/zurueckziehen": {
     url: () => `/api/v1/redaktion/seiten/${seiteId}/zurueckziehen`,
-    // Der Admin zieht die Version zurück; danach ist für die Stufenleitung A nichts mehr veröffentlicht (409)
+    // Die Abteilungsleitung zieht die Version zurück; danach ist für die Stufenleitung A nichts mehr veröffentlicht (409)
     erwartet: {
       ...alle(403),
       admin: 204,
@@ -1480,7 +2342,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Wartungsmodus (#424): Abteilungsleitung mit zweitem Faktor; die Webmaster-Rolle mit dem Recht steht in test/bereichsschalter.test.ts. PUT und DELETE stehen nebeneinander: Der Admin schaltet den Chat in Wartung und hebt es sofort wieder auf, damit keine spaetere Zeile in Wartung laeuft
+  // Wartungsmodus (#424): Abteilungsleitung mit zweitem Faktor; die Webmaster-Rolle mit dem Recht steht in test/bereichsschalter.test.ts. PUT und DELETE stehen nebeneinander: Die Abteilungsleitung schaltet den Chat in Wartung und hebt es sofort wieder auf, damit keine spaetere Zeile in Wartung laeuft
   "GET /api/v1/plattform/schalter": {
     erwartet: {
       ...alle(403),
@@ -1510,7 +2372,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Zugang zur Verwaltung (#353): Panel-Abfrage, Medien und Auswahllisten für Admin, Stufenleitung und Webmaster; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
+  // Zugang zur Verwaltung (#353): Panel-Abfrage, Medien und Auswahllisten für Abteilungsleitung, Stufenleitung und Webmaster; die Wirkung steht in test/redaktion-zugang.test.ts. Stufenleitung hat Zugang, darf aber weder löschen noch fremde Medien beschreiben. Das Medium der Matrix hat keinen Uploader
   "GET /api/v1/redaktion/ich": {
     // Jede Person mit Sitzung bekommt eine Antwort (ohne Zugang «redigieren: false»)
     erwartet: {
@@ -1607,6 +2469,15 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Konto-Menü im Kopf der Website (#669): jede Person mit Sitzung bekommt Anzeigename, Bild und «verwaltung»; ohne Sitzung 401; die Wirkung steht in test/website-konto.test.ts
+  "GET /api/v1/website/konto": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({
@@ -1620,7 +2491,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Admins und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
+  // Chats (#49): Die Mitgliedschaft leitet rechte.ts aus Rollen und Kindern ab, Details in test/chats.test.ts. Die Abteilungsleitung und Leitende ohne SL-Rolle sind keine Mitglieder: Für sie existiert der Chat nicht (404). mussPasswortAendern: #15 sperrt das Konto vor der Route
   "GET /api/v1/chats": {
     erwartet: {
       ...alle(200),
@@ -1629,7 +2500,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, Admins und andere Abteilungen
+  // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, die Abteilungsleitung und andere Abteilungen
   "POST /api/v1/chats/direkt": {
     body: (konto) => ({
       stufeId: welt.stufeAId,
@@ -1697,6 +2568,11 @@ let aktivierenZielId: string;
 let patchStufeId: string;
 let stufenZaehler = 0;
 let patchKindId: string;
+// Kinder mit eigenem Konto (#644); jedes Ziel nur fuer eine Route
+let kontoAendernKindId: string;
+let kontoStartpasswortKindId: string;
+let kontoSperrenKindId: string;
+let kontoEntsperrenKindId: string;
 let patchRegelId: string;
 let patchTagId: string;
 let tagPersonId: string;
@@ -1705,7 +2581,14 @@ let bildZielId: string;
 let mediumId: string;
 let seiteId: string;
 let weiterleitungId: string;
+let ortId: string;
+let ladenArtikelId: string;
+let ladenArtikelDemoId: string;
+let ladenBestellungId: string;
 let plattformRolleId: string;
+let matrixTagId: string;
+let matrixGruppenRolleId: string;
+let matrixPlattformRolleId: string;
 let testBild: Buffer;
 
 // Wegwerf-Person der Testabteilung, direkt eingefügt (ohne Passwort): Die :id-Zeilen brauchen nur die Zeile; wer einen zweiten Faktor braucht, bekommt das Flag und eine Zeile in two_factor
@@ -1749,6 +2632,15 @@ async function wegwerfMediumId() {
   return zeile.id;
 }
 
+// Wegwerf-Artikel des Lädelis (Einheitsgrösse), auf Wunsch in der Demo-Abteilung
+async function wegwerfLadenArtikelId(abteilungId = welt.testabteilungId) {
+  const [zeile] = await welt.db
+    .insert(schema.ladenArtikel)
+    .values({ abteilungId, name: "Wegwerf Artikel", preisRappen: 100 })
+    .returning({ id: schema.ladenArtikel.id });
+  return zeile.id;
+}
+
 async function wegwerfStufeId() {
   const [zeile] = await welt.db
     .insert(schema.stufe)
@@ -1773,6 +2665,17 @@ async function wegwerfKindId() {
     })
     .returning({ id: schema.kind.id });
   return zeile.id;
+}
+
+// Ein Kind mit einem Konto ohne Passwort: Die Routen am Konto brauchen nur die Verknuepfung
+async function wegwerfKindMitKontoId() {
+  const kindId = await wegwerfKindId();
+  const kontoId = await wegwerfPersonId();
+  await welt.db
+    .update(schema.kind)
+    .set({ userId: kontoId, kontoSeit: new Date() })
+    .where(eq(schema.kind.id, kindId));
+  return kindId;
 }
 
 async function wegwerfRegelId() {
@@ -1835,6 +2738,24 @@ async function wegwerfPlattformRolleId() {
   return zeile.id;
 }
 
+// Wegwerf-Gruppenrolle der Matrix-Gruppe (#643) mit einem Recht
+async function wegwerfGruppenRolleId() {
+  const [zeile] = await welt.db
+    .insert(schema.gruppenRolle)
+    .values({
+      abteilungId: welt.testabteilungId,
+      tagId: matrixTagId,
+      name: `Wegwerf ${randomUUID()}`,
+    })
+    .returning({ id: schema.gruppenRolle.id });
+  await welt.db.insert(schema.gruppenRolleRecht).values({
+    rolleId: zeile.id,
+    recht: "seiten.bearbeiten",
+    geltung: "eigene",
+  });
+  return zeile.id;
+}
+
 // Wegwerf-Seite der Testabteilung, oberste Ebene
 async function wegwerfSeiteId() {
   const [zeile] = await welt.db
@@ -1873,6 +2794,18 @@ async function wegwerfWeiterleitungId() {
       zielPfad: "/matrix-ziel",
     })
     .returning({ id: schema.weiterleitung.id });
+  return zeile.id;
+}
+
+// Wegwerf-Ort der Testabteilung (#646)
+async function wegwerfOrtId() {
+  const [zeile] = await welt.db
+    .insert(schema.ort)
+    .values({
+      abteilungId: welt.testabteilungId,
+      name: `Matrix ${randomUUID()}`,
+    })
+    .returning({ id: schema.ort.id });
   return zeile.id;
 }
 
@@ -1925,10 +2858,29 @@ beforeAll(async () => {
       wegwerfPersonId(),
     ]);
   patchKindId = await wegwerfKindId();
+  // Konten fuer Kinder sind in der Testabteilung erlaubt, sonst waere die Antwort fuer die Abteilungsleitung 409
+  await db
+    .insert(schema.kindKontoEinstellung)
+    .values({ abteilungId: welt.testabteilungId, erlaubt: true });
+  [
+    kontoAendernKindId,
+    kontoStartpasswortKindId,
+    kontoSperrenKindId,
+    kontoEntsperrenKindId,
+  ] = await Promise.all([
+    wegwerfKindMitKontoId(),
+    wegwerfKindMitKontoId(),
+    wegwerfKindMitKontoId(),
+    wegwerfKindMitKontoId(),
+  ]);
   patchRegelId = await wegwerfRegelId();
   patchTagId = await wegwerfTagId();
   tagPersonId = await wegwerfPersonId();
   plattformRolleId = await wegwerfPlattformRolleId();
+  matrixPlattformRolleId = await wegwerfPlattformRolleId();
+  // Eine Gruppe der Testabteilung mit einem Mitglied und einer Rolle fuer die Zeilen der Rechte-Matrix (#643)
+  matrixTagId = await wegwerfTagId(tagPersonId);
+  matrixGruppenRolleId = await wegwerfGruppenRolleId();
   testBild = await sharp({
     create: { width: 64, height: 64, channels: 3, background: "#3366cc" },
   })
@@ -1968,6 +2920,26 @@ beforeAll(async () => {
     })
     .returning({ id: schema.seite.id });
   weiterleitungId = await wegwerfWeiterleitungId();
+  ortId = await wegwerfOrtId();
+  ladenArtikelId = await wegwerfLadenArtikelId();
+  ladenArtikelDemoId = await wegwerfLadenArtikelId(welt.demoAbteilungId);
+  // Eine offene Bestellung einer Wegwerf-Person der Testabteilung
+  [{ id: ladenBestellungId }] = await db
+    .insert(schema.ladenBestellung)
+    .values({
+      abteilungId: welt.testabteilungId,
+      userId: tagPersonId,
+      uebergabe: "Abholung im Lädeli",
+      summeRappen: 100,
+    })
+    .returning({ id: schema.ladenBestellung.id });
+  await db.insert(schema.ladenBestellposition).values({
+    bestellungId: ladenBestellungId,
+    artikelId: ladenArtikelId,
+    name: "Wegwerf Artikel",
+    menge: 1,
+    einzelpreisRappen: 100,
+  });
 });
 
 // Rund 1 500 Anfragen schrieben sonst je eine Log-Zeile und begrüben jeden Fehler
@@ -2042,8 +3014,8 @@ describe("Vollständigkeit", () => {
 });
 
 describe("Sperre ohne zweiten Faktor (#23)", () => {
-  // Bewusst eine Schleife: Jede künftige Admin-Route erbt die Regel; ein leeres test.each ergäbe gar keinen Test
-  test("jede Admin-Route erwartet für «Admin ohne zweiten Faktor» 403", () => {
+  // Bewusst eine Schleife: Jede künftige Verwaltungsroute erbt die Regel; ein leeres test.each ergäbe gar keinen Test
+  test("jede Verwaltungsroute erwartet für «Abteilungsleitung ohne zweiten Faktor» 403", () => {
     let n = 0;
     for (const [schluessel, zeile] of Object.entries(MATRIX)) {
       if (!schluessel.split(" ")[1].startsWith("/api/v1/admin/")) continue;
@@ -2053,7 +3025,7 @@ describe("Sperre ohne zweiten Faktor (#23)", () => {
     expect(n).toBeGreaterThan(0);
   });
 
-  test("der Admin ohne Faktor bekommt ZWEITER_FAKTOR_FEHLT, alle anderen den Status der Route", async () => {
+  test("die Abteilungsleitung ohne Faktor bekommt ZWEITER_FAKTOR_FEHLT, alle anderen den Status der Route", async () => {
     const anfrageAn = (persona: Persona) =>
       app.request("/api/v1/admin/personen", {
         headers: standard[persona].headers,

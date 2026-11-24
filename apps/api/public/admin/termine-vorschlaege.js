@@ -1,4 +1,5 @@
 import { anfrage, fehlertext } from "./api.js";
+import { ersetzeAdresse, schiebeAdresse } from "./verlauf.js";
 import {
   chip,
   dialogFormular,
@@ -207,7 +208,7 @@ function zeichne(bereich, ctx, start) {
                 onclick: (e) => {
                   if (e.metaKey || e.ctrlKey || e.shiftKey || e.button) return;
                   e.preventDefault();
-                  waehle(v.id);
+                  waehle(v.id, { neuerEintrag: true });
                 },
               },
               el("span", { class: "name" }, v.titel),
@@ -352,7 +353,9 @@ function zeichne(bereich, ctx, start) {
   async function waehle(id, optionen = {}) {
     const mein = ++lauf;
     detail.setAttribute("aria-busy", "true");
-    window.history.replaceState(null, "", `#termine/vorschlaege/${id}`);
+    // Ein Klick legt einen Eintrag im Verlauf an, Korrekturen (erster Vorschlag, Stand nach einem Entscheid) ersetzen ihn (#578)
+    if (optionen.neuerEintrag) schiebeAdresse(`#termine/vorschlaege/${id}`);
+    else ersetzeAdresse(`#termine/vorschlaege/${id}`);
     try {
       const v = await ladeDetail(id);
       if (mein !== lauf || !bereich.isConnected) return;
@@ -385,16 +388,14 @@ function zeichne(bereich, ctx, start) {
     );
   }
 
-  async function wechsle(neu) {
+  async function wechsle(neu, { neuerEintrag = true } = {}) {
     const mein = ++lauf;
     const alt = status;
     status = neu;
     meldung.textContent = "";
-    window.history.replaceState(
-      null,
-      "",
-      `#termine/vorschlaege/${adresseVon(neu)}`,
-    );
+    const ziel = `#termine/vorschlaege/${adresseVon(neu)}`;
+    if (neuerEintrag) schiebeAdresse(ziel);
+    else ersetzeAdresse(ziel);
     listeBox.setAttribute("aria-busy", "true");
     zaehler.textContent = "Wird geladen …";
     try {
@@ -552,6 +553,26 @@ function zeichne(bereich, ctx, start) {
     });
   }
 
+  // Browser-Zurück und -Vor: Die Ansicht folgt der Adresse (Stand oder Vorschlag), ohne einen neuen Eintrag anzulegen (#578)
+  const beiVerlauf = () => {
+    if (!bereich.isConnected) {
+      return window.removeEventListener("popstate", beiVerlauf);
+    }
+    const [, , , rest] = location.hash.split("/");
+    if (location.hash.split("/")[1] !== "vorschlaege") return;
+    if (rest && UUID.test(rest)) {
+      if (aktuell?.id?.toLowerCase() !== rest.toLowerCase()) {
+        waehle(rest, { fokus: false });
+      }
+      return;
+    }
+    const eintrag = STATI.find(([a]) => a === (rest ?? "offen"));
+    if (eintrag && eintrag[1] !== status) {
+      filter.setze(eintrag[1]);
+      wechsle(eintrag[1], { neuerEintrag: false });
+    }
+  };
+  window.addEventListener("popstate", beiVerlauf);
   bereich.append(el("div", { class: "tm-filterzeile" }, filter.wurzel), grid);
   grid.append(
     el(

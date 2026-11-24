@@ -1,6 +1,6 @@
 // «Komponenten» (System): Skeleton-Galerie (G5) und Zustandstafel (G6) mit den echten Bausteinen der Verwaltung, in Tag und Nacht des Browsers. Zeigt nur feste Beispiele, ruft keine API auf und enthält keine echten Daten. Dient auch als Prüfstand für die Folge-Issues.
+import { anfrage } from "./api.js";
 import {
-  bestaetigen,
   chip,
   dialogFormular,
   el,
@@ -17,6 +17,12 @@ import {
   skeletonListe,
   skeletonTabelle,
 } from "./lader.js";
+import { bestaetigungAmOrt, splitKnopf } from "./aktionen.js";
+import { datumsfeld, datumZeitFeld, zahlfeld, zeitfeld } from "./datumsfeld.js";
+import { filterleiste } from "./filterleiste.js";
+import { formularRaster } from "./formularraster.js";
+import { mitRueckgaengig, zweistufig } from "./rueckgaengig.js";
+import { sortierListe } from "./sortieren.js";
 import { leerKarte, rahmenzustand, zustandsKarte } from "./zustaende.js";
 
 const abschnitt = (titel, ...inhalt) =>
@@ -55,7 +61,7 @@ function knopfZeile(name, art, text, gefaehrlich = false) {
     aus,
     laedt,
     gefaehrlich
-      ? "Zerstörendes fragt vorher im Dialog zurück"
+      ? "Zerstörendes lässt sich in der Frist zurücknehmen (Toast)"
       : "Fehler steht im Hinweis",
   );
 }
@@ -159,20 +165,28 @@ function tafel() {
         "Hinweis im Dialog, Eingaben bleiben",
       ),
       zeile(
-        "Rückfrage",
-        knopf("Rückfrage öffnen", {
+        "Aktion mit Rückgängig",
+        knopf("Toast zeigen", {
           onclick: () =>
-            bestaetigen({
-              titel: "Vorlage «Wochenendlager» löschen?",
-              beschreibung:
-                "Die Vorlage wird gelöscht. Das lässt sich nicht rückgängig machen. Der Fokus liegt auf «Abbrechen».",
-              ok: "Vorlage löschen",
-              aktion: async () => {},
+            mitRueckgaengig({
+              text: "Vorlage «Wochenendlager» gelöscht",
+              ausfuehren: async () => {},
             }),
         }),
         "gibt es nicht",
+        "Toast bleibt 8 Sekunden, der Balken läuft ab",
+        "Der Toast meldet den Fehler und die Ansicht kommt zurück",
+      ),
+      zeile(
+        "Zweistufiger Knopf",
+        zweistufig(
+          knopf("Senden", { symbol: "glocke" }),
+          "Wirklich senden?",
+          () => {},
+        ),
         "gibt es nicht",
-        "Hinweis im Dialog, Eingaben bleiben",
+        "gibt es nicht",
+        "Hinweis im Fluss",
       ),
       zeile(
         "Seitenblatt",
@@ -193,7 +207,111 @@ function tafel() {
   }).wurzel;
 }
 
-export function zeige(bereich, ctx) {
+// Querschnitt-Komponenten (#578): feste Beispiele, nichts wird gespeichert
+function werkzeuge(ctx) {
+  const sortiert = sortierListe({
+    beschriftung: "Beispiel: Reihenfolge der Stufen",
+    eintraege: [
+      { id: "a", text: "Biberstufe" },
+      { id: "b", text: "Wolfsstufe" },
+      { id: "c", text: "Pfadistufe" },
+      { id: "d", text: "Piostufe" },
+    ],
+    beiNeu: () => {},
+    mitRueckgaengig: ctx.mitRueckgaengig,
+  });
+  const zeilen = [
+    ["Anna", "Aktiv"],
+    ["Ben", "Aktiv"],
+    ["Cem", "Inaktiv"],
+  ];
+  let leiste;
+  const trefferListe = el("ul", { class: "spalte" });
+  const zeichne = ({ suche, filter }) => {
+    const sichtbar = zeilen.filter(
+      ([n, s]) =>
+        n.toLowerCase().includes(suche.trim().toLowerCase()) &&
+        (filter.status === "alle" || filter.status === s),
+    );
+    trefferListe.replaceChildren(
+      ...sichtbar.map(([n, s]) => el("li", {}, `${n} (${s})`)),
+    );
+    leiste.setzeTreffer(sichtbar.length, zeilen.length);
+  };
+  leiste = filterleiste({
+    suche: { label: "Name suchen" },
+    filter: [
+      {
+        schluessel: "status",
+        label: "Status",
+        optionen: [
+          ["alle", "Alle"],
+          ["Aktiv", "Aktiv"],
+          ["Inaktiv", "Inaktiv"],
+        ],
+      },
+    ],
+    namen: { einzahl: "Person", mehrzahl: "Personen" },
+    beiAenderung: zeichne,
+  });
+  zeichne(leiste.stand());
+  const geteilt = splitKnopf({
+    text: "Veröffentlichen",
+    art: "haupt",
+    onclick: () => ctx.melde("Veröffentlicht.", "ok"),
+    eintraege: [
+      {
+        text: "Entwurf speichern",
+        onclick: () => ctx.melde("Entwurf gespeichert.", "ok"),
+      },
+      { text: "Versionen ansehen", onclick: () => {} },
+      { text: "Zurückziehen", gefaehrlich: true, onclick: () => {} },
+    ],
+  });
+  const amOrt = bestaetigungAmOrt({
+    text: "Lager löschen",
+    frage: "Lager «Sommerlager» endgültig löschen?",
+    folge: "Alle Mitglieder, Aufgaben und Packlisten gehen mit.",
+    erwartet: "Sommerlager",
+    ausfuehren: () =>
+      ctx.melde("Nur ein Beispiel: Nichts wurde gelöscht.", "info"),
+  });
+  const raster = formularRaster({
+    felder: [
+      feld({ label: "Name", wert: "Sommerlager" }).wurzel,
+      el("p", { class: "hilfe" }, "Die Felder stehen links, das Bild rechts."),
+    ],
+    seite: el(
+      "p",
+      { class: "leise" },
+      "Hier steht das Bild oder die Vorschau.",
+    ),
+    seiteTitel: "Vorschau",
+  });
+  return [
+    abschnitt("Sortierliste", sortiert.wurzel),
+    abschnitt("Filterleiste", leiste.wurzel, trefferListe),
+    abschnitt(
+      "Datum, Zeit und Zahl",
+      el(
+        "div",
+        { class: "reihe" },
+        datumsfeld({ label: "Beginn", wert: "2026-12-05" }).wurzel,
+        zeitfeld({ label: "Uhrzeit", wert: "14:30" }).wurzel,
+        datumZeitFeld({ label: "Anmeldeschluss", wert: "2026-12-01T18:00" })
+          .wurzel,
+        zahlfeld({ label: "Plätze", wert: "12", min: 0, max: 200 }).wurzel,
+      ),
+    ),
+    abschnitt(
+      "Geteilter Knopf und Bestätigung am Ort",
+      el("div", { class: "reihe" }, geteilt.wurzel, amOrt.wurzel),
+    ),
+    abschnitt("Formularraster", raster),
+  ];
+}
+
+function zeigeGalerie(bereich, ctx) {
   const hinweise = el(
     "div",
     { class: "spalte" },
@@ -270,6 +388,7 @@ export function zeige(bereich, ctx) {
     ),
     abschnitt("Zustände der Bausteine", tafel()),
     abschnitt("Hinweise", hinweise, meldungen),
+    ...werkzeuge(ctx),
     abschnitt(
       "Zustände einer Fläche",
       karte.wurzel,
@@ -317,5 +436,31 @@ export function zeige(bereich, ctx) {
       el("h3", {}, "Liste"),
       skeletonListe({ zeilen: 3 }),
     ),
+  );
+}
+
+// Die Galerie ist ein Werkzeug für Entwickler (#593): Die Antwort der Website-Einstellungen sagt es mit «nameAenderbar» (nur Entwickler dürfen den Namen ändern); ohne diese Angabe, auch bei einem Fehler, bleibt die Galerie zu. Die Navigation blendet den Eintrag für alle anderen aus, sobald sie dieselbe Frage stellt.
+export function zeige(bereich, ctx) {
+  ctx.lade(
+    async () => {
+      try {
+        return (
+          (await anfrage("GET", "/api/v1/redaktion/website")).nameAenderbar ===
+          true
+        );
+      } catch {
+        return false;
+      }
+    },
+    (entwickler) =>
+      entwickler
+        ? zeigeGalerie(bereich, ctx)
+        : bereich.append(
+            zustandsKarte({
+              ueber: "Nur für Entwickler",
+              titel: "Diese Galerie ist ein Werkzeug für Entwickler.",
+              text: "Sie zeigt alle Bausteine der Verwaltung zum Prüfen. Für die tägliche Arbeit brauchst du sie nicht.",
+            }).wurzel,
+          ),
   );
 }

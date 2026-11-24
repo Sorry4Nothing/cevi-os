@@ -1,0 +1,1121 @@
+/* Rollen und Rechte (#623, #651). Klassen mit Vorsatz rr-. Farben nur über Variablen aus tokens.css und admin.css, keine style-Attribute; Bewegung nur unter prefers-reduced-motion: no-preference. */
+
+.rr-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.rr-skelett {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.rr-erklaerung {
+  max-width: 52rem;
+  margin: 0;
+}
+
+.rr-flaeche {
+  min-width: 0;
+}
+
+.rr-flaeche h3 {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.rr-flaeche h4 {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.rr-kopfzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.rr-kopfzeile h3,
+.rr-kopfzeile p {
+  margin: 0;
+}
+
+.rr-zurueck {
+  align-self: flex-start;
+}
+
+/* ===== Marken: Zustand immer mit Wort ===== */
+.rr-marke {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 22px;
+  padding: 0 8px;
+  color: var(--leise);
+  background: var(--leiste);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.rr-marke .i {
+  width: 13px;
+  height: 13px;
+}
+
+.rr-marke--faktor {
+  color: var(--auf-blau-f);
+  background: var(--blau-f);
+}
+
+.rr-marke--gross {
+  color: var(--wa);
+  background: var(--wa-f);
+}
+
+.rr-marke--system {
+  color: var(--st);
+  background: var(--st-f);
+}
+
+.rr-marken {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.rr-marken:empty {
+  display: none;
+}
+
+/* ===== Gruppenliste ===== */
+.rr-gruppenliste,
+.rr-rollenliste {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 48rem) {
+  .rr-gruppenliste,
+  .rr-rollenliste {
+    grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
+  }
+}
+
+.rr-gruppenzeile {
+  min-width: 0;
+}
+
+.rr-gruppenlink {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 64px;
+  padding: 12px 16px;
+  color: var(--text);
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+  text-decoration: none;
+}
+
+.rr-gruppenlink:hover {
+  border-color: var(--rand);
+}
+
+.rr-gruppenlink .i {
+  width: 18px;
+  height: 18px;
+  color: var(--leise);
+}
+
+.rr-gruppenname {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-weight: 700;
+}
+
+.rr-gruppenzahlen {
+  grid-column: 1 / -1;
+}
+
+.rr-gruppenkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.rr-gruppentitel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.rr-rollenname {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin: 0;
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+}
+
+.rr-gruppenkopf p {
+  margin: 4px 0 0;
+}
+
+.rr-rollenkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px 16px;
+}
+
+.rr-rollenkopf p {
+  margin: 4px 0 0;
+}
+
+/* ===== Rollen in einer Gruppe ===== */
+.rr-rollenzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-width: 0;
+}
+
+.rr-rollenzeile--karte {
+  min-height: 64px;
+  padding: 12px 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.rr-rollenlink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--text);
+  font-weight: 700;
+  text-underline-offset: 3px;
+}
+
+.rr-beschr {
+  flex: 1 1 100%;
+}
+
+/* ===== Raster: Werkzeug, Matrix, Karten ===== */
+.rr-raster {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.rr-werkzeug {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+}
+
+.rr-werkzeug .suche {
+  flex: 1 1 14rem;
+  max-width: 24rem;
+}
+
+.rr-raster[data-ansicht="matrix"] .rr-karten,
+.rr-raster[data-ansicht="karten"] .rr-matrix-huelle {
+  display: none;
+}
+
+.rr-matrix-huelle {
+  max-height: calc(100vh - 9rem);
+  overflow: auto;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.rr-matrix {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.rr-matrix th,
+.rr-matrix td {
+  padding: 12px 16px;
+  border-top: 1px solid var(--rand-leise);
+  vertical-align: middle;
+  text-align: left;
+}
+
+.rr-matrix thead th {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  border-top: 0;
+  border-bottom: 1px solid var(--rand);
+  background: var(--karte);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  vertical-align: bottom;
+}
+
+.rr-recht-kopf,
+.rr-recht-titel {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 17rem;
+  max-width: 26rem;
+  background: var(--karte);
+}
+
+.rr-matrix thead .rr-recht-kopf {
+  z-index: 4;
+}
+
+.rr-recht-titel {
+  font-weight: 400;
+}
+
+.rr-rolle-kopf {
+  min-width: 11.5rem;
+  text-align: center !important;
+}
+
+.rr-rolle-kopf > * {
+  display: block;
+  margin-inline: auto;
+}
+
+.rr-rolle-kopf .rr-marke {
+  width: fit-content;
+  margin-block: 2px;
+}
+
+.rr-rolle-name {
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.rr-bereich th {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  padding: 8px 16px;
+  color: var(--text);
+  background: var(--leiste) !important;
+  border-top: 1px solid var(--rand-leise);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rr-recht {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.rr-titel {
+  font-weight: 700;
+}
+
+.rr-text {
+  max-width: 40rem;
+}
+
+.rr-zelle {
+  text-align: center !important;
+}
+
+.rr-zeile[hidden],
+.rr-bereich[hidden],
+.rr-karten-zeile[hidden],
+.rr-karten-bereich[hidden] {
+  display: none;
+}
+
+/* Die Auswahl in einer Zelle: Radiogruppe «Aus / Eigene / Alle», jedes Segment mindestens 44 px */
+.rr-zelle-inhalt {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.rr-wahl {
+  display: inline-flex;
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.rr-segment {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--leise);
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--rand-leise);
+  font: inherit;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.rr-segment:first-child {
+  border-left: 0;
+}
+
+.rr-segment:hover {
+  color: var(--text);
+  background: var(--leiste);
+}
+
+.rr-segment:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: -3px;
+}
+
+.rr-segment[aria-checked="true"] {
+  font-weight: 700;
+}
+
+.rr-segment[aria-checked="true"]::before {
+  content: "";
+  flex: none;
+  width: 14px;
+  height: 14px;
+  background: currentcolor;
+  -webkit-mask: var(--ic-ok) center / contain no-repeat;
+  mask: var(--ic-ok) center / contain no-repeat;
+}
+
+.rr-segment[data-wert="aus"][aria-checked="true"] {
+  color: var(--text);
+  background: var(--leiste);
+}
+
+.rr-segment[data-wert="aus"][aria-checked="true"]::before {
+  -webkit-mask-image: var(--ic-sperre);
+  mask-image: var(--ic-sperre);
+}
+
+.rr-segment[data-wert="eigene"][aria-checked="true"] {
+  color: var(--auf-blau-f);
+  background: var(--blau-f);
+}
+
+.rr-segment[data-wert="alle"][aria-checked="true"] {
+  color: var(--auf-blau);
+  background: var(--blau);
+}
+
+/* Geändert: Rand in Akzent und der alte Stand als Text («war aus») */
+.ist-geaendert .rr-wahl {
+  border-color: var(--akzent);
+  box-shadow: 0 0 0 2px var(--akzent);
+}
+
+.rr-war {
+  min-height: 1rem;
+  color: var(--leise);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.rr-war:empty {
+  display: none;
+}
+
+.rr-fest {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--leise);
+  background: var(--leiste);
+  border-radius: 12px;
+  font-size: 0.875rem;
+}
+
+.rr-fest .i {
+  width: 16px;
+  height: 16px;
+}
+
+/* Karten: eine je Rolle, Rechte nach Bereich */
+.rr-karten {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  align-items: start;
+}
+
+.rr-rollenkarte {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.rr-raster--einzel .rr-rollenkarte {
+  padding: 0;
+  background: transparent;
+  border: 0;
+}
+
+.rr-rollenkarte-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.rr-rollenkarte-kopf h4 {
+  margin: 0;
+}
+
+.rr-karten-bereich h5 {
+  margin: 0 0 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--rand-leise);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rr-karten-liste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-karten-zeile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.rr-karten-zeile:first-child {
+  border-top: 0;
+}
+
+.rr-karten-zeile .rr-zelle-inhalt {
+  align-items: flex-start;
+}
+
+@media (min-width: 48rem) {
+  .rr-raster--einzel .rr-karten-zeile {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 8px 24px;
+  }
+
+  .rr-raster--einzel .rr-karten-zeile .rr-zelle-inhalt {
+    align-items: flex-end;
+  }
+}
+
+/* ===== Feste Punkte ===== */
+.rr-fest-block summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.rr-fest-block summary .i {
+  width: 18px;
+  height: 18px;
+}
+
+.rr-feste-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-feste-liste li {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: 52rem;
+}
+
+/* ===== Personen einer Rolle ===== */
+.rr-personenliste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-personzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 8px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.rr-personzeile:first-child,
+.rr-keiner {
+  border-top: 0;
+}
+
+.rr-personzeile[hidden] {
+  display: none;
+}
+
+.rr-personzeile .wer > div {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ===== Vorschläge und Vorlagen ===== */
+.rr-vorschlagliste,
+.rr-vorlagekisten {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-vorschlagzeile {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: 8px 12px;
+  padding: 12px;
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.rr-vorschlagtext {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.rr-vorschlaege {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rr-vorlageliste {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ===== Was darf wer? ===== */
+.rr-unterreiter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rr-unterreiter-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--text);
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: 9999px;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.rr-unterreiter-link:hover {
+  background: var(--leiste);
+}
+
+.rr-unterreiter-link[aria-current="page"] {
+  color: var(--auf-akzent);
+  background: var(--akzent);
+  border-color: var(--akzent);
+}
+
+.rr-uebersicht {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.rr-zweispalt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+@media (min-width: 60rem) {
+  .rr-zweispalt {
+    display: grid;
+    grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+    align-items: start;
+  }
+
+  /* Die Karte steht oben, bleibt beim Scrollen der Seite unter der Bereichsleiste stehen und ist nie höher als der Bildschirm; die Liste scrollt in ihr, die Suche bleibt oben */
+  .rr-wahl-block {
+    position: sticky;
+    top: calc(var(--leiste-hoehe) + 1rem);
+    max-height: min(46rem, calc(100dvh - var(--leiste-hoehe) - 2rem));
+    overflow: hidden;
+  }
+
+  .rr-wahl-block .rr-wahlliste {
+    flex: 1 1 auto;
+    max-height: none;
+    min-height: 8rem;
+  }
+}
+
+/* Das Suchfeld in der senkrechten Karte wächst nicht in die Höhe (sonst wird aus flex-basis 280px eine Höhe von 280 px) */
+.rr-wahl-block .suche {
+  flex: none;
+  max-width: none;
+}
+
+.rr-wahlkopf {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rr-wahlzahl {
+  margin: 0;
+}
+
+.rr-leer-hinweis {
+  margin: 0;
+}
+
+.rr-wahlliste {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-height: 0;
+  max-height: 20rem;
+  margin: 0 -8px;
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  list-style: none;
+}
+
+.rr-wahlzeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 8px;
+  color: var(--text);
+  border-radius: 8px;
+  text-decoration: none;
+}
+
+.rr-wahlzeile:hover {
+  background: var(--leiste);
+}
+
+.rr-wahlzeile[aria-current="true"] {
+  font-weight: 700;
+  background: var(--blau-f);
+  color: var(--auf-blau-f);
+}
+
+.rr-wahlname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rr-wahlname-text {
+  overflow-wrap: anywhere;
+}
+
+.rr-wahlzeile[aria-current="true"] .rr-wahlname .leise {
+  color: inherit;
+}
+
+/* Das Merkmal, an dem sich gleiche Namen unterscheiden */
+.rr-zusatz {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Kopf der Person: Bild, Name mit Rolle und Benutzername, rechts die Zahl der Rechte */
+.rr-personkopf {
+  flex-wrap: nowrap;
+  justify-content: flex-start;
+}
+
+.rr-personkopf > .klein:last-child {
+  margin-left: auto;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.rr-personname {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rr-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+  scroll-margin-top: calc(var(--leiste-hoehe) + 1rem);
+}
+
+.rr-rechtwahl {
+  max-width: 32rem;
+}
+
+.rr-darf-bereich {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rr-darf-bereich h4 {
+  margin: 0;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--rand-leise);
+  font-size: 0.8125rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.rr-darfliste,
+.rr-quellenliste,
+.rr-gruppenchips,
+.rr-namenliste {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-darfliste {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rr-darfkopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.rr-quellen {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 4px 0 0;
+  padding: 0 0 0 16px;
+  border-left: 2px solid var(--rand-leise);
+  list-style: none;
+}
+
+.rr-quelle {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 8px;
+  font-size: 0.9375rem;
+}
+
+.rr-quelle-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+
+.rr-gruppenchips {
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rr-gruppenchips .chip {
+  min-height: 32px;
+  text-decoration: none;
+}
+
+.rr-quellenliste {
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rr-quellblock {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.rr-namenliste {
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 0.9375rem;
+}
+
+.rr-namenliste li {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rr-verlauf {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rr-verlaufzeile {
+  position: relative;
+  display: flex;
+  gap: 16px;
+  padding: 0 0 16px;
+}
+
+.rr-verlaufzeile::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: var(--rand-leise);
+}
+
+.rr-verlaufzeile:last-child::before {
+  display: none;
+}
+
+.rr-verlaufpunkt {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 6px;
+  background: var(--akzent);
+  border-radius: 50%;
+}
+
+.rr-verlaufzeile > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  max-width: 64rem;
+}
+
+.rr-verlaufzeile:last-child {
+  padding-bottom: 0;
+}
+
+/* ===== Rückfrage am Ort, Verlassen ===== */
+.rr-fragen:empty {
+  display: none;
+}
+
+.rr-frage {
+  flex-wrap: wrap;
+}
+
+.rr-frage-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-left: auto;
+}
+
+/* ===== Leiste mit ungespeicherten Änderungen: haftet unten ===== */
+.rr-speicherleiste {
+  position: sticky;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-top: 24px;
+  padding: 12px 16px;
+  color: var(--auf-umkehr);
+  background: var(--umkehr);
+  border-radius: 16px;
+}
+
+.rr-speicherleiste[hidden] {
+  display: none;
+}
+
+.rr-speicherzahl {
+  flex: 1 1 14rem;
+  margin: 0;
+  font-weight: 700;
+}
+
+.rr-vorschau {
+  flex: 1 1 100%;
+  order: 3;
+  font-size: 0.875rem;
+}
+
+.rr-vorschau summary {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.rr-vorschau p {
+  margin: 0 0 4px;
+  color: inherit;
+}
+
+.rr-vorschau-liste {
+  margin: 0 0 8px;
+  padding-left: 1.25rem;
+}
+
+.rr-speicherknoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rr-speicherleiste .knopf:not(.knopf--haupt):not(.knopf--scharf) {
+  color: var(--auf-umkehr);
+  background: transparent;
+  border-color: currentcolor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rr-speicherleiste:not([hidden]) {
+    animation: rr-hoch 0.24s var(--kurve) both;
+  }
+
+  .rr-segment,
+  .rr-wahl {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve),
+      box-shadow var(--dauer) var(--kurve);
+  }
+
+  .rr-verlaufzeile {
+    animation: rr-hoch 0.24s var(--kurve) both;
+  }
+
+  @keyframes rr-hoch {
+    from {
+      opacity: 0;
+      transform: translateY(8px);
+    }
+
+    to {
+      opacity: 1;
+      transform: none;
+    }
+  }
+}
+
+@media (max-width: 47.99rem) {
+  .rr-speicherleiste {
+    bottom: 8px;
+  }
+
+  .rr-vorschlagzeile {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .rr-vorschlagzeile > .knopf {
+    grid-column: 2;
+    justify-self: start;
+  }
+}
+
+/* Zwei Links in einer Zeile der Anlass-Angaben (Gruppe und ihre Rechte) */
+.tm-doppellink {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+}
+
+/* Knöpfe mit langem Text brechen um, statt die Seite breiter zu machen */
+.rr-flaeche .reihe {
+  min-width: 0;
+}
+
+.rr-flaeche .reihe .knopf {
+  max-width: 100%;
+  text-align: left;
+  white-space: normal;
+}
+
+.rr-verlaufpunkt {
+  position: relative;
+  z-index: 1;
+}

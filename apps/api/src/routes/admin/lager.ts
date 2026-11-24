@@ -3,16 +3,21 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
+import { keinKindKonto } from "../../kind-konto.js";
 import {
   auditLog,
   lager,
   lagerMitglied,
   medium,
+  profilbild,
   user,
 } from "../../db/schema.js";
+import { bildUrl } from "../../bild.js";
 import { eingabe } from "../../eingabe.js";
 import { lagerAnsicht } from "../../lager/ansicht.js";
 import { ereignisverteiler } from "../../lager/ereignisse.js";
+import { openMeteo, type Wetterdienst } from "../../lager/wetter-openmeteo.js";
+import { mussSuchen, sucheWetterOrt } from "../../lager/wetter-ort.js";
 import { loeschbar, loescheLager } from "../../lager/loeschen.js";
 import { istGeschlossen } from "../../lager/policy.js";
 import { schreibeStandardrechte } from "../../lager/rechte.js";
@@ -23,8 +28,9 @@ import {
 } from "../../lager/vorlagen.js";
 import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
-// Admin-Routen des Lagers (#364). Nur die Abteilungsleitung legt Lager an, ändert sie und setzt die Mitglieder; die Lager-Rollen verleihen hier nichts. Reihenfolge wie bei den Tags: Pfad (400), Lager der eigenen Abteilung (404), Admin (403), dann der Zustand (409)
+// Verwaltungsrouten des Lagers (#364). Nur die Abteilungsleitung legt Lager an, ändert sie und setzt die Mitglieder; die Lager-Rollen verleihen hier nichts. Reihenfolge wie bei den Tags: Pfad (400), Lager der eigenen Abteilung (404), Abteilungsleitung (403), dann der Zustand (409)
 const datum = z.iso.date();
 const titel = z.string().trim().min(1).max(200);
 const ort = z.string().trim().min(1).max(200);
@@ -98,15 +104,34 @@ const zeitraumGueltig = (zeit: {
   zeit.bis >= zeit.von &&
   (!zeit.vorbereitungAb || zeit.vorbereitungAb <= zeit.von);
 
-export function erstelleAdminLagerRouten({ db }: { db: Db }) {
+export function erstelleAdminLagerRouten({
+  db,
+  wetter = openMeteo,
+}: {
+  db: Db;
+  wetter?: Wetterdienst;
+}) {
   type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
-  // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Admin-Recht. Mit sperren (nur in einer Transaktion) halten Schreibzugriffe auf ein Lager die Reihenfolge ein, auch die Zählung der Lagerleitung
+  // Nach dem Speichern von Ort oder Adresse bestimmt der Server den Wetterort (#694), damit die Verwaltung den Stand gleich zeigt. Ausserhalb der Transaktion: Ein langsamer Dienst hält keine Sperre. Misslingt es, holt das Wetter es beim Lesen nach
+  async function bestimmeWetterOrt(id: string) {
+    try {
+      const [z] = await db.select().from(lager).where(eq(lager.id, id));
+      if (z && mussSuchen(z, new Date())) {
+        await sucheWetterOrt(db, z, wetter.suchen);
+      }
+    } catch {
+      // Fehlertext bleibt aus dem Protokoll: Er könnte den Ort enthalten
+    }
+  }
+
+  // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht der Abteilungsleitung. Mit sperren (nur in einer Transaktion) halten Schreibzugriffe auf ein Lager die Reihenfolge ein, auch die Zählung der Lagerleitung
   async function ladeLager(
     d: Db | Tx,
     person: Person,
     id: string,
     sperren = false,
+    recht: "lager.verwalten" | "rechte.verwalten" = "lager.verwalten",
   ) {
     const abfrage = d
       .select()
@@ -114,7 +139,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
       .where(and(eq(lager.id, id), eq(lager.abteilungId, person.abteilungId)));
     const [ziel] = await (sperren ? abfrage.for("update") : abfrage);
     if (!ziel) throw new HTTPException(404);
-    if (!person.admin) throw new HTTPException(403);
+    await verlange(d, person, recht);
     return ziel;
   }
 
@@ -162,7 +187,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "lager.verwalten");
       const zeilen = await db
         .select()
         .from(lager)
@@ -172,7 +197,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "lager.verwalten");
       const { vorlageId, ...felder } = c.req.valid("json");
       if (!zeitraumGueltig(felder)) throw new HTTPException(400);
       if (felder.logoMediumId) {
@@ -214,6 +239,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
         });
         return zeile;
       });
+      if (felder.ort || felder.adresse) await bestimmeWetterOrt(neu.id);
       return c.json({ id: neu.id }, 201);
     })
     .get("/:id", eingabe("param", pfad()), async (c) => {
@@ -280,6 +306,9 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
           }
           throw fehler;
         }
+        if ("ort" in stammdaten || "adresse" in stammdaten) {
+          await bestimmeWetterOrt(id);
+        }
         return c.body(null, 204);
       },
     )
@@ -323,16 +352,24 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
     )
     .get("/:id/mitglieder", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
-      const ziel = await ladeLager(db, person, c.req.valid("param").id);
+      const ziel = await ladeLager(
+        db,
+        person,
+        c.req.valid("param").id,
+        false,
+        "rechte.verwalten",
+      );
       const mitglieder = await db
         .select({
           personId: lagerMitglied.personId,
           name: user.name,
           ceviName: user.ceviName,
+          bildUrl,
           rolle: lagerMitglied.rolle,
         })
         .from(lagerMitglied)
         .innerJoin(user, eq(user.id, lagerMitglied.personId))
+        .leftJoin(profilbild, eq(profilbild.userId, user.id))
         .where(eq(lagerMitglied.lagerId, ziel.id))
         .orderBy(asc(user.name), asc(user.id));
       return c.json({ mitglieder });
@@ -347,14 +384,24 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
         const { rolle } = c.req.valid("json");
         try {
           await db.transaction(async (tx) => {
-            const ziel = await ladeLager(tx, person, id, true);
+            const ziel = await ladeLager(
+              tx,
+              person,
+              id,
+              true,
+              "rechte.verwalten",
+            );
             if (istGeschlossen(ziel.status)) throw geschlossen();
             // Nur ein aktives Konto der Abteilung; unbekannt, deaktiviert und fremd sind für diese Route dasselbe (404)
             const [konto] = await tx
               .select({ id: user.id })
               .from(user)
               .where(
-                and(eq(user.id, personId), aktivesKonto(person.abteilungId)),
+                and(
+                  eq(user.id, personId),
+                  aktivesKonto(person.abteilungId),
+                  keinKindKonto(user.id),
+                ),
               );
             if (!konto) throw new HTTPException(404);
             const vorher = await mitgliedZeile(tx, id, personId);
@@ -402,7 +449,13 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
         const { id, personId } = c.req.valid("param");
         try {
           await db.transaction(async (tx) => {
-            const ziel = await ladeLager(tx, person, id, true);
+            const ziel = await ladeLager(
+              tx,
+              person,
+              id,
+              true,
+              "rechte.verwalten",
+            );
             if (istGeschlossen(ziel.status)) throw geschlossen();
             const vorher = await mitgliedZeile(tx, id, personId);
             if (!vorher) throw new HTTPException(404);

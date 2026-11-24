@@ -16,13 +16,16 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
+import { stufeObjekt } from "../../rechtemodell/personenrechte.js";
+import { legeSystemrollenAn } from "../../rechtemodell/gruppenrollen.js";
 import { legeSeiteFuerTagAn } from "../../website/automatik.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
 const name = z.string().trim().min(1).max(100);
 const kuerzel = z.string().trim().min(1).max(20);
 
-// Ein Schema pro Route, mit keiner Nicht-Admin-Route geteilt
+// Ein Schema pro Route, mit keiner Route ausserhalb der Verwaltung geteilt
 const anlegenSchema = z.strictObject({ name, kuerzel: kuerzel.optional() });
 const aendernSchema = z.strictObject({
   name: name.optional(),
@@ -62,7 +65,9 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .post("/", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "gruppen.verwalten", {
+        abteilungId: person.abteilungId,
+      });
       // Der Gruppenchat entsteht in derselben Transaktion: Keine Stufe ohne Chat, kein Chat ohne Stufe
       try {
         const neu = await db.transaction(async (tx) => {
@@ -79,6 +84,8 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             abteilungId: person.abteilungId,
             stufeId: zeile.id,
           });
+          // Jede Gruppe hat ihre Systemrollen (#643)
+          await legeSystemrollenAn(tx, person.abteilungId, zeile.id, "stufe");
           // Zu jeder neuen Stufe entsteht eine Seite als Entwurf (#352), wie beim Tag vom Typ «stufe»
           const seiten = await legeSeiteFuerTagAn(tx, {
             abteilungId: person.abteilungId,
@@ -118,7 +125,12 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             and(eq(stufe.id, id), eq(stufe.abteilungId, person.abteilungId)),
           );
         if (!ziel) throw new HTTPException(404);
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(
+          db,
+          person,
+          "gruppen.verwalten",
+          stufeObjekt(person, id),
+        );
         // Ohne Schlüssel wirft Drizzle bei set({}): kein Schreibzugriff
         if (Object.keys(felder).length > 0) {
           try {
@@ -146,7 +158,12 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
             and(eq(stufe.id, id), eq(stufe.abteilungId, person.abteilungId)),
           );
         if (!ziel) throw new HTTPException(404);
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(
+          db,
+          person,
+          "gruppen.mitglieder",
+          stufeObjekt(person, id),
+        );
         await db.transaction(async (tx) => {
           const sl = await tx
             .select({ userId: rolle.userId })
@@ -189,7 +206,7 @@ export function erstelleAdminStufenRouten({ db }: { db: Db }) {
           and(eq(stufe.id, id), eq(stufe.abteilungId, person.abteilungId)),
         );
       if (!ziel) throw new HTTPException(404);
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "gruppen.verwalten", stufeObjekt(person, id));
       try {
         await db.transaction(async (tx) => {
           const [mitKind] = await tx

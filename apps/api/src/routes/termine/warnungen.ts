@@ -5,10 +5,11 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { programm } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { TERMIN_BEGINN } from "../../termine/sicht.js";
 import type { TermineEnv } from "./index.js";
 
-// Warnliste «Termine ohne Kategorie» (#433, Epic #430): Welche kommenden Termine keinen Tag haben (keiner Gruppe zugewiesen), und welche Kategorien aus Outlook noch keinem Tag entsprechen. Nur die Abteilungsleitung (Admin mit zweitem Faktor, den der Pfad /api/v1/admin/* verlangt).
+// Warnliste «Termine ohne Kategorie» (#433, Epic #430): Welche kommenden Termine keinen Tag haben (keiner Gruppe zugewiesen), und welche Kategorien aus Outlook noch keinem Tag entsprechen. Das Recht «Warnliste der Termine sehen» (rechtemodell/katalog.ts, erweitert); standardmässig nur die Abteilungsleitung (#649).
 // Abfragen je Aufruf: zwei, unabhängig von der Seitengrösse (die Seite der Termine, die Zusammenfassung der unbekannten Kategorien). Keine Abfrage je Zeile.
 
 const listeSchema = z.strictObject({
@@ -37,7 +38,9 @@ export function erstelleWarnungenRouten({ db }: { db: Db }) {
     async (c) => {
       const person = c.get("person");
       // Keine Objekte im Pfad: nur das Recht
-      if (!person.admin) throw new HTTPException(403);
+      await verlange(db, person, "termine.warnliste", {
+        abteilungId: person.abteilungId,
+      });
       const { limit, nach } = c.req.valid("query");
       let cursor: z.infer<typeof cursorSchema> | undefined;
       if (nach !== undefined) {

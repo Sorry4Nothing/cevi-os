@@ -41,18 +41,18 @@ afterAll(() => sql.end());
 
 type Kopfzeilen = Record<string, string>;
 
-// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver Admins ihrer Abteilung
+// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver die Abteilungsleitung ihrer Abteilung
 async function eigeneWelt(persona: Persona = "admin") {
   const welt = await erstelleWelt(db, auth);
   return {
     welt,
     konto: await legePersonaAn(welt, persona),
-    // Mit zweitem Faktor: Ohne ihn sperrt die Admin-Sperre (#23) die Anfragen an /api/v1/admin/*
+    // Mit zweitem Faktor: Ohne ihn sperrt die Sperre der Abteilungsleitung (#23) die Anfragen an /api/v1/admin/*
     admin: await legePersonaAn(welt, "admin"),
   };
 }
 
-// Die Person löscht ihr Konto nicht selbst; das tut ein Admin (DELETE /api/v1/ich gibt es nicht mehr, #180)
+// Die Person löscht ihr Konto nicht selbst; das tut eine Person der Abteilungsleitung (DELETE /api/v1/ich gibt es nicht mehr, #180)
 const loesche = (aktor: PersonaKonto, zielId: string) =>
   app.request(`/api/v1/admin/personen/${zielId}`, {
     method: "DELETE",
@@ -115,7 +115,7 @@ async function treffer(werte: string[]) {
   return gefunden;
 }
 
-describe("Konto löschen durch einen Admin", () => {
+describe("Konto löschen durch eine Person der Abteilungsleitung", () => {
   test("nach dem Löschen zeigt keine Zeile mehr auf die Person, ausser dem Audit-Log", async () => {
     const { welt, konto: admin, admin: aktor } = await eigeneWelt();
     const id = admin.id!;
@@ -159,6 +159,7 @@ describe("Konto löschen durch einen Admin", () => {
 
     expect(await userZeile(id)).toBeUndefined();
     // Nur im Audit-Log, und da nur die ID: weder Benutzername noch E-Mail-Adresse stehen irgendwo
+    // Das Änderungsprotokoll (#637, #662) vergisst Kennung, Name und Funktionen der Person; Zeilen von Personen spiegelt das Audit-Log nicht mehr, darum bleibt hier nur das Audit-Log selbst
     const mitId = await treffer([id]);
     expect(new Set(mitId)).toEqual(
       new Set(["audit_log.akteur_id", "audit_log.ziel_id"]),
@@ -321,7 +322,7 @@ describe("Chat-Daten", () => {
         .from(schema.blockierung)
         .where(inArray(schema.blockierung.userId, [p.id!, q.id!])),
     ).toEqual([]);
-    expect(await treffer([p.id!])).toEqual(["audit_log.ziel_id"]);
+    expect((await treffer([p.id!])).sort()).toEqual(["audit_log.ziel_id"]);
     expect(await treffer([p.benutzername!])).toEqual([]);
   });
 
@@ -354,7 +355,7 @@ describe("Chat-Daten", () => {
     );
     expect(await statusVon([gruppe], s1.id!)).toEqual(new Set());
     expect(await statusVon([gruppe], s2.id!)).toEqual(new Set([gruppe]));
-    expect(await treffer([s1.id!])).toEqual(["audit_log.ziel_id"]);
+    expect((await treffer([s1.id!])).sort()).toEqual(["audit_log.ziel_id"]);
     expect(await treffer([s1.benutzername!])).toEqual([]);
   });
 });

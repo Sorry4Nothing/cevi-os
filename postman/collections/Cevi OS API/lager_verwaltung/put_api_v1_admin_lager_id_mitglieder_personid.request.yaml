@@ -1,8 +1,8 @@
 $kind: http-request
 name: "PUT /api/v1/admin/lager/:id/mitglieder/:personId"
-order: 287000
+order: 336000
 method: PUT
-url: "{{baseUrl}}{{pfad_L132}}"
+url: "{{baseUrl}}{{pfad_L133}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

@@ -1,102 +1,51 @@
-/* Verwaltung im Design «Cevi Web»: Tag und Nacht. Der Browser wählt über prefers-color-scheme; es gibt keinen eigenen Umschalter. Werte aus dem Design-System «Cevi App» (tokens.json); die Kontraste stehen im Handbuch (G4). Textpaare erreichen mindestens 4.5:1, Ränder von Bedienelementen 3:1. Keine externen Schriften (CSP): Archivo gilt, wenn sie auf dem Gerät liegt, sonst die Systemschrift. Keine style-Attribute: alles läuft über Klassen. */
+/* Verwaltung (#578: ein Designsystem mit der Website). Farben, Radien, Bewegung, Schrift und Scrollleisten kommen aus tokens.css, das index.html davor lädt; Tag und Nacht folgen dem Gerät oder der Wahl im Kopf (data-theme). Hier stehen die Bausteine der Verwaltung. Textpaare erreichen mindestens 4.5:1, Ränder von Bedienelementen 3:1. Keine style-Attribute: alles läuft über Klassen. */
 
 :root {
-  color-scheme: light dark;
+  /* Die Werte kommen aus tokens.css (eine Datei für Website und Verwaltung, #578). Hier stehen nur die Namen, die die Stilvorlagen der Bereiche seit dem Gerüst verwenden, als Verweise auf die Tokens des Designs: Farben ändern sich nie hier, sondern dort. */
+  --leiste: var(--surface-container); /* Leisten, Filter */
+  --erhoben: var(--surface-container-high); /* Dialoge */
+  --text: var(--on-surface);
+  --leise: var(--on-surface-variant);
+  --rand: var(--outline); /* Felder und Knöpfe */
+  --rand-leise: var(--outline-variant); /* nur Karten und Trennlinien */
 
-  /* Tag (Vorgabe) */
-  --surface: #f2f5f8; /* surface */
-  --karte: #ffffff; /* surface-container-low */
-  --leiste: #e6ebf1; /* surface-container */
-  --erhoben: #d5dfe9; /* surface-container-high */
-  --text: #1a1a1a; /* on-surface */
-  --leise: #4d4d4d; /* on-surface-variant */
-  --rand: #6b7886; /* outline: Felder und Knöpfe */
-  --rand-leise: #c9d5e1; /* outline-variant: nur Karten und Trennlinien */
+  /* Breite und Seitenrand wie die Website (.wrap, --rand dort; hier anders benannt, weil --rand in der Verwaltung die Randfarbe ist) */
+  --seitenbreite: 105rem;
+  --seitenrand: clamp(1rem, 4vw, 4.5rem);
 
-  --rot: #d50038; /* primary: genau eine Hauptaktion je Ansicht, Zähler */
-  --auf-rot: #ffffff; /* on-primary */
-  --rot-text: #d50038; /* primary-text */
-  --titel: #d50038; /* H1 und H2: im Tag rot, in der Nacht weiss */
-  --blau: #013974; /* secondary: Bereichsleiste */
-  --auf-blau: #ffffff; /* on-secondary */
-  --auf-blau-leise: #c6d4e4; /* on-secondary-muted */
-  --blau-f: #e6ebf1; /* secondary-container */
-  --auf-blau-f: #013974; /* on-secondary-container */
-  --akzent: #013974; /* accent: «hier bist du», gewählte Pille */
-  --auf-akzent: #ffffff; /* on-accent */
-  --fokus: #013974; /* focus */
+  --rot: var(--primary); /* genau eine Hauptaktion je Ansicht, Zähler */
+  --auf-rot: var(--on-primary);
+  --rot-text: var(--primary-text);
+  --blau: var(--secondary);
+  --auf-blau: var(--on-secondary);
+  --auf-blau-leise: var(--on-secondary-muted);
+  --blau-f: var(--secondary-container);
+  --auf-blau-f: var(--on-secondary-container);
+  --akzent: var(--accent); /* «hier bist du», gewählte Pille */
+  --auf-akzent: var(--on-accent);
+  --fokus: var(--focus);
 
-  --ok-f: #e7f4ec; /* success-container */
-  --ok: #17703a; /* on-success-container */
-  --fe-f: #fce9ec; /* error-container */
-  --fe: #9e1b2c; /* on-error-container */
-  --wa-f: #fff4d6; /* warning-container */
-  --wa: #8a5a00; /* on-warning-container */
-  --st-f: #e3f2f6; /* stufe-container */
-  --st: #1d6274; /* on-stufe-container */
+  --ok-f: var(--success-container);
+  --ok: var(--on-success-container);
+  --fe-f: var(--error-container);
+  --fe: var(--on-error-container);
+  --wa-f: var(--warning-container);
+  --wa: var(--on-warning-container);
+  --st-f: var(--stufe-container);
+  --st: var(--on-stufe-container);
 
-  --umkehr: #013974; /* inverse-surface: Snackbar */
-  --auf-umkehr: #f2f5f8; /* inverse-on-surface */
-  --skeleton: #d7e0ea; /* Dekor, 1.22:1 gegen die Fläche; die Information liefert die Live-Region */
-  --skeleton-hell: #eef2f6;
+  --umkehr: var(--inverse-surface); /* Snackbar */
+  --auf-umkehr: var(--inverse-on-surface);
+  --skeleton-hell: var(--skeleton-highlight);
+  --schleier: var(--scrim);
 
-  --schleier: rgba(1, 57, 116, 0.45); /* scrim */
-  --schatten: 0 8px 24px rgba(1, 57, 116, 0.16); /* elevation-float */
-
-  --schrift:
-    Archivo, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue",
-    sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 
   /* Symbole für Hinweise und Kacheln: Maske, damit sie die Textfarbe tragen und auch in Text eingesetzter Inhalt eines Hinweises sie nicht verliert */
-  --ic-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5M12 8h.01'/%3E%3C/svg%3E");
-  --ic-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
-  --ic-warn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 2.5 20h19z'/%3E%3Cpath d='M12 10v4M12 17h.01'/%3E%3C/svg%3E");
-  --ic-sperre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M5.6 5.6l12.8 12.8'/%3E%3C/svg%3E");
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    /* Nacht */
-    --surface: #141412;
-    --karte: #1c1c1a;
-    --leiste: #252523;
-    --erhoben: #30302d;
-    --text: #f3f3ef;
-    --leise: #bebeb6;
-    --rand: #8f8f88;
-    --rand-leise: #3b3b37;
-
-    --rot: #d50038;
-    --auf-rot: #ffffff;
-    --rot-text: #ff7a93;
-    --titel: #f3f3ef;
-    --blau: #013974;
-    --auf-blau: #ffffff;
-    --auf-blau-leise: #c6d4e4;
-    --blau-f: #0e2a47;
-    --auf-blau-f: #d5e1ee;
-    --akzent: #9dc0ea;
-    --auf-akzent: #141412;
-    --fokus: #9dc0ea;
-
-    --ok-f: #16261b;
-    --ok: #6fd39a;
-    --fe-f: #33171b;
-    --fe: #ff8e9a;
-    --wa-f: #2c2513;
-    --wa: #f2c063;
-    --st-f: #142a2f;
-    --st: #7fd0e3;
-
-    --umkehr: #f3f3ef;
-    --auf-umkehr: #141412;
-    --skeleton: #2a2a27;
-    --skeleton-hell: #363632;
-
-    --schleier: rgba(0, 0, 0, 0.7);
-    --schatten: 0 8px 24px rgba(0, 0, 0, 0.5);
-  }
+  --ic-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v6'/%3E%3Cpath fill='%23000' stroke='none' d='M11 6.5h2v2h-2z'/%3E%3C/svg%3E");
+  --ic-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+  --ic-warn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Cpath d='M12 3.5 21.5 20h-19z'/%3E%3Cpath d='M12 9.5v5'/%3E%3Cpath fill='%23000' stroke='none' d='M11 15.5h2v2h-2z'/%3E%3C/svg%3E");
+  --ic-sperre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M5.6 5.6l12.8 12.8'/%3E%3C/svg%3E");
 }
 
 *,
@@ -107,8 +56,7 @@
 
 html {
   font-size: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: var(--rand) var(--surface);
+  scrollbar-gutter: stable;
 }
 
 body {
@@ -289,18 +237,20 @@ main:focus {
   min-height: 100vh;
 }
 
+/* Inhalt und Kopf haben dieselbe Breite und denselben Seitenrand (#578, wie --rand der Website) */
 .inhalt {
   flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--seitenbreite);
   min-width: 0;
-  padding: 40px 48px 64px;
+  margin: 0 auto;
+  padding: 2.5rem var(--seitenrand) 4rem;
 }
 
 .rahmen {
   display: flex;
   flex-direction: column;
   gap: 24px;
-  max-width: 1248px;
-  margin: 0 auto;
 }
 
 .kopf {
@@ -340,15 +290,9 @@ main:focus {
   gap: 20px;
 }
 
-@media (max-width: 1100px) {
-  .inhalt {
-    padding: 32px 24px 48px;
-  }
-}
-
 @media (max-width: 760px) {
   .inhalt {
-    padding: 24px 16px 48px;
+    padding-block: 1.5rem 3rem;
   }
 
   h1 {
@@ -793,6 +737,11 @@ th.zahl {
   outline-offset: -3px;
 }
 
+/* Die nur für Screenreader sichtbare Beschriftung der Tabelle ist absolut gesetzt: Ohne diesen Bezug lag sie ausserhalb des Rahmens und verbreiterte die ganze Seite */
+.tabellenrahmen {
+  position: relative;
+}
+
 .tabelle,
 .box table {
   width: 100%;
@@ -960,8 +909,7 @@ a.tab[aria-current="page"] {
 .hinweis::before,
 .kachel--ok::after,
 .kachel--warn::after,
-.kachel--fehler::after,
-.auswahl-eintrag[aria-selected="true"]::after {
+.kachel--fehler::after {
   content: "";
   flex: none;
   width: 22px;
@@ -1356,8 +1304,7 @@ legend,
 
 .eingabe:focus-visible,
 .feld input:focus-visible,
-.feld textarea:focus-visible,
-.auswahl-knopf:focus-visible {
+.feld textarea:focus-visible {
   border-color: var(--fokus);
   outline-offset: 0;
 }
@@ -1462,9 +1409,14 @@ fieldset .feld > label {
   font-weight: 400;
 }
 
-fieldset .feld .auswahl {
+fieldset .feld .aw {
   flex: none;
   width: 11rem;
+}
+
+/* Der Pfeil der Auswahlfelder steht wie bei den Terminen der Website in der leisen Textfarbe (website/termine.css), nicht im Akzent (#607) */
+.aw .aw-dreieck {
+  color: var(--on-surface-variant);
 }
 
 .scrollfeld {
@@ -1472,7 +1424,7 @@ fieldset .feld .auswahl {
   overflow-y: auto;
 }
 
-/* Ankreuzfeld: Haken statt nur Farbe */
+/* Ankreuzfeld: Haken statt nur Farbe. Gilt für jedes Kästchen der Verwaltung, auch in Zeilen, die als Ganzes ein label sind (#668); ein rohes Browser-Kästchen gibt es nicht */
 .wahl {
   display: flex;
   align-items: center;
@@ -1480,7 +1432,8 @@ fieldset .feld .auswahl {
   min-height: 48px;
 }
 
-.wahl input {
+.wahl input,
+input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   display: inline-grid;
@@ -1495,7 +1448,8 @@ fieldset .feld .auswahl {
   cursor: pointer;
 }
 
-.wahl input::after {
+.wahl input::after,
+input[type="checkbox"]::after {
   content: "";
   width: 12px;
   height: 7px;
@@ -1506,16 +1460,26 @@ fieldset .feld .auswahl {
   transform: rotate(-45deg);
 }
 
-.wahl input:checked {
+.wahl input:checked,
+input[type="checkbox"]:checked {
   background: var(--blau);
   border-color: var(--blau);
 }
 
-.wahl input:checked::after {
+.wahl input:checked::after,
+input[type="checkbox"]:checked::after {
   opacity: 1;
 }
 
-.wahl input:disabled {
+/* Hover: Der Rand wird kräftig, auch wenn die ganze Zeile das label ist */
+.wahl:hover input:not(:checked, :disabled),
+label:hover > input[type="checkbox"]:not(:checked, :disabled),
+input[type="checkbox"]:not(:checked, :disabled):hover {
+  border-color: var(--blau);
+}
+
+.wahl input:disabled,
+input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1524,59 +1488,49 @@ fieldset .feld .auswahl {
   cursor: pointer;
 }
 
-/* Eigene Auswahl (Combobox mit Liste) */
+@media (prefers-reduced-motion: no-preference) {
+  .wahl input,
+  input[type="checkbox"] {
+    transition:
+      background-color var(--dauer, 0.2s) ease,
+      border-color var(--dauer, 0.2s) ease;
+  }
 
-.auswahl {
-  position: relative;
+  .wahl input::after,
+  input[type="checkbox"]::after {
+    transition:
+      opacity var(--dauer, 0.2s) ease,
+      transform var(--dauer, 0.2s) ease;
+  }
+
+  .wahl input:not(:checked)::after,
+  input[type="checkbox"]:not(:checked)::after {
+    transform: rotate(-45deg) scale(0.6);
+  }
 }
 
-.auswahl-knopf {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 52px;
-  padding: 0 44px 0 16px;
-  background: var(--karte);
-  color: var(--text);
-  border: 2px solid var(--rand);
-  border-radius: 12px;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
+@media (forced-colors: active) {
+  .wahl input,
+  input[type="checkbox"] {
+    border-color: ButtonText;
+  }
 
-.auswahl-knopf::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  width: 8px;
-  height: 8px;
-  margin-top: -6px;
-  border: solid currentcolor;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
+  .wahl input:checked,
+  input[type="checkbox"]:checked {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+  }
 
-.auswahl-knopf[aria-expanded="true"]::after {
-  margin-top: -2px;
-  transform: rotate(-135deg);
-}
+  .wahl input:checked::after,
+  input[type="checkbox"]:checked::after {
+    border-color: HighlightText;
+  }
 
-.auswahl-liste {
-  /* Popover im Top-Layer: Lage und Breite setzt dom.js, damit die Liste nicht im Dialog gefangen ist */
-  position: fixed;
-  inset: auto;
-  max-height: 15rem;
-  margin: 0;
-  padding: 4px;
-  overflow-y: auto;
-  background: var(--karte);
-  border: 2px solid var(--rand);
-  border-radius: 12px;
-  box-shadow: var(--schatten);
-  list-style: none;
+  .wahl input:disabled,
+  input[type="checkbox"]:disabled {
+    border-color: GrayText;
+  }
 }
 
 .seitenwahl {
@@ -1585,52 +1539,6 @@ fieldset .feld .auswahl {
   justify-content: center;
   gap: 16px;
   margin-top: 16px;
-}
-
-.auswahl-wert {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.auswahl-bild {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-}
-
-.auswahl-eintrag {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 12px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.auswahl-eintrag:hover {
-  background: var(--erhoben);
-}
-
-.auswahl-eintrag.ist-aktiv {
-  background: var(--erhoben);
-  outline: 2px solid var(--fokus);
-  outline-offset: -2px;
-}
-
-.auswahl-eintrag[aria-selected="true"] {
-  font-weight: 700;
-}
-
-.auswahl-eintrag[aria-selected="true"]::after {
-  width: 18px;
-  height: 18px;
-  -webkit-mask-image: var(--ic-ok);
-  mask-image: var(--ic-ok);
 }
 
 /* Code-Feld: sechs Zellen, darüber die unsichtbare echte Eingabe */
@@ -1704,8 +1612,9 @@ fieldset .feld .auswahl {
 
 .mitte {
   display: grid;
+  flex: 1 1 auto;
   place-items: center;
-  min-height: 100vh;
+  min-height: 24rem;
   padding: 48px 24px;
 }
 
@@ -1748,9 +1657,15 @@ fieldset .feld .auswahl {
   height: 24px;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  /* Symbolsatz der Website (#578): Linie 2 px, gerade Enden, spitze Ecken; Dreiecke und Punkte sind gefüllt (Klasse «f») */
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+
+.i .f {
+  fill: currentcolor;
+  stroke: none;
 }
 
 dialog,
@@ -1814,10 +1729,6 @@ dialog .wahl input {
 
 dialog .wahl input:checked {
   background: var(--blau);
-}
-
-dialog .auswahl-knopf {
-  background: var(--surface);
 }
 
 .dialog-knoepfe {
@@ -1911,39 +1822,13 @@ dialog.blatt[open] {
     flex-wrap: wrap;
   }
 
-  fieldset .feld .auswahl {
+  fieldset .feld .aw {
     flex: 1 1 100%;
     width: auto;
   }
 }
 
-/* Scrollleisten: dünn, Daumen in der Randfarbe (3:1) */
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--rand) transparent;
-}
-
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--rand);
-  background-clip: padding-box;
-  border: 3px solid transparent;
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--leise);
-}
+/* Scrollleisten: gemeinsame Regeln in tokens.css (#578, vorher #572) */
 
 @media (forced-colors: active) {
   .knopf,
@@ -1961,49 +1846,6 @@ dialog.blatt[open] {
 }
 
 /* Stufen und Kinder */
-
-.stufenliste {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stufe-karte {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 16px;
-}
-
-.stufe-kopf {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-}
-
-.stufe-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.stufe-logo {
-  flex: none;
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-}
-
-.stufe-text {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
 
 .eltern-zeile {
   display: flex;

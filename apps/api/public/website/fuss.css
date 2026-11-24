@@ -1,0 +1,534 @@
+/* Der Abschluss der Seiten (#580, neu gestaltet in #605): die Kontaktkarte am Ende der Startseite und der Fuss auf jeder Seite. Jede Seite lädt die Datei nach website.css und kopf.css.
+   Nur Tokens der Website; Links und Knöpfe folgen dem Repertoire aus website.css (.btn.p, .btn.s, a.verweis), hier steht nur, was dem Abschluss eigen ist. Aufbau und Gründe: docs/website-design.md, «Kontaktkarte und Fuss (#605)» */
+
+/* ===== Kontaktkarte: ein Abschnitt über die ganze Breite, das Bild läuft rechts bis zum Fensterrand ===== */
+
+/* Der Abschnitt bringt seinen Abstand selbst mit: Das Bild reicht bis oben und unten an den Rand. Die Spalten halten die Linie der fliessenden Spalte (105 rem), auch auf sehr breiten Fenstern;
+   am Handy steht alles untereinander: Frage und Knöpfe, Bild von Rand zu Rand, Angaben, Verweise */
+.sektion--kontaktkarte {
+  padding-block: 0;
+}
+
+.sektion--kontaktkarte > .wrap {
+  max-width: none;
+  padding: 0;
+}
+
+.kontaktkarte {
+  --ka: clamp(3rem, 2rem + 4vw, 6.5rem);
+  --halb: calc(52.5rem - var(--rand));
+  display: grid;
+  grid-template-columns:
+    [voll-start] var(--rand) [text-start] minmax(0, 1fr)
+    [text-ende] var(--rand) [voll-ende];
+}
+
+.kontaktkarte > * {
+  grid-column: text-start / text-ende;
+  min-width: 0;
+}
+
+.kontakt-haupt {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1rem;
+  padding-top: var(--ka);
+}
+
+.kontaktkarte h2 {
+  font-size: clamp(2.5rem, 1.5rem + 3.6vw, 5.5rem);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.kontakt-person {
+  color: var(--on-surface-variant);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.kontakt-hinweis {
+  max-width: 40ch;
+  color: var(--on-surface-variant);
+  font-size: 1.25rem;
+  line-height: 1.5;
+}
+
+.kontakt-haupt .aktionen {
+  width: 100%;
+  margin-top: 0.75rem;
+}
+
+.kontakt-haupt .aktionen .btn {
+  flex: 1 1 12rem;
+}
+
+.kontakt-bild {
+  position: relative;
+  grid-column: voll-start / voll-ende;
+  aspect-ratio: 3 / 2;
+  margin-top: clamp(2rem, 6vw, 3rem);
+  overflow: hidden;
+  background: var(--surface-container);
+}
+
+.kontakt-bild img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.kontakt-angaben {
+  margin-top: 2.5rem;
+  font-style: normal;
+}
+
+.kontakt-angaben ul,
+.kontakt-verweise ul {
+  list-style: none;
+}
+
+.kontakt-angaben li {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.kontakt-angaben li:last-child {
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.kontakt-zeile {
+  display: grid;
+  grid-template-columns: 3rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0 1.125rem;
+  min-height: 5rem;
+  margin-inline: -0.75rem;
+  padding: 0.75rem;
+  border-radius: var(--r-sm);
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+a.kontakt-zeile {
+  grid-template-columns: 3rem minmax(0, 1fr) auto;
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+a.kontakt-zeile:hover {
+  background: var(--surface-container);
+}
+
+.kontakt-symbol {
+  display: grid;
+  width: 3rem;
+  height: 3rem;
+  place-items: center;
+  border-radius: var(--r-sm);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.kontakt-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.kontakt-art {
+  color: var(--on-surface-variant);
+  font-size: 0.9375rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+}
+
+.kontakt-wert {
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.5rem);
+  line-height: 1.35;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.kontakt-pfeil {
+  display: grid;
+  place-items: center;
+  color: var(--accent);
+}
+
+/* Der letzte Block der Karte lässt unten Raum */
+.kontakt-haupt:last-child,
+.kontakt-angaben:last-child {
+  padding-bottom: var(--ka);
+}
+
+.kontakt-verweise {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 2rem;
+  padding-top: 1rem;
+  padding-bottom: var(--ka);
+}
+
+.kontakt-verweise h3 {
+  color: var(--on-surface-variant);
+  font-size: 1rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+}
+
+.kontakt-verweise ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 1.75rem;
+}
+
+@media (min-width: 30em) {
+  .kontakt-haupt .aktionen .btn {
+    flex: 0 1 auto;
+  }
+}
+
+/* Auf dem Tablet ist das Bild ein breiter Streifen von Rand zu Rand */
+@media (min-width: 47.5625em) {
+  .kontakt-bild {
+    aspect-ratio: 2 / 1;
+    max-height: 30rem;
+  }
+}
+
+@media (min-width: 64.0625em) {
+  .kontaktkarte {
+    grid-template-columns:
+      [voll-start] minmax(var(--rand), 1fr) [text-start] minmax(0, var(--halb))
+      [mitte] minmax(0, var(--halb)) [text-ende] minmax(var(--rand), 1fr)
+      [voll-ende];
+  }
+
+  .kontakt-haupt,
+  .kontakt-angaben,
+  .kontakt-verweise {
+    grid-column: text-start / mitte;
+    padding-right: min(var(--spalt), 4rem);
+  }
+
+  .kontakt-bild {
+    grid-column: mitte / voll-ende;
+    grid-row: 1 / span 3;
+    aspect-ratio: auto;
+    min-height: 26rem;
+    max-height: none;
+    margin-top: 0;
+  }
+
+  /* Ohne Bild füllt eine getönte Fläche die rechte Hälfte, mit den Angaben darauf */
+  .kontaktkarte:not(.kontaktkarte--bild)::before {
+    grid-column: mitte / voll-ende;
+    grid-row: 1 / span 3;
+    background: var(--surface-container);
+    content: "";
+  }
+
+  .kontaktkarte:not(.kontaktkarte--bild) .kontakt-angaben {
+    grid-column: mitte / text-ende;
+    grid-row: 1 / span 3;
+    align-self: center;
+    margin-top: 0;
+    padding: var(--ka) 0 var(--ka) min(var(--spalt), 4rem);
+  }
+
+  .kontaktkarte:not(.kontaktkarte--bild) a.kontakt-zeile:hover {
+    background: var(--surface-container-high);
+  }
+}
+
+/* ===== Fuss: ein Band in der Markenfarbe über die ganze Breite ===== */
+/* Links Marke, Kontakt und Rechtliches, rechts die Hauptbereiche als Verzeichnis mit grosser Schrift und Linien; unten «©» und «Nach oben». Am Handy steht alles untereinander */
+.fuss {
+  --fuss-linie: color-mix(in srgb, var(--on-secondary) 24%, transparent);
+  padding: clamp(2.5rem, 2rem + 2vw, 4.5rem) 0 1rem;
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.fuss a {
+  color: var(--on-secondary);
+}
+
+.fuss :focus-visible {
+  outline-color: var(--on-secondary);
+}
+
+.fuss-raster {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2.25rem;
+}
+
+.fuss ul {
+  list-style: none;
+}
+
+.fuss h2 {
+  margin-bottom: 0.5rem;
+  color: var(--on-secondary-muted);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  font-weight: 700;
+}
+
+.fuss-marke {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.625rem;
+  min-height: 2.75rem;
+  text-decoration: none;
+}
+
+.fuss-marke--logo {
+  align-items: center;
+}
+
+.fuss-marke b {
+  font-size: 2.25rem;
+  line-height: 2.25rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.fuss-marke span:not(.nur-sr) {
+  color: var(--on-secondary-muted);
+  font-size: 1.25rem;
+  font-weight: 700;
+}
+
+.fuss-logo {
+  display: block;
+  width: auto;
+  height: 3.25rem;
+}
+
+/* Nur die Fassung mit dunkler Schrift: sie sitzt auf einem hellen Feld (Weiss in Tag und Nacht, wie die Schrift auf Blau) */
+.fuss-logo--feld {
+  box-sizing: content-box;
+  height: 2.5rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.5rem;
+  background: var(--on-secondary);
+}
+
+.fuss address {
+  font-style: normal;
+}
+
+.fuss-kontakt li,
+.fuss-recht li a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.fuss-kontakt a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 0.2em;
+}
+
+.fuss-recht a {
+  text-decoration: none;
+}
+
+.fuss-kontakt a:hover,
+.fuss-recht a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.25em;
+}
+
+/* Die Hauptbereiche: Zeilen mit Linie, die ganze Zeile ist das Ziel; der Pfeil steht gedämpft da und leuchtet beim Zeigen auf */
+.fuss-seiten ul {
+  border-top: 1px solid var(--fuss-linie);
+}
+
+.fuss-seiten li {
+  border-bottom: 1px solid var(--fuss-linie);
+}
+
+.fuss-seiten li a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.75rem;
+  font-size: clamp(1.25rem, 1rem + 0.9vw, 2rem);
+  line-height: 1.2;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  text-decoration: none;
+}
+
+.fuss-seiten li a::after {
+  flex: none;
+  width: 1.5rem;
+  height: 1rem;
+  background: currentcolor;
+  clip-path: polygon(
+    0 41.7%,
+    59.5% 41.7%,
+    59.5% 0,
+    100% 50%,
+    59.5% 100%,
+    59.5% 58.3%,
+    0 58.3%
+  );
+  content: "";
+  opacity: 0.55;
+}
+
+.fuss-seiten li a:hover::after,
+.fuss-seiten li a:focus-visible::after {
+  opacity: 1;
+}
+
+.fuss-unten {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--fuss-linie);
+}
+
+.fuss-copy {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  color: var(--on-secondary-muted);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+/* «Nach oben» ist ein Verweis (a.verweis): fett, ohne Strich, der Pfeil steht dahinter und zeigt nach oben. Er hat dieselbe Grösse wie die Pfeile der Bereiche und sitzt auf deren Linie am rechten Rand,
+   gedämpft wie dort und hell beim Zeigen und beim Fokus; die Zeile ist wie die übrigen Ziele im Fuss 44 px hoch */
+.fuss a.fuss-oben {
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+}
+
+.fuss a.fuss-oben::after {
+  width: 1rem;
+  height: 1.5rem;
+  margin-left: 0.75rem;
+  opacity: 0.55;
+  clip-path: polygon(
+    41.7% 100%,
+    41.7% 40.5%,
+    0 40.5%,
+    50% 0,
+    100% 40.5%,
+    58.3% 40.5%,
+    58.3% 100%
+  );
+}
+
+.fuss a.fuss-oben:hover::after,
+.fuss a.fuss-oben:focus-visible::after {
+  opacity: 1;
+}
+
+@media (min-width: 48em) {
+  .fuss-raster {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    column-gap: min(var(--spalt), 5rem);
+    align-items: start;
+  }
+
+  .fuss-marke-feld {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .fuss-kontakt {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .fuss-recht {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .fuss-seiten {
+    grid-column: 2;
+    grid-row: 1 / span 3;
+  }
+
+  .fuss-unten {
+    grid-column: 1 / -1;
+    grid-row: 4;
+  }
+
+  .fuss-seiten li a {
+    min-height: 4.25rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .fuss {
+    border-top: 1px solid CanvasText;
+  }
+}
+
+@media print {
+  .fuss-oben {
+    display: none;
+  }
+}
+
+/* Bewegung: nur am Bildschirm und ohne «Bewegung reduzieren». Die Zeilen der Kontaktkarte füllen sich beim Zeigen, ihr Pfeil rückt vor; die Pfeile der Bereiche rücken vor, der von «Nach oben» nach oben */
+@media screen and (prefers-reduced-motion: no-preference) {
+  a.kontakt-zeile {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+
+  .kontakt-pfeil .i {
+    transition: translate var(--dauer) var(--kurve);
+  }
+
+  .fuss a.fuss-oben::after {
+    transition:
+      opacity var(--dauer) var(--kurve),
+      translate var(--dauer) var(--kurve);
+  }
+
+  .fuss-seiten li a::after {
+    transition:
+      opacity var(--dauer) var(--kurve),
+      translate var(--dauer) var(--kurve);
+  }
+
+  a.kontakt-zeile:hover .kontakt-pfeil .i {
+    translate: 0.25rem 0;
+  }
+
+  .fuss-seiten li a:hover::after {
+    translate: 0.25rem 0;
+  }
+
+  .fuss a.fuss-oben:hover::after {
+    translate: 0 -0.25rem;
+  }
+}

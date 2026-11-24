@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   aufgabe,
@@ -404,7 +405,12 @@ export async function setzeStichworte(
   return neu;
 }
 
-type PersonKurz = { id: string; name: string | null; ceviName: string | null };
+type PersonKurz = {
+  id: string;
+  name: string | null;
+  ceviName: string | null;
+  bildUrl: string | null;
+};
 export type Details = {
   aufgabeId: string;
   checkliste: (ReturnType<typeof checkpunktAnsicht> & {
@@ -426,6 +432,7 @@ export async function ladeDetails(
         zeile: aufgabeCheckpunkt,
         name: user.name,
         ceviName: user.ceviName,
+        bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
       })
       .from(aufgabeCheckpunkt)
       .leftJoin(user, eq(user.id, aufgabeCheckpunkt.personId))
@@ -462,7 +469,12 @@ export async function ladeDetails(
     checkliste: checkpunkte.map((c) => ({
       ...checkpunktAnsicht(c.zeile),
       erledigtVon: c.zeile.personId
-        ? { id: c.zeile.personId, name: c.name, ceviName: c.ceviName }
+        ? {
+            id: c.zeile.personId,
+            name: c.name,
+            ceviName: c.ceviName,
+            bildUrl: c.bildUrl,
+          }
         : null,
     })),
     links: links.map(aufgabeLinkAnsicht),
@@ -529,10 +541,12 @@ export async function ladeUrheber(
       erstelltVon: aufgabe.erstelltVon,
       eName: ersteller.name,
       eCevi: ersteller.ceviName,
+      eBild: bildUrlImLager(sql`${ersteller.id}`, lagerId),
       geaendertAm: aufgabe.geaendertAm,
       geaendertVon: aufgabe.geaendertVon,
       gName: aenderer.name,
       gCevi: aenderer.ceviName,
+      gBild: bildUrlImLager(sql`${aenderer.id}`, lagerId),
     })
     .from(aufgabe)
     .leftJoin(ersteller, eq(ersteller.id, aufgabe.erstelltVon))
@@ -542,11 +556,21 @@ export async function ladeUrheber(
   return {
     erstelltAm: z.erstelltAm,
     erstelltVon: z.erstelltVon
-      ? { id: z.erstelltVon, name: z.eName, ceviName: z.eCevi }
+      ? {
+          id: z.erstelltVon,
+          name: z.eName,
+          ceviName: z.eCevi,
+          bildUrl: z.eBild,
+        }
       : null,
     geaendertAm: z.geaendertAm,
     geaendertVon: z.geaendertVon
-      ? { id: z.geaendertVon, name: z.gName, ceviName: z.gCevi }
+      ? {
+          id: z.geaendertVon,
+          name: z.gName,
+          ceviName: z.gCevi,
+          bildUrl: z.gBild,
+        }
       : null,
   };
 }

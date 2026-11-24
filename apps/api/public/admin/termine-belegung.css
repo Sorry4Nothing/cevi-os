@@ -1,0 +1,844 @@
+/* Unterseite «Belegung» (#628): Wochen-, Tages- und Listenansicht der Räume. Klassen mit dem Vorsatz «bl-». Farben nur aus den Tokens; Zustand nie nur über Farbe: bestätigt ist ausgefüllt, angefragt gestrichelt und schraffiert, beides mit Symbol und Wort. */
+
+/* Werkzeugleiste */
+.bl-werkzeuge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 24px;
+  margin-bottom: 16px;
+}
+
+.bl-nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.bl-pfeil {
+  min-width: 44px;
+  padding: 0;
+}
+
+.bl-zeitraum {
+  margin-left: 8px;
+}
+
+.bl-titel {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.75rem;
+}
+
+.bl-zaehler {
+  margin: 0;
+}
+
+.bl-wahl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 20px;
+}
+
+.bl-ansicht[hidden] {
+  display: none;
+}
+
+/* Legende */
+.bl-legende {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin: 0 0 16px;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.bl-legende-eintrag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bl-muster {
+  display: inline-block;
+  flex: none;
+  width: 28px;
+  height: 16px;
+  border-radius: 5px;
+}
+
+.bl-muster--best {
+  background: var(--akzent);
+  border: 2px solid var(--akzent);
+}
+
+.bl-muster--angef,
+.bl-block--angef {
+  background-color: var(--wa-f);
+  background-image: repeating-linear-gradient(
+    135deg,
+    transparent 0 5px,
+    color-mix(in srgb, var(--wa) 30%, transparent) 5px 7px
+  );
+  border: 2px dashed var(--wa);
+  color: var(--wa);
+}
+
+.bl-muster--frei {
+  background: var(--karte);
+  border: 1px solid var(--rand);
+}
+
+.bl-muster--jetzt {
+  width: 4px;
+  height: 18px;
+  margin-inline: 12px;
+  background: var(--rot);
+  border-radius: 2px;
+}
+
+/* Fläche und Rahmen */
+.bl-flaeche {
+  position: relative;
+  min-width: 0;
+  transition: opacity var(--dauer) var(--kurve);
+}
+
+/* Während der Übergang läuft, hält die Fläche die Höhe und schneidet ab; die alte Seite liegt darüber und gleitet hinaus */
+.bl-flaeche--wechsel {
+  overflow: clip;
+}
+
+.bl-seite--alt {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+/* Lädt es länger als 150 ms, wird die alte Ansicht matt; sie springt nicht */
+.bl-flaeche--laedt > .bl-seite {
+  opacity: 0.55;
+}
+
+.bl-zeitraum {
+  min-height: 3.25rem;
+}
+
+.bl-titel,
+.bl-zaehler {
+  min-height: 1.5rem;
+}
+
+.bl-zaehler {
+  min-height: 1.25rem;
+}
+
+@media (min-width: 761px) {
+  .bl-zeitraum {
+    min-width: 28rem;
+  }
+}
+
+.bl-woche,
+.bl-tag,
+.bl-sk {
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.bl-woche {
+  overflow: hidden;
+}
+
+.bl-ecke {
+  padding: 12px;
+}
+
+/* Woche */
+.bl-zeile {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 12rem) repeat(7, minmax(0, 1fr));
+}
+
+.bl-zeile + .bl-zeile {
+  border-top: 1px solid var(--rand-leise);
+}
+
+.bl-zeile--kopf {
+  background: var(--leiste);
+}
+
+.bl-raumname {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 14px;
+}
+
+.bl-raumtitel {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.bl-tagkopf {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  min-height: 96px;
+  padding: 10px 0 22px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  border-left: 1px solid var(--rand-leise);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bl-tagkopf:hover {
+  background: var(--erhoben);
+}
+
+.bl-tagname,
+.bl-tagdatum,
+.bl-heute-chip {
+  padding-inline: 10px;
+}
+
+.bl-tagname {
+  color: var(--leise);
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.bl-tagdatum {
+  font-weight: 700;
+}
+
+.bl-heute-chip {
+  margin: 2px 0 0 10px;
+  padding: 0 8px;
+  background: var(--akzent);
+  color: var(--auf-akzent);
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+}
+
+.bl-skala {
+  position: absolute;
+  inset: auto 0 4px;
+  height: 14px;
+}
+
+.bl-marke {
+  position: absolute;
+  color: var(--leise);
+  font-size: 0.6875rem;
+  line-height: 14px;
+  transform: translateX(-50%);
+}
+
+.bl-marke:first-child {
+  margin-left: 4px;
+  transform: none;
+}
+
+.bl-marke:last-child {
+  margin-left: -4px;
+  transform: translateX(-100%);
+}
+
+.bl-zelle {
+  position: relative;
+  min-height: 60px;
+  border-left: 1px solid var(--rand-leise);
+  background-image: linear-gradient(
+    to right,
+    color-mix(in srgb, var(--rand-leise) 60%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 12.5% 100%;
+}
+
+.bl-zelle--heute {
+  background-color: var(--leiste);
+}
+
+/* Blöcke */
+.bl-zelle .bl-block {
+  top: var(--bl-top);
+  height: var(--bl-hoehe);
+}
+
+.bl-block {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  min-width: 10px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  font: inherit;
+  text-align: left;
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.bl-block--best {
+  background: var(--akzent);
+  border: 2px solid var(--akzent);
+  color: var(--auf-akzent);
+}
+
+.bl-block .i {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  margin-inline: 2px;
+  stroke-width: 2.5;
+}
+
+.bl-block:hover {
+  box-shadow: 0 0 0 2px var(--text);
+  z-index: 3;
+}
+
+.bl-block:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+  z-index: 3;
+}
+
+.bl-etikett {
+  display: none;
+  position: absolute;
+  top: 32px;
+  overflow: hidden;
+  padding-right: 6px;
+  color: var(--text);
+  font-size: 0.6875rem;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Breit genug: Der Balken steht allein und der Zweck als Kurztext darunter */
+@media (min-width: 1280px) {
+  .bl-etikett {
+    display: block;
+  }
+
+  .bl-zelle .bl-block--einzeln {
+    top: 8px;
+    height: 20px;
+  }
+}
+
+.bl-jetzt {
+  position: absolute;
+  z-index: 2;
+  background: var(--rot);
+  pointer-events: none;
+}
+
+.bl-jetzt--waagrecht {
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+}
+
+/* Tag */
+.bl-tag {
+  --bl-gutter: 56px;
+  position: relative;
+  overflow-x: auto;
+}
+
+.bl-spaltenkopfzeile,
+.bl-spaltenkoerper {
+  display: grid;
+  grid-template-columns: var(--bl-gutter) repeat(
+      var(--bl-raeume),
+      minmax(11rem, 1fr)
+    );
+  min-width: min-content;
+}
+
+.bl-spaltenkopfzeile {
+  background: var(--leiste);
+  border-bottom: 1px solid var(--rand-leise);
+}
+
+.bl-spaltenkoerper {
+  position: relative;
+}
+
+.bl-spaltenkopf {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border-left: 1px solid var(--rand-leise);
+}
+
+.bl-frei {
+  color: var(--leise);
+}
+
+.bl-gutter {
+  position: relative;
+}
+
+.bl-stunde {
+  position: absolute;
+  right: 8px;
+  color: var(--leise);
+  font-size: 0.75rem;
+  line-height: 1;
+  transform: translateY(-50%);
+}
+
+.bl-stunde:first-child {
+  transform: none;
+}
+
+.bl-stunde:last-child {
+  transform: translateY(-100%);
+}
+
+.bl-spalte {
+  position: relative;
+  border-left: 1px solid var(--rand-leise);
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0 55px,
+    color-mix(in srgb, var(--rand-leise) 70%, transparent) 55px 56px
+  );
+}
+
+.bl-spalte .bl-block {
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 1px;
+  padding: 4px 8px;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+}
+
+.bl-block-kopf {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.bl-spalte .bl-block .i {
+  margin-inline: 0;
+}
+
+.bl-block-status {
+  font-weight: 400;
+}
+
+.bl-block-zweck {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.bl-block-person {
+  font-size: 0.75rem;
+}
+
+.bl-block--kurz {
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding-block: 0 !important;
+}
+
+.bl-block--kurz .bl-block-zweck {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bl-block--schmal .bl-block-status {
+  display: none;
+}
+
+.bl-block--kurz .bl-block-person {
+  display: none;
+}
+
+.bl-jetzt--senkrecht {
+  right: 0;
+  left: var(--bl-gutter);
+  height: 2px;
+  margin-top: -1px;
+}
+
+.bl-jetzt-text {
+  position: absolute;
+  top: 50%;
+  right: calc(100% + 4px);
+  padding: 1px 6px;
+  background: var(--rot);
+  color: var(--auf-rot);
+  border-radius: 4px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+  transform: translateY(-50%);
+}
+
+/* Liste und Tagesstreifen */
+.bl-liste {
+  display: grid;
+  gap: 16px;
+}
+
+.bl-streifen {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bl-streifentag {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 100%;
+  min-height: 68px;
+  padding: 8px 0;
+  background: var(--karte);
+  color: var(--text);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.bl-streifentag .bl-tagname {
+  padding: 0;
+  color: inherit;
+}
+
+.bl-streifentag[aria-current="date"] .tm-ziffern {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 3px;
+}
+
+.bl-streifentag[aria-pressed="true"] {
+  background: var(--akzent);
+  border-color: var(--akzent);
+  color: var(--auf-akzent);
+}
+
+.bl-punkt {
+  width: 8px;
+  height: 8px;
+  border: 1.5px solid currentcolor;
+  border-radius: 9999px;
+}
+
+.bl-punkt--da {
+  background: currentcolor;
+}
+
+.bl-listentitel {
+  margin: 8px 0 0;
+  font-size: 1.125rem;
+}
+
+.bl-karten {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 26rem), 1fr));
+  align-items: start;
+  gap: 16px;
+}
+
+.bl-raumkarte {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.bl-raumkopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bl-raumkopf .bl-raumtitel {
+  margin: 0;
+  font-size: 1.0625rem;
+}
+
+.bl-raumkopf p {
+  margin: 0;
+}
+
+.bl-eintraege {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bl-eintrag {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 12px;
+  padding: 10px 12px;
+  background: var(--leiste);
+  border-left: 5px solid var(--akzent);
+  border-radius: 6px 12px 12px 6px;
+}
+
+.bl-eintrag--angef {
+  border-left: 5px dashed var(--wa);
+}
+
+.bl-eintrag-zeit {
+  font-weight: 700;
+}
+
+.bl-eintrag-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.bl-eintrag-zweck {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.bl-raumkarte > .bl-frei {
+  margin: 0;
+}
+
+/* Karte mit den Angaben zu einer Buchung */
+.bl-detail {
+  position: fixed;
+  z-index: 40;
+  padding: 14px 16px;
+  background: var(--erhoben);
+  color: var(--text);
+  border: 1px solid var(--rand);
+  border-radius: 16px;
+  box-shadow: var(--schatten);
+  pointer-events: none;
+}
+
+.bl-detail[hidden] {
+  display: none;
+}
+
+.bl-detail p {
+  margin: 0;
+}
+
+.bl-detail-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8125rem;
+  font-weight: 700;
+}
+
+.bl-detail-status .i {
+  width: 16px;
+  height: 16px;
+}
+
+.bl-detail-zweck {
+  margin: 4px 0 8px !important;
+  font-size: 1rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.bl-detail-liste {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 2px 12px;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.bl-detail-liste dt {
+  color: var(--leise);
+}
+
+.bl-detail-liste dd {
+  margin: 0;
+}
+
+.bl-detail-fuss {
+  margin-top: 8px !important;
+  color: var(--leise);
+  font-size: 0.8125rem;
+}
+
+/* Hinweis unter dem Plan */
+/* Ohne Buchung bleibt der Plan stehen; der Satz liegt in der Mitte darüber */
+.bl-leer-hinweis {
+  position: absolute;
+  top: 120px;
+  right: 24px;
+  left: 24px;
+  margin: 0;
+  padding: 12px 16px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.bl-hinweis {
+  max-width: 52rem;
+  margin-top: 24px;
+  padding: 16px 20px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.bl-hinweis-titel {
+  margin: 0 0 4px;
+  font-size: 1rem;
+}
+
+.bl-hinweis p {
+  margin: 0 0 8px;
+}
+
+.bl-hinweis p:last-child {
+  margin-bottom: 0;
+}
+
+/* Skeleton */
+.bl-sk {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.bl-sk-zeile {
+  display: grid;
+  grid-template-columns: minmax(8.5rem, 12rem) repeat(7, minmax(0, 1fr));
+  align-items: center;
+  gap: 8px;
+}
+
+.bl-sk-zelle {
+  height: 48px;
+}
+
+/* Schmal: Liste, Werkzeuge untereinander */
+@media (max-width: 760px) {
+  .bl-zeitraum {
+    min-height: 4.75rem;
+  }
+
+  .bl-werkzeuge,
+  .bl-wahl {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .bl-zeitraum {
+    flex: 1 1 100%;
+    margin: 4px 0 0;
+  }
+
+  .bl-legende-eintrag .leise {
+    display: none;
+  }
+
+  .bl-eintrag {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .bl-eintrag-zeit {
+    grid-column: 1 / -1;
+  }
+
+  .bl-streifentag {
+    min-height: 64px;
+  }
+}
+
+/* Bewegung nur, wenn erlaubt */
+@media (prefers-reduced-motion: no-preference) {
+  .bl-flaeche > * {
+    animation: bl-ein var(--dauer) var(--kurve);
+  }
+
+  .bl-block {
+    transition: box-shadow var(--dauer) var(--kurve);
+  }
+}
+
+@keyframes bl-ein {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Erzwungene Farben: Zustand über Rand und Füllung, nicht über Farbe */
+@media (forced-colors: active) {
+  .bl-block--best,
+  .bl-muster--best {
+    background: Highlight;
+    border: 2px solid CanvasText;
+    color: HighlightText;
+    forced-color-adjust: none;
+  }
+
+  .bl-block--angef,
+  .bl-muster--angef {
+    background: Canvas;
+    border: 2px dashed CanvasText;
+    color: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .bl-jetzt {
+    background: LinkText;
+    forced-color-adjust: none;
+  }
+}

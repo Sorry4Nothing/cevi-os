@@ -7,6 +7,7 @@ import type { Db } from "../../db/client.js";
 import { abteilung, auditLog, programm } from "../../db/schema.js";
 import type { Metriken } from "../../metriken.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
 // Ein Abgleich von Hand: dieselbe Funktion wie der Takt im Hintergrund; «gesperrt» heisst, ein anderer Lauf arbeitet gerade
 export type SyncStarter = () => Promise<"fertig" | "gesperrt">;
@@ -14,7 +15,7 @@ const MIN_ABSTAND_MS = 30_000;
 
 const mb = (bytes: number) => Math.round((bytes / 1024 / 1024) * 10) / 10;
 
-// Nur Admins (die Middleware für /api/v1/admin/* verlangt zusätzlich den zweiten Faktor). Die Antworten enthalten nur Zahlen, Flags und feste Texte: keine Umgebungswerte, Hosts, Adressen, Namen oder IDs
+// Nur mit dem Recht «system.lesen» (Abteilungsleitung, oder eine Rolle mit dem Recht, mit zweitem Faktor; die Middleware für /api/v1/admin/* verlangt ihn für die Abteilungsleitung ohnehin). Die Antworten enthalten nur Zahlen, Flags und feste Texte: keine Umgebungswerte, Hosts, Adressen, Namen oder IDs
 export function erstelleSystemRouten({
   db,
   sql,
@@ -60,7 +61,7 @@ export function erstelleSystemRouten({
     new Hono<{ Variables: { person: Person } }>()
       .get("/", async (c) => {
         const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(db, person, "system.lesen");
 
         const start = performance.now();
         let erreichbar = true;
@@ -143,7 +144,7 @@ export function erstelleSystemRouten({
       // Was der Kalender-Abgleich im Hintergrund zuletzt geliefert hat (#267): nur feste Texte, nie Fehlertexte
       .get("/syncs", async (c) => {
         const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(db, person, "system.lesen");
 
         const [abt] = await db
           .select({
@@ -169,11 +170,11 @@ export function erstelleSystemRouten({
       })
       .post("/syncs/kalender", async (c) => {
         const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(db, person, "system.lesen");
         return c.json({ ergebnis: await anstossen("kalender", person) });
       })
-      .get("/requests", (c) => {
-        if (!c.get("person").admin) throw new HTTPException(403);
+      .get("/requests", async (c) => {
+        await verlange(db, c.get("person"), "system.lesen");
         return c.json(metriken.momentaufnahme());
       })
   );

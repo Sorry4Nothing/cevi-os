@@ -3,19 +3,26 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { auditLog, raum } from "../../db/schema.js";
+import { meldeAenderung } from "../../aktivitaet-middleware.js";
 import { eingabe } from "../../eingabe.js";
 import { tagsGehoerenZurAbteilung } from "../../sichtbarkeit.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import {
   ladeRaum,
   ladeRaeume,
-  pruefeRaumRecht,
   raeumeListeSchema,
   zaehleOffeneAnfragen,
 } from "../../termine/raum.js";
+import {
+  raeumeMit,
+  hatRaeume,
+  raumBedingung,
+  verlangeEines,
+} from "../../termine/rechte.js";
 import { HTTPException } from "hono/http-exception";
 import type { TermineEnv } from "./index.js";
 
-// Räume verwalten (#446, Epic #430): Nur die Abteilungsleitung (termine/raum.ts); die Pfade tragen /api/v1/admin und erben den zweiten Faktor. Löschen ist endgültig; offene Raumanfragen (#447) sperren es.
+// Räume verwalten (#446, Epic #430): Anlegen, Ändern und Löschen verlangt «Räume verwalten», das Team eines Raums ändern «Räume einem Team zuweisen» (rechtemodell/katalog.ts, beide erweitert: zweiter Faktor). Standardmässig hat sie nur die Abteilungsleitung; eine Gruppenrolle des Teams kann «Räume verwalten» für die Räume ihres Teams haben (#649). Die Pfade tragen /api/v1/admin. Löschen ist endgültig; offene Raumanfragen (#447) sperren es.
 const text = (max: number) => z.string().trim().min(1).max(max);
 const anlegenSchema = z.strictObject({
   name: text(100),
@@ -35,6 +42,12 @@ const aendernSchema = z.strictObject({
   aktiv: z.boolean().optional(),
 });
 const pfad = z.strictObject({ id: z.uuid() });
+// Die Liste der Verwaltung kennt zusätzlich die Teamansicht: nur die Räume eines Teams
+const adminListeSchema = raeumeListeSchema.extend({
+  teamId: z.uuid().optional(),
+});
+// Die Liste öffnet, wer Räume verwalten oder Teams zuweisen darf
+const LISTE_RECHTE = ["raum.verwalten", "raum.team_zuweisen"] as const;
 
 const RAUM_VORHANDEN = {
   code: "RAUM_VORHANDEN",
@@ -58,9 +71,17 @@ export function erstelleAdminRaeumeRouten({ db }: { db: Db }) {
   return new Hono<TermineEnv>()
     .post("/admin/raeume", eingabe("json", anlegenSchema), async (c) => {
       const person = c.get("person");
-      // Ohne Objekt im Pfad: erst das Recht
-      pruefeRaumRecht(person);
+      // Ohne Objekt im Pfad: erst das Recht; ein neuer Raum ist keiner Gruppe «eigen», also nur abteilungsweit
+      await verlange(db, person, "raum.verwalten", {
+        abteilungId: person.abteilungId,
+        abteilungsweit: true,
+      });
       const b = c.req.valid("json");
+      if (b.teamId) {
+        await verlange(db, person, "raum.team_zuweisen", {
+          abteilungId: person.abteilungId,
+        });
+      }
       if (
         b.teamId &&
         !(await tagsGehoerenZurAbteilung(db, person.abteilungId, [b.teamId]))
@@ -98,10 +119,15 @@ export function erstelleAdminRaeumeRouten({ db }: { db: Db }) {
         throw fehler;
       }
     })
-    .get("/admin/raeume", eingabe("query", raeumeListeSchema), async (c) => {
+    .get("/admin/raeume", eingabe("query", adminListeSchema), async (c) => {
       const person = c.get("person");
-      pruefeRaumRecht(person);
-      const { limit, nach } = c.req.valid("query");
+      // Die Tür: eines der Rechte irgendwo; die Liste zeigt die Räume, für die es gilt
+      await verlangeEines(db, person, LISTE_RECHTE);
+      const sicht = await raeumeMit(db, person, LISTE_RECHTE);
+      const { limit, nach, teamId } = c.req.valid("query");
+      if (!hatRaeume(sicht)) {
+        return c.json({ raeume: [], weitere: false, naechste: null });
+      }
       // Eine Abfrage je Seite, auch die inaktiven Räume
       return c.json(
         await ladeRaeume(db, {
@@ -109,6 +135,8 @@ export function erstelleAdminRaeumeRouten({ db }: { db: Db }) {
           nurAktiv: false,
           limit,
           nach,
+          teamId,
+          bedingung: raumBedingung(sicht),
         }),
       );
     })
@@ -121,9 +149,25 @@ export function erstelleAdminRaeumeRouten({ db }: { db: Db }) {
         const { id } = c.req.valid("param");
         const b = c.req.valid("json");
         // Erst das Objekt (404), dann das Recht (403), dann die Eingabe gegen die Datenbank
-        if (!(await ladeRaum(db, person.abteilungId, id)))
-          throw new HTTPException(404);
-        pruefeRaumRecht(person);
+        const ziel = await ladeRaum(db, person.abteilungId, id);
+        if (!ziel) throw new HTTPException(404);
+        const objekt = {
+          abteilungId: person.abteilungId,
+          raumTeamTagId: ziel.teamTagId,
+        };
+        // Das Team ändern verlangt «Räume einem Team zuweisen»; alles andere «Räume verwalten». Eine Angabe des Teams, die nichts ändert, zählt nicht
+        const aendertTeam =
+          b.teamId !== undefined && b.teamId !== ziel.teamTagId;
+        const weiteres =
+          Object.keys(b).length === 0 ||
+          Object.keys(b).some((k) => k !== "teamId") ||
+          !aendertTeam;
+        if (weiteres) await verlange(db, person, "raum.verwalten", objekt);
+        if (aendertTeam) {
+          await verlange(db, person, "raum.team_zuweisen", {
+            abteilungId: person.abteilungId,
+          });
+        }
         if (
           b.teamId &&
           !(await tagsGehoerenZurAbteilung(db, person.abteilungId, [b.teamId]))
@@ -140,6 +184,13 @@ export function erstelleAdminRaeumeRouten({ db }: { db: Db }) {
         try {
           await db.transaction(async (tx) => {
             await tx.update(raum).set(aenderung).where(eq(raum.id, id));
+            // Für das Änderungsprotokoll: Aktiv oder deaktiviert, vorher und nachher
+            if (b.aktiv !== undefined && b.aktiv !== ziel.aktiv) {
+              meldeAenderung(c, {
+                vorher: { aktiv: ziel.aktiv },
+                nachher: { aktiv: b.aktiv },
+              });
+            }
             // Welche Angaben, nie die Werte
             await tx.insert(auditLog).values({
               abteilungId: person.abteilungId,
@@ -160,9 +211,12 @@ export function erstelleAdminRaeumeRouten({ db }: { db: Db }) {
     .delete("/admin/raeume/:id", eingabe("param", pfad), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");
-      if (!(await ladeRaum(db, person.abteilungId, id)))
-        throw new HTTPException(404);
-      pruefeRaumRecht(person);
+      const vorher = await ladeRaum(db, person.abteilungId, id);
+      if (!vorher) throw new HTTPException(404);
+      await verlange(db, person, "raum.verwalten", {
+        abteilungId: person.abteilungId,
+        raumTeamTagId: vorher.teamTagId,
+      });
       const belegt = await db.transaction(async (tx) => {
         // Sperrt den Raum: Eine Anfrage, die zugleich entsteht, wartet (Fremdschlüssel) und zählt dann mit
         const ziel = await ladeRaum(tx, person.abteilungId, id, true);

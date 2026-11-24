@@ -42,9 +42,9 @@ export const KATEGORIEN = {
   profilbild: {
     titel: "Profilbild",
     zweck:
-      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch.",
+      "Andere Personen erkennen, wer schreibt oder wen sie erreichen. Das Bild ist freiwillig, und jede Person lädt nur ihr eigenes hoch; die Abteilungsleitung und der Entwickler können es entfernen. Wer Leitung oder Stufenleitung einer Stufe ist, erscheint auf der öffentlichen Website mit Anzeigenamen und Bild (Seite der Stufe). Das ist keine Wahl der Person, sondern folgt der Rolle.",
     frist:
-      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild.",
+      "Bis die Person das Bild löscht oder das Konto deaktiviert oder gelöscht wird. Von Kindern gibt es nie ein Bild. Auf der Website steht das Bild, solange die Person die Rolle trägt und das Bild besteht; die Website vergisst es beim nächsten Abgleich, kurz nachdem die Rolle oder das Bild wegfällt.",
     apple: ["User Content: Photos or Videos"],
     google: ["Photos and videos: Photos"],
   },
@@ -56,10 +56,19 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
+  kinderkonto: {
+    titel: "Konto eines Kindes",
+    zweck:
+      "Ein Kind meldet sich mit einem eigenen Konto an und sieht die Programme, die Leitung und, wenn die Abteilung es erlaubt, den Gruppenchat seiner Stufe. Die Abteilungsleitung erstellt das Konto und vermerkt, dass die Eltern informiert sind. Das Konto kennt nur das eigene Kind: nie andere Kinder, Eltern oder Telefonnummern.",
+    frist:
+      "Bis die Leitung das Konto entfernt oder sperrt oder das Kind gelöscht wird; mit dem Kind verschwindet auch das Konto.",
+    apple: ["Contact Info: Name", "Identifiers: User ID"],
+    google: ["Personal info: Name", "Personal info: User IDs"],
+  },
   rollen: {
     titel: "Rollen, Stufen und Tags",
     zweck:
-      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager) ordnen Personen Gruppen zu. Bearbeitungsrechte und Plattformrollen legen fest, wer Inhalte ändern darf.",
+      "Festlegen, wer welche Programme, Anmeldungen und Chats sehen darf. Tags (Stufe, Funktion, Team, Lager, Anlass) ordnen Personen Gruppen zu. Bearbeitungsrechte, Plattformrollen und Rollen in Gruppen legen fest, wer Inhalte ändern, Anmeldungen sehen oder Mitteilungen senden darf.",
     frist: "Bis die Leitung die Rolle entfernt oder das Konto gelöscht wird.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
@@ -67,9 +76,9 @@ export const KATEGORIEN = {
   programme: {
     titel: "Programme",
     zweck:
-      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt. Die Kategorien eines Termins im Kalender werden zu Tags und bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die Abteilungsleitung pflegt und die alle angemeldeten Personen der Abteilung lesen.",
+      "Information über Zeit und Ort der Programme. Sie stammen aus dem Kalender der Abteilung und von den Angaben, die die Stufenleitung pflegt. Die Kategorien eines Termins im Kalender werden zu Tags und bestimmen, wer den Termin sieht. Dazu kommen die Räume der Abteilung (Name, Ort, Beschreibung, Plätze, zuständiges Team), die die Abteilungsleitung pflegt und die alle angemeldeten Personen der Abteilung lesen. Dazu kommen die Orte der Abteilung (Name, Adresszeile und ein Standort als Adresse, Koordinaten oder Link auf Google Maps), die die Stufenleitung pflegt: Treffpunkt und Schlussort der Angaben wählt sie aus diesen Orten. Die Website zeigt dazu den Link «Auf Google Maps ansehen»; der Server ruft Google nie ab, und die Seite verbindet sich nicht mit Google, erst der Klick auf den Link tut es.",
     frist:
-      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das geht nur, solange keine Anfrage offen und keine Buchung in der Zukunft ist.",
+      "Bis die Leitung das Programm löscht. Der Kalender der Abteilung bleibt unverändert. Einen Raum löscht die Abteilungsleitung; das geht nur, solange keine Anfrage offen und keine Buchung in der Zukunft ist. Einen Ort löscht die Stufenleitung oder die Abteilungsleitung; die Angaben behalten den Namen, nur der Link zur Karte entfällt.",
     apple: [],
     google: [],
   },
@@ -100,11 +109,20 @@ export const KATEGORIEN = {
   raumanfragen: {
     titel: "Raumanfragen",
     zweck:
-      "Eine Person fragt einen Raum der Abteilung für eine Zeit an, mit einem kurzen Zweck. Das Team des Raums entscheidet; bei Raum ohne Team entscheidet die Abteilungsleitung. Die anfragende Person sieht ihre Anfragen mit dem Stand. Der Push nennt weder Namen, Raum noch Zweck. Bitte schreib im Zweck keine Angaben zur Gesundheit.",
+      "Eine Person fragt einen Raum der Abteilung für eine Zeit an, mit einem kurzen Zweck. Das Team des Raums entscheidet; bei Raum ohne Team entscheidet die Abteilungsleitung. Die anfragende Person sieht ihre Anfragen mit dem Stand. Alle Leitenden der Abteilung sehen im Belegungsplan, welche Räume wann belegt sind, mit Zweck und dem Cevi-Namen (sonst dem Vornamen) der Person; Eltern und Kinder sehen das nicht. Der Push nennt weder Namen, Raum noch Zweck. Bitte schreib im Zweck keine Angaben zur Gesundheit.",
     frist:
       "180 Tage nach dem Ende der angefragten Zeit, mit dem Konto der anfragenden Person früher. Wird das Konto der entscheidenden Person gelöscht, verschwindet nur die Angabe, wer entschieden hat. Auf Anfrage löscht die Leitung Daten.",
     apple: ["User Content: Other User Content"],
     google: ["App activity: Other user-generated content"],
+  },
+  laedeli: {
+    titel: "Bestellungen im Lädeli",
+    zweck:
+      "Angemeldete Personen bestellen im Lädeli der Abteilung Artikel, zum Beispiel Kleider und Abzeichen. Gespeichert ist, wer bestellt hat, was (Artikel, Variante, Menge, Preis zum Zeitpunkt der Bestellung), die gewählte Übergabe, die Summe und der Stand. Die Abteilungsleitung sieht die Bestellungen mit dem Namen der Person und setzt den Stand; die bestellende Person sieht ihre eigenen und kann eine offene stornieren. Cevi OS wickelt keine Zahlung ab und speichert keine Zahlungsdaten und keine Lieferadresse: Bezahlt wird bei der Übergabe. Der Warenkorb entsteht erst nach der Anmeldung und liegt bis zum Absenden nur im Browser der Person.",
+    frist:
+      "180 Tage nachdem die Bestellung übergeben oder storniert ist; eine Bestellung, die nie abgeschlossen wurde, ein Jahr nach der letzten Änderung. Mit dem Konto der bestellenden Person früher. Auf Anfrage löscht die Leitung Daten.",
+    apple: ["Purchases: Purchase History"],
+    google: ["Financial info: Purchase history"],
   },
   chat: {
     titel: "Chats",
@@ -140,10 +158,19 @@ export const KATEGORIEN = {
     apple: [],
     google: [],
   },
+  aktivitaet: {
+    titel: "Änderungsprotokoll",
+    zweck:
+      "Nachvollziehbarkeit und Sicherheit: Der Entwickler der Plattform sieht, welche Person wann was geändert hat, zum Beispiel eine Rolle, einen Anlass oder eine Seite. Gespeichert sind Zeit, Name und Funktionen der Person zu diesem Zeitpunkt, ein Satz zur Änderung, das betroffene Objekt als Kennung und, wenn es keine Person betrifft, mit seinem Namen (Anlass, Gruppe, Rolle), die Namen (nie die Werte) der geänderten Felder und der Rechte, die dazukamen oder wegfielen, einfache Statuswerte vorher und nachher und ein Hash der IP-Adresse, der täglich wechselt und danach keiner Adresse mehr zuzuordnen ist. Nicht erfasst sind lesende Zugriffe, abgelehnte Anfragen, Anmeldungen und Eingaben im Alltag (Haken, Chat). Fehlgeschlagene Anmeldungen und Begrenzungen stehen getrennt als Sicherheitsereignisse, je Konto und Stunde zusammengezogen. Nie gespeichert sind Inhalte von Anfragen, Passwörter, Texte von Mitteilungen oder Namen von Kindern.",
+    frist:
+      "Neunzig Tage, danach löscht ein nächtlicher Lauf die Einträge; die Abteilung kann die Frist im Betrieb zwischen 7 und 365 Tagen einstellen. Über einer festen Obergrenze an Einträgen fallen die ältesten früher weg. Wird ein Konto gelöscht, verlieren die Einträge der Person sofort Kennung, Namen und Funktionen.",
+    apple: ["Contact Info: Name", "Identifiers: User ID"],
+    google: ["Personal info: Name", "Personal info: User IDs"],
+  },
   abteilung: {
     titel: "Angaben der Abteilung",
     zweck:
-      "Die Abteilung, ihre Stufen (mit freiwilligem Logo) und die Anbindung an den Kalender.",
+      "Die Abteilung, ihre Stufen (mit freiwilligem Logo), die Anbindung an den Kalender und die Auswahl der Fotoalben, die auf der Website erscheinen.",
     frist: "Bis die Leitung die Angaben ändert oder löscht.",
     apple: [],
     google: [],
@@ -307,8 +334,8 @@ export const KATEGORIEN = {
   lagerWetter: {
     titel: "Wetter im Lager",
     zweck:
-      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des Lagers als Breite und Länge fest. Der Server holt die Vorhersage dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen gerundet, keine Namen und keine Angaben zu Personen.",
-    frist: `Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
+      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Niemand gibt Koordinaten ein: Der Server bestimmt den Wetterort aus dem Ort des Lagers. Dazu sucht er den Ortsnamen beim Ortsdienst von Open-Meteo (gesendet wird nur der Ortsname, nie die Adresse) und speichert Breite und Länge auf zwei Stellen gerundet, den gefundenen Namen und das Ergebnis der Suche am Lager. Die Vorhersage holt er dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, keine Namen und keine Angaben zu Personen.",
+    frist: `Der Wetterort, bis sich der Ort des Lagers ändert oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -339,6 +366,23 @@ export const KATEGORIEN = {
     google: [
       "Personal info: Name",
       "App activity: Other user-generated content",
+    ],
+  },
+  cevi_db: {
+    titel: "Angaben aus der Cevi-Datenbank",
+    zweck:
+      "Die Anmeldung füllt Angaben vor, die du in der Cevi-Datenbank selbst gemacht hast, damit du sie nicht noch einmal eintippst: Geburtsdatum, Telefon, Adresse und E-Mail, aber nur die Angaben, die der Anlass in der Anmeldung fragt. Der Server liest sie beim Öffnen der Anmeldung mit dem Zugang der Abteilung, nur lesend, ordnet dich nur bei einem eindeutigen Treffer zu und zeigt sie als Vorschlag, den du ändern kannst. Gespeichert wird erst, was du mit der Anmeldung absendest, dann wie jede andere Antwort. Gesundheitsangaben holt Cevi OS nie. Was in der Cevi-Datenbank fehlt, fragt die Anmeldung wie sonst. Zusätzlich merkt sich Cevi OS die Nummer deines Eintrags in der Cevi-Datenbank, damit die nächste Zuordnung eindeutig ist, und in den Einstellungen die Gruppe der Abteilung und den Stand des letzten Abrufs (Zeitpunkt, Ergebnis und Zahl der Personen).",
+    frist:
+      "Die Personen aus der Cevi-Datenbank liegen höchstens 15 Minuten im Arbeitsspeicher des Servers und nie in der Datenbank. Die Nummer bleibt, bis das Konto oder das Kind gelöscht wird. Die übernommenen Angaben löscht der Server mit der Anmeldung. Auf Anfrage löscht die Leitung Daten.",
+    apple: [
+      "Contact Info: Email Address",
+      "Contact Info: Phone Number",
+      "Contact Info: Physical Address",
+    ],
+    google: [
+      "Personal info: Email address",
+      "Personal info: Phone number",
+      "Personal info: Address",
     ],
   },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
@@ -376,6 +420,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "sync_fehler",
       "datei_hosts",
       "website_logo_medium_id",
+      "website_logo_dunkel_medium_id",
+      "website_zeichen_medium_id",
+      "website_fehlerbild_medium_id",
     ],
   },
   account: {
@@ -393,6 +440,36 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "password",
       "created_at",
       "updated_at",
+    ],
+  },
+  aktivitaet: {
+    aktivitaet: [
+      "id",
+      "zeit",
+      "art",
+      "abteilung_id",
+      "user_id",
+      "akteur",
+      "name",
+      "rollen",
+      "methode",
+      "aktion",
+      "bereich",
+      "objekt_typ",
+      "objekt_id",
+      "gruppe",
+      "objekt_name",
+      "beschreibung",
+      "felder",
+      "aenderung",
+      "status",
+      "ergebnis",
+      "fehler_code",
+      "dauer_ms",
+      "herkunft",
+      "geraet",
+      "anfrage_id",
+      "anzahl",
     ],
   },
   audit_log: {
@@ -462,10 +539,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "pflicht",
       "reihenfolge",
     ],
+    cevi_db: ["cevi_quelle"],
   },
   blockierung: { ungenutzt: ["user_id", "blockiert_id"] },
   chat: {
     chat: ["id", "abteilung_id", "typ", "stufe_id", "eltern_user_id"],
+  },
+  cevi_db_einstellung: {
+    cevi_db: [
+      "abteilung_id",
+      "gruppe_id",
+      "letzter_abruf_am",
+      "letzter_status",
+      "anzahl_personen",
+      "geaendert_am",
+    ],
   },
   chat_status: { chat: ["chat_id", "user_id", "gelesen_bis"] },
   kind: {
@@ -478,6 +566,22 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "stufe_id",
       "stufe_seit",
       "inaktiv_seit",
+    ],
+    cevi_db: ["cevi_db_id"],
+    kinderkonto: [
+      "user_id",
+      "konto_seit",
+      "eltern_informiert_am",
+      "eltern_einsicht",
+    ],
+  },
+  kind_konto_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "erlaubt",
+      "chat",
+      "mindestalter",
+      "eltern_einsicht_vorgabe",
     ],
   },
   kind_eltern: { kinder: ["kind_id", "user_id", "erstellt_am"] },
@@ -561,6 +665,87 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
+  // Lädeli (#566): Artikel und Übergabearten sind Angaben der Abteilung ohne Personendaten; Bestellung und Positionen gehören der bestellenden Person (user_id)
+  laden_artikel: {
+    abteilung: [
+      "id",
+      "abteilung_id",
+      "name",
+      "preis_rappen",
+      "medium_id",
+      "varianten",
+      "nicht_verfuegbar",
+      "hinweis",
+      "verfuegbar",
+      "reihenfolge",
+      "erstellt_am",
+    ],
+  },
+  laden_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "uebergabearten",
+      "bestellen_offen",
+      "schnell_dazu",
+      "preise_oeffentlich",
+      "max_menge",
+      "max_positionen",
+      "max_offene",
+      "mindest_rappen",
+      "bezahlhinweis",
+      "zahlungsart",
+      "bestaetigung",
+      "uebergabehinweis",
+      "bedingungen",
+      "geschlossen_text",
+    ],
+  },
+  laden_bestellung: {
+    laedeli: [
+      "id",
+      "abteilung_id",
+      "user_id",
+      "status",
+      "uebergabe",
+      "summe_rappen",
+      "erstellt_am",
+      "geaendert_am",
+      "abgeschlossen_am",
+    ],
+  },
+  laden_bestellposition: {
+    laedeli: [
+      "id",
+      "bestellung_id",
+      "artikel_id",
+      "name",
+      "variante",
+      "menge",
+      "einzelpreis_rappen",
+    ],
+  },
+  // Fotos aus Flickr (#690): nur die Auswahl der Abteilung (Konto, Albumkennungen, Titel); die Bilder liegen bei Flickr, Zugangsdaten nur in der Umgebung des Servers
+  foto_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "flickr_konto",
+      "flickr_link_zeigen",
+      "version",
+      "geaendert_am",
+    ],
+  },
+  foto_album: {
+    abteilung: [
+      "id",
+      "abteilung_id",
+      "flickr_album_id",
+      "sichtbar",
+      "reihenfolge",
+      "titel",
+      "version",
+      "geaendert_am",
+    ],
+  },
   // Raumanfragen (#447): wer angefragt hat (user_id), Zeit und Zweck (Freitext, höchstens 200 Zeichen), Stand und Entscheid
   raum_buchung: {
     raumanfragen: [
@@ -577,13 +762,32 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
+  // Orte der Abteilung (#646): Name, Adresszeile und Standort; die Karte ist nur ein Link, den der Server selbst baut. Die Adresssuche (#695) fragt die Ortssuche des Bundes mit dem Suchtext, ohne etwas zu speichern
+  ort: {
+    programme: [
+      "id",
+      "abteilung_id",
+      "name",
+      "beschreibung",
+      "karte_adresse",
+      "breite",
+      "laenge",
+      "karte_url",
+      "reihenfolge",
+      "aktiv",
+      "zuletzt_verwendet_am",
+      "erstellt_am",
+    ],
+  },
   programm_eckdaten: {
     programme: [
       "stufe_id",
       "tag",
       "treff_zeit",
       "treffpunkt",
+      "treffpunkt_ort_id",
       "schluss_ort",
+      "schluss_ort_id",
       "schluss_zeit",
       "mitnehmen",
       "abgerufen_am",
@@ -634,9 +838,18 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   stufenlogo: { abteilung: ["stufe_id", "inhalt", "geaendert_am"] },
   // Tags vom Typ «stufe» sind die Stufen der Abteilung (Kategorie «abteilung», kein Personenbezug); alle anderen Tags gehören zu «rollen»
-  tag: { rollen: ["id", "abteilung_id", "typ", "name", "kuerzel"] },
+  tag: {
+    rollen: ["id", "abteilung_id", "typ", "name", "kuerzel", "anlass_id"],
+  },
   person_tag: {
-    rollen: ["user_id", "tag_id", "rolle", "prioritaet", "erstellt_am"],
+    rollen: [
+      "user_id",
+      "tag_id",
+      "rolle",
+      "prioritaet",
+      "rolle_id",
+      "erstellt_am",
+    ],
   },
   // Das Lager hat keinen Personenbezug ausser seiner Adresse und den Mitgliedern
   lager: {
@@ -660,7 +873,14 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
     lagerNotfall: ["karten_link"],
-    lagerWetter: ["breite", "laenge"],
+    lagerWetter: [
+      "breite",
+      "laenge",
+      "wetter_ort_schluessel",
+      "wetter_ort_name",
+      "wetter_ort_ergebnis",
+      "wetter_ort_versuch_am",
+    ],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {
@@ -1243,7 +1463,32 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   plattform_rolle: {
-    rollen: ["id", "abteilung_id", "name", "schluessel", "erstellt_am"],
+    rollen: [
+      "id",
+      "abteilung_id",
+      "name",
+      "schluessel",
+      "version",
+      "erstellt_am",
+    ],
+  },
+  gruppen_rolle: {
+    rollen: [
+      "id",
+      "abteilung_id",
+      "tag_id",
+      "name",
+      "beschreibung",
+      "verantwortlich",
+      "reihenfolge",
+      "schluessel",
+      "version",
+      "erstellt_am",
+      "geaendert_am",
+    ],
+  },
+  gruppen_rolle_recht: {
+    rollen: ["rolle_id", "recht", "geltung"],
   },
   plattform_rolle_recht: {
     rollen: ["rolle_id", "recht"],
@@ -1253,6 +1498,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   },
   plattform_entwickler: {
     rollen: ["user_id", "erstellt_am"],
+  },
+  abteilungsleitung_recht: {
+    rollen: ["abteilung_id", "ohne", "version", "geaendert_am"],
   },
   seite: {
     website: [
@@ -1342,6 +1590,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datenschutz_gelesen_am",
     ],
     telefon: ["telefon"],
+    cevi_db: ["cevi_db_id"],
     benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },
   verification: {
@@ -1382,7 +1631,7 @@ export const STORE_ALLGEMEIN = {
   tracking: false,
   werbung: false,
   analyse: false,
-  // Pushes tragen weder Chat-Inhalt noch Kindernamen, nur den Namen eines Chats oder Programms und den Text der Admins
+  // Pushes tragen weder Chat-Inhalt noch Kindernamen, nur den Namen eines Chats oder Programms und den Text der Abteilungsleitung
   weitergabeAn: ["Apple (Push)", "Google (Push)"],
   verschluesselteUebertragung: true,
   loeschungMoeglich: true,

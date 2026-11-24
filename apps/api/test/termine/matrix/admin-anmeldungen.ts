@@ -4,7 +4,7 @@ import type { PersonaKonto, Persona, Welt } from "../../hilfen/personas.js";
 import type { TermineMatrix, TerminePersona } from "../matrix.js";
 
 // Matrix-Zeilen von TE3 (#444): Anmeldungen eines Anlasses ansehen und exportieren. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
-// Nur die Abteilungsleitung mit zweitem Faktor (Annahme A10): jede andere Rolle 403, auch Stufenleitung, Leitung und Eltern (die Admin-Ohne-Faktor-Persona scheitert am Pfad /api/v1/admin/*). Der Anlass ist in der Pfad-ID: Die fremde Abteilung kennt ihn nicht und bekommt 404, auch die fremde Abteilungsleitung.
+// Nur die Abteilungsleitung mit zweitem Faktor (Annahme A10): jede andere Rolle 403, auch Stufenleitung, Leitung und Eltern (die Ohne der Abteilungsleitung-Faktor-Persona scheitert am Pfad /api/v1/admin/*). Der Anlass ist in der Pfad-ID: Die fremde Abteilung kennt ihn nicht und bekommt 404, auch die fremde Abteilungsleitung.
 const status = (
   werte: Partial<Record<TerminePersona, number>>,
 ): Record<TerminePersona, number> => ({

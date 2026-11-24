@@ -263,6 +263,22 @@ dialog.ws-fenster--breit {
   height: auto;
 }
 
+/* Bild eines Eintrags einer Liste (Station, Bildkarte, Porträt): halbe Höhe, damit die Liste überschaubar bleibt */
+.ws-bildwahl--klein .ws-bildvorschau-bild {
+  max-height: 140px;
+}
+
+.ws-bildwahl--klein .ws-bildvorschau .sk {
+  aspect-ratio: auto;
+  height: 140px;
+}
+
+.ws-bildangaben {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 /* Teile einer Liste (Galerie, Karten) im Formular */
 .ws-liste {
   display: flex;
@@ -362,4 +378,25 @@ dialog.ws-fenster--breit {
   border: 1px solid var(--outline-variant);
   border-radius: var(--r-sm);
   background: #fff;
+}
+
+/* Fassung für den dunklen Modus (#558): auf dem dunklen Grund der Website */
+.ws-logovorschau--dunkel {
+  background: #141412;
+}
+
+/* Bild der Fehlerseiten (#567): breit, aber nicht höher als ein Logo-Feld */
+.ws-logovorschau--breit {
+  width: 100%;
+  max-width: 24rem;
+  max-height: 10rem;
+  padding: 0;
+  object-fit: cover;
+}
+
+/* Zeichen für den Browser-Tab (#558): quadratisch und klein, wie es später erscheint */
+.ws-logovorschau--zeichen {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
 }

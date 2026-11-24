@@ -1,0 +1,580 @@
+/* Querschnitt-Komponenten der Verwaltung (#578): Sortierliste (sortieren.js), Filterleiste (filterleiste.js), Datum, Zeit und Zahl (datumsfeld.js), geteilter Knopf und Bestätigung am Ort (aktionen.js), Formularraster (formularraster.js).
+   Nur Tokens aus tokens.css, Masse in rem, Bewegung mit --dauer und --kurve und nur bei erlaubter Bewegung. */
+
+/* ===== Sortierliste ===== */
+.sortierliste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sortier-eintrag {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 3.5rem;
+  padding: 0.25rem 0.5rem 0.25rem 0.25rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+}
+
+.sortier-eintrag.ist-aufgenommen {
+  background: var(--surface-container-high);
+  border: 2px solid var(--focus);
+  box-shadow: var(--schatten);
+}
+
+/* Ziehen mit Zeiger (zieheMitBewegung in sortieren.js, gilt auch für Seitenbaum und Lädeli): Die gezogene Zeile ist angehoben und folgt dem Zeiger, ein gestrichelter Platzhalter zeigt den Zielplatz */
+.wird-gezogen {
+  position: relative;
+  z-index: 3;
+  pointer-events: none;
+  box-shadow: var(--schatten);
+  cursor: grabbing;
+  will-change: transform;
+}
+
+.sortier-eintrag.wird-gezogen {
+  background: var(--surface-container-high);
+  border-color: var(--outline);
+}
+
+.sortier-platzhalter {
+  box-sizing: border-box;
+  position: absolute;
+  top: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: var(--surface-container);
+  border: 2px dashed var(--outline);
+  border-radius: var(--r-sm);
+}
+
+.sortierliste {
+  position: relative;
+}
+
+/* Beim Ziehen färbt der Zeiger die Zeile darunter nicht ein: Der Zielplatz ist der Platzhalter */
+.sortier-zieht tr:not(.wird-gezogen):hover > *,
+.sortier-zieht .sortier-griff:not([aria-pressed="true"]):hover,
+.sortier-zieht .ws-zeile:not(.wird-gezogen):not(.ws-ziel-in):hover {
+  background: transparent;
+}
+
+body.sortieren-aktiv {
+  cursor: grabbing;
+  user-select: none;
+}
+
+.sortier-schritte {
+  display: inline-block;
+  margin-left: 0.5rem;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.sortier-griff {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  background: transparent;
+  color: var(--on-surface-variant);
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: grab;
+  touch-action: none;
+}
+
+.sortier-griff:hover,
+.sortier-griff[aria-pressed="true"] {
+  background: var(--surface-container);
+  color: var(--on-surface);
+}
+
+.sortier-eintrag.wird-gezogen .sortier-griff {
+  cursor: grabbing;
+}
+
+.sortier-inhalt {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sortier-knoepfe {
+  display: flex;
+  gap: 0.125rem;
+}
+
+.sortier-knoepfe .knopf--rund {
+  color: var(--on-surface-variant);
+}
+
+/* ===== Filterleiste ===== */
+.filterleiste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.filterleiste-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+
+.filterleiste-suche {
+  flex: 1 1 16rem;
+  min-width: 12rem;
+}
+
+/* Auswahlfelder oben wie auf der Website (Termine, #607): 220 px breit, Beschriftung 16 px mit 8 px Abstand zum Feld, Pfeil in der leisen Textfarbe */
+.filterleiste-feld {
+  flex: 0 1 13.75rem;
+  min-width: 10rem;
+}
+
+.filterleiste-feld .feld {
+  gap: 0.5rem;
+}
+
+.filterleiste-feld .feld > label {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.filterleiste-gesetzt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.filterleiste-gesetzt[hidden],
+.filter-chips[hidden] {
+  display: none;
+}
+
+.filter-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 0.75rem 0 1rem;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  font: inherit;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.filter-chip:hover {
+  background: var(--surface-container-high);
+}
+
+.filter-chip .i {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* ===== Datum, Zeit, Zahl ===== */
+.datumsfeld {
+  position: relative;
+}
+
+.datumsfeld-zeile {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.datumsfeld-zeile .eingabe {
+  flex: 1 1 8rem;
+  min-width: 0;
+  max-width: 14rem;
+}
+
+.datumsfeld-zeile--zahl .eingabe {
+  max-width: 8rem;
+  text-align: right;
+}
+
+.zahl-knoepfe {
+  display: flex;
+  gap: 0.25rem;
+}
+
+.datumzeit {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.datumzeit-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.datumzeit-zeile .datumsfeld {
+  flex: 0 1 auto;
+}
+
+.kalender {
+  position: absolute;
+  z-index: 40;
+  top: calc(100% + 0.25rem);
+  left: 0;
+  width: min(21rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  background: var(--karte);
+  color: var(--on-surface);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  box-shadow: var(--schatten);
+}
+
+.kalender-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.kalender-titel {
+  font-weight: 800;
+  color: var(--titel);
+}
+
+.kalender-raster {
+  margin: 0.5rem 0;
+}
+
+.kalender-zeile {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.125rem;
+}
+
+.kalender-wochentag {
+  padding: 0.25rem 0;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.kalender-leer {
+  min-height: 2.75rem;
+}
+
+.kalender-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0;
+  background: transparent;
+  color: var(--on-surface);
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.kalender-tag:hover {
+  background: var(--surface-container);
+}
+
+/* Heute hat einen Rand, der gewählte Tag ist gefüllt: Form und Füllung, nicht nur Farbe */
+.kalender-tag.ist-heute {
+  border-color: var(--outline);
+}
+
+.kalender-tag.ist-gewaehlt {
+  background: var(--secondary);
+  color: var(--on-secondary);
+  font-weight: 800;
+}
+
+.kalender-tag:disabled {
+  color: var(--on-surface-variant);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.kalender-fuss {
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ===== Geteilter Knopf ===== */
+.split {
+  position: relative;
+  display: inline-flex;
+}
+
+.split > .knopf:first-child {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.split-oeffner {
+  padding: 0 0.75rem;
+  border-left-width: 0;
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+  box-shadow: inset 1px 0 0 var(--on-surface-variant);
+}
+
+.split-oeffner.knopf--haupt,
+.split-oeffner.knopf--blau {
+  box-shadow: inset 1px 0 0 currentcolor;
+}
+
+.split-menue {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.375rem);
+  right: 0;
+  min-width: 14rem;
+  margin: 0;
+  padding: 0.375rem;
+  list-style: none;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+  box-shadow: var(--schatten);
+}
+
+.split-eintrag {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  background: transparent;
+  color: var(--on-surface);
+  border: 2px solid transparent;
+  border-radius: 0.5rem;
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.split-eintrag:hover,
+.split-eintrag:focus-visible {
+  background: var(--surface-container);
+}
+
+.split-eintrag:focus-visible {
+  border-color: var(--focus);
+  outline: 0;
+}
+
+.split-eintrag--gefahr {
+  color: var(--on-error-container);
+}
+
+.split-eintrag:disabled {
+  color: var(--on-surface-variant);
+  cursor: not-allowed;
+}
+
+/* ===== Bestätigung am Ort ===== */
+.amort-wurzel {
+  display: inline-block;
+  max-width: 100%;
+}
+
+.amort {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  max-width: 32rem;
+  padding: 1rem;
+  background: var(--error-container);
+  color: var(--on-error-container);
+  border: 1px solid var(--on-error-container);
+  border-radius: var(--r-md);
+}
+
+.amort[hidden] {
+  display: none;
+}
+
+.amort .leise,
+.amort .hilfe {
+  color: inherit;
+}
+
+.amort-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+/* ===== Formularraster ===== */
+.formularraster {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 24rem);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+.formularraster-felder,
+.formularraster-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.formularraster-seite {
+  padding: 1.5rem;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+.formularraster-titel {
+  font-size: 1.125rem;
+}
+
+@media (max-width: 68.75em) {
+  .formularraster {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Vorgabe: keine eigenen Scrollbereiche. Die rechte Spalte (Bild, Vorschau) bleibt beim Scrollen der Seite stehen und ist nie höher als das Fenster */
+@media (min-width: 68.8125em) {
+  .formularraster:not(.formularraster--scroll) .formularraster-seite {
+    position: sticky;
+    top: 1rem;
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+/* scroll: Zwei Spalten, zwei Scrollbereiche in Fensterhöhe, wie der Editor einer Seite */
+@media (min-width: 68.8125em) {
+  .formularraster--scroll {
+    height: calc(100vh - 8.25rem);
+    height: calc(100dvh - 8.25rem);
+    min-height: 24rem;
+    align-items: stretch;
+  }
+
+  .formularraster--scroll .formularraster-felder,
+  .formularraster--scroll .formularraster-seite {
+    min-height: 0;
+    margin: -4px;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+
+  .formularraster--scroll .formularraster-seite {
+    margin: 0;
+    padding: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Die anderen Zeilen weichen aus; die gezogene setzt sich beim Loslassen ab; der Platzhalter wandert mit */
+  .sortier-weicht.sortier-weicht {
+    transition: transform 0.3s var(--kurve);
+  }
+
+  .sortier-setzt-ab.sortier-setzt-ab {
+    transition: transform 0.22s var(--kurve);
+  }
+
+  .sortier-platzhalter--gleitet {
+    transition: transform 0.3s var(--kurve);
+  }
+
+  .sortier-schritte {
+    animation: sortier-schritte 1.6s var(--kurve) both;
+  }
+
+  @keyframes sortier-schritte {
+    from {
+      opacity: 0;
+      transform: translateX(0.25rem);
+    }
+    15%,
+    75% {
+      opacity: 1;
+      transform: none;
+    }
+    to {
+      opacity: 0;
+    }
+  }
+
+  .sortier-eintrag,
+  .filter-chip,
+  .kalender-tag {
+    transition:
+      background var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve);
+  }
+
+  .kalender,
+  .split-menue,
+  .amort:not([hidden]) {
+    animation: werkzeug-auf var(--dauer) var(--kurve) both;
+  }
+
+  @keyframes werkzeug-auf {
+    from {
+      opacity: 0;
+      transform: translateY(-0.25rem);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .sortier-eintrag,
+  .filter-chip,
+  .kalender,
+  .split-menue,
+  .amort {
+    border: 1px solid CanvasText;
+  }
+
+  .kalender-tag.ist-gewaehlt {
+    border-color: Highlight;
+    text-decoration: underline;
+  }
+}

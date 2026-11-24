@@ -3,10 +3,12 @@ import { el, feld, knopf, neueId, tag } from "./dom.js";
 import { loescheFeldFehler } from "./website-dialoge.js";
 import {
   bloeckeZuText,
+  formatiere,
   textZuBloecken,
   zaehleZeichen,
 } from "./website-richtext.js";
 import { sk } from "./lader.js";
+import { sortierListe } from "./sortieren.js";
 import { symbol } from "./website-symbole.js";
 
 // Felder und Typen der Bausteine (Boards E3 und E4). Ein Baustein hat einen Typ mit Name, Kurztext für die Liste, Prüfung und Formular.
@@ -21,6 +23,26 @@ export const MAX_GALERIE = 50;
 export const MIN_KARUSSELL = 3;
 export const MAX_KARUSSELL = 8;
 export const MAX_BAUSTEINE = 100;
+// Bausteine der Inhaltsseiten (#560), wie in src/website/bausteine.ts
+export const MAX_PERSONEN = 24;
+export const MAX_ARTIKEL = 60;
+
+// Darstellungen des Bausteins «karten»: Name im Editor und Name eines Eintrags
+export const KARTEN_ARTEN = {
+  karten: "Karten",
+  liste: "Liste",
+  stufen: "Bildkarten",
+  merkmale: "Merkmale",
+  zeitstrahl: "Zeitstrahl",
+  zahlen: "Zahlen",
+};
+const EINTRAG_NAMEN = {
+  karten: "Karte",
+  stufen: "Bildkarte",
+  merkmale: "Merkmal",
+  zeitstrahl: "Station",
+  zahlen: "Zahl",
+};
 
 const kuerze = (text, n = 60) =>
   text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text;
@@ -49,8 +71,19 @@ export const FELDNAMEN = {
   personId: "Die Person",
   tagId: "Die Gruppe",
   anzahl: "Die Anzahl",
+  symbol: "Das Symbol",
+  bild: "Das Bild",
+  alter: "Das Etikett",
   sichtbarkeit: "Die Sichtbarkeit",
   tagIds: "Die Gruppen",
+  bezeichnung: "Die Bezeichnung",
+  wert: "Der Wert",
+  zeit: "Die Zeitangabe",
+  name: "Der Name",
+  funktion: "Die Funktion",
+  email: "Die E-Mail-Adresse",
+  preis: "Der Preis",
+  hinweis: "Der Hinweis",
 };
 export const CODE_TEXTE = {
   too_small: "fehlt oder ist zu kurz.",
@@ -214,6 +247,40 @@ function textForm(k, b, reg) {
     k.aendere(b);
   });
   zaehle();
+  // Format-Leiste: Fett, Kursiv, Link, Liste; setzt die Schreibweise im Feld um, der Text bleibt derselbe (auch Strg+B und Strg+I)
+  const wende = (art) => {
+    const t = f.eingabe;
+    const r = formatiere(t.value, t.selectionStart, t.selectionEnd, art);
+    t.value = r.wert;
+    t.focus();
+    t.setSelectionRange(r.von, r.bis);
+    t.dispatchEvent(new Event("input", { bubbles: true }));
+  };
+  const leiste = el(
+    "div",
+    { class: "ws-format", role: "group", "aria-label": "Textformat" },
+    [
+      ["fett", "Fett", "Strg+B"],
+      ["kursiv", "Kursiv", "Strg+I"],
+      ["link", "Link"],
+      ["liste", "Liste"],
+      ["nummer", "Nummerierung"],
+    ].map(([art, text, taste]) =>
+      knopf(text, {
+        klein: true,
+        "data-tipp": taste ? `${text} (${taste})` : undefined,
+        onclick: () => wende(art),
+      }),
+    ),
+  );
+  f.eingabe.addEventListener("keydown", (e) => {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+    const art = { b: "fett", i: "kursiv" }[e.key.toLowerCase()];
+    if (!art) return;
+    e.preventDefault();
+    wende(art);
+  });
+  f.eingabe.before(leiste);
   f.wurzel.append(zaehler);
   anmelden(reg, "daten.inhalt", f);
   return f.wurzel;
@@ -227,33 +294,55 @@ export const groesseText = (bytes) =>
 
 // Ein Bild der Bibliothek (E4): Vorschau, Angaben, «Bild wählen» und beim Typ «Bild» der Alt-Text.
 // Der Alt-Text gehört dem Medium, nicht dem Baustein: Wer Medien verwalten darf, ändert ihn hier; für alle anderen steht er zum Lesen da.
-function bildWahl(k, b, reg, ziel, pfad, { alt = false } = {}) {
-  const wurzel = el("div", { class: "feld ws-bildwahl" });
+// schluessel: Feld des Eintrags mit der Bild-ID; optional: das Bild darf fehlen (Stufenkarte), «Bild entfernen» erscheint
+// alt: «pflicht» (Bild, Karussell: ohne Alt-Text kein Übernehmen), «zeigen» (der Alt-Text steht da und lässt sich ändern) oder ein Satz, warum das Bild hier keinen braucht (Porträt)
+// name: Beschriftung («Bild», «Foto der Station», «Porträt»); klein: Vorschau in halber Höhe, für Einträge einer Liste
+function bildWahl(
+  k,
+  b,
+  reg,
+  ziel,
+  pfad,
+  {
+    alt = "zeigen",
+    schluessel = "mediumId",
+    optional = false,
+    name = "Bild",
+    klein = false,
+  } = {},
+) {
+  const wurzel = el("div", {
+    class: klein ? "feld ws-bildwahl ws-bildwahl--klein" : "feld ws-bildwahl",
+  });
   const zeichne = () => {
-    const medium = k.medien.get(ziel.mediumId);
+    const medium = k.medien.get(ziel[schluessel]);
     wurzel.replaceChildren();
     wurzel.classList.remove("fehler");
     const titelId = neueId("bild");
     const waehleFn = () =>
       k.waehleBild((m) => {
-        ziel.mediumId = m.id;
+        ziel[schluessel] = m.id;
         k.medien.set(m.id, m);
         k.aendere(b);
         zeichne();
         wurzel.querySelector("button")?.focus();
       });
     const waehlen = knopf(
-      ziel.mediumId ? "Anderes Bild wählen" : "Bild wählen",
+      ziel[schluessel] ? "Anderes Bild wählen" : "Bild wählen",
       {
         klein: true,
         "aria-describedby": titelId,
         onclick: waehleFn,
       },
     );
-    wurzel.append(el("span", { class: "legende", id: titelId }, "Bild"));
-    if (!ziel.mediumId) {
+    wurzel.append(el("span", { class: "legende", id: titelId }, name));
+    if (!ziel[schluessel]) {
       wurzel.append(
-        el("p", { class: "hilfe" }, "Noch kein Bild gewählt."),
+        el(
+          "p",
+          { class: "hilfe" },
+          optional ? "Kein Bild (optional)." : "Noch kein Bild gewählt.",
+        ),
         waehlen,
       );
       reg(pfad, wurzel, waehlen);
@@ -266,13 +355,14 @@ function bildWahl(k, b, reg, ziel, pfad, { alt = false } = {}) {
       sk("b", 320),
     );
     const bild = el("img", {
-      src: `/api/v1/medien/${ziel.mediumId}`,
+      src: `/api/v1/medien/${ziel[schluessel]}`,
       alt: "",
       class: "ws-bildvorschau-bild",
       onload: () => {
         rahmen.removeAttribute("aria-busy");
         rahmen.classList.add("geladen");
         rahmen.querySelector(".sk")?.remove();
+        rahmen.querySelector("[role=status]")?.remove();
       },
       onerror: () => {
         wurzel.replaceChildren(
@@ -295,32 +385,54 @@ function bildWahl(k, b, reg, ziel, pfad, { alt = false } = {}) {
       bild,
       el("p", { class: "nur-leser", role: "status" }, "Bild lädt …"),
     );
+    // el() überspringt, was fehlt (append() schriebe «undefined» oder «false» auf die Seite)
     wurzel.append(
       rahmen,
-      medium &&
+      el(
+        "div",
+        { class: "ws-bildangaben" },
+        medium &&
+          el(
+            "p",
+            { class: "klein leise" },
+            [
+              `Bild vom ${tag(medium.erstelltAm)}`,
+              groesseText(medium.groesse),
+              medium.breite && `${medium.breite} × ${medium.hoehe} Pixel`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          ),
         el(
-          "p",
-          { class: "klein leise" },
-          [
-            `Bild vom ${tag(medium.erstelltAm)}`,
-            groesseText(medium.groesse),
-            medium.breite && `${medium.breite} × ${medium.hoehe} Pixel`,
-          ]
-            .filter(Boolean)
-            .join(" · "),
+          "div",
+          { class: "ws-teilaktionen" },
+          waehlen,
+          optional &&
+            knopf("Bild entfernen", {
+              klein: true,
+              "aria-describedby": titelId,
+              onclick: () => {
+                delete ziel[schluessel];
+                k.aendere(b);
+                zeichne();
+                wurzel.querySelector("button")?.focus();
+              },
+            }),
         ),
-      waehlen,
+      ),
     );
     reg(pfad, wurzel, waehlen);
-    if (alt) wurzel.append(altFeld(k, medium, ziel, reg));
+    wurzel.append(altFeld(k, medium, alt, reg));
   };
   // Alt-Text (Pflicht) des gewählten Bildes
   zeichne();
   return wurzel;
 }
 
-function altFeld(k, medium, ziel, reg) {
+function altFeld(k, medium, alt, reg) {
   const kannAendern = k.kannAlt && medium && !medium.dekorativ;
+  if (alt !== "pflicht" && alt !== "zeigen")
+    return el("p", { class: "hilfe" }, alt);
   if (!medium) {
     return el(
       "p",
@@ -332,28 +444,28 @@ function altFeld(k, medium, ziel, reg) {
     return el(
       "p",
       { class: "hilfe" },
-      "Das Bild ist als Zierde markiert und braucht keinen Alt-Text.",
+      "Das Bild ist als Zierde markiert: Screenreader überspringen es. Das änderst du unter «Medien».",
     );
   }
   const f = feld({
-    label: "Alt-Text (Pflicht)",
+    label: alt === "pflicht" ? "Alt-Text (Pflicht)" : "Alt-Text",
     mehrzeilig: true,
     rows: 3,
     maxlength: 500,
     wert: k.altText(medium),
     readonly: !kannAendern,
     hilfe: kannAendern
-      ? "Beschreibe, was man sieht. Screenreader lesen diesen Text vor."
-      : "Beschreibe, was man sieht. Den Alt-Text ändert die Abteilungsleitung unter «Medien».",
+      ? "Beschreibe, was man sieht. Screenreader lesen diesen Text vor. Er gehört zum Bild und gilt überall, wo es steht."
+      : "Screenreader lesen diesen Text vor. Ändern kann ihn, wer Medien verwaltet, unter «Medien».",
   });
   f.eingabe.addEventListener("input", () => {
     k.altAenderung(medium.id, f.eingabe.value);
   });
-  anmelden(reg, "alt", f);
+  anmelden(reg, `alt.${medium.id}`, f);
   return f.wurzel;
 }
 
-// Eine Liste von Teilen (Bilder, Karten) mit «Hinzufügen», «Nach oben», «Nach unten» und «Entfernen».
+// Eine Liste von Teilen (Bilder, Karten) mit «Hinzufügen», «Entfernen» und der Reihenfolge wie bei den Bausteinen (Sortierliste: Griff, Tastatur, Hoch und Runter).
 // Jede Änderung der Liste zeichnet das Formular des Bausteins neu und setzt den Fokus auf den betroffenen Teil.
 function listenForm(
   k,
@@ -362,53 +474,46 @@ function listenForm(
 ) {
   const eintraege = liste();
   const neu = (fokus) => k.formNeu(b, fokus);
-  const ul = el("ol", { class: "ws-teile", "aria-label": listeName });
-  eintraege.forEach((eintrag, i) => {
+  const inhalt = (eintrag, i) => {
     const bez = `${name} ${i + 1}`;
-    const bewege = (delta, was) => {
-      const ziel = i + delta;
-      const [x] = eintraege.splice(i, 1);
-      eintraege.splice(ziel, 0, x);
-      k.aendere(b);
-      neu({ index: ziel, was });
-      k.ctx.melde(
-        `${bez} steht jetzt an Position ${ziel + 1} von ${eintraege.length}.`,
-      );
-    };
-    ul.append(
+    return el(
+      "div",
+      { class: "ws-teil-karte" },
+      el("h4", {}, bez),
+      ...zeile(eintrag, `${pfadName}.${i}`),
       el(
-        "li",
-        { class: "ws-teil-karte" },
-        el("h4", {}, bez),
-        ...zeile(eintrag, `${pfadName}.${i}`),
-        el(
-          "div",
-          { class: "ws-teilaktionen" },
-          knopf("Nach oben", {
-            klein: true,
-            kontext: bez,
-            disabled: i === 0,
-            onclick: () => bewege(-1, "hoch"),
-          }),
-          knopf("Nach unten", {
-            klein: true,
-            kontext: bez,
-            disabled: i === eintraege.length - 1,
-            onclick: () => bewege(1, "runter"),
-          }),
-          knopf("Entfernen", {
-            klein: true,
-            kontext: bez,
-            onclick: () => {
-              eintraege.splice(i, 1);
-              k.aendere(b);
-              neu({ index: Math.min(i, eintraege.length - 1), was: "neu" });
-              k.ctx.melde(`${bez} ist entfernt.`);
-            },
-          }),
-        ),
+        "div",
+        { class: "ws-teilaktionen" },
+        knopf("Entfernen", {
+          klein: true,
+          kontext: bez,
+          onclick: () => {
+            eintraege.splice(i, 1);
+            k.aendere(b);
+            neu({ index: Math.min(i, eintraege.length - 1), was: "neu" });
+            k.ctx.melde(`${bez} ist entfernt.`);
+          },
+        }),
       ),
     );
+  };
+  const reihe = sortierListe({
+    beschriftung: listeName,
+    eintraege: eintraege.map((e, i) => ({
+      id: String(i),
+      text: `${name} ${i + 1}`,
+      inhalt: inhalt(e, i),
+    })),
+    // Die neue Reihenfolge gilt sofort im Baustein; das Formular wird neu gezeichnet, damit Nummern und Pfade stimmen
+    beiNeu: (ids) => {
+      const aktiv = document.activeElement;
+      const li = aktiv?.closest?.(".sortier-eintrag");
+      const index = li ? [...li.parentElement.children].indexOf(li) : 0;
+      const sortiert = ids.map((id) => eintraege[Number(id)]);
+      eintraege.splice(0, eintraege.length, ...sortiert);
+      k.aendere(b);
+      neu({ index, was: aktiv?.dataset?.art ?? "neu" });
+    },
   });
   const hinzuKnopf = knopf(hinzuText, {
     klein: true,
@@ -425,7 +530,7 @@ function listenForm(
       });
     },
   });
-  return el("div", { class: "ws-liste" }, ul, hinzuKnopf);
+  return el("div", { class: "ws-liste" }, reihe.wurzel, hinzuKnopf);
 }
 
 // Galerie und Karussell: eine Liste von Bildern; im Karussell zeigt jede Zeile auch den Alt-Text (Pflicht)
@@ -444,7 +549,10 @@ function galerieForm(k, b, reg, karussell = false) {
         fertig(liste.length - 1);
       }),
     zeile: (eintrag, pfad) => [
-      bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`, { alt: karussell }),
+      bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`, {
+        alt: karussell ? "pflicht" : "zeigen",
+        klein: true,
+      }),
       teilEingabe(
         k,
         b,
@@ -456,6 +564,10 @@ function galerieForm(k, b, reg, karussell = false) {
         {
           optional: true,
           maxlength: 300,
+          // Im Karussell steht unter jedem Bild ein Text (#559)
+          ...(karussell && {
+            hilfe: "Ohne Bildunterschrift steht der Alt-Text unter dem Bild.",
+          }),
         },
       ),
     ],
@@ -463,26 +575,86 @@ function galerieForm(k, b, reg, karussell = false) {
 }
 
 function kartenForm(k, b, reg) {
+  const art = b.daten.darstellung;
+  const darstellung = wahl(
+    k,
+    b,
+    reg,
+    "darstellung",
+    "Darstellung",
+    Object.entries(KARTEN_ARTEN),
+  );
+  // Die Felder hängen von der Darstellung ab: Das Formular zeichnet sich neu, der Fokus bleibt auf der Wahl
+  darstellung.addEventListener("change", () => {
+    k.formNeu(b);
+    document.querySelector(".ws-blattform input[type=radio]:checked")?.focus();
+  });
+  const hilfe = {
+    merkmale:
+      "Wenige Stichworte mit kurzem Text in einem blauen Band, ohne Link, auf Wunsch je mit Foto. Gut für «Das erwartet dich».",
+    stufen:
+      "Karten mit Foto, einem Etikett im Bild und einem Link auf die ganze Karte. Gut für Stufen (Etikett: Alter) und für Artikel (Etikett: Preis).",
+    zeitstrahl:
+      "Stationen einer Geschichte in ihrer Reihenfolge, in einem blauen Band: Im Titel steht das Jahr (kurz, es erscheint sehr gross), im Text, was geschah. Mit Foto stehen Bild und Text abwechselnd links und rechts.",
+    zahlen:
+      "Wenige grosse Zahlen mit kurzer Beschriftung: Im Titel steht die Zahl, im Text, was sie zählt.",
+  }[art];
+  const titelName =
+    { zeitstrahl: "Jahr oder Datum", zahlen: "Zahl", merkmale: "Stichwort" }[
+      art
+    ] ?? "Titel";
+  const bildName = { zeitstrahl: "Foto der Station", stufen: "Foto der Karte" }[
+    art
+  ];
+  const mitBild = ["stufen", "merkmale", "zeitstrahl"].includes(art);
+  const ohneLink = ["merkmale", "zeitstrahl", "zahlen"].includes(art);
   return [
-    wahl(k, b, reg, "darstellung", "Darstellung", [
-      ["karten", "Karten"],
-      ["liste", "Liste"],
-    ]),
+    darstellung,
+    ...(hilfe ? [el("p", { class: "hilfe" }, hilfe)] : []),
     listenForm(k, b, {
-      name: "Eintrag",
+      name: EINTRAG_NAMEN[art] ?? "Eintrag",
       listeName: "Einträge",
       pfadName: "daten.eintraege",
       liste: () => b.daten.eintraege,
       max: MAX_KARTEN,
-      hinzuText: "Eintrag hinzufügen",
+      hinzuText: `${EINTRAG_NAMEN[art] ?? "Eintrag"} hinzufügen`,
       hinzu: (liste, fertig) => {
         liste.push({ titel: "" });
         fertig(liste.length - 1);
       },
       zeile: (eintrag, pfad) => [
-        teilEingabe(k, b, reg, eintrag, "titel", "Titel", `${pfad}.titel`, {
+        teilEingabe(k, b, reg, eintrag, "titel", titelName, `${pfad}.titel`, {
           maxlength: 100,
         }),
+        ...(art === "stufen"
+          ? [
+              teilEingabe(
+                k,
+                b,
+                reg,
+                eintrag,
+                "alter",
+                "Etikett im Bild (optional)",
+                `${pfad}.alter`,
+                {
+                  optional: true,
+                  maxlength: 40,
+                  hilfe:
+                    "Steht unten links im Foto, zum Beispiel 3./4. Klasse oder CHF 25.–.",
+                },
+              ),
+            ]
+          : []),
+        ...(mitBild
+          ? [
+              bildWahl(k, b, reg, eintrag, `${pfad}.bild`, {
+                schluessel: "bild",
+                optional: true,
+                klein: true,
+                ...(bildName && { name: bildName }),
+              }),
+            ]
+          : []),
         teilEingabe(
           k,
           b,
@@ -498,25 +670,84 @@ function kartenForm(k, b, reg) {
             rows: 3,
           },
         ),
+        ...(ohneLink
+          ? []
+          : [
+              teilEingabe(
+                k,
+                b,
+                reg,
+                eintrag,
+                "link",
+                "Link (optional)",
+                `${pfad}.link`,
+                {
+                  optional: true,
+                  maxlength: 2000,
+                  spellcheck: "false",
+                  hilfe:
+                    "Eine Seite dieser Website (zum Beispiel /stufen/woelfe) oder eine Webadresse mit https.",
+                },
+              ),
+            ]),
+      ],
+    }),
+  ];
+}
+
+// --- Bausteine der Inhaltsseiten (#560): Listen von Einträgen mit Pflicht- und freiwilligen Feldern ---------------------------
+
+// Fehlt ein Pflichtfeld eines Eintrags, meldet die Prüfung den Pfad des Feldes
+const pflicht = (d, ...felder) => [
+  ...((d.eintraege ?? []).length === 0 ? [["daten.eintraege", "fehlt."]] : []),
+  ...(d.eintraege ?? []).flatMap((x, i) =>
+    felder.flatMap((f) =>
+      x[f]?.trim() ? [] : [[`daten.eintraege.${i}.${f}`, "fehlt."]],
+    ),
+  ),
+];
+
+// Ein freiwilliges Bild je Eintrag: wählen, wechseln, entfernen. Der Alt-Text bleibt am Medium
+// bild: true oder die Optionen von bildWahl (Beschriftung, Alt-Text)
+function bildOptional(k, b, reg, eintrag, pfad, bild) {
+  return [
+    bildWahl(k, b, reg, eintrag, `${pfad}.mediumId`, {
+      optional: true,
+      klein: true,
+      ...(bild === true ? {} : bild),
+    }),
+  ];
+}
+
+// felder: [Schlüssel, Beschriftung, Optionen von teilEingabe]; bild: der Eintrag hat ein freiwilliges Bild
+function eintraegeForm(k, b, reg, { name, max, felder, bild = false }) {
+  return listenForm(k, b, {
+    name,
+    listeName: "Einträge",
+    pfadName: "daten.eintraege",
+    liste: () => b.daten.eintraege,
+    max,
+    hinzuText: `${name} hinzufügen`,
+    hinzu: (liste, fertig) => {
+      liste.push({});
+      fertig(liste.length - 1);
+    },
+    zeile: (eintrag, pfad) => [
+      ...felder.map(([schluessel, label, optionen]) =>
         teilEingabe(
           k,
           b,
           reg,
           eintrag,
-          "link",
-          "Link (optional)",
-          `${pfad}.link`,
-          {
-            optional: true,
-            maxlength: 2000,
-            spellcheck: "false",
-            hilfe:
-              "Eine Seite dieser Website (zum Beispiel /stufen/woelfe) oder eine Webadresse mit https.",
-          },
+          schluessel,
+          label,
+          `${pfad}.${schluessel}`,
+          optionen,
         ),
-      ],
-    }),
-  ];
+      ),
+      ...(bild ? bildOptional(k, b, reg, eintrag, pfad, bild) : []),
+    ],
+  });
 }
 
 // Die Grösse der Datei: Der Server speichert Bytes, das Feld nimmt Kilobyte
@@ -732,11 +963,11 @@ export const TYPEN = {
       const fehler = d.mediumId ? [] : [["daten.mediumId", "fehlt."]];
       const m = d.mediumId ? k?.medien.get(d.mediumId) : null;
       if (m && !m.dekorativ && !k.altText(m).trim())
-        fehler.push(["alt", "fehlt."]);
+        fehler.push([`alt.${m.id}`, "fehlt."]);
       return fehler;
     },
     form: (k, b, reg) => [
-      bildWahl(k, b, reg, b.daten, "daten.mediumId", { alt: true }),
+      bildWahl(k, b, reg, b.daten, "daten.mediumId", { alt: "pflicht" }),
       eingabe(k, b, reg, "unterschrift", "Bildunterschrift (optional)", {
         maxlength: 300,
         optional: true,
@@ -772,8 +1003,20 @@ export const TYPEN = {
     form: (k, b, reg) => [galerieForm(k, b, reg, true)],
   },
   karten: {
-    name: "Karten oder Liste",
-    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Eintrag", "Einträge"),
+    name: "Karten",
+    kurz: (d) =>
+      [
+        anzahlText(d.eintraege?.length ?? 0, "1 Eintrag", "Einträge"),
+        kuerze(
+          (d.eintraege ?? [])
+            .map((e) => e.titel)
+            .filter(Boolean)
+            .join(", "),
+          70,
+        ),
+      ]
+        .filter(Boolean)
+        .join(": "),
     pruefe: (d) => [
       ...((d.eintraege ?? []).length === 0
         ? [["daten.eintraege", "fehlt."]]
@@ -834,6 +1077,83 @@ export const TYPEN = {
         hilfe: "Zum Beispiel PDF oder Word.",
       }),
       groesseFeld(k, b, reg),
+    ],
+  },
+  personen: {
+    name: "Personen",
+    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Person", "Personen"),
+    pruefe: (d) => pflicht(d, "name"),
+    form: (k, b, reg) => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Ansprechpersonen mit Foto, Anzeigename, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
+      ),
+      eintraegeForm(k, b, reg, {
+        name: "Person",
+        max: MAX_PERSONEN,
+        bild: {
+          name: "Porträt",
+          alt: "Das Porträt braucht keinen Alt-Text: Der Name steht daneben. Ohne Porträt stehen die Anfangsbuchstaben.",
+        },
+        felder: [
+          [
+            "name",
+            "Anzeigename",
+            {
+              maxlength: 100,
+              hilfe:
+                "Steht gross unter dem Bild, zum Beispiel der Cevi-Name, sonst der Vorname.",
+            },
+          ],
+          [
+            "funktion",
+            "Funktion (optional)",
+            { optional: true, maxlength: 100 },
+          ],
+          [
+            "email",
+            "E-Mail-Adresse der Funktion (optional)",
+            {
+              optional: true,
+              maxlength: 254,
+              type: "email",
+              spellcheck: "false",
+              autocapitalize: "off",
+            },
+          ],
+        ],
+      }),
+    ],
+  },
+  artikel: {
+    name: "Artikel",
+    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Artikel", "Artikel"),
+    pruefe: (d) => pflicht(d, "name"),
+    form: (k, b, reg) => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Karten mit Bild, Name und Preis, zum Beispiel für das Lädeli.",
+      ),
+      eintraegeForm(k, b, reg, {
+        name: "Artikel",
+        max: MAX_ARTIKEL,
+        bild: true,
+        felder: [
+          ["name", "Name", { maxlength: 100 }],
+          [
+            "preis",
+            "Preis (optional)",
+            {
+              optional: true,
+              maxlength: 40,
+              hilfe: "Zum Beispiel CHF 40.– oder gratis.",
+            },
+          ],
+          ["hinweis", "Hinweis (optional)", { optional: true, maxlength: 200 }],
+        ],
+      }),
     ],
   },
   kontaktperson: {
@@ -981,12 +1301,110 @@ export const TYPEN = {
       ),
     ],
   },
-  // Kontaktkarte (#549): Telefon und E-Mail der Abteilung stehen in der Konfiguration des Servers
+  // Eckdaten (#555): frei benannte Angaben als Tafel neben dem Text
+  eckdaten: {
+    name: "Eckdaten",
+    kurz: (d) => (d.eintraege ?? []).map((e) => e.bezeichnung).join(", "),
+    pruefe: (d) =>
+      (d.eintraege ?? []).flatMap((e, i) => [
+        ...(e.bezeichnung?.trim()
+          ? []
+          : [[`daten.eintraege.${i}.bezeichnung`, "fehlt."]]),
+        ...(e.wert?.trim() ? [] : [[`daten.eintraege.${i}.wert`, "fehlt."]]),
+      ]),
+    form: (k, b, reg) => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Das Wichtigste auf einen Blick, zum Beispiel Datum, Ort, Kosten und Anmeldeschluss. Steht der Baustein gleich nach einem Text, erscheint er rechts daneben. Gehört die Seite zu einem Anlass mit Anmeldung, steht darunter von selbst die Schaltfläche «Zur Anmeldung».",
+      ),
+      listenForm(k, b, {
+        name: "Angabe",
+        listeName: "Angaben",
+        pfadName: "daten.eintraege",
+        liste: () => b.daten.eintraege,
+        max: 12,
+        hinzuText: "Angabe hinzufügen",
+        hinzu: (liste, fertig) => {
+          liste.push({ bezeichnung: "", wert: "" });
+          fertig(liste.length - 1);
+        },
+        zeile: (eintrag, pfad) => [
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
+            "bezeichnung",
+            "Bezeichnung",
+            `${pfad}.bezeichnung`,
+            { maxlength: 60, hilfe: "Zum Beispiel: Datum." },
+          ),
+          teilEingabe(k, b, reg, eintrag, "wert", "Angabe", `${pfad}.wert`, {
+            maxlength: 300,
+          }),
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
+            "link",
+            "Link an der Angabe (optional)",
+            `${pfad}.link`,
+            {
+              optional: true,
+              maxlength: 2000,
+              spellcheck: "false",
+              hilfe: LINK_HILFE,
+            },
+          ),
+        ],
+      }),
+    ],
+  },
+  // Aufruf zum Handeln (#555): farbiges Band mit Titel, Text und Schaltfläche
+  aufruf: {
+    name: "Aufruf zum Handeln",
+    kurz: (d) => d.titel ?? "",
+    pruefe: (d) => [
+      ...(d.titel?.trim() ? [] : [["daten.titel", "fehlt."]]),
+      ...(d.beschriftung?.trim() ? [] : [["daten.beschriftung", "fehlt."]]),
+      ...(d.ziel?.trim() ? [] : [["daten.ziel", "fehlt."]]),
+    ],
+    form: (k, b, reg) => [
+      eingabe(k, b, reg, "titel", "Titel", {
+        maxlength: 100,
+        hilfe: "Zum Beispiel: Schnuppern im Cevi.",
+      }),
+      eingabe(k, b, reg, "text", "Text (optional)", {
+        maxlength: 500,
+        optional: true,
+        mehrzeilig: true,
+        rows: 3,
+      }),
+      eingabe(k, b, reg, "beschriftung", "Beschriftung der Schaltfläche", {
+        maxlength: 60,
+      }),
+      eingabe(k, b, reg, "ziel", "Ziel der Schaltfläche", {
+        maxlength: 2000,
+        spellcheck: "false",
+        autocapitalize: "off",
+        hilfe: LINK_HILFE,
+      }),
+    ],
+  },
+  // Kontaktkarte (#549, #580): Telefon, E-Mail und Anschrift der Abteilung stehen in der Konfiguration des Servers
   kontaktkarte: {
     name: "Kontaktkarte",
     kurz: (d, k) =>
       k.personNamen.get(d.personId) ?? "Fragen? Melde dich bei uns.",
-    pruefe: () => [],
+    pruefe: (d) =>
+      (d.verweise ?? []).flatMap((v, i) => [
+        ...(v.beschriftung?.trim()
+          ? []
+          : [[`daten.verweise.${i}.beschriftung`, "fehlt."]]),
+        ...(v.ziel?.trim() ? [] : [[`daten.verweise.${i}.ziel`, "fehlt."]]),
+      ]),
     form: (k, b, reg) => [
       eingabe(k, b, reg, "titel", "Titel (optional)", {
         maxlength: 100,
@@ -997,12 +1415,90 @@ export const TYPEN = {
       el(
         "p",
         { class: "hilfe" },
-        "Die Person ist freiwillig; Cevi-Name und Funktion erscheinen unter dem Titel. Telefon und E-Mail der Abteilung setzt der Server ein.",
+        "Die Person ist freiwillig; Cevi-Name und Funktion erscheinen unter dem Titel. Die Knöpfe «E-Mail schreiben» und «Anrufen» und die Angaben zu Anschrift, E-Mail und Telefon setzt der Server aus der Konfiguration der Abteilung ein.",
+      ),
+      eingabe(k, b, reg, "hinweis", "Hinweis zur Erreichbarkeit (optional)", {
+        maxlength: 200,
+        optional: true,
+        mehrzeilig: true,
+        rows: 2,
+        hilfe:
+          "Steht unter dem Titel, zum Beispiel wann man jemanden erreicht. Nur Angaben, die stimmen.",
+      }),
+      bildWahl(k, b, reg, b.daten, "daten.bild", {
+        schluessel: "bild",
+        optional: true,
+        name: "Bild neben den Angaben",
+      }),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Weiterführende Verweise stehen als ruhige Zeile unter der Karte, zum Beispiel Cevi Schweiz. Fremde Seiten tragen den kleinen Pfeil nach oben rechts.",
+      ),
+      listenForm(k, b, {
+        name: "Verweis",
+        listeName: "Verweise",
+        pfadName: "daten.verweise",
+        liste: () => b.daten.verweise ?? [],
+        max: 4,
+        hinzuText: "Verweis hinzufügen",
+        hinzu: (liste, fertig) => {
+          // Das Feld entsteht erst mit dem ersten Verweis
+          const verweise = (b.daten.verweise ??= liste);
+          verweise.push({ beschriftung: "", ziel: "" });
+          fertig(verweise.length - 1);
+        },
+        zeile: (eintrag, pfad) => [
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
+            "beschriftung",
+            "Beschriftung",
+            `${pfad}.beschriftung`,
+            { maxlength: 60, hilfe: "Zum Beispiel: Cevi Schweiz." },
+          ),
+          teilEingabe(k, b, reg, eintrag, "ziel", "Ziel", `${pfad}.ziel`, {
+            maxlength: 2000,
+            spellcheck: "false",
+            autocapitalize: "off",
+            hilfe: LINK_HILFE,
+          }),
+        ],
+      }),
+    ],
+  },
+  laden: {
+    name: "Lädeli",
+    kurz: () => "Artikel der Abteilung mit Warenkorb und Bestellung",
+    pruefe: () => [],
+    form: () => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Zeigt alle Artikel des Lädelis mit Bild, Preis und Varianten. Angemeldete Personen legen Artikel in den Warenkorb und bestellen; ohne Anmeldung ist es eine Preisliste. Die Artikel pflegst du unter ",
+        el("a", { href: "#laedeli/artikel" }, "Lädeli, Artikel"),
+        ".",
+      ),
+    ],
+  },
+  fotoalben: {
+    name: "Fotoalben",
+    kurz: () => "Die Fotoalben der Abteilung aus Flickr, nur angemeldet",
+    pruefe: () => [],
+    form: () => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Zeigt die Alben, die du freigegeben hast, mit einer Grossansicht der Bilder. Die Seite ist für alle sichtbar, die Fotos sehen aber nur angemeldete Personen; alle anderen lesen «Nur angemeldet sichtbar» mit einem Link zur Anmeldung. Welche Alben erscheinen und in welcher Reihenfolge, stellst du unter ",
+        el("a", { href: "#website/fotos" }, "Website, Fotos"),
+        " ein.",
       ),
     ],
   },
   stufenfakten: {
-    name: "Stufenfelder",
+    name: "Samstagsangaben der Stufen",
     kurz: () => "Datum, Treffpunkt und Mitnehmen der Stufe",
     pruefe: () => [],
     form: () => [
@@ -1010,7 +1506,11 @@ export const TYPEN = {
         "p",
         { class: "hilfe" },
         "Zeigt Datum, Treffpunkt, Schluss und Mitnehmen der nächsten Aktivität der Stufe. Die Werte pflegst du unter ",
-        el("a", { href: "#website/stufenfakten" }, "Stufenfelder"),
+        el(
+          "a",
+          { href: "#website/stufenfakten" },
+          "Samstagsangaben der Stufen",
+        ),
         ".",
       ),
     ],
@@ -1044,11 +1544,25 @@ export const KATALOG = [
     beschreibung: "3 bis 8 Bilder, die sich langsam abwechseln.",
     neu: () => ({ bilder: [{}, {}, {}] }),
   },
-  {
+  ...[
+    ["karten", "Kästchen mit Titel, Text und Link «Mehr zu …»."],
+    ["liste", "Zeilen mit Titel und Text, der Titel als Link."],
+    [
+      "stufen",
+      "Karten mit Foto, Etikett im Bild und Link, zum Beispiel für Stufen.",
+    ],
+    [
+      "merkmale",
+      "Stichworte mit kurzem Text im blauen Band, auf Wunsch mit Foto.",
+    ],
+    ["zeitstrahl", "Stationen einer Geschichte mit Jahr, Text und Foto."],
+    ["zahlen", "Wenige grosse Zahlen mit kurzer Beschriftung."],
+  ].map(([darstellung, beschreibung]) => ({
     typ: "karten",
-    beschreibung: "Einträge mit Titel, Text und Link.",
-    neu: () => ({ darstellung: "karten", eintraege: [{ titel: "" }] }),
-  },
+    name: KARTEN_ARTEN[darstellung],
+    beschreibung,
+    neu: () => ({ darstellung, eintraege: [{ titel: "" }] }),
+  })),
   {
     typ: "schaltflaeche",
     beschreibung: "Führt auf eine andere Seite oder Adresse.",
@@ -1059,6 +1573,16 @@ export const KATALOG = [
     beschreibung:
       "Zum Beispiel ein PDF im SharePoint, mit Name, Grösse und Typ.",
     neu: () => ({ titel: "", link: "" }),
+  },
+  {
+    typ: "personen",
+    beschreibung: "Ansprechpersonen mit Foto, Name, Funktion und E-Mail.",
+    neu: () => ({ eintraege: [{}] }),
+  },
+  {
+    typ: "artikel",
+    beschreibung: "Karten mit Bild, Name und Preis.",
+    neu: () => ({ eintraege: [{}] }),
   },
   {
     typ: "kontaktperson",
@@ -1091,18 +1615,56 @@ export const KATALOG = [
     neu: () => ({}),
   },
   {
+    typ: "laden",
+    beschreibung: "Das Lädeli: Artikel, Warenkorb und Bestellung.",
+    neu: () => ({}),
+  },
+  {
+    typ: "fotoalben",
+    beschreibung: "Fotoalben aus Flickr, nur für angemeldete Personen.",
+    neu: () => ({}),
+  },
+  {
     typ: "hinweis",
     beschreibung: "Ein Satz mit Symbol, zum Beispiel «Anmeldung offen».",
     neu: () => ({ text: "" }),
   },
   {
+    typ: "eckdaten",
+    beschreibung: "Datum, Ort, Kosten und mehr auf einen Blick.",
+    neu: () => ({ eintraege: [{ bezeichnung: "", wert: "" }] }),
+  },
+  {
+    typ: "aufruf",
+    beschreibung: "Ein farbiges Band mit Titel, Text und Schaltfläche.",
+    neu: () => ({ titel: "", beschriftung: "", ziel: "" }),
+  },
+  {
     typ: "kontaktkarte",
-    beschreibung: "«Fragen? Melde dich bei uns.» mit Telefon und E-Mail.",
+    beschreibung:
+      "«Fragen? Melde dich bei uns.» mit Knöpfen für E-Mail und Telefon, Anschrift und Verweisen.",
     neu: () => ({}),
   },
-].map((e) => ({ ...e, name: TYPEN[e.typ].name }));
+].map((e) => ({ name: TYPEN[e.typ].name, ...e }));
 
-export const typName = (b) => TYPEN[b.typ]?.name ?? b.typ;
+// Ein Karten-Baustein heisst nach seiner Darstellung («Zeitstrahl»): So findet man ihn in der Liste der Seite wieder
+export const typName = (b) =>
+  (b.typ === "karten" && KARTEN_ARTEN[b.daten?.darstellung]) ||
+  (TYPEN[b.typ]?.name ?? b.typ);
+
+// Alle Bilder, auf die ein Dokument verweist (für den Abruf ihrer Angaben und Alt-Texte)
+export const medienIds = (dok) => [
+  ...new Set(
+    dok.bausteine
+      .flatMap((b) => [
+        b.daten.mediumId,
+        b.daten.bild,
+        ...(b.daten.bilder ?? []).map((x) => x.mediumId),
+        ...(b.daten.eintraege ?? []).flatMap((x) => [x.bild, x.mediumId]),
+      ])
+      .filter(Boolean),
+  ),
+];
 export const kurzText = (k, b) => {
   try {
     return TYPEN[b.typ]?.kurz(b.daten, k) ?? "";

@@ -3,6 +3,7 @@ import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../../bild.js";
 import type { Db } from "../../db/client.js";
 import { ressort, ressortLink, ressortNotiz, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
@@ -87,8 +88,10 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
         zeile: ressort,
         leitungName: leitung.name,
         leitungCevi: leitung.ceviName,
+        leitungBild: bildUrlImLager(sql`${leitung.id}`, lagerId),
         stvName: stv.name,
         stvCevi: stv.ceviName,
+        stvBild: bildUrlImLager(sql`${stv.id}`, lagerId),
       })
       .from(ressort)
       .leftJoin(leitung, eq(leitung.id, ressort.leitungPersonId))
@@ -111,11 +114,13 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
         id: z.zeile.leitungPersonId,
         name: z.leitungName,
         ceviName: z.leitungCevi,
+        bildUrl: z.leitungBild,
       },
       stv: z.zeile.stvPersonId && {
         id: z.zeile.stvPersonId,
         name: z.stvName,
         ceviName: z.stvCevi,
+        bildUrl: z.stvBild,
       },
     }));
     return {
@@ -407,6 +412,7 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
               zeile: ressortNotiz,
               name: user.name,
               ceviName: user.ceviName,
+              bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
             })
             .from(ressortNotiz)
             .leftJoin(user, eq(user.id, ressortNotiz.erstelltVon))
@@ -425,6 +431,7 @@ export function erstelleRessortRouten({ db }: { db: Db }) {
               id: z.zeile.erstelltVon,
               name: z.name,
               ceviName: z.ceviName,
+              bildUrl: z.bildUrl,
             },
           }));
           return c.json({

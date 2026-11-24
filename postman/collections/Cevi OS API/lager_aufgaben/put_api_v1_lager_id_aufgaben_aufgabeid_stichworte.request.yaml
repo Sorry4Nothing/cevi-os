@@ -1,6 +1,6 @@
 $kind: http-request
 name: "PUT /api/v1/lager/:id/aufgaben/:aufgabeId/stichworte"
-order: 184000
+order: 232000
 method: PUT
 url: "{{baseUrl}}{{pfad_L28}}"
 headers:

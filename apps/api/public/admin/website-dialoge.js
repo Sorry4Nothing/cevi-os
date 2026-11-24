@@ -1,5 +1,5 @@
-import { fehlertext } from "./api.js";
-import { el, knopf, neueId } from "./dom.js";
+import { el, flussKopf, neueId } from "./dom.js";
+import { oeffneFluss } from "./fluss.js";
 import { symbol } from "./website-symbole.js";
 import { rahmenzustand } from "./zustaende.js";
 
@@ -82,7 +82,7 @@ export function loescheFeldFehler(wurzel) {
   meldung.remove();
 }
 
-// Fenster mit Titel, Schliessen-Knopf, Inhalt und Fuss.
+// Fenster mit Titel, Schliessen-Knopf, Inhalt und Fuss. Ohne rueckfrage ist es seit #578 eine Seite im Fluss (fluss.js, «Zurück», eigener Verlaufseintrag, Frage bei ungespeicherten Eingaben); eine Rückfrage bleibt ein kleines Fenster.
 // optionen: { titel, beschreibung?, breit?, rueckfrage? (role alertdialog), inhalt, fuss (Knoten), beimSchliessen?, fokus? (Knoten, sonst der erste Knopf im Inhalt) }
 // Liefert { dialog, schliesse, fehler(text|null) }. Die Fehlerzeile steht über dem Fuss.
 export function fenster({
@@ -98,6 +98,55 @@ export function fenster({
   const zurueck = document.activeElement;
   const titelId = neueId("titel");
   const fehlerZeile = el("div", { class: "ws-fenster-fehler" });
+  if (!rueckfrage) {
+    const { kopf } = flussKopf({
+      titelId,
+      titel,
+      beschreibung,
+      beiZurueck: () => seite.versuchSchliessen(),
+    });
+    const seite = el(
+      "section",
+      {
+        class: `fluss-seite ${breit ? "fluss-breit" : "fluss-formular"}`,
+        "aria-labelledby": titelId,
+      },
+      kopf,
+      el(
+        "div",
+        { class: "fluss-karte ws-fluss" },
+        el("div", { class: "ws-fenster-inhalt" }, inhalt),
+        fehlerZeile,
+        el("div", { class: "ws-fenster-fuss" }, fuss),
+      ),
+    );
+    seite.addEventListener("close", () => {
+      beimSchliessen?.();
+      if (zurueck?.isConnected) zurueck.focus({ preventScroll: true });
+      else document.querySelector("h1")?.focus();
+    });
+    oeffneFluss(seite);
+    (
+      fokus ??
+      seite.querySelector(
+        ".ws-fenster-inhalt input:not([type=hidden]), .ws-fenster-inhalt textarea, .ws-fenster-inhalt select",
+      ) ??
+      seite.querySelector("h1")
+    ).focus();
+    return {
+      dialog: seite,
+      schliesse: () => seite.close(),
+      fehler(text) {
+        fehlerZeile.replaceChildren();
+        if (text) {
+          const b = band("fehler", text);
+          b.tabIndex = -1;
+          fehlerZeile.append(b);
+          b.focus();
+        }
+      },
+    };
+  }
   const zu = el(
     "button",
     {
@@ -135,7 +184,7 @@ export function fenster({
     beimSchliessen?.();
     const offen = document.querySelector("dialog[open]");
     if (offen && !offen.contains(zurueck)) return;
-    if (zurueck?.isConnected) zurueck.focus();
+    if (zurueck?.isConnected) zurueck.focus({ preventScroll: true });
     else document.querySelector("h1")?.focus();
   });
   document.body.append(dialog);
@@ -160,44 +209,6 @@ export function fenster({
       }
     },
   };
-}
-
-// Rückfrage vor etwas Folgenreichem: Der Fokus liegt auf «Abbrechen» (Handbuch 2.6). aktion() wirft bei Fehlern; sie erscheinen im Fenster.
-export function rueckfrage({
-  titel,
-  text,
-  ok,
-  gefaehrlich = false,
-  aktion,
-  danach,
-  fehlertext: ft = fehlertext,
-  inhalt = [],
-}) {
-  const abbrechen = knopf("Abbrechen", { onclick: () => f.schliesse() });
-  const bestaetigen = knopf(ok, { art: gefaehrlich ? undefined : "haupt" });
-  if (gefaehrlich) bestaetigen.classList.add("ws-gefahr-voll");
-  bei(bestaetigen, async () => {
-    f.fehler(null);
-    beschaeftigt(bestaetigen, true);
-    abbrechen.disabled = true;
-    try {
-      const ergebnis = await aktion();
-      f.schliesse();
-      danach?.(ergebnis);
-    } catch (fehler) {
-      f.fehler(ft(fehler));
-      beschaeftigt(bestaetigen, false);
-      abbrechen.disabled = false;
-    }
-  });
-  const f = fenster({
-    titel,
-    rueckfrage: true,
-    inhalt: [text && el("p", { class: "leise" }, text), ...inhalt],
-    fuss: [abbrechen, bestaetigen],
-    fokus: abbrechen,
-  });
-  return f;
 }
 
 // Name einer Person oder Seite für Knöpfe und Rückfragen, auf eine Zeile gekürzt

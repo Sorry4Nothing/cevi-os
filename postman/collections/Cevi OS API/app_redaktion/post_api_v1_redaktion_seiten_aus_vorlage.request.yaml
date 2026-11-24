@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/redaktion/seiten/aus-vorlage"
-order: 142000
+order: 190000
 method: POST
 url: "{{baseUrl}}/api/v1/redaktion/seiten/aus-vorlage"
 headers:

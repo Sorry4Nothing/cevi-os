@@ -1,0 +1,189 @@
+/* Toasts mit «Rückgängig» (#578, Logik: rueckgaengig.js, Darstellung: rahmen.js). Unten links gestapelt, am Handy über die ganze Breite. Farben aus tokens.css: Fläche --inverse-surface, Text --inverse-on-surface (Tag 10.4:1, Nacht 16.6:1), Fehler in --error-container mit --on-error-container (6.8:1 und 7.5:1). «Rückgängig» ist ein fetter, unterstrichener Textknopf in der Textfarbe: Zustand nie nur über Farbe. */
+
+.toasts {
+  position: fixed;
+  bottom: 1rem;
+  left: var(--seitenrand);
+  z-index: 60;
+  width: min(30rem, calc(100vw - 2rem));
+  pointer-events: none;
+}
+
+.toasts:focus {
+  outline: none;
+}
+
+.toast-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 3.5rem;
+  padding: 0.25rem 0.25rem 0.25rem 1rem;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--inverse-surface);
+  box-shadow: var(--schatten);
+  color: var(--inverse-on-surface);
+  pointer-events: auto;
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 1rem;
+  line-height: 1.375rem;
+  overflow-wrap: anywhere;
+}
+
+.toast-aktion {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.toast-aktion:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+.toast .knopf--rund {
+  flex: none;
+  color: inherit;
+}
+
+.toast .knopf--rund:hover {
+  background: rgb(255 255 255 / 14%);
+  color: inherit;
+}
+
+/* Fokus: Ring in der Textfarbe des Toasts, damit er auf der Fläche absticht */
+.toast :focus-visible {
+  outline-color: var(--inverse-on-surface);
+  outline-offset: -3px;
+}
+
+/* Nacht: Die Fläche ist hell; Hover dunkelt ab */
+:root[data-theme="dark"] .toast-aktion:hover,
+:root[data-theme="dark"] .toast .knopf--rund:hover {
+  background: rgb(0 0 0 / 10%);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .toast-aktion:hover,
+  :root:not([data-theme="light"]) .toast .knopf--rund:hover {
+    background: rgb(0 0 0 / 10%);
+  }
+}
+
+:root[data-theme="light"] .toast-aktion:hover,
+:root[data-theme="light"] .toast .knopf--rund:hover {
+  background: rgb(255 255 255 / 14%);
+}
+
+/* Fehler: bleibt stehen, bis die Person ihn schliesst */
+.toast--fehler {
+  border: 1px solid var(--on-error-container);
+  background: var(--error-container);
+  color: var(--on-error-container);
+}
+
+.toast--fehler :focus-visible {
+  outline-color: var(--on-error-container);
+}
+
+.toast--fehler .knopf--rund:hover {
+  background: rgb(0 0 0 / 8%);
+}
+
+/* Frist: ein Balken am unteren Rand läuft in 8 Sekunden ab (FRIST_MS in rueckgaengig.js); Zeigen und Fokus halten ihn an. Nur bei erlaubter Bewegung: sonst bleibt der Toast ohne Balken stehen */
+.toast-balken {
+  display: none;
+}
+
+@keyframes toast-frist {
+  from {
+    transform: scaleX(1);
+  }
+
+  to {
+    transform: scaleX(0);
+  }
+}
+
+@keyframes toast-ein {
+  from {
+    opacity: 0;
+    transform: translateY(0.75rem);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation: toast-ein var(--dauer) var(--kurve);
+  }
+
+  .toast--wartet .toast-balken {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: block;
+    height: 3px;
+    background: currentcolor;
+    opacity: 0.6;
+    transform-origin: left;
+    animation: toast-frist 8s linear both;
+  }
+
+  .toast--halt .toast-balken {
+    animation-play-state: paused;
+  }
+}
+
+/* Am Handy über die ganze Breite, über der Browserleiste */
+@media (max-width: 760px) {
+  .toasts {
+    right: 1rem;
+    left: 1rem;
+    width: auto;
+  }
+}
+
+@media (forced-colors: active) {
+  .toast {
+    border: 1px solid CanvasText;
+  }
+}
+
+/* Zweistufiger Knopf (zweiStufig): scharf = «Wirklich …?», voll gefüllt in der Gefahrenfarbe, damit der Wechsel nicht nur am Text hängt */
+.knopf--scharf {
+  border-color: var(--on-error-container);
+  background: var(--error-container);
+  color: var(--on-error-container);
+}
+
+.knopf--scharf:hover {
+  background: var(--error-container);
+  color: var(--on-error-container);
+  filter: brightness(0.96);
+}

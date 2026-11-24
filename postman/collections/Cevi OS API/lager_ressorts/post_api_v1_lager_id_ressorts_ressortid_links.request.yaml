@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/ressorts/:ressortId/links"
-order: 331000
+order: 383000
 method: POST
-url: "{{baseUrl}}{{pfad_L176}}"
+url: "{{baseUrl}}{{pfad_L180}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

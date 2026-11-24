@@ -140,7 +140,7 @@ beforeAll(async () => {
     legePersonaAn(welt, "demoEltern"),
     legePersonaAn(welt, "slA"),
     legePersonaAn(welt, "slB"),
-    // Eine Leitende ohne Stufenleitung, der der Admin das Recht auf alle Seiten gibt
+    // Eine Leitende ohne Stufenleitung, der die Abteilungsleitung das Recht auf alle Seiten gibt
     legePersonaMitFaktorAn(welt, "leitendeA"),
     legePersonaAn(welt, "leitendeB"),
     legePersonaAn(welt, "elternA"),
@@ -155,7 +155,7 @@ beforeAll(async () => {
 
 describe("GET /api/v1/redaktion/ich", () => {
   test.each([
-    ["Admin", () => admin, { redigieren: true, verwalten: true }],
+    ["Abteilungsleitung", () => admin, { redigieren: true, verwalten: true }],
     ["Webmaster", () => webmaster, { redigieren: true, verwalten: true }],
     ["Stufenleitung", () => slA, { redigieren: true, verwalten: false }],
     [
@@ -173,18 +173,21 @@ describe("GET /api/v1/redaktion/ich", () => {
       verwalten: boolean;
     };
     expect(koerper).toMatchObject(erwartet);
-    // Die Abteilungsleitung darf auch den Wartungsmodus der Website schalten (#424): «plattform»
+    // Die Abteilungsleitung darf auch den Wartungsmodus schalten (#424): «plattform», und hat die Rechte für Lädeli, Lager und System (#648)
     expect(koerper.bereiche).toEqual(
       !koerper.redigieren
         ? []
-        : name === "Admin"
-          ? ["website", "plattform"]
-          : ["website"],
+        : name === "Abteilungsleitung"
+          ? ["website", "plattform", "laedeli", "lager", "system", "fotos"]
+          : // Die Vorgabe «Webmaster» hat auch «fotos.verwalten» (#690)
+            name === "Webmaster"
+            ? ["website", "fotos"]
+            : ["website"],
     );
     expect(koerper.verwalten).toBe(erwartet.verwalten);
   });
 
-  test("Admin ohne zweiten Faktor bleibt gesperrt, ohne Sitzung 401", async () => {
+  test("Abteilungsleitung ohne zweiten Faktor bleibt gesperrt, ohne Sitzung 401", async () => {
     const gesperrt = await holen(adminOhne, ICH);
     expect(gesperrt.status).toBe(403);
     expect(await code(gesperrt)).toBe("ZWEITER_FAKTOR_FEHLT");
@@ -206,7 +209,7 @@ describe("Medien", () => {
     ).toHaveProperty("status", 400);
   });
 
-  test("ohne Zugang 403 (Eltern, Leitende ohne Recht, Admin ohne zweiten Faktor), kein Upload und keine Liste", async () => {
+  test("ohne Zugang 403 (Eltern, Leitende ohne Recht, Abteilungsleitung ohne zweiten Faktor), kein Upload und keine Liste", async () => {
     for (const konto of [eltern, ohneRecht, adminOhne]) {
       expect((await hochladen(konto)).status).toBe(403);
       expect((await holen(konto, MEDIEN)).status).toBe(403);
@@ -226,7 +229,7 @@ describe("Medien", () => {
     expect(fremde.medien.map((m) => m.id)).not.toContain(id);
   });
 
-  test("Alt-Text nachtragen: die Person, die hochgeladen hat, die Webmaster und der Admin; im Audit-Log ohne Text", async () => {
+  test("Alt-Text nachtragen: die Person, die hochgeladen hat, die Webmaster und die Abteilungsleitung; im Audit-Log ohne Text", async () => {
     const id = await lege(slA);
     const eigenes = await senden(slA, "PATCH", `${MEDIEN}/${id}`, {
       altText: "Neuer Text",
@@ -245,8 +248,11 @@ describe("Medien", () => {
       dekorativ: true,
     });
     expect(
-      (await senden(admin, "PATCH", `${MEDIEN}/${id}`, { altText: "Admin" }))
-        .status,
+      (
+        await senden(admin, "PATCH", `${MEDIEN}/${id}`, {
+          altText: "Abteilungsleitung",
+        })
+      ).status,
     ).toBe(200);
     const zeilen = await db
       .select()
@@ -375,11 +381,18 @@ describe("Auswahllisten", () => {
       id: slA.id,
       anzeigename: "Flink",
       funktion: "stufenleitung",
+      // Stufenleitung: eine Rolle mit Aussenwirkung (#610)
+      aufWebsite: true,
     });
     // Wer den Tag nicht trägt, steht nicht in der Liste
     expect(personen.map((p) => p.id)).not.toContain(slB.id);
     for (const p of personen) {
-      expect(Object.keys(p).sort()).toEqual(["anzeigename", "funktion", "id"]);
+      expect(Object.keys(p).sort()).toEqual([
+        "anzeigename",
+        "aufWebsite",
+        "funktion",
+        "id",
+      ]);
     }
     expect(text).not.toContain("+41791234567");
     expect(text).not.toContain("@example.org");

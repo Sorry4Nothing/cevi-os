@@ -1,4 +1,4 @@
-import { and, desc, eq, ilike } from "drizzle-orm";
+import { and, desc, eq, ilike, inArray, or } from "drizzle-orm";
 import type { Context } from "hono";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
@@ -13,6 +13,7 @@ import { log } from "../log.js";
 import { MEDIEN_BILD_MAX_BYTES, type MedienKodierer } from "../medien.js";
 import type { Medienspeicher } from "../medien-speicher.js";
 import type { Person } from "../rechte.js";
+import { verlange } from "../rechtemodell/darf.js";
 import { seitenMitMedium } from "../website/verweise.js";
 
 export const pfadSchema = z.strictObject({ id: z.uuid() });
@@ -34,6 +35,12 @@ export const listeSchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).optional(),
   offset: z.coerce.number().int().min(0).max(100_000).optional(),
   suche: z.string().trim().min(1).max(100).optional(),
+  // Nur diese Medien (#570): Der Editor holt so die Angaben zu den Bildern einer Seite, auch wenn sie nicht unter den jüngsten sind
+  ids: z
+    .string()
+    .transform((s) => s.split(","))
+    .pipe(z.array(z.uuid()).min(1).max(100))
+    .optional(),
 });
 const LISTE_STANDARD = 200;
 // LIKE kennt % und _ als Platzhalter, \ als Maskierung: Die Eingabe der Nutzer ist nur Text
@@ -123,7 +130,7 @@ type Kontext = Context<{ Variables: { person: Person } }>;
 // Darf die Person dieses Medium löschen oder beschreiben? Die Handler fragen erst nach der Abteilung (404), dann hier (403)
 type Darf = (person: Person, m: Zeile) => boolean | Promise<boolean>;
 
-// Die Handler der Medien, von der Admin- und der Editor-Variante geteilt (#353): Beide Routen prüfen nur den Zugang selbst, alles andere liegt hier. Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType; sharp und das SDK kommen darum als Parameter
+// Die Handler der Medien, von der Verwaltung und der Editor-Variante geteilt (#353): Beide Routen prüfen nur den Zugang selbst, alles andere liegt hier. Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType; sharp und das SDK kommen darum als Parameter
 export function erstelleMedienHandler({
   db,
   speicher,
@@ -252,6 +259,7 @@ export function erstelleMedienHandler({
             q.suche === undefined
               ? undefined
               : ilike(medium.altText, `%${likeText(q.suche)}%`),
+            q.ids === undefined ? undefined : inArray(medium.id, q.ids),
           ),
         )
         .orderBy(desc(medium.erstelltAm), desc(medium.id))
@@ -322,7 +330,12 @@ export function erstelleMedienHandler({
           .where(
             and(
               eq(abteilung.id, person.abteilungId),
-              eq(abteilung.websiteLogoMediumId, id),
+              or(
+                eq(abteilung.websiteLogoMediumId, id),
+                eq(abteilung.websiteLogoDunkelMediumId, id),
+                eq(abteilung.websiteZeichenMediumId, id),
+                eq(abteilung.websiteFehlerbildMediumId, id),
+              ),
             ),
           );
         const seiten =
@@ -374,14 +387,18 @@ export function erstelleMedienRouten({
   speicher?: Medienspeicher;
   handler: MedienHandler;
 }) {
-  // Vor jeder Prüfung des Inhalts: Wer kein Recht hat, erfährt nichts über Eingabe oder Speicher
+  // Vor jeder Prüfung des Inhalts: Wer kein Recht hat, erfährt nichts über Eingabe oder Speicher. Das Recht «Medien verwalten» (#648): Abteilungsleitung oder eine Rolle wie «Webmaster», mit zweitem Faktor
   const nurAdmin = createMiddleware<{ Variables: { person: Person } }>(
     async (c, next) => {
-      if (!c.get("person").admin) throw new HTTPException(403);
+      await verlange(db, c.get("person"), "medien.verwalten");
       await next();
     },
   );
-  const istAdmin: Darf = (person) => person.admin;
+  // Auch ohne die Middleware (DELETE): fehlt das Recht, 403; fehlt der zweite Faktor, 403 ZWEITER_FAKTOR_FEHLT
+  const istAdmin: Darf = async (person) => {
+    await verlange(db, person, "medien.verwalten");
+    return true;
+  };
 
   return (
     new Hono<{ Variables: { person: Person } }>()

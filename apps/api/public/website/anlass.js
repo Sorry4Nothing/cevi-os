@@ -11,6 +11,7 @@ import {
   heute,
   icon,
   loginLink,
+  ladeAnsage,
   melde,
   skelett,
   sk,
@@ -75,12 +76,7 @@ const fakt = (symbol, name, wert) =>
   );
 
 export function ladeKasten() {
-  return h(
-    "div",
-    { "aria-busy": "true" },
-    skelett(sk("r h56 b100")),
-    h("p", { class: "nur-leser", role: "status" }, "Lädt …"),
-  );
+  return h("div", { "aria-busy": "true" }, skelett(sk("r h56 b100")));
 }
 
 // Der Inhalt des Kastens «Anmeldung» nach den Zuständen des Boards
@@ -95,7 +91,11 @@ export function anmeldungInhalt(a, heuteTag) {
       art: "ok",
       symbol: "haken",
       titel: wer,
-      aktion: h("a", { href: anmeldungAdresse(a.id) }, "Anmeldung ansehen"),
+      aktion: h(
+        "a",
+        { class: "verweis", href: anmeldungAdresse(a.id) },
+        "Anmeldung ansehen",
+      ),
     });
   }
   if (!a.anmeldungOffen) {
@@ -201,7 +201,9 @@ function start(doc, wurzel) {
         ladeKasten(),
       ),
     );
+    const stopp = ladeAnsage(doc, "Der Anlass wird geladen.");
     const r = await api(`/anlaesse/${id}`);
+    stopp();
     if (r.status === 200) {
       setzeKopf(r.daten);
       zeige(anlassView(r.daten, heute()));

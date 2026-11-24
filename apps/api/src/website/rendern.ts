@@ -1,11 +1,38 @@
+import type { LadenEinstellung } from "../laden/laden.js";
 import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
+import {
+  istInhaltsBaustein,
+  personenListe,
+  rendereInhaltsBaustein,
+  STIL_INHALT,
+} from "./inhaltsbausteine.js";
+import {
+  karussell,
+  SKRIPT_KARUSSELL,
+  SKRIPT_LICHTKASTEN,
+  STIL_KARUSSELL,
+  STIL_LICHTKASTEN,
+} from "./karussell.js";
+import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
+import { kopf, STIL_KOPF } from "./kopf.js";
+import { fuss, kontaktkarte, STIL_FUSS } from "./kontakt.js";
+import {
+  rendereLaden,
+  SKRIPT_LADEN,
+  STILE_LADEN,
+  type LadenArtikel,
+} from "./laden.js";
+import { symbol } from "./symbole.js";
+import { zeichenLinks } from "./zeichen.js";
 
 // Renderer der Website (#351): Seitendokument zu HTML, nur aus den typisierten Knoten. Kein Nutzertext gelangt ungeprüft ins Markup:
 // Jede Zeichenkette läuft durch esc(), Adressen durch linkArt() (nur https, Seitenpfade, mailto, tel) und die Medien-Adresse entsteht aus der ID der Datenbank.
 // Rein und synchron: Alles, was aus der Datenbank kommt, liegt vorher in «Daten». Kein Skript, keine Schrift und keine Einbettung von aussen.
 
+// Tokens und Schrift gelten für Website und Verwaltung (#578); sie stehen vor der Stilvorlage im Kopf jeder Seite
+export const TOKENS_PFAD = "/website/tokens.css";
 export const STYLESHEET_PFAD = "/website/website.css";
 // Name der Startseite: die Seite mit dieser Adresse auf der obersten Ebene ist die Adresse «/» (offene Frage aus #348, bis der Nutzer entscheidet)
 export const STARTSEITE = "start";
@@ -32,7 +59,22 @@ export type MedienDaten = {
 };
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
 export type Mitglied = { name: string; funktion: string | null };
-export type Fakt = { bezeichnung: string; wert: string };
+// Person mit einer Rolle mit Aussenwirkung (#560, #610): Anzeigename und, falls vorhanden, die Adresse des Profilbilds in der Ausgabe
+export type WebsitePerson = { name: string; bild?: string };
+// Leitung oder Stufenleitung einer Stufe im Leitungsteam der Stufenseite (#610): dazu die Rolle als Text
+export type StufenMitglied = WebsitePerson & { funktion: string };
+// link: der Wert als Link (Eckdaten, #560)
+// lang: ein längerer Text in Lesegrösse statt eines kurzen Werts; liste: seine Einträge, wenn er aus mehreren Dingen besteht (#645, «Mitnehmen»)
+// zusatz: Adresszeile unter dem Wert; karte: Adresse bei Google Maps, die der Server selbst gebaut hat (Orte, #646); sie wird als Verweis «Auf Google Maps ansehen» ausgegeben
+export type Fakt = {
+  bezeichnung: string;
+  wert: string;
+  link?: string;
+  zusatz?: string;
+  karte?: string;
+  lang?: boolean;
+  liste?: string[];
+};
 // Ein Termin der Liste (#549): Tage als «JJJJ-MM-TT» und Zeiten als «HH:MM» in Zürcher Zeit, schon so aus der Abfrage; stufen sind die Namen der Stufen-Tags (Chips); anlassId nur bei einem Anlass (Link)
 export type TerminEintrag = {
   id: string;
@@ -44,6 +86,9 @@ export type TerminEintrag = {
   ort: string | null;
   stufen: string[];
   anlassId: string | null;
+  // Adresse der öffentlichen Seite des Anlasses (#560): Die Zeile führt dann dorthin statt auf die Anmeldung; der Abgleich setzt sie
+  seiteId?: string | null;
+  seitePfad?: string;
 };
 
 // Angaben der Abteilung für Fuss und Kontaktkarte (#549): Name steht im Kontext, Adresse, Telefon und E-Mail kommen aus der Konfiguration des Servers, die Seiten aus dem Seitenbaum
@@ -62,18 +107,40 @@ export type Daten = {
   medien: ReadonlyMap<string, MedienDaten>;
   personen: ReadonlyMap<string, Mitglied>;
   teams: ReadonlyMap<string, { name: string; mitglieder: Mitglied[] }>;
+  // Personen mit Aussenrolle für den Baustein «personen» (#560, #610), nach ID; wer fehlt, erscheint nicht
+  websitePersonen: ReadonlyMap<string, WebsitePerson>;
+  // Leitungsteam einer Stufe mit Bild (#610), nach ID des Stufen-Tags; ein Tag vom Typ «stufe» steht hier, auch wenn niemand die Rolle trägt
+  stufenteams: ReadonlyMap<string, StufenMitglied[]>;
+  // Profilbilder dazu als Dateien der Ausgabe [Pfad, Bytes]; schreibt nur der Abgleich
+  personenDateien?: [string, Uint8Array][];
   stufenfakten: ReadonlyMap<string, Fakt[]>;
   // Je Baustein «terminliste» (nach der ID des Bausteins) die kommenden Termine; fehlt der Eintrag, wurde nichts geladen und der Baustein entfällt
   termine: ReadonlyMap<string, TerminEintrag[]>;
   // Angaben der Abteilung für Kontaktkarte und Fuss (#549)
   kontakt?: Kontakt;
+  // Je Seite (ID) der Anlass, der zu ihr gehört (#560): Unter den Eckdaten steht dann die Schaltfläche zur Anmeldung
+  anlaesse: ReadonlyMap<string, string>;
+  // Adressen von Seiten des Baums, die Besucher nicht sehen (#560): Karten und Listeneinträge mit einem Link dorthin entfallen
+  verborgen?: ReadonlySet<string>;
+  // Die Artikel des Lädelis (#566) in ihrer Reihenfolge, nach ID; leer, wenn keine Seite den Baustein «laden» hat
+  laden: ReadonlyMap<string, LadenArtikel>;
+  // Die Übergabearten des Lädelis in ihrer Reihenfolge (der Name ist der Schlüssel)
+  ladenUebergabe: ReadonlyMap<string, true>;
+  // Die Einstellungen des Lädelis (#642) unter dem Schlüssel «e»; ohne Eintrag gelten die Vorgaben
+  ladenEinstellung: ReadonlyMap<"e", LadenEinstellung>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
   personen: new Map(),
   teams: new Map(),
+  websitePersonen: new Map(),
+  stufenteams: new Map(),
   stufenfakten: new Map(),
   termine: new Map(),
+  anlaesse: new Map(),
+  laden: new Map(),
+  ladenUebergabe: new Map(),
+  ladenEinstellung: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -82,11 +149,15 @@ export type Logo = {
   altText: string | null;
   breite: number | null;
   hoehe: number | null;
+  // Fassung für den dunklen Modus (#558): helle Schrift, ohne Hintergrund. Fehlt sie, steht das Logo im dunklen Modus auf einem hellen Feld
+  dunkel?: { id: string; breite: number | null; hoehe: number | null };
 };
 
 export type Kontext = {
   abteilung: string;
   logo?: Logo;
+  // Favicon (#558): Die Dateien liegen in der Ausgabe; der Wert ist ihre Fassung (Hex) für die Adressen. Fehlt er, trägt die Seite keine Einträge (Vorschau im Editor, Tests)
+  zeichen?: string;
   basisUrl: string;
   navigation: NavPunkt[];
   daten: Daten;
@@ -98,7 +169,7 @@ export type SeiteZumRendern = {
   dokument: Seitendokument;
 };
 
-const medienUrl = (id: string) => `/api/v1/medien/${id}`;
+export const medienUrl = (id: string) => `/api/v1/medien/${id}`;
 
 // Ein Knoten des Markups: Text (wird beim Ausgeben maskiert) oder ein Element. Dieselben Knoten gehen als JSON an das Skript, das geschützte Bausteine nachlädt (#354); dort entstehen daraus DOM-Knoten ohne innerHTML.
 // attr: «true» ist ein Attribut ohne Wert (download)
@@ -110,7 +181,7 @@ export type HtmlKnoten =
       kinder?: HtmlKnoten[];
     };
 
-const el = (
+export const el = (
   tag: string,
   attr?: Record<string, string | true>,
   ...kinder: HtmlKnoten[]
@@ -118,74 +189,8 @@ const el = (
 
 const LEERE_ELEMENTE = new Set(["img", "hr"]);
 
-// Symbole des Designs (24er Raster, Linie). Nur in der festen Hülle der Seite und in den Platzhaltern: Das Skript für geschützte Bausteine kennt keine SVG-Elemente
-const SYMBOLE: Record<string, HtmlKnoten[]> = {
-  info: [
-    { tag: "circle", attr: { cx: "12", cy: "12", r: "9" } },
-    { tag: "path", attr: { d: "M12 11v5M12 8h.01" } },
-  ],
-  warnung: [
-    { tag: "path", attr: { d: "M12 3 2.5 20h19L12 3z" } },
-    { tag: "path", attr: { d: "M12 10v4M12 17h.01" } },
-  ],
-  schloss: [
-    {
-      tag: "rect",
-      attr: { x: "5", y: "11", width: "14", height: "9", rx: "2" },
-    },
-    { tag: "path", attr: { d: "M8 11V8a4 4 0 0 1 8 0v3" } },
-  ],
-  person: [
-    { tag: "circle", attr: { cx: "12", cy: "8", r: "3.5" } },
-    { tag: "path", attr: { d: "M5 20c.8-3.8 3.6-6 7-6s6.2 2.2 7 6" } },
-  ],
-  menue: [{ tag: "path", attr: { d: "M4 7h16M4 12h16M4 17h16" } }],
-  schliessen: [{ tag: "path", attr: { d: "M6 6l12 12M18 6L6 18" } }],
-  nochmals: [
-    { tag: "path", attr: { d: "M20 12a8 8 0 1 1-2.3-5.7M20 4v5h-5" } },
-  ],
-  auge: [
-    {
-      tag: "path",
-      attr: { d: "M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" },
-    },
-    { tag: "circle", attr: { cx: "12", cy: "12", r: "3" } },
-  ],
-  sonne: [
-    { tag: "circle", attr: { cx: "12", cy: "12", r: "4" } },
-    {
-      tag: "path",
-      attr: {
-        d: "M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4",
-      },
-    },
-  ],
-  mond: [
-    { tag: "path", attr: { d: "M20 14.5A8 8 0 0 1 9.5 4 8 8 0 1 0 20 14.5z" } },
-  ],
-  bildschirm: [
-    {
-      tag: "rect",
-      attr: { x: "3", y: "4", width: "18", height: "12", rx: "2" },
-    },
-    { tag: "path", attr: { d: "M8 20h8M12 16v4" } },
-  ],
-  "auge-zu": [
-    {
-      tag: "path",
-      attr: {
-        d: "M3 3l18 18M10.6 5.1A10 10 0 0 1 12 5c6.4 0 10 7 10 7a17 17 0 0 1-3.2 4M6.2 6.6C3.7 8.4 2 12 2 12s3.6 7 10 7a10 10 0 0 0 4-.9",
-      },
-    },
-  ],
-};
-
-export const symbol = (name: keyof typeof SYMBOLE | string): HtmlKnoten =>
-  el(
-    "svg",
-    { class: "i", viewBox: "0 0 24 24", "aria-hidden": "true" },
-    ...SYMBOLE[name]!,
-  );
+// Der Symbolsatz liegt in symbole.ts; von hier aus bleibt «symbol» wie bisher erreichbar
+export { symbol } from "./symbole.js";
 
 export function serialisiere(k: HtmlKnoten): string {
   if (typeof k === "string") return esc(k);
@@ -205,14 +210,22 @@ function href(ziel: string): Record<string, string> | null {
     : { href: ziel };
 }
 
-function verlinke(
+const EXTERN_HINWEIS: HtmlKnoten = el(
+  "span",
+  { class: "nur-sr" },
+  " (externe Seite)",
+);
+
+export function verlinke(
   ziel: string | undefined,
   innen: HtmlKnoten[],
   klasse?: string,
 ): HtmlKnoten[] {
   const h = ziel === undefined ? null : href(ziel);
   if (h === null) return innen;
-  return [el("a", klasse ? { ...h, class: klasse } : h, ...innen)];
+  // Ein Link auf eine fremde Seite sagt das auch Screenreadern; das sichtbare Zeichen zeichnet der Stil (a[rel~="noopener"])
+  const extern = h.rel === undefined ? [] : [EXTERN_HINWEIS];
+  return [el("a", klasse ? { ...h, class: klasse } : h, ...innen, ...extern)];
 }
 
 function textBlock(b: TextBlock): HtmlKnoten {
@@ -249,17 +262,24 @@ function bild(
     ...(m.breite &&
       m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),
     loading: "lazy",
+    decoding: "async",
   });
+  // Das Bild ist ein Link auf die Bilddatei: Ohne Skript öffnet er sie, mit Skript (lichtkasten.js) die Grossansicht über der Seite (#559)
   return el(
     "figure",
     undefined,
-    img,
+    el(
+      "a",
+      { class: "bildgross", href: medienUrl(id) },
+      img,
+      el("span", { class: "nur-sr" }, "Bild gross ansehen"),
+    ),
     ...(unterschrift ? [el("figcaption", undefined, unterschrift)] : []),
   );
 }
 
 // Anfangsbuchstaben der ersten zwei Wörter des Cevi-Namens, nur Buchstaben und Ziffern
-function initialen(name: string): string {
+export function initialen(name: string): string {
   return (
     name
       .split(/\s+/)
@@ -286,19 +306,146 @@ function mitglieder(liste: Mitglied[]): HtmlKnoten[] {
   );
 }
 
+// Bildkarte einer Stufe (#555): Foto mit Alterschip, darunter Titel und Kurztext. Der Link steckt im Titel und deckt per CSS die ganze Karte ab, so gibt es genau einen Link je Karte mit kurzem Namen.
+// Ohne Foto trägt die Karte eine Fläche in der Farbe der Stufe
+function stufenkarte(
+  e: Extract<Baustein, { typ: "karten" }>["daten"]["eintraege"][number],
+  ebene: number,
+  daten: Daten,
+): HtmlKnoten {
+  const m = e.bild ? daten.medien.get(e.bild) : undefined;
+  const foto = e.bild && m?.mimeTyp.startsWith("image/") ? m : undefined;
+  const titel = verlinke(e.link, [e.titel]);
+  return el(
+    "li",
+    { class: e.link ? "stufe stufe--link" : "stufe" },
+    el(
+      "div",
+      { class: foto ? "stufe-bild" : "stufe-bild stufe-bild--leer" },
+      ...(foto && e.bild
+        ? [
+            el("img", {
+              src: medienUrl(e.bild),
+              alt: foto.altText ?? "",
+              ...(foto.breite &&
+                foto.hoehe && {
+                  width: String(foto.breite),
+                  height: String(foto.hoehe),
+                }),
+              loading: "lazy",
+              decoding: "async",
+            }),
+          ]
+        : []),
+      ...(e.alter ? [el("span", { class: "alterschip" }, e.alter)] : []),
+    ),
+    el(
+      "div",
+      { class: "stufe-text" },
+      el(`h${ebene}`, { class: "titel" }, ...titel),
+      ...(e.text ? [el("p", undefined, e.text)] : []),
+      ...(e.link
+        ? [
+            el(
+              "span",
+              { class: "stufe-pfeil", "aria-hidden": "true" },
+              symbol("pfeil"),
+            ),
+          ]
+        : []),
+    ),
+  );
+}
+
+// Anker einer Überschrift der Ebene 2 (#560): ihr Text als Adresse («Unsere Lager» wird «unsere-lager»); ein doppelter bekommt «-2»
+function anker(text: string, vergeben: Set<string>): string | null {
+  const basis = text
+    .toLowerCase()
+    .replace(/ä/g, "ae")
+    .replace(/ö/g, "oe")
+    .replace(/ü/g, "ue")
+    .normalize("NFD")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
+  if (basis === "") return null;
+  let id = basis;
+  for (let n = 2; vergeben.has(id); n++) id = `${basis}-${n}`;
+  vergeben.add(id);
+  return id;
+}
+
+// Stand beim Rendern einer Seite; anker: vergebene IDs («inhalt» und «h1» gehören dem Rahmen)
+type Stand = { ebene: number; schalter: number; anker: Set<string> };
+const neuerStand = (): Stand => ({
+  ebene: 1,
+  schalter: 0,
+  anker: new Set(["inhalt", "h1"]),
+});
+
+// Die Tafel «auf einen Blick»: Samstagsangaben der Stufen und Eckdaten sehen gleich aus
+const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
+  el(
+    "dl",
+    { class: "fakten karte" },
+    ...fakten.map((f) =>
+      el(
+        "div",
+        { class: f.lang ? "fakt fakt--lang" : "fakt" },
+        el("dt", undefined, f.bezeichnung),
+        el(
+          "dd",
+          undefined,
+          ...(f.liste
+            ? [
+                el(
+                  "ul",
+                  { class: "mitnehmen", role: "list" },
+                  ...f.liste.map((e) => el("li", undefined, e)),
+                ),
+              ]
+            : verlinke(f.link, [f.wert])),
+          ...(f.zusatz ? [el("span", { class: "fakt-zusatz" }, f.zusatz)] : []),
+          // Nur ein Link: kein Skript, keine Karte, keine Verbindung zu Google vor dem Klick
+          ...(f.karte
+            ? [
+                el(
+                  "p",
+                  { class: "fakt-karte" },
+                  ...verlinke(f.karte, [
+                    symbol("ort"),
+                    "Auf Google Maps ansehen",
+                  ]),
+                ),
+              ]
+            : []),
+        ),
+      ),
+    ),
+  );
+
 // letzte.ebene: Ebene der letzten Überschrift der Seite (1 = der Seitentitel); eine neue springt höchstens eine Ebene tiefer.
 // letzte.schalter: Zahl der Schaltflächen bisher; nur die erste ist rot (eine Hauptaktion je Seite)
 function rendereBaustein(
   b: Baustein,
   seiteId: string,
   daten: Daten,
-  letzte: { ebene: number; schalter: number },
+  letzte: Stand,
 ): HtmlKnoten | null {
+  if (istInhaltsBaustein(b)) {
+    return rendereInhaltsBaustein(b, daten, letzte);
+  }
+  if (b.typ === "laden") {
+    return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
+  }
+  if (b.typ === "fotoalben") return rendereFotoalben();
   switch (b.typ) {
     case "ueberschrift": {
       const ebene = Math.min(b.daten.ebene, letzte.ebene + 1);
       letzte.ebene = ebene;
-      return el(`h${ebene}`, undefined, b.daten.text);
+      // Abschnitte sind über einen Anker erreichbar («/anlaesse#lager»)
+      const id = ebene === 2 ? anker(b.daten.text, letzte.anker) : null;
+      return el(`h${ebene}`, id ? { id } : undefined, b.daten.text);
     }
     case "text":
       return el(
@@ -326,37 +473,121 @@ function rendereBaustein(
             ...bilder.map((k) => el("li", undefined, k)),
           );
     }
-    // Ohne Skript eine Liste von Bildern, mit Skript (website/karussell.js) wechseln sie sich ab. Ein einzelnes Bild bleibt ein Bild
+    // Bildstreifen (karussell.ts). Ein einzelnes Bild bleibt ein Bild
     case "karussell": {
       const bilder = b.daten.bilder
         .map((e) =>
           bild(e.mediumId, daten.medien.get(e.mediumId), e.unterschrift),
         )
         .filter((k) => k !== null);
-      if (bilder.length < 2) return bilder[0] ?? null;
-      return el(
-        "div",
-        {
-          class: "karussell",
-          role: "group",
-          "aria-roledescription": "Karussell",
-          "aria-label": "Bilder",
-        },
-        el(
-          "ul",
-          { class: "folien" },
-          ...bilder.map((k) => el("li", { class: "folie" }, k)),
-        ),
-      );
+      return bilder.length < 2 ? (bilder[0] ?? null) : karussell(bilder);
     }
-    // Darstellung «karten» ist die Stufenkarte des Designs (W1): Name, Text und «» Mehr zu …»; «liste» bleibt eine Zeile je Eintrag mit Link am Titel
+    // «karten»: einfache Karte mit Titel, Text und Link; «liste»: eine Zeile je Eintrag mit Link am Titel;
+    // «merkmale» (#555): ohne Link, grosser Titel und Text, optional ein Foto, in einem blauen Band (siehe rendereAbschnitte); «stufen» (#555): Bildkarte, ein Link auf die ganze Karte
     case "karten": {
       const ebene = Math.min(3, letzte.ebene + 1);
+      // Ein Eintrag, der auf eine Seite führt, die Besucher nicht sehen, entfällt (#560)
+      const eintraege = b.daten.eintraege.filter(
+        (e) => !e.link || !daten.verborgen?.has(e.link.split("#")[0]!),
+      );
+      if (eintraege.length === 0) return null;
+      if (b.daten.darstellung === "merkmale") {
+        return el(
+          "ul",
+          { class: "merkmale" },
+          ...eintraege.map((e) => {
+            const m = e.bild ? daten.medien.get(e.bild) : undefined;
+            return el(
+              "li",
+              undefined,
+              ...(e.bild && m?.mimeTyp.startsWith("image/")
+                ? [
+                    el("img", {
+                      src: medienUrl(e.bild),
+                      alt: m.altText ?? "",
+                      ...(m.breite &&
+                        m.hoehe && {
+                          width: String(m.breite),
+                          height: String(m.hoehe),
+                        }),
+                      loading: "lazy",
+                      decoding: "async",
+                    }),
+                  ]
+                : []),
+              el(`h${ebene}`, { class: "titel" }, e.titel),
+              ...(e.text ? [el("p", undefined, e.text)] : []),
+            );
+          }),
+        );
+      }
+      // Die Reihenfolge trägt Bedeutung: eine geordnete Liste
+      if (b.daten.darstellung === "zeitstrahl") {
+        return el(
+          "ol",
+          { class: "zeitstrahl" },
+          ...eintraege.map((e) => {
+            // Stationen einer Erzählung (#560): das Jahr gross, daneben der Text und, wenn gewählt, ein Foto. Der Alt-Text kommt vom Medium
+            const m = e.bild ? daten.medien.get(e.bild) : undefined;
+            const foto = e.bild && m?.mimeTyp.startsWith("image/") ? m : null;
+            return el(
+              "li",
+              { class: foto ? "station station--bild" : "station" },
+              ...(foto && e.bild
+                ? [
+                    el(
+                      "figure",
+                      { class: "station-bild" },
+                      el("img", {
+                        src: medienUrl(e.bild),
+                        alt: foto.altText ?? "",
+                        ...(foto.breite &&
+                          foto.hoehe && {
+                            width: String(foto.breite),
+                            height: String(foto.hoehe),
+                          }),
+                        loading: "lazy",
+                        decoding: "async",
+                      }),
+                    ),
+                  ]
+                : []),
+              el(
+                "div",
+                { class: "station-text" },
+                el("p", { class: "jahr" }, e.titel),
+                ...(e.text ? [el("p", undefined, e.text)] : []),
+              ),
+            );
+          }),
+        );
+      }
+      if (b.daten.darstellung === "zahlen") {
+        return el(
+          "ul",
+          { class: "zahlen" },
+          ...eintraege.map((e) =>
+            el(
+              "li",
+              undefined,
+              el("strong", { class: "zahl" }, e.titel),
+              ...(e.text ? [el("span", undefined, e.text)] : []),
+            ),
+          ),
+        );
+      }
+      if (b.daten.darstellung === "stufen") {
+        return el(
+          "ul",
+          { class: "stufenkarten" },
+          ...eintraege.map((e) => stufenkarte(e, ebene, daten)),
+        );
+      }
       return b.daten.darstellung === "karten"
         ? el(
             "ul",
             { class: "karten" },
-            ...b.daten.eintraege.map((e) =>
+            ...eintraege.map((e) =>
               el(
                 "li",
                 undefined,
@@ -373,7 +604,7 @@ function rendereBaustein(
         : el(
             "ul",
             { class: "liste" },
-            ...b.daten.eintraege.map((e) =>
+            ...eintraege.map((e) =>
               el(
                 "li",
                 undefined,
@@ -383,11 +614,27 @@ function rendereBaustein(
             ),
           );
     }
+    // Aufruf zum Handeln (#555): farbiges Band, Titel und Text links, die weisse Schaltfläche rechts (auf dem roten Band wäre eine rote unsichtbar)
+    case "aufruf": {
+      const ebene = Math.min(2, letzte.ebene + 1);
+      letzte.ebene = ebene;
+      return el(
+        "div",
+        { class: "aufruf" },
+        el(
+          "div",
+          { class: "aufruf-text" },
+          el(`h${ebene}`, undefined, b.daten.titel),
+          ...(b.daten.text ? [el("p", undefined, b.daten.text)] : []),
+        ),
+        ...verlinke(b.daten.ziel, [b.daten.beschriftung], "btn w gross"),
+      );
+    }
     case "schaltflaeche": {
       const knopf =
         b.daten.darstellung === "schaltflaeche"
           ? `btn ${letzte.schalter++ === 0 ? "p" : "s"} gross`
-          : undefined;
+          : "verweis";
       return el(
         "p",
         { class: "knopf" },
@@ -405,7 +652,12 @@ function rendereBaustein(
       return el(
         "p",
         { class: "datei karte" },
-        el("a", { href: l.link, rel: "noopener noreferrer" }, b.daten.titel),
+        el(
+          "a",
+          { href: l.link, rel: "noopener noreferrer" },
+          b.daten.titel,
+          EXTERN_HINWEIS,
+        ),
         ...(info.length > 0
           ? [" ", el("span", { class: "info" }, `(${info.join(", ")})`)]
           : []),
@@ -416,6 +668,9 @@ function rendereBaustein(
       return p ? el("ul", { class: "kontakt" }, ...mitglieder([p])) : null;
     }
     case "leitungsteam": {
+      // Eine Stufe zeigt ihre Leitung als Porträts mit Bild (#610); jedes andere Team bleibt die Liste mit Cevi-Namen
+      const stufe = daten.stufenteams.get(b.daten.tagId);
+      if (stufe) return personenListe(stufe, letzte);
       const t = daten.teams.get(b.daten.tagId);
       return t && t.mitglieder.length > 0
         ? el("ul", { class: "team" }, ...mitglieder(t.mitglieder))
@@ -429,24 +684,30 @@ function rendereBaustein(
       return el(
         "p",
         undefined,
-        ...verlinke(b.daten.url, [b.daten.beschriftung]),
+        ...verlinke(b.daten.url, [b.daten.beschriftung], "verweis"),
       );
     case "stufenfakten": {
       const fakten = daten.stufenfakten.get(seiteId) ?? [];
-      return fakten.length === 0
-        ? null
-        : el(
-            "dl",
-            { class: "fakten karte" },
-            ...fakten.map((f) =>
-              el(
-                "div",
-                { class: "fakt" },
-                el("dt", undefined, f.bezeichnung),
-                el("dd", undefined, f.wert),
-              ),
-            ),
-          );
+      return fakten.length === 0 ? null : faktenTafel(fakten);
+    }
+    // Gehört die Seite zu einem Anlass (#560), steht unter der Tafel die Schaltfläche zur Anmeldung
+    case "eckdaten": {
+      const tafel = faktenTafel(b.daten.eintraege);
+      const anlassId = daten.anlaesse.get(seiteId);
+      if (!anlassId) return tafel;
+      return el(
+        "div",
+        { class: "eckdaten-block" },
+        tafel,
+        el(
+          "a",
+          {
+            class: `btn ${letzte.schalter++ === 0 ? "p" : "s"} gross voll`,
+            href: `${ANLASS_PFAD}?id=${anlassId}`,
+          },
+          "Zur Anmeldung",
+        ),
+      );
     }
     case "terminliste": {
       const liste = daten.termine.get(b.id);
@@ -458,77 +719,30 @@ function rendereBaustein(
     case "hinweis":
       return el(
         "div",
-        { class: "band", role: "status" },
+        { class: "band hinweisband", role: "status" },
         symbol("info"),
         el(
           "div",
           { class: "text" },
           el("strong", undefined, b.daten.text),
           ...(b.daten.link
-            ? verlinke(b.daten.link.ziel, [b.daten.link.beschriftung])
+            ? verlinke(
+                b.daten.link.ziel,
+                [b.daten.link.beschriftung],
+                "verweis",
+              )
             : []),
         ),
       );
+    // Kontaktkarte (#555, neu gestaltet in #580, kontakt.ts)
     case "kontaktkarte": {
-      const p = b.daten.personId
-        ? daten.personen.get(b.daten.personId)
-        : undefined;
-      const k = daten.kontakt;
-      const wege = [
-        k?.telefon ? telefonLink(k.telefon) : null,
-        k?.email ? kontaktLink(`mailto:${k.email}`, k.email) : null,
-      ].filter((w) => w !== null);
-      if (!p && wege.length === 0) return null;
       const ebene = Math.min(2, letzte.ebene + 1);
+      const knoten = kontaktkarte(b.daten, daten, ebene);
+      if (knoten === null) return null;
       letzte.ebene = ebene;
-      return el(
-        "section",
-        { class: "karte kontaktband" },
-        el(
-          "div",
-          undefined,
-          el(
-            `h${ebene}`,
-            undefined,
-            b.daten.titel ?? "Fragen? Melde dich bei uns.",
-          ),
-          ...(p
-            ? [
-                el(
-                  "p",
-                  { class: "leise" },
-                  p.funktion ? `${p.name}, ${p.funktion}` : p.name,
-                ),
-              ]
-            : []),
-        ),
-        ...(wege.length > 0
-          ? [
-              el(
-                "ul",
-                { class: "wege" },
-                ...wege.map((w) => el("li", undefined, w)),
-              ),
-            ]
-          : []),
-      );
+      return knoten;
     }
   }
-}
-
-// Telefon und E-Mail aus der Konfiguration: als Link nur, wenn die Adresse eine erlaubte Art hat
-const kontaktLink = (ziel: string, text: string): HtmlKnoten =>
-  verlinke(ziel, [text])[0]!;
-
-// «043 543 96 82» wird zu tel:+41435439682 (Schweizer Nummern; mit «+» oder «00» am Anfang bleibt die Landesvorwahl)
-function telefonLink(nummer: string): HtmlKnoten {
-  const ziffern = nummer.replace(/[^\d+]/g, "");
-  const intl = ziffern.startsWith("+")
-    ? ziffern
-    : ziffern.startsWith("00")
-      ? `+${ziffern.slice(2)}`
-      : `+41${ziffern.replace(/^0/, "")}`;
-  return kontaktLink(`tel:${intl}`, nummer);
 }
 
 const datumsformat = (o: Intl.DateTimeFormatOptions) =>
@@ -555,7 +769,7 @@ function monatKurz(tag: string) {
 }
 
 // Eine Zeile der Liste (Design W1): Datumsfeld, Titel, Zeit und Ort, Chips der Stufen. Ein Anlass führt auf seine Seite, ein Termin ohne Anlass ist keine Verknüpfung
-function terminZeile(t: TerminEintrag): HtmlKnoten {
+export function terminZeile(t: TerminEintrag): HtmlKnoten {
   const zeit = t.zeitVon
     ? `${t.zeitVon}${t.zeitBis ? `–${t.zeitBis}` : ""}`
     : "ganztägig";
@@ -575,7 +789,7 @@ function terminZeile(t: TerminEintrag): HtmlKnoten {
     ),
     el(
       "span",
-      undefined,
+      { class: "termin-text" },
       el("span", { class: "titel" }, t.titel),
       el("span", { class: "meta" }, meta),
       ...(t.stufen.length > 0
@@ -590,6 +804,13 @@ function terminZeile(t: TerminEintrag): HtmlKnoten {
     ),
   ];
   if (t.anlassId === null) return el("div", { class: "termin" }, ...innen);
+  innen.push(
+    el(
+      "span",
+      { class: "termin-pfeil", "aria-hidden": "true" },
+      symbol("pfeil"),
+    ),
+  );
   const beschreibung = [
     TAG_LANG.format(mittag(t.von)),
     t.titel,
@@ -602,7 +823,7 @@ function terminZeile(t: TerminEintrag): HtmlKnoten {
     "a",
     {
       class: "termin",
-      href: `${ANLASS_PFAD}?id=${t.anlassId}`,
+      href: t.seitePfad ?? `${ANLASS_PFAD}?id=${t.anlassId}`,
       "aria-label": beschreibung,
     },
     ...innen,
@@ -616,8 +837,8 @@ function terminAbschnitt(liste: TerminEintrag[], ebene: number): HtmlKnoten {
     el(
       "div",
       { class: "abschnitt-kopf" },
-      el(`h${ebene}`, undefined, "Nächste Termine"),
-      el("a", { class: "mehr", href: TERMINE_PFAD }, "Alle Termine"),
+      el(`h${ebene}`, undefined, "Das steht an"),
+      el("a", { class: "btn s", href: TERMINE_PFAD }, "Alle Termine"),
     ),
     liste.length === 0
       ? el(
@@ -676,7 +897,7 @@ function rendereEintraege(
   daten: Daten,
   pfad?: string,
 ): Eintrag[] {
-  const letzte = { ebene: 1, schalter: 0 };
+  const letzte = neuerStand();
   return dok.bausteine.map((b) => ({
     b,
     knoten: istOeffentlich(b)
@@ -685,20 +906,48 @@ function rendereEintraege(
   }));
 }
 
+const istKnopf = (k: HtmlKnoten | undefined, klasse: string) =>
+  typeof k === "object" && k.attr?.class === klasse;
+
+// Schaltflächen, die unmittelbar aufeinander folgen, bilden eine Gruppe in einer Zeile (#555): Hauptaktion und Nebenaktionen gehören sichtbar zusammen.
+// Eine einzelne Schaltfläche bleibt ein Absatz
+function gruppiereAktionen(knoten: HtmlKnoten[]): HtmlKnoten[] {
+  const aus: HtmlKnoten[] = [];
+  for (const k of knoten) {
+    const vor = aus.at(-1);
+    if (
+      typeof k === "object" &&
+      typeof vor === "object" &&
+      istKnopf(k, "knopf") &&
+      (istKnopf(vor, "knopf") || istKnopf(vor, AKTIONEN))
+    ) {
+      aus[aus.length - 1] = el(
+        "div",
+        { class: AKTIONEN },
+        ...(vor.kinder ?? []),
+        ...(k.kinder ?? []),
+      );
+    } else {
+      aus.push(k);
+    }
+  }
+  return aus;
+}
+const AKTIONEN = "knopfreihe aktionen";
+
 const alsHtml = (liste: Eintrag[]) =>
-  liste
-    .map((e) => e.knoten)
-    .filter((k) => k !== null)
+  gruppiereAktionen(liste.map((e) => e.knoten).filter((k) => k !== null))
     .map(serialisiere)
     .join("\n");
 
 const sichtbar = (e: Eintrag) => e.knoten !== null && istOeffentlich(e.b);
 
-// Stufenfelder neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» stehen, bilden die linke Spalte, die Fakten die rechte (Design W2).
+// Samstagsangaben der Stufen und Eckdaten neben dem Text: Text und Bilder, die unmittelbar vor dem Baustein «stufenfakten» oder «eckdaten» stehen, bilden die linke Spalte, die Tafel die rechte (Design W2).
 // Ohne solche Bausteine davor oder am Handy steht alles untereinander in der Reihenfolge der Seite
 function ordneZweispaltig(eintraege: Eintrag[]): string {
   const fakten = eintraege.findIndex(
-    (e) => e.b.typ === "stufenfakten" && sichtbar(e),
+    (e) =>
+      (e.b.typ === "stufenfakten" || e.b.typ === "eckdaten") && sichtbar(e),
   );
   let von = fakten;
   while (
@@ -744,7 +993,7 @@ export function rendereGeschuetzte(
   daten: Daten,
   erlaubt: (b: Baustein) => boolean,
 ): { id: string; knoten: HtmlKnoten }[] {
-  const letzte = { ebene: 1, schalter: 0 };
+  const letzte = neuerStand();
   const ergebnis: { id: string; knoten: HtmlKnoten }[] = [];
   for (const b of dok.bausteine) {
     if (!erlaubt(b)) continue;
@@ -754,27 +1003,30 @@ export function rendereGeschuetzte(
   return ergebnis;
 }
 
-// Bilder im sichtbaren Bereich der Startseite laden sofort und mit Vorrang (kein loading="lazy")
-function eifrig(k: HtmlKnoten): HtmlKnoten {
+// Bilder im sichtbaren Bereich der Seite laden sofort; das Titelbild mit Vorrang (kein loading="lazy")
+function eifrig(k: HtmlKnoten, vorrang = true): HtmlKnoten {
   if (typeof k === "string") return k;
   if (k.tag === "img") {
     const attr: Record<string, string | true> = {
       ...k.attr,
-      fetchpriority: "high",
+      ...(vorrang && { fetchpriority: "high" }),
+      decoding: "async",
     };
     delete attr.loading;
     return { ...k, attr };
   }
-  return { ...k, kinder: k.kinder?.map(eifrig) };
+  // Die verborgenen Bilder eines Karussells laden erst, wenn sie an der Reihe sind
+  if (k.attr?.class === "karussell") return k;
+  return { ...k, kinder: k.kinder?.map((x) => eifrig(x, vorrang)) };
 }
 
-// Startseite: Foto, Titel, erster Text und Schaltflächen am Anfang der Seite bilden das Teaser-Feld (Design W1). Fehlt davon alles, bleibt es beim gewöhnlichen Titel.
-// Stehen zwei Bilder am Anfang, ist das erste das Titelbild über die ganze Breite (es steht ausserhalb der Spalte) und das zweite das Foto im Teaser
+// Startseite: Titel, erster Text und Schaltflächen am Anfang der Seite bilden den Einstieg (#555): die blaue Fahne mit Titel und Schaltflächen ragt von links ins Titelbild, der Text steht daneben auf der Fläche.
+// Fehlt davon alles, bleibt es beim gewöhnlichen Titel
 function rendereTeaser(
   titel: string,
-  abteilung: string,
   eintraege: Eintrag[],
-): { html: string; titelbild?: string; rest: Eintrag[] } | null {
+  mitBild: boolean,
+): { html: string; rest: Eintrag[] } | null {
   let i = 0;
   const nimm = (typ: string) => {
     const e = eintraege[i];
@@ -784,209 +1036,177 @@ function rendereTeaser(
     }
     return null;
   };
-  const zweiBilder =
-    eintraege[0]?.b.typ === "bild" &&
-    sichtbar(eintraege[0]) &&
-    eintraege[1]?.b.typ === "bild" &&
-    sichtbar(eintraege[1]);
-  const titelbild = zweiBilder ? nimm("bild") : null;
-  const foto = nimm("bild");
   const text = nimm("text");
   const knoepfe: HtmlKnoten[] = [];
   for (let k = nimm("schaltflaeche"); k; k = nimm("schaltflaeche")) {
     if (typeof k !== "string") knoepfe.push(...(k.kinder ?? []));
   }
-  if (!titelbild && !foto && !text && knoepfe.length === 0) return null;
-  const html = `<section class="teaser${foto ? "" : " teaser--allein"}" aria-labelledby="h1">
-${foto ? serialisiere(eifrig(foto)) : ""}
-<div class="box">
-<p class="kicker">${esc(abteilung)}</p>
-<h1 id="h1">${esc(titel)}</h1>
-${text ? serialisiere(text) : ""}${knoepfe.length > 0 ? `<div class="knopfreihe">${knoepfe.map(serialisiere).join("")}</div>` : ""}
+  if (!text && knoepfe.length === 0) return null;
+  const html = `<section class="teaser${mitBild ? " teaser--ueber-bild" : ""}" aria-labelledby="h1">
+<div class="wrap teaser-in">
+<div class="fahne"><h1 id="h1">${esc(titel)}</h1>${knoepfe.length > 0 ? `<div class="knopfreihe">${knoepfe.map(serialisiere).join("")}</div>` : ""}</div>${text ? `\n<div class="teaser-text">${serialisiere(text)}</div>` : ""}
 </div>
 </section>`;
-  return {
-    html,
-    ...(titelbild &&
-      typeof titelbild !== "string" && {
-        titelbild: serialisiere(
-          eifrig({ ...titelbild, attr: { class: "titelbild" } }),
-        ),
-      }),
-    rest: eintraege.slice(i),
-  };
+  return { html, rest: eintraege.slice(i) };
+}
+
+// ===== Abschnitte (#555): jeder Abschnitt hat einen Hintergrund über die ganze Breite, sein Inhalt steht in der fliessenden Spalte =====
+
+// Diese Bausteine bringen ihre Überschrift und ihr Aussehen selbst mit und bilden je einen eigenen Abschnitt
+const EIGENER_ABSCHNITT = new Set<Baustein["typ"]>([
+  "hinweis",
+  "aufruf",
+  "kontaktkarte",
+  "terminliste",
+]);
+// Nach einer Überschrift mit Bildkarten, Galerie oder Karussell steht der Inhalt unter dem Titel über die ganze Breite; sonst Titel links, Inhalt rechts.
+// Merkmale und Listen sind Zeilen und stehen wie Text rechts neben dem Titel
+const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
+  "karten",
+  "galerie",
+  "karussell",
+]);
+const istBreit = (b: Baustein) =>
+  b.typ === "artikel" ||
+  b.typ === "laden" ||
+  b.typ === "fotoalben" ||
+  b.typ === "galerie" ||
+  b.typ === "karussell" ||
+  (b.typ === "karten" &&
+    (b.daten.darstellung === "karten" || b.daten.darstellung === "stufen"));
+// Abschnitte ab dieser Nummer liegen unterhalb des ersten Bildschirms: ihre Bilder laden erst beim Scrollen
+const EIFRIGE_ABSCHNITTE = 3;
+
+type Gruppe = { eintraege: Eintrag[]; eigen: boolean };
+
+const istH2 = (e: Eintrag) =>
+  e.b.typ === "ueberschrift" && e.b.daten.ebene === 2;
+
+function gruppiere(eintraege: Eintrag[]): Gruppe[] {
+  const gruppen: Gruppe[] = [];
+  let offen: Gruppe | null = null;
+  for (const e of eintraege) {
+    if (e.knoten === null) continue;
+    if (sichtbar(e) && EIGENER_ABSCHNITT.has(e.b.typ)) {
+      offen = { eintraege: [e], eigen: true };
+      gruppen.push(offen);
+      // Was nach der Kontaktkarte bis zur nächsten Überschrift folgt, steht noch in ihrem Abschnitt
+      if (e.b.typ !== "kontaktkarte") offen = null;
+    } else if (offen?.eigen && !istH2(e)) {
+      offen.eintraege.push(e);
+    } else if (offen === null || istH2(e)) {
+      offen = { eintraege: [e], eigen: false };
+      gruppen.push(offen);
+    } else {
+      offen.eintraege.push(e);
+    }
+  }
+  return gruppen;
+}
+
+// Der Ton wechselt, wo die Art des Inhalts wechselt: Abschnitte mit Titel links (Text, Merkmale, Termine, Kontakt) teilen sich hintereinander eine Fläche und trennen sich mit einer Linie («folge»);
+// Bildkarten, Galerie und Karussell heben sich mit dem anderen Ton ab. Der erste Abschnitt schliesst an den Titel der Seite an
+function rendereAbschnitte(eintraege: Eintrag[]): string {
+  let vor = { ton: "toenung", zeilen: false };
+  return gruppiere(eintraege)
+    .map((g, i) => {
+      const erster = g.eintraege[0]!;
+      const typ = erster.b.typ;
+      if (g.eigen && (typ === "hinweis" || typ === "aufruf")) {
+        vor = { ton: "toenung", zeilen: false };
+        return `<section class="sektion sektion--${typ}">
+<div class="wrap">
+${alsHtml(g.eintraege)}
+</div>
+</section>`;
+      }
+      const liste =
+        i < EIFRIGE_ABSCHNITTE
+          ? g.eintraege.map((e) => ({
+              ...e,
+              knoten: e.knoten && eifrig(e.knoten, false),
+            }))
+          : g.eintraege;
+      const mitKopf = !g.eigen && typ === "ueberschrift";
+      const rest = liste.slice(1);
+      // Merkmale und der Zeitstrahl (#560) stehen in einem Band in der Markenfarbe über die ganze Breite; danach beginnt die Fläche neu
+      const marke =
+        !g.eigen &&
+        liste.some(
+          (e) =>
+            sichtbar(e) &&
+            e.b.typ === "karten" &&
+            (e.b.daten.darstellung === "merkmale" ||
+              e.b.daten.darstellung === "zeitstrahl"),
+        );
+      const breit =
+        marke || (!g.eigen && liste.some((e) => sichtbar(e) && istBreit(e.b)));
+      const folge = !breit && vor.zeilen;
+      const ton = marke
+        ? "marke"
+        : folge
+          ? vor.ton
+          : vor.ton === "flaeche"
+            ? "toenung"
+            : "flaeche";
+      vor = marke ? { ton: "toenung", zeilen: false } : { ton, zeilen: !breit };
+      const klassen = `sektion sektion--${ton}${folge ? " sektion--folge" : ""}`;
+      if (g.eigen) {
+        return `<section class="${klassen} sektion--${typ}">
+<div class="wrap">
+${alsHtml(liste)}
+</div>
+</section>`;
+      }
+      // Ein kurzer Text zwischen Titel und Karten gehört zum Titel
+      const lead =
+        mitKopf &&
+        rest[0]?.b.typ === "text" &&
+        sichtbar(rest[0]) &&
+        rest.some((e) => sichtbar(e) && LISTEN_BAUSTEINE.has(e.b.typ));
+      const kopf = mitKopf ? liste.slice(0, lead ? 2 : 1) : [];
+      const rumpf = mitKopf ? liste.slice(lead ? 2 : 1) : liste;
+      // Ohne Titel gleich unter dem Seitentitel: der Einstieg der Seite, grösser gesetzt
+      const einstieg = i === 0 && !mitKopf ? " sektion--einstieg" : "";
+      return `<section class="${klassen} sektion--${breit ? "breit" : "text"}${einstieg}">
+<div class="wrap">
+${kopf.length > 0 ? `<div class="sektion-kopf">\n${alsHtml(kopf)}\n</div>\n` : ""}<div class="sektion-rumpf">
+${ordneZweispaltig(rumpf)}
+</div>
+</div>
+</section>`;
+    })
+    .join("\n");
 }
 
 // ===== Rahmen: Kopf mit Menü, Fusszeile =====
 
-// «Cevi Stäfa» wird zu «CEVI» und «Stäfa»: Das Logo trägt das Wort Cevi schon
-const markenname = (abteilung: string) =>
-  abteilung.replace(/^cevi\s+/i, "").trim() || abteilung;
+// Der Kopf (Marke, Navigation, Umschalter, Menü am Handy) steht in kopf.ts (#558)
 
-const istVorfahr = (pfad: string, aktuell: string | null) =>
-  aktuell !== null && pfad !== "/" && aktuell.startsWith(`${pfad}/`);
-
-function navLink(p: NavPunkt, aktuell: string | null): string {
-  const stand =
-    p.pfad === aktuell
-      ? ' aria-current="page"'
-      : istVorfahr(p.pfad, aktuell)
-        ? ' aria-current="true"'
-        : "";
-  return `<a href="${esc(p.pfad)}"${stand}>${esc(p.titel)}</a>`;
-}
-
-// tief: auch die Unterseiten (im Menü am Handy); sonst nur die oberste Ebene
-function navigation(
-  punkte: NavPunkt[],
-  aktuell: string | null,
-  tief: boolean,
-): string {
-  if (punkte.length === 0) return "";
-  return `<ul>${punkte
-    .map(
-      (p) =>
-        `<li>${navLink(p, aktuell)}${tief ? navigation(p.kinder, aktuell, true) : ""}</li>`,
-    )
-    .join("")}</ul>`;
-}
-
-// Umschalter Hell, Dunkel, System (#550): ohne Skript bleibt er verborgen (hidden), website/theme.js zeigt ihn und merkt die Wahl im Browser
-const THEMA_WAHL: [string, string, string][] = [
-  ["system", "bildschirm", "System"],
-  ["light", "sonne", "Hell"],
-  ["dark", "mond", "Dunkel"],
-];
-const themaSchalter = () =>
-  `<div class="thema" role="group" aria-label="Darstellung" hidden>${THEMA_WAHL.map(
-    ([wert, icon, name]) =>
-      `<button type="button" data-thema="${wert}" aria-pressed="false">${serialisiere(symbol(icon))}<span>${name}</span></button>`,
-  ).join("")}</div>`;
-
-// Mit Logo trägt das Bild die Marke (das Logo der Abteilung enthält ihren Namen); der Name bleibt für Screenreader im Link. Ohne Logo steht die Wortmarke
-function markeHtml(k: Kontext): string {
-  const name = esc(markenname(k.abteilung));
-  if (!k.logo) {
-    return `<a class="marke" href="/"><b>CEVI</b><span>${name}</span></a>`;
-  }
-  const { id, altText, breite, hoehe } = k.logo;
-  const mass = breite && hoehe ? ` width="${breite}" height="${hoehe}"` : "";
-  return `<a class="marke marke--logo" href="/"><img class="logo" src="${medienUrl(id)}" alt="${esc(altText ?? "")}"${mass}><span class="nur-sr">${name}</span></a>`;
-}
-
-// Die Leiste am Computer hat eine Zeile: Was nicht hineinpasst, steht unter «Mehr».
-// shortcut: Platz schätzt die Zahl der Zeichen aller Titel (CSS kann keinen Überlauf ins Menü schieben); bei sehr langen Titeln bricht die Leiste ab 74 em ins Menü am Handy um, wo alles steht
-const MAX_HAUPTPUNKTE = 6;
-const MAX_NAV_ZEICHEN = 80;
-
-function teileNavigation(punkte: NavPunkt[]) {
-  let zeichen = 0;
-  let n = punkte.findIndex((p, i) => {
-    zeichen += p.titel.length;
-    return i >= MAX_HAUPTPUNKTE || zeichen > MAX_NAV_ZEICHEN;
-  });
-  if (n === -1) n = punkte.length;
-  n = Math.max(n, 1);
-  return { leiste: punkte.slice(0, n), mehr: punkte.slice(n) };
-}
-
-const istHier = (p: NavPunkt, aktuell: string | null): boolean =>
-  p.pfad === aktuell ||
-  istVorfahr(p.pfad, aktuell) ||
-  p.kinder.some((k) => istHier(k, aktuell));
-
-// Unterseiten ohne Skript: Sie öffnen sich bei Hover und Fokus (CSS); menue.js ergänzt Pfeiltasten und Esc
-function hauptPunkt(p: NavPunkt, aktuell: string | null): string {
-  if (p.kinder.length === 0) return `<li>${navLink(p, aktuell)}</li>`;
-  return `<li class="mit-unter">${navLink(p, aktuell)}<ul class="unter">${p.kinder
-    .map((k) => `<li>${navLink(k, aktuell)}</li>`)
-    .join("")}</ul></li>`;
-}
-
-// «Mehr» ist ein details-Element und braucht kein Skript; die Unterseiten der Punkte darin stehen eingerückt darunter
-function mehrPunkt(punkte: NavPunkt[], aktuell: string | null): string {
-  const liste = (ps: NavPunkt[]): string =>
-    `<ul>${ps
-      .map(
-        (p) =>
-          `<li>${navLink(p, aktuell)}${p.kinder.length > 0 ? liste(p.kinder) : ""}</li>`,
-      )
-      .join("")}</ul>`;
-  return `<li class="mit-unter weitere${punkte.some((p) => istHier(p, aktuell)) ? " hier" : ""}"><details><summary>Mehr</summary>${liste(punkte).replace("<ul>", '<ul class="unter">')}</details></li>`;
-}
-
-function hauptNavigation(punkte: NavPunkt[], aktuell: string | null): string {
-  if (punkte.length === 0) return "";
-  const { leiste, mehr } = teileNavigation(punkte);
-  return `<ul>${leiste.map((p) => hauptPunkt(p, aktuell)).join("")}${mehr.length > 0 ? mehrPunkt(mehr, aktuell) : ""}</ul>`;
-}
-
-function kopf(k: Kontext, aktuell: string | null, nurMarke: boolean): string {
-  const marke = `<div class="kopf"><div class="wrap kopf-in">${markeHtml(k)}${themaSchalter()}</div></div>`;
-  if (nurMarke)
-    return `<header>
-${marke}
-</header>`;
-  // Die Unterseiten des gewählten Bereichs stehen in einer zweiten Leiste
-  const bereich = k.navigation.find(
-    (p) =>
-      p.kinder.length > 0 &&
-      (p.pfad === aktuell || istVorfahr(p.pfad, aktuell)),
-  );
-  return `<header>
-${marke}
-<div class="leiste"><div class="wrap leiste-in">
-<nav class="hauptnav" aria-label="Hauptnavigation">${hauptNavigation(k.navigation, aktuell)}</nav>
-<details class="menue-mobil"><summary>${serialisiere(symbol("menue"))}<span class="auf">Menü</span><span class="zu">Schliessen</span></summary><nav aria-label="Menü">${navigation(k.navigation, aktuell, true)}</nav></details>
-<div class="rechts"><a href="${ANMELDEN_PFAD}">${serialisiere(symbol("person"))}Anmelden</a></div>
-</div></div>${
-    bereich
-      ? `
-<nav class="unterleiste" aria-label="Unterseiten von ${esc(bereich.titel)}"><div class="wrap">${navigation(bereich.kinder, aktuell, false)}</div></nav>`
-      : ""
-  }
-</header>`;
-}
-
-// Fuss nach dem Design (W1): Name und Adresse, Telefon und E-Mail, Impressum und Datenschutz, dazu «©». Angaben, die es nicht gibt, fehlen; ein Impressum nennt der Fuss nur, wenn es die Seite gibt
-const fuss = (k: Kontext) => {
-  const c = k.daten.kontakt ?? {};
-  const wege = [
-    c.telefon ? serialisiere(telefonLink(c.telefon)) : "",
-    c.email ? serialisiere(kontaktLink(`mailto:${c.email}`, c.email)) : "",
-  ].filter((w) => w !== "");
-  const recht = [
-    c.impressum ? `<a href="${esc(c.impressum)}">Impressum</a>` : "",
-    `<a href="${esc(c.datenschutz ?? "/datenschutz")}">Datenschutz</a>`,
-  ].filter((w) => w !== "");
-  return `<footer class="fuss">
-<div class="wrap"><div class="fuss-in">
-<div><strong>${esc(k.abteilung)}</strong>${c.adresse ? `<p>${esc(c.adresse)}</p>` : ""}</div>${
-    wege.length > 0
-      ? `
-<div>${wege.map((w) => `<p>${w}</p>`).join("")}</div>`
-      : ""
-  }
-<div>${recht.map((w) => `<p>${w}</p>`).join("")}</div>
-</div>
-<p class="klein leise">© ${new Date().getFullYear()} ${esc(k.abteilung)}</p></div>
-</footer>`;
-};
-
-// Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile, Schrift und Bilder, keine Rahmen. Skripte und Verbindungen nur auf Seiten mit Skript (#354) und nur von der eigenen Herkunft, nie inline.
+// Zweite Schicht neben den Antwortköpfen des Hosts: nur eigene Stile, Schrift und Bilder, keine Rahmen. Skripte und Verbindungen nur von der eigenen Herkunft, nie inline; Verbindungen erlaubt jede Seite mit Kopf (Konto-Menü, #669), nur der Kopf der Wartung und der Serverfehler nicht.
 // Das Menü (menue.js) ist eine Verbesserung: ohne Skript öffnen sich die Untermenüs bei Hover und Fokus
 export const CSP =
   "default-src 'none'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
-// Jede Seite lädt theme.js (#550), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf nur, wer ein Skript für Abrufe braucht
+// Jede Seite lädt theme.js (#550) und ladezustand.js (#574), darum erlaubt ihre Meta-CSP Skripte der eigenen Herkunft; verbinden darf, wer ein Skript für Abrufe braucht und jede Seite mit Kopf (konto.js, #669)
 const CSP_SEITE =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; base-uri 'none'; form-action 'none'";
 const CSP_MIT_SKRIPT =
   "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'";
 export const SKRIPT_MENUE = "/website/menue.js";
+// Konto-Menü im Kopf (#669): fragt nach dem Laden GET /api/v1/website/konto und tauscht «Anmelden» bei gültiger Sitzung aus; darum darf jede Seite mit Kopf verbinden (nur zur eigenen Herkunft)
+export const SKRIPT_KONTO = "/website/konto-menue.js";
 export const SKRIPT_THEMA = "/website/theme.js";
-export const SKRIPT_KARUSSELL = "/website/karussell.js";
-// Das Tag, das die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
-export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>`;
+export const SKRIPT_LADEZUSTAND = "/website/ladezustand.js";
+export { SKRIPT_KARUSSELL };
+// Bausteine, deren Bilder sich gross öffnen lassen
+const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
+  "bild",
+  "galerie",
+  "karussell",
+]);
+// Die klassischen Skripte im <head> (Darstellung, Ladezustand der Bilder #574), die die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
+export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>
+<script src="${SKRIPT_LADEZUSTAND}"></script>`;
 export const SKRIPT_GESCHUETZT = "/website/geschuetzt.js";
 export const SKRIPT_ANMELDEN = "/website/anmelden.js";
 
@@ -1003,15 +1223,16 @@ export function rahmen(
     stile = [],
     hauptAttr = "",
     nurMarke = false,
-    titelbild = "",
+    vollbreit = false,
   }: {
     titel: string;
     aktuell: string | null;
     canonical?: string;
-    // Fertiges Markup der Seite; es steht in der Spalte der Seite («wrap»)
+    // Fertiges Markup der Seite; es steht in der Spalte der Seite («wrap»), ausser bei «vollbreit»
     inhalt: string;
     robots?: string;
-    skript?: string;
+    // Ein Modul oder mehrere; mit Skript erlaubt die CSP Abrufe an die eigene Herkunft
+    skript?: string | string[];
     // Weitere Skripte der eigenen Herkunft ohne Abrufe (zum Beispiel das Karussell), mit defer
     zusatzSkripte?: string[];
     // Weitere Stylesheets der Website (Pfade unter /website/), nach dem Grundstil
@@ -1020,15 +1241,16 @@ export function rahmen(
     hauptAttr?: string;
     // Wartung und Serverfehler: nur das Logo, keine Menüs
     nurMarke?: boolean;
-    // Fertiges Markup eines Bildes über die ganze Breite, vor der Spalte der Seite (Startseite)
-    titelbild?: string;
+    // Der Inhalt bringt seine Abschnitte über die ganze Breite selbst mit (Seiten des Baums): kein Rahmen darum
+    vollbreit?: boolean;
   },
 ) {
   // Das Menü ist nur eine Verbesserung (Pfeiltasten, Esc); die Seite funktioniert ohne
   const menue = !nurMarke && k.navigation.length > 0;
   const skripte = [
     ...(menue ? [SKRIPT_MENUE] : []),
-    ...(skript ? [skript] : []),
+    ...(nurMarke ? [] : [SKRIPT_KONTO]),
+    ...(skript ? [skript].flat() : []),
   ]
     .map((pfad) => `\n<script type="module" src="${pfad}"></script>`)
     .join("");
@@ -1047,19 +1269,20 @@ export function rahmen(
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="color-scheme" content="light dark">
-<meta http-equiv="Content-Security-Policy" content="${esc(skript ? CSP_MIT_SKRIPT : CSP_SEITE)}">
+<meta http-equiv="Content-Security-Policy" content="${esc(skript || !nurMarke ? CSP_MIT_SKRIPT : CSP_SEITE)}">
 <meta name="referrer" content="no-referrer">${robots ? `\n<meta name="robots" content="${robots}">` : ""}
-<title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}
+<title>${esc(titel)} | ${esc(k.abteilung)}</title>${canonical ? `\n<link rel="canonical" href="${esc(canonical)}">` : ""}${k.zeichen ? zeichenLinks(esc(k.zeichen)) : ""}
 ${THEMA_SKRIPT_TAG}
-<link rel="stylesheet" href="${STYLESHEET_PFAD}">${stileHtml}${skripte}${zusatz}
+<link rel="stylesheet" href="${TOKENS_PFAD}">
+<link rel="stylesheet" href="${STYLESHEET_PFAD}">
+<link rel="stylesheet" href="${STIL_KOPF}">
+<link rel="stylesheet" href="${STIL_FUSS}">${stileHtml}${skripte}${zusatz}
 </head>
 <body>
 <a class="sprunglink" href="#inhalt">Zum Inhalt</a>
 ${kopf(k, aktuell, nurMarke)}
-<main id="inhalt" tabindex="-1"${hauptAttr}>${titelbild ? `\n${titelbild}` : ""}
-<div class="wrap">
-${inhalt}
-</div>
+<main id="inhalt" tabindex="-1"${hauptAttr}>
+${vollbreit ? inhalt : `<div class="wrap">\n${inhalt}\n</div>`}
 </main>
 ${fuss(k)}
 </body>
@@ -1069,100 +1292,101 @@ ${fuss(k)}
 
 export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   const eintraege = rendereEintraege(s.dokument, s.id, k.daten, s.pfad);
+  // Das erste Bild der Seite ist ihr Titelbild und geht bis zum Fensterrand
+  const erstes = eintraege[0];
+  const titelbild =
+    erstes &&
+    erstes.b.typ === "bild" &&
+    sichtbar(erstes) &&
+    typeof erstes.knoten === "object"
+      ? serialisiere(
+          eifrig({
+            ...erstes.knoten!,
+            attr: { class: "titelbild" },
+            // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
+            kinder: erstes.knoten!.kinder?.flatMap((kind) =>
+              typeof kind === "object" && kind.attr?.class === "bildgross"
+                ? (kind.kinder ?? []).filter(
+                    (x) => typeof x === "object" && x.tag === "img",
+                  )
+                : [kind],
+            ),
+          }),
+        )
+      : null;
+  const uebrige = titelbild ? eintraege.slice(1) : eintraege;
   const teaser =
     s.pfad === "/"
-      ? rendereTeaser(s.dokument.titel, k.abteilung, eintraege)
+      ? rendereTeaser(s.dokument.titel, uebrige, titelbild !== null)
       : null;
-  const inhalt = teaser
-    ? `${teaser.html}\n<div class="inhalt">\n${ordneZweispaltig(teaser.rest)}\n</div>`
-    : `<div class="seitenkopf"><h1>${esc(s.dokument.titel)}</h1></div>\n<div class="inhalt">\n${ordneZweispaltig(eintraege)}\n</div>`;
+  const kopf = teaser
+    ? `<div class="hero">${titelbild ?? ""}\n${teaser.html}</div>`
+    : titelbild
+      ? // Unterseite mit Titelbild: dieselbe Fahne, kleiner
+        `<div class="hero hero--seite">${titelbild}\n<div class="seitenband seitenband--ueber-bild"><div class="wrap"><div class="fahne"><h1>${esc(s.dokument.titel)}</h1></div></div></div></div>`
+      : `<div class="seitenband"><div class="wrap"><h1>${esc(s.dokument.titel)}</h1></div></div>`;
+  const inhalt = `${kopf}\n${rendereAbschnitte(teaser ? teaser.rest : uebrige)}`;
+  // Skripte und Stile für Karussell und Grossansicht (#559)
+  const bilder = eintraege.some(
+    (e) =>
+      e.b.typ === "karussell" &&
+      (!istOeffentlich(e.b) ||
+        (typeof e.knoten === "object" &&
+          e.knoten?.attr?.class === "karussell")),
+  )
+    ? {
+        zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
+        stile: [STIL_LICHTKASTEN, STIL_KARUSSELL],
+      }
+    : // Grossansicht für Bild und Galerie (auch geschützte: Die Links kommen dann beim Nachladen)
+      s.dokument.bausteine.some((b) => BILD_BAUSTEINE.has(b.typ)) && {
+        zusatzSkripte: [SKRIPT_LICHTKASTEN],
+        stile: [STIL_LICHTKASTEN],
+      };
+  // Der Laden (#566) bringt Stil und Skript nur mit, wenn er öffentlich auf der Seite steht und Artikel hat
+  const mitLaden = eintraege.some(
+    (e) => e.b.typ === "laden" && istOeffentlich(e.b) && e.knoten !== null,
+  );
+  const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
+  // Fotoalben (#690): der Baustein ist nur ein Behälter; das Skript holt die Alben nach der Anmeldung (auch in einem geschützten Baustein, den geschuetzt.js erst nachlädt)
+  const mitFotos = s.dokument.bausteine.some((b) => b.typ === "fotoalben");
   return rahmen(k, {
     titel: s.dokument.titel,
     aktuell: s.pfad,
     canonical: k.basisUrl + s.pfad,
     inhalt,
-    ...(eintraege.some(
-      (e) =>
-        sichtbar(e) &&
-        typeof e.knoten === "object" &&
-        e.knoten?.attr?.class === "karussell",
-    ) && {
-      zusatzSkripte: [SKRIPT_KARUSSELL],
-    }),
-    ...(teaser?.titelbild && { titelbild: teaser.titelbild }),
+    vollbreit: true,
+    // Stil und Skript des Karussells nur auf Seiten, die eines zeigen oder nach der Anmeldung nachladen (das Skript rüstet nachgeladene aus)
+    // Stil der Inhaltsbausteine (#560) nur auf Seiten, die einen davon haben (auch einen geschützten, der nachgeladen wird)
+    // Die Fotoalben öffnen ihre Bilder in der Grossansicht (lichtkasten.js)
+    zusatzSkripte: [
+      ...(bilder ? bilder.zusatzSkripte : []),
+      ...(mitFotos && !bilder ? [SKRIPT_LICHTKASTEN] : []),
+    ],
+    stile: [
+      ...(bilder ? bilder.stile : []),
+      ...(mitFotos ? [...(bilder ? [] : [STIL_LICHTKASTEN]), STIL_FOTOS] : []),
+      // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
+      ...(s.dokument.bausteine.some(
+        (b) => istInhaltsBaustein(b) || b.typ === "leitungsteam",
+      )
+        ? [STIL_INHALT]
+        : []),
+      ...(mitLaden ? STILE_LADEN : []),
+    ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
-    ...(!s.dokument.bausteine.every(istOeffentlich) && {
-      skript: SKRIPT_GESCHUETZT,
-      hauptAttr: ` data-pfad="${esc(s.pfad)}"`,
+    ...((geschuetzt || mitLaden || mitFotos) && {
+      skript: [
+        ...(geschuetzt ? [SKRIPT_GESCHUETZT] : []),
+        ...(mitLaden ? [SKRIPT_LADEN] : []),
+        ...(mitFotos ? [SKRIPT_FOTOS] : []),
+      ],
     }),
+    ...(geschuetzt && { hauptAttr: ` data-pfad="${esc(s.pfad)}"` }),
   });
 }
 
-// Fehler- und Wartungsseiten (Design W4): ein grosser Satz, was nun geht, kein Fachwort. Ohne Skript: «Nochmals versuchen» ist ein Link auf dieselbe Adresse
-const fehlerKopf = (
-  titel: string,
-  text: string,
-  nachher: string,
-  code: string,
-) => `<div class="seitenkopf seitenkopf--fehler">
-<h1>${esc(titel)}</h1>
-<p class="unter">${esc(text)}</p>
-${nachher}
-<p class="klein leise">${esc(code)}</p>
-</div>`;
-
-const nochmals = `<a class="btn p gross" href="">${serialisiere(symbol("nochmals"))}Nochmals versuchen</a>`;
-
-// 404.html: der Host liefert sie bei unbekannten Adressen; sie verrät nichts über geschützte Seiten
-export function rendereFehlerseite(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Seite nicht gefunden",
-    aktuell: null,
-    robots: "noindex",
-    inhalt: fehlerKopf(
-      "Diese Seite gibt es nicht.",
-      "Vielleicht ist der Link alt oder hat einen Tippfehler. Von hier aus kommst du weiter:",
-      `<div class="knopfreihe"><a class="btn p gross" href="/">Zur Startseite</a></div>${
-        k.navigation.length > 0
-          ? `\n<nav aria-label="Hauptpunkte" class="hauptpunkte">${navigation(k.navigation, null, false)}</nav>`
-          : ""
-      }`,
-      "Fehler 404",
-    ),
-  });
-}
-
-// 500.html: der Host liefert sie, wenn die Website selbst nicht antwortet
-export function rendereServerfehler(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Fehler",
-    aktuell: null,
-    robots: "noindex",
-    nurMarke: true,
-    inhalt: fehlerKopf(
-      "Bei uns ist etwas schiefgegangen.",
-      "Versuche es in ein paar Minuten nochmals.",
-      `<div class="knopfreihe">${nochmals}<a class="btn s gross" href="/">Zur Startseite</a></div>`,
-      "Fehler 500",
-    ),
-  });
-}
-
-// wartung.html: der Host liefert sie mit dem Status 503, wenn die Website gewartet wird
-export function rendereWartung(k: Kontext): string {
-  return rahmen(k, {
-    titel: "Wartung",
-    aktuell: null,
-    robots: "noindex",
-    nurMarke: true,
-    inhalt: fehlerKopf(
-      "Wir sind gleich wieder da.",
-      "Die Website wird gerade aktualisiert. Versuche es in ein paar Minuten nochmals.",
-      `<div class="knopfreihe">${nochmals}</div>`,
-      "Fehler 503",
-    ),
-  });
-}
+// Fehler- und Wartungsseiten stehen in fehlerseiten.ts (#567)
 
 // Nur öffentliche Seiten: Der Aufrufer übergibt nur diese
 export function rendereSitemap(
@@ -1192,8 +1416,11 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     titel: "Geschützte Seite",
     aktuell: null,
     robots: "noindex",
-    skript: SKRIPT_GESCHUETZT,
+    // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell oder Fotoalbum findet Stil und Skript vor
+    skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS],
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
+    zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
+    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>

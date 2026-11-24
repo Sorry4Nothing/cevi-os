@@ -161,7 +161,7 @@ describe("Alle Termine: wer welche Termine sieht", () => {
     ]);
   });
 
-  // Abteilungsleitung (Admin): jeder Termin der Abteilung, auch ohne Tag (#449), ausser «intern», alle mit meine=false (sie hat keinen eigenen Tag).
+  // Abteilungsleitung: jeder Termin der Abteilung, auch ohne Tag (#449), ausser «intern», alle mit meine=false (sie hat keinen eigenen Tag).
   // Alle anderen: genau «Mein Kalender» (meine=true). Ohne Tag nie.
   const ALLE_DER_ABTEILUNG = [
     "A",
@@ -360,7 +360,9 @@ describe("Alle Termine: wer welche Termine sieht", () => {
       }) as unknown as Db;
       const zaehlApp = erstelleApp({ ...optionen, db: zaehlend });
       const betrifft = (q: string) =>
-        /programm|person_tag|"kind"|leitung_anmeldung|anlass/.test(q);
+        // Die Abfrage der Sitzung (Rollen und eigenes Kind, #644) zählt nicht mit
+        /programm|person_tag|"kind"|leitung_anmeldung|anlass/.test(q) &&
+        !q.includes("null::uuid");
       for (let i = 0; i < 5; i++) {
         await termin({
           titel: `Zusatz ${i}`,

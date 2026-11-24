@@ -14,6 +14,7 @@ import {
 } from "../../import-regeln.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { erzeugeStartpasswort } from "../../startpasswort.js";
 
 // Ein Schema für beide Routen. Zeilenfehler (leer, zu lang, Cevi-Name) sind kein 400, sondern der Status «ungueltig»
@@ -33,6 +34,19 @@ const importSchema = z.strictObject({
 });
 
 export function erstelleImportRouten({ db }: { db: Db }) {
+  // «Import ausführen» (#650); Leitende bekommen ein Konto mit einer Stufenrolle, und Rechte vergibt nur, wer Rechte vergeben darf: Eine Liste mit Leitenden braucht beides
+  async function verlangeImport(
+    person: Person,
+    zeilen: readonly { art: string }[],
+  ) {
+    await verlange(db, person, "import.ausfuehren", {
+      abteilungId: person.abteilungId,
+    });
+    if (zeilen.some((z) => z.art === "leitung" || z.art === "stufenleitung")) {
+      await verlange(db, person, "rechte.verwalten");
+    }
+  }
+
   // Eine fremde oder unbekannte Stufe ist eine ungültige Eingabe, vor jedem Schreibzugriff geprüft
   async function pruefeStufe(person: Person, stufeId: string) {
     const [eigene] = await db
@@ -70,8 +84,8 @@ export function erstelleImportRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .post("/vorschau", eingabe("json", importSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
       const { stufeId, zeilen } = c.req.valid("json");
+      await verlangeImport(person, zeilen);
       await pruefeStufe(person, stufeId);
       const { plan, summe } = pruefeZeilen(
         zeilen,
@@ -81,8 +95,8 @@ export function erstelleImportRouten({ db }: { db: Db }) {
     })
     .post("/", eingabe("json", importSchema), async (c) => {
       const person = c.get("person");
-      if (!person.admin) throw new HTTPException(403);
       const { stufeId, zeilen } = c.req.valid("json");
+      await verlangeImport(person, zeilen);
       await pruefeStufe(person, stufeId);
       try {
         const antwort = await db.transaction(async (tx) => {
@@ -113,7 +127,7 @@ export function erstelleImportRouten({ db }: { db: Db }) {
           for (const p of plan) {
             if (p.status !== "neu" || p.art === "kind") continue;
             const startpasswort = erzeugeStartpasswort();
-            const angelegt = await legePersonAn(tx, person, c.req.raw.headers, {
+            const angelegt = await legePersonAn(tx, person, {
               vorname: p.vorname!,
               nachname: p.nachname!,
               ceviName: p.ceviName,

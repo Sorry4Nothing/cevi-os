@@ -1,0 +1,90 @@
+import { readFileSync } from "node:fs";
+import { describe, expect, test } from "vitest";
+import { STIL_FUSS } from "../src/website/kontakt.js";
+import { keineDaten, rahmen, type Kontext } from "../src/website/rendern.js";
+
+// Fuss und Kontaktkarte (#580): Stil und Einbindung. Den Aufbau prüft website-darstellung.test.ts.
+const kontext = (): Kontext => ({
+  abteilung: "Cevi Beispielstadt",
+  basisUrl: "https://www.example.org",
+  navigation: [],
+  daten: keineDaten(),
+});
+const css = readFileSync(
+  new URL("../public/website/fuss.css", import.meta.url),
+  "utf8",
+);
+
+describe("fuss.css (#580, #605)", () => {
+  test("jede Seite lädt die Datei nach dem Grundstil und dem Stil des Kopfs", () => {
+    const html = rahmen(kontext(), {
+      titel: "T",
+      aktuell: null,
+      inhalt: "<p>x</p>",
+    });
+    expect(STIL_FUSS).toBe("/website/fuss.css");
+    expect(html).toContain(
+      '<link rel="stylesheet" href="/website/kopf.css">\n<link rel="stylesheet" href="/website/fuss.css">',
+    );
+  });
+
+  test("nichts von aussen, keine Farbe ausser Tokens und erzwungenen Farben", () => {
+    const code = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(code).not.toMatch(/url\(|@import|https?:/);
+    expect(code).not.toMatch(/#[0-9a-f]{3,8}\b/i);
+    expect(code).not.toMatch(/\b(rgb|hsl|oklch)a?\(/);
+    expect(css).toContain("@media (forced-colors: active)");
+  });
+
+  test("Bewegung nur am Bildschirm und ohne «Bewegung reduzieren»", () => {
+    const [ruhe, bewegt] = css.split(
+      "@media screen and (prefers-reduced-motion: no-preference) {",
+    );
+    expect(ruhe).not.toMatch(/transition|animation/);
+    expect(bewegt).toContain("transition: translate var(--dauer)");
+    expect(bewegt).toContain("a.kontakt-zeile {");
+  });
+
+  test("Links und Knöpfe bekommen hier keine eigene Fassung: nur Zusätze für Blau und Pfeile", () => {
+    expect(css).not.toMatch(/^(a|\.btn)(\.[pst]|\.gross)?(:hover)? \{/m);
+    expect(css).not.toMatch(/^\.verweis(:hover)? \{/m);
+    // «Nach oben» ist ein Verweis des Repertoires (kein Knopf, kein Pfeil im Knopf): fett, der Pfeil zeigt nach oben und sitzt hinter dem Wort
+    expect(css).not.toContain("a.btn.s");
+    expect(css).toContain(".fuss a.fuss-oben::after {");
+    expect(css).toMatch(/41\.7% 100%,\s+41\.7% 40\.5%/);
+  });
+});
+
+describe("Kontaktkarte und Fuss füllen die Breite (#605)", () => {
+  test("das Bild der Karte läuft bis zum Fensterrand, die Spalten halten die Linie der fliessenden Spalte", () => {
+    expect(css).toContain("grid-column: mitte / voll-ende;");
+    expect(css).toContain("[voll-start] minmax(var(--rand), 1fr) [text-start]");
+    expect(css).toContain("calc(52.5rem - var(--rand))");
+    expect(css).toMatch(
+      /\.sektion--kontaktkarte > \.wrap \{\s+max-width: none;/,
+    );
+  });
+
+  test("Zeilen und Ziele sind mindestens 44 px hoch", () => {
+    for (const regel of [
+      ".kontakt-zeile {",
+      ".fuss-kontakt a {",
+      ".fuss-seiten li a {",
+    ]) {
+      const block = css.slice(css.indexOf(regel)).split("}")[0]!;
+      expect(block, regel).toMatch(/min-height: (2.75|3.5|3.75|4.25|5)rem/);
+    }
+    // «Nach oben» (a.verweis) bekommt die Höhe von dort: website.css, Repertoire «Verweis»
+    const site = readFileSync(
+      new URL("../public/website/website.css", import.meta.url),
+      "utf8",
+    );
+    expect(site).toMatch(/^\.verweis,\s+a\.mehr \{[^}]*min-height: 2\.75rem/m);
+  });
+
+  test("die verworfene Fassung ist weg: keine Wortmarke, kein Band in drei Stufen", () => {
+    expect(css).not.toContain("fuss-wortmarke");
+    expect(css).not.toContain(".fuss-mitte");
+    expect(css).not.toContain(".fuss-angaben");
+  });
+});

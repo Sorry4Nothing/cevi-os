@@ -149,7 +149,7 @@ export async function hatPlattformRecht(
   return (await plattformRechteVon(db, person)).has(recht);
 }
 
-// Hono-Middleware für eine Route, die ein Recht des Katalogs braucht: fehlt es, 403; hat die Person es, aber keinen zweiten Faktor und ist es «erweitert», 403 mit dem Code ZWEITER_FAKTOR_FEHLT (wie bei Admins). Gilt für Entwickler und Abteilungsleitung genauso
+// Hono-Middleware für eine Route, die ein Recht des Katalogs braucht: fehlt es, 403; hat die Person es, aber keinen zweiten Faktor und ist es «erweitert», 403 mit dem Code ZWEITER_FAKTOR_FEHLT (wie bei der Abteilungsleitung). Gilt für Entwickler und Abteilungsleitung genauso
 export function verlangePlattformRecht(db: Db, recht: PlattformRecht) {
   return createMiddleware<{ Variables: { person: Person } }>(
     async (c, next) => {
@@ -170,7 +170,7 @@ export function verlangePlattformRecht(db: Db, recht: PlattformRecht) {
   );
 }
 
-// Nur der Entwickler (Kommandozeile), auch kein Admin: für Dinge, die die Abteilungsleitung nicht sehen oder schalten darf (#425). Ohne zweiten Faktor 403 ZWEITER_FAKTOR_FEHLT
+// Nur der Entwickler (Kommandozeile), auch keine Abteilungsleitung: für Dinge, die die Abteilungsleitung nicht sehen oder schalten darf (#425). Ohne zweiten Faktor 403 ZWEITER_FAKTOR_FEHLT
 export function verlangeEntwickler(db: Db) {
   return createMiddleware<{ Variables: { person: Person } }>(
     async (c, next) => {
@@ -198,7 +198,11 @@ export async function legeWebmasterAn(
     .insert(plattformRolle)
     .values({ abteilungId, name: "Webmaster", schluessel: "webmaster" })
     .returning({ id: plattformRolle.id });
-  await tx
-    .insert(plattformRolleRecht)
-    .values(WEBMASTER_VORGABE.map((recht) => ({ rolleId: rolle.id, recht })));
+  await tx.insert(plattformRolleRecht).values(
+    // Dazu «fotos.verwalten» aus dem Rechtekatalog (#690): die Vorgabe «Webmaster» pflegt auch die Fotoalben
+    [...WEBMASTER_VORGABE, "fotos.verwalten"].map((recht) => ({
+      rolleId: rolle.id,
+      recht,
+    })),
+  );
 }

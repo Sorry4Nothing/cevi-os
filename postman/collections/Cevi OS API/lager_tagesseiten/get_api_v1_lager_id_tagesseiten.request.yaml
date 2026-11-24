@@ -1,8 +1,8 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/tagesseiten"
-order: 345000
+order: 397000
 method: GET
-url: "{{baseUrl}}{{pfad_L190}}"
+url: "{{baseUrl}}{{pfad_L194}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

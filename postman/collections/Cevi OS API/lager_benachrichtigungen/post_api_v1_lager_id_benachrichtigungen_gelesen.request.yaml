@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/benachrichtigungen/gelesen"
-order: 197000
+order: 245000
 method: POST
 url: "{{baseUrl}}{{pfad_L41}}"
 headers:

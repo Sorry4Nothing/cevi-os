@@ -68,6 +68,10 @@ export const ZEILEN: TermineMatrix = {
     // Ohne Objekt im Pfad: Die fremde Abteilungsleitung sieht ihre eigene (leere) Liste, fremde Eltern bekommen 403
     erwartet: status({ fremdeAbteilungsleitung: 200, fremdeEltern: 403 }),
   },
+  // Die Gruppen für die Sichtbarkeit (nur Name und Typ): wer Anlässe verwalten darf, sonst niemand; die fremde Abteilungsleitung sieht ihre eigene Liste
+  "GET /api/v1/admin/anlaesse/gruppen": {
+    erwartet: status({ fremdeAbteilungsleitung: 200, fremdeEltern: 403 }),
+  },
   "GET /api/v1/admin/anlaesse/:id": {
     erwartet: status({}),
     url: (k) => `${BASIS}/${k.ids["admin-anlaesse"]!.anlass}`,

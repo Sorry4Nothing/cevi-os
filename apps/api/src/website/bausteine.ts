@@ -27,6 +27,25 @@ export const MAX_KARUSSELL_BILDER = 8;
 export const MAX_KARTEN = 24;
 export const MAX_KARTENTEXT = 500;
 export const MAX_HINWEIS = 200;
+// Weiterführende Verweise der Kontaktkarte (#580)
+export const MAX_KONTAKT_VERWEISE = 4;
+// Alterschip einer Stufenkarte (#555), zum Beispiel «3./4. Klasse»
+export const MAX_ALTER = 40;
+// Symbole der Merkmale (#555): Die Website zeichnet sie nicht mehr (Merkmale tragen grosse Schrift oder ein Foto); das Feld bleibt, damit gespeicherte Seiten gültig sind
+export const MERKMAL_SYMBOLE = [
+  "gruppe",
+  "zelt",
+  "kalender",
+  "stern",
+  "herz",
+  "ort",
+  "sonne",
+] as const;
+export const MAX_ECKDATEN = 12;
+// Bausteine der Inhaltsseiten (#560): Personen und Artikel
+export const MAX_PERSONEN = 24;
+export const MAX_ARTIKEL = 60;
+export const MAX_PREIS = 40;
 export const MIN_TERMINE = 3;
 export const MAX_TERMINE = 10;
 
@@ -177,13 +196,25 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein(
     "karten",
     z.strictObject({
-      darstellung: z.enum(["karten", "liste"]),
+      // «merkmale» (#555): Zeilen mit Symbol, Titel und Text, ohne Link; «stufen»: Bildkarten mit Foto und Etikett im Bild (Alter, Preis), ein Link auf die ganze Karte;
+      // «zeitstrahl»: Jahr (Titel) und Ereignis (Text) in ihrer Reihenfolge; «zahlen»: grosse Zahl (Titel) mit Beschriftung (Text)
+      darstellung: z.enum([
+        "karten",
+        "liste",
+        "merkmale",
+        "stufen",
+        "zeitstrahl",
+        "zahlen",
+      ]),
       eintraege: z
         .array(
           z.strictObject({
             titel: kurztext(MAX_KURZTEXT),
             text: kurztext(MAX_KARTENTEXT).optional(),
             link: link("https", "seite").optional(),
+            symbol: z.enum(MERKMAL_SYMBOLE).optional(),
+            bild: mediumId.optional(),
+            alter: kurztext(MAX_ALTER).optional(),
           }),
         )
         .min(1)
@@ -231,7 +262,7 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
       url: link("https"),
     }),
   ),
-  // Die festen Stufenfelder; die Werte liefert #355 aus der Datenbank, der Baustein hat keine eigenen Daten
+  // Die festen Samstagsangaben der Stufen; die Werte liefert #355 aus der Datenbank, der Baustein hat keine eigenen Daten
   baustein("stufenfakten", z.strictObject({})),
   // Hinweisband (#549, Design W1): ein Satz, optional mit Link («Anmeldung offen bis 15. März»)
   baustein(
@@ -246,14 +277,91 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
         .optional(),
     }),
   ),
-  // Kontaktkarte (#549, Design W1): Telefon und E-Mail der Abteilung kommen aus der Konfiguration des Servers, die Ansprechperson (Cevi-Name und Funktion) aus den Personen
+  // Eckdaten (#555): frei benannte Angaben auf einen Blick (Datum, Ort, Kosten, Anmeldeschluss) als Tafel neben dem Text, wie die Samstagsangaben der Stufen; für Lager und Anlässe
+  baustein(
+    "eckdaten",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            bezeichnung: kurztext(MAX_BESCHRIFTUNG),
+            wert: kurztext(MAX_UNTERSCHRIFT),
+            // Der Wert als Link (#560), zum Beispiel die Adresse der Lagerleitung
+            link: linkAlle.optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_ECKDATEN),
+    }),
+  ),
+  // Aufruf zum Handeln (#555): ein farbiges Band mit Titel, kurzem Text und einer Schaltfläche («Ich will in den Cevi!»)
+  baustein(
+    "aufruf",
+    z.strictObject({
+      titel: kurztext(MAX_KURZTEXT),
+      text: kurztext(MAX_KARTENTEXT).optional(),
+      beschriftung: kurztext(MAX_BESCHRIFTUNG),
+      ziel: linkAlle,
+    }),
+  ),
+  // Kontaktkarte (#549, Design W1): Telefon, E-Mail und Anschrift der Abteilung kommen aus der Konfiguration des Servers, die Ansprechperson (Cevi-Name und Funktion) aus den Personen.
+  // #580: dazu ein Hinweis zur Erreichbarkeit, ein Bild der Medienbibliothek und weiterführende Verweise (zum Beispiel Cevi Schweiz); alles freiwillig
   baustein(
     "kontaktkarte",
     z.strictObject({
       titel: kurztext(MAX_KURZTEXT).optional(),
       personId: z.uuid().optional(),
+      hinweis: kurztext(MAX_HINWEIS).optional(),
+      bild: mediumId.optional(),
+      verweise: z
+        .array(
+          z.strictObject({
+            beschriftung: kurztext(MAX_BESCHRIFTUNG),
+            ziel: linkAlle,
+          }),
+        )
+        .max(MAX_KONTAKT_VERWEISE)
+        .optional(),
     }),
   ),
+  // Personen (#560): echte Personen der Plattform. Name (Cevi-Name, sonst Vorname) und Bild (das Profilbild) kommen von der Person und erscheinen nur mit ihrer Freigabe; Funktion und Funktionsadresse sind Angaben der Seite.
+  // Es gibt bewusst kein Feld für eine Telefonnummer: auf die Website gehört die Funktionsadresse
+  baustein(
+    "personen",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            personId: z.uuid(),
+            funktion: kurztext(MAX_KURZTEXT).optional(),
+            email: z.email().max(254).optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_PERSONEN),
+    }),
+  ),
+  // Artikel (#560): Karten mit Bild, Name und Preis (Lädeli); der Preis ist Text («40.–», «gratis»)
+  baustein(
+    "artikel",
+    z.strictObject({
+      eintraege: z
+        .array(
+          z.strictObject({
+            name: kurztext(MAX_KURZTEXT),
+            preis: kurztext(MAX_PREIS).optional(),
+            hinweis: kurztext(MAX_HINWEIS).optional(),
+            mediumId: mediumId.optional(),
+          }),
+        )
+        .min(1)
+        .max(MAX_ARTIKEL),
+    }),
+  ),
+  // Lädeli (#566): das Raster der Artikel der Abteilung mit Warenkorb und Bestellung für angemeldete Personen. Der Baustein hat keine eigenen Daten: Die Artikel pflegt die Verwaltung unter «Lädeli»
+  baustein("laden", z.strictObject({})),
+  // Fotoalben (#690): die Alben der Abteilung aus Flickr, nur für angemeldete Personen. Der Baustein hat keine eigenen Daten und steht als Behälter im HTML; das Skript holt Alben und Bilder von unserem Server (GET /api/v1/fotos/alben), der sie bei Flickr abholt. Welche Alben erscheinen, stellt die Verwaltung unter «Website, Fotos» ein
+  baustein("fotoalben", z.strictObject({})),
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

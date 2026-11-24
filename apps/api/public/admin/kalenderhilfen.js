@@ -1,5 +1,6 @@
 // Gemeinsame Bausteine der Bereiche «Termine», «Räume» und «Anlässe»: Zeitangaben nach dem Design («Sa 06.02.2027», «14:00–17:00»), Suchfeld, «Keine Treffer», sortierbare Spaltenköpfe, Meldungen beim Feld und ein Hinweis-Dialog.
 import { chip, el, icon, knopf, neueId, tabelle } from "./dom.js";
+import { schuetze } from "./ungespeichert.js";
 import { leerKarte } from "./zustaende.js";
 
 export const ZONE = "Europe/Zurich";
@@ -253,12 +254,12 @@ export function pruefHinweis(fehler) {
   return hinweis;
 }
 
-// Kleiner Dialog mit einem Knopf (Design A10 «Vorschlag schon entschieden»): Titel, Hinweis, Text, Knopf; der Fokus kehrt danach zum Titel der Seite zurück
+// Eine Notiz mit einem Knopf (Design A10 «Vorschlag schon entschieden»), seit #578 eine Karte oben in der Ansicht statt eines Fensters: Titel, Hinweis, Text, Knopf; der Fokus kehrt danach zum Titel der Seite zurück
 export function meldungsDialog({ titel, hinweis, text, ok, beiOk }) {
   const titelId = neueId("titel");
   const dialog = el(
-    "dialog",
-    { "aria-labelledby": titelId },
+    "section",
+    { class: "fluss-geheimnis fluss-notiz", "aria-labelledby": titelId },
     el("h2", { id: titelId, tabindex: "-1" }, titel),
     hinweis &&
       el("p", { class: "hinweis hinweis--warn", role: "status" }, hinweis),
@@ -275,12 +276,57 @@ export function meldungsDialog({ titel, hinweis, text, ok, beiOk }) {
       }),
     ),
   );
-  dialog.addEventListener("close", () => {
+  dialog.close = () => {
     dialog.remove();
     document.querySelector("h1")?.focus();
-  });
-  document.body.append(dialog);
-  dialog.showModal();
+  };
+  (
+    document.querySelector(".fluss-seite:not([hidden])") ??
+    document.getElementById("bereich") ??
+    document.body
+  ).prepend(dialog);
   dialog.querySelector(".knopf").focus();
   return dialog;
+}
+
+// Leiste «Nicht gespeicherte Änderungen» (#590): erscheint unten, sobald etwas geändert ist, mit «Verwerfen» und «Speichern»; sonst gibt es keinen Speichern-Knopf. Der Text sagt, was offen ist (Statusregion).
+// beiSpeichern(knopf) und beiVerwerfen() liefert der Aufrufer; zeige(text) blendet die Leiste ein, verstecke() aus
+export function speicherLeiste({ beiSpeichern, beiVerwerfen }) {
+  const text = el("p", { class: "tm-speichertext", role: "status" });
+  const speichern = knopf("Speichern", {
+    art: "haupt",
+    symbol: "haken",
+    onclick: () => beiSpeichern(speichern),
+  });
+  const verwerfen = knopf("Verwerfen", { onclick: () => beiVerwerfen() });
+  const wurzel = el(
+    "div",
+    {
+      class: "tm-speicherleiste",
+      role: "region",
+      "aria-label": "Ungespeicherte Änderungen",
+      hidden: true,
+    },
+    icon("warnung"),
+    text,
+    el("div", { class: "tm-speicherknoepfe" }, verwerfen, speichern),
+  );
+  // Solange die Leiste steht, ist etwas ungespeichert: Menü, Link und Browser-Zurück fragen zuerst (#699)
+  schuetze({
+    wurzel,
+    geaendert: () => !wurzel.hidden,
+    verwerfen: () => beiVerwerfen(),
+  });
+  return {
+    wurzel,
+    speichern,
+    zeige(t) {
+      wurzel.hidden = false;
+      text.textContent = t;
+    },
+    verstecke() {
+      wurzel.hidden = true;
+      text.textContent = "";
+    },
+  };
 }

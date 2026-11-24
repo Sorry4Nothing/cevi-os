@@ -2,13 +2,14 @@ import { anfrage, fehlertext } from "./api.js";
 import {
   ankreuzen,
   auswahl,
-  bestaetigen,
   chip,
   el,
   feld,
   knopf,
   seitenblatt,
 } from "./dom.js";
+import { zahlfeld } from "./datumsfeld.js";
+import { mitRueckgaengig } from "./rueckgaengig.js";
 import {
   entferneFeldFehler,
   feldFehler,
@@ -23,7 +24,7 @@ import {
 } from "./kalenderhilfen.js";
 import { leerKarte } from "./zustaende.js";
 
-// Unterseite «Räume» (A14, A15, #446, #447): Die Abteilungsleitung legt Räume an, ändert, deaktiviert und löscht sie. Über Anfragen entscheidet die Unterseite «Anfragen».
+// Unterseite «Räume» (A14, A15, #446, #447): Die Abteilungsleitung legt Räume an, ändert, deaktiviert und löscht sie; ein Team mit dem Recht «Räume verwalten» sieht und ändert die Räume, die ihm zugewiesen sind (#649). Das Team eines Raums ändert nur, wer «Räume einem Team zuweisen» darf. Über Anfragen entscheidet die Unterseite «Anfragen».
 // Datenbanklast: eine Abfrage beim Öffnen und je «Weitere laden» (50 Räume), die Gruppen (eine Abfrage) erst, wenn ein Blatt sie braucht. Suche und Sortierung laufen im Browser. Kein Polling.
 // Lücken gegenüber dem Design: Die Spalte «Anfragen offen» fehlt (die API zählt offene Anfragen nicht je Raum), und das Feld «Ausstattung» heisst im Raum «Ort» (Gebäude, Stockwerk) und «Beschreibung» (Ausstattung und Hinweise).
 
@@ -34,6 +35,7 @@ const TYPEN = {
   funktion: "Funktion",
   team: "Team",
   lager: "Lager",
+  anlass: "Anlass",
 };
 const TEXTE = {
   PLAETZE_UNGUELTIG: "Gib eine Zahl von 1 bis 1000 ein.",
@@ -53,22 +55,42 @@ const ladeTags = () => {
   return tagsMerker;
 };
 
+// Offene Anfragen je Raum: eine Abfrage (bis 50 Anfragen); ohne Recht oder bei einem Fehler fehlt die Spalte. Die API zählt nicht je Raum, darum zählt der Browser; gibt es mehr als 50, steht «mindestens».
+const ladeOffene = () =>
+  anfrage("GET", "/api/v1/raeume/anfragen/offen?limit=50").then(
+    (a) => ({ je: zaehleJeRaum(a.anfragen), mindestens: a.weitere }),
+    () => null,
+  );
+export const zaehleJeRaum = (anfragen) => {
+  const je = new Map();
+  for (const a of anfragen) je.set(a.raumId, (je.get(a.raumId) ?? 0) + 1);
+  return je;
+};
+
 export function zeige(bereich, ctx) {
   tagsMerker = null;
   const lade = () =>
     ctx.lade(
-      () => anfrage("GET", `${BASIS}?limit=${SEITE}`),
+      async () => {
+        const [liste, offene] = await Promise.all([
+          anfrage("GET", `${BASIS}?limit=${SEITE}`),
+          ladeOffene(),
+        ]);
+        return { ...liste, offene };
+      },
       (erste) => zeichne(bereich, ctx, erste, lade),
       { fehlerTitel: "Die Räume konnten nicht geladen werden." },
     );
-  // Die Hauptaktion steht auch bei einem Ladefehler im Kopf
-  ctx.kopfAktion(
-    knopf("Neuer Raum", {
-      art: "haupt",
-      symbol: "plus",
-      onclick: () => blatt({ ctx, neu: lade }),
-    }),
-  );
+  // Die Hauptaktion steht auch bei einem Ladefehler im Kopf; neue Räume legt an, wer Räume für die ganze Abteilung verwalten darf (der Server prüft)
+  if (ctx.zugang.termine.raumAnlegen) {
+    ctx.kopfAktion(
+      knopf("Neuer Raum", {
+        art: "haupt",
+        symbol: "plus",
+        onclick: () => blatt({ ctx, neu: lade }),
+      }),
+    );
+  }
   return lade();
 }
 
@@ -78,6 +100,7 @@ function zeichne(bereich, ctx, erste, neu) {
   let naechste = erste.naechste;
   let begriff = "";
   let richtung = "ascending";
+  const offene = erste.offene;
 
   const suche = suchfeld({
     label: "Raum suchen",
@@ -112,7 +135,23 @@ function zeichne(bereich, ctx, erste, neu) {
           ? el("ul", { class: "chips" }, chip(r.team.name, undefined, "tag"))
           : el("span", { class: "leise" }, "Kein Team"),
       ),
-      el("td", {}, r.kapazitaet === null ? "–" : String(r.kapazitaet)),
+      el(
+        "td",
+        { class: "tm-ziffern" },
+        r.kapazitaet === null ? "–" : String(r.kapazitaet),
+      ),
+      offene &&
+        el(
+          "td",
+          {},
+          (offene.je.get(r.id) ?? 0) > 0
+            ? el(
+                "a",
+                { class: "tm-tabellenlink", href: "#raeume/anfragen" },
+                `${offene.mindestens ? "Mindestens " : ""}${zaehlwort(offene.je.get(r.id), "offene Anfrage", "offene Anfragen")}`,
+              )
+            : el("span", { class: "leise" }, "keine"),
+        ),
       el(
         "td",
         { class: "rechts" },
@@ -137,13 +176,7 @@ function zeichne(bereich, ctx, erste, neu) {
       ersetze(
         liste,
         leerKarte(
-          "Es gibt noch keine Räume. Erfasse den ersten Raum, dann können Leitende ihn anfragen.",
-          [
-            knopf("Neuer Raum", {
-              symbol: "plus",
-              onclick: () => blatt({ ctx, neu }),
-            }),
-          ],
+          "Es gibt noch keine Räume. Erfasse oben den ersten Raum, dann können Leitende ihn anfragen.",
         ),
       );
       return;
@@ -169,7 +202,13 @@ function zeichne(bereich, ctx, erste, neu) {
     }
     const t = termineTabelle({
       beschriftung: "Räume",
-      spalten: ["Name", "Zuständiges Team", "Plätze", "Aktionen"],
+      spalten: [
+        "Name",
+        "Zuständiges Team",
+        "Plätze",
+        ...(offene ? ["Anfragen"] : []),
+        "Aktionen",
+      ],
       zeilen: treffer.map(zeile),
     });
     const kopf = t.wurzel.querySelector("th");
@@ -221,12 +260,16 @@ function zeichne(bereich, ctx, erste, neu) {
 
 // Blatt «Raum bearbeiten» (A15) und «Neuer Raum»: Name, Beschreibung, Ort, Team, Plätze, Aktiv
 async function blatt({ raum, ctx, neu }) {
-  let tags;
-  try {
-    tags = await ladeTags();
-  } catch (f) {
-    ctx.melde(meldungVon(f), "fehler");
-    return;
+  // Die Gruppen braucht nur, wer das Team zuweisen darf; sonst steht das Team als Text da
+  const kannZuweisen = ctx.zugang.termine.raumZuweisen === true;
+  let tags = [];
+  if (kannZuweisen) {
+    try {
+      tags = await ladeTags();
+    } catch (f) {
+      ctx.melde(meldungVon(f), "fehler");
+      return;
+    }
   }
   const name = feld({
     label: "Name",
@@ -248,23 +291,28 @@ async function blatt({ raum, ctx, neu }) {
     wert: raum?.ort ?? "",
     maxlength: 200,
   });
-  const team = auswahl({
-    label: "Zuständiges Team",
-    optionen: [
-      ["", "Kein Team"],
-      ...tags.map((t) => [t.id, `${t.name} (${TYPEN[t.typ] ?? t.typ})`]),
-    ],
-    wert: raum?.team?.id ?? "",
-  });
-  const plaetze = feld({
+  const team = kannZuweisen
+    ? auswahl({
+        label: "Zuständiges Team",
+        optionen: [
+          ["", "Kein Team"],
+          ...tags.map((t) => [t.id, `${t.name} (${TYPEN[t.typ] ?? t.typ})`]),
+        ],
+        wert: raum?.team?.id ?? "",
+      })
+    : feld({
+        label: "Zuständiges Team",
+        hilfe:
+          "Das Team ändert, wer Räume einem Team zuweisen darf (in der Teamansicht unter Gruppen).",
+        wert: raum?.team?.name ?? "Kein Team",
+      });
+  if (!kannZuweisen) team.eingabe.readOnly = true;
+  const plaetze = zahlfeld({
     label: "Plätze (optional)",
     hilfe: "Wie viele Personen Platz haben, von 1 bis 1000.",
-    typ: "number",
-    wert: raum?.kapazitaet ?? "",
+    wert: raum?.kapazitaet === null ? "" : String(raum?.kapazitaet ?? ""),
     min: 1,
     max: 1000,
-    step: 1,
-    inputmode: "numeric",
   });
   const aktiv = ankreuzen({
     label: "Aktiv: Mitglieder sehen den Raum",
@@ -286,7 +334,9 @@ async function blatt({ raum, ctx, neu }) {
   const speichern = knopf("Speichern", { art: "haupt", type: "submit" });
   speichern.setAttribute("form", "tm-raum-formular");
   formular.id = "tm-raum-formular";
-  const abbrechen = knopf("Abbrechen", { onclick: () => dialog.close() });
+  const abbrechen = knopf("Abbrechen", {
+    onclick: () => dialog.versuchSchliessen(),
+  });
   // Löschen steht links, abgesetzt von Abbrechen und Speichern
   const loeschenKnopf =
     raum &&
@@ -294,17 +344,16 @@ async function blatt({ raum, ctx, neu }) {
       art: "gefahr",
       symbol: "papierkorb",
       onclick: () =>
-        bestaetigen({
-          titel: "Raum löschen?",
-          beschreibung: `«${raum.name}» wird endgültig gelöscht. Willst du ihn nur ausblenden, deaktiviere ihn stattdessen.`,
-          ok: "Raum löschen",
-          aktion: () => anfrage("DELETE", `${BASIS}/${raum.id}`),
-          danach: async () => {
-            dialog.close();
-            ctx.melde(`Raum «${raum.name}» ist gelöscht.`);
-            await neu();
-            document.querySelector("h1")?.focus();
+        // Das Blatt schliesst sofort; bei «Rückgängig» oder Fehler öffnet es wieder. Willst du den Raum nur ausblenden, deaktiviere ihn stattdessen
+        mitRueckgaengig({
+          text: `Raum «${raum.name}» gelöscht`,
+          ansicht: {
+            weg: () => dialog.close(),
+            zurueck: () => blatt({ raum, ctx, neu }),
           },
+          ausfuehren: () => anfrage("DELETE", `${BASIS}/${raum.id}`),
+          fehlertext: meldungVon,
+          danach: neu,
         }),
     });
   loeschenKnopf?.classList.add("tm-fuss-links");
@@ -352,7 +401,8 @@ async function blatt({ raum, ctx, neu }) {
       ort: leer(ort),
       beschreibung: leer(beschreibung),
       kapazitaet: roh === "" ? null : n,
-      teamId: team.eingabe.value || null,
+      // Das Team gehört nur in die Anfrage, wenn die Person es zuweisen darf
+      ...(kannZuweisen && { teamId: team.eingabe.value || null }),
       aktiv: aktiv.eingabe.checked,
     };
     sperre(true);

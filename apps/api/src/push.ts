@@ -108,6 +108,7 @@ export async function sendePush(
   }
 
   const abgemeldet: string[] = [];
+  let gesendet = 0;
   for (let i = 0; i < tokens.length; i += BLOCK) {
     const block = tokens.slice(i, i + BLOCK);
     try {
@@ -127,7 +128,10 @@ export async function sendePush(
         })),
       );
       responses.forEach((antwort, j) => {
-        if (antwort.success) return;
+        if (antwort.success) {
+          gesendet++;
+          return;
+        }
         meldeFehler(c, antwort.error);
         if (ABGEMELDET.includes(antwort.error?.code ?? ""))
           abgemeldet.push(block[j]!);
@@ -137,6 +141,9 @@ export async function sendePush(
     }
   }
 
+  // Für das Aktivitätsprotokoll (#637): nur die Art und die Zahl, nie Empfänger, Titel oder Text
+  if (tokens.length > 0)
+    log(undefined, { ereignis: "push_versand", typ, gesendet });
   if (abgemeldet.length === 0) return;
   try {
     await db.delete(pushToken).where(inArray(pushToken.token, abgemeldet));

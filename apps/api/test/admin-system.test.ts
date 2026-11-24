@@ -87,7 +87,7 @@ describe("GET /api/v1/admin/system", () => {
     expect(daten.datenbank.erreichbar).toBe(true);
     expect(daten.datenbank.pingMs).toBeGreaterThanOrEqual(0);
     expect(daten.datenbank.poolMaximum).toBeGreaterThan(0);
-    // Der Admin selbst ist aktiv; Kinder und Tokens gehören der Testabteilung
+    // Die Abteilungsleitung selbst ist aktiv; Kinder und Tokens gehören der Testabteilung
     expect(daten.bestand.aktivePersonen).toBeGreaterThanOrEqual(1);
     expect(daten.bestand.pushTokens).toBeGreaterThanOrEqual(0);
     expect(daten.kalender).toEqual({
@@ -203,7 +203,7 @@ describe("GET /api/v1/admin/system/requests", () => {
     expect(text).not.toContain(geheim);
   });
 
-  test("Nicht-Admins bekommen 403, ohne Login 401", async () => {
+  test("alle anderen bekommen 403, ohne Login 401", async () => {
     const eltern = await legePersonaAn(welt, "elternA");
     const ohne = await legePersonaAn(welt, "ohneLogin");
     for (const pfad of [
@@ -226,7 +226,7 @@ describe("Ausgaben des Kalender-Abgleichs (#267)", () => {
     expect(daten.kalender.programme).toBeGreaterThanOrEqual(0);
   });
 
-  test("Nicht-Admins bekommen 403, ohne Login 401", async () => {
+  test("alle anderen bekommen 403, ohne Login 401", async () => {
     const eltern = await legePersonaAn(welt, "elternA");
     const ohne = await legePersonaAn(welt, "ohneLogin");
     expect((await hole(eltern, "/api/v1/admin/system/syncs")).status).toBe(403);

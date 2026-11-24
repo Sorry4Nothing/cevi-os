@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
+import { meldeAenderung } from "../../aktivitaet-middleware.js";
 import { eingabe } from "../../eingabe.js";
 import {
   MAX_VERSCHIEBUNG,
@@ -194,6 +195,8 @@ export function erstelleZeitplanRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                   message: `Am Meilenstein hängen mehr als ${MAX_VERSCHIEBUNG} Aufgaben.`,
                 };
           if (p.trocken || !p.aufgaben) {
+            // Eine Vorschau schreibt nichts: keine Zeile im Änderungsprotokoll
+            meldeAenderung(c, { keine: true });
             const vorschau = await zeigeVerschiebung(
               db,
               lagerId,

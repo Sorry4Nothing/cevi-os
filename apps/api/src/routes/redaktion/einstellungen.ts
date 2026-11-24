@@ -5,19 +5,25 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { abteilung, auditLog, medium } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { hatPlattformRecht, istEntwickler } from "../../plattform.js";
+import { istEntwickler } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
 export const MAX_ABTEILUNGSNAME = 100;
 // Steuerzeichen gehören in keinen Namen (auch NUL, das Postgres nicht speichert)
 const sauber = (s: string) => !/\p{Cc}/u.test(s);
 
-// Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (null = kein Logo)
+// Kopf der Website (#550): der Anzeigename ist der Name der Abteilung, das Logo ein öffentliches Bild der Medienbibliothek (null = kein Logo). Für den dunklen Modus gibt es eine zweite Fassung (#558, null = dasselbe Logo)
 const aendernSchema = z
   .strictObject({
     name: z.string().trim().min(1).max(MAX_ABTEILUNGSNAME).refine(sauber),
     logoMediumId: z.uuid().nullable(),
+    logoDunkelMediumId: z.uuid().nullable(),
+    // Quadratisches Zeichen für das Favicon (#558, null = das Cevi-Zeichen der Plattform)
+    zeichenMediumId: z.uuid().nullable(),
+    // Bild hinter dem Wegweiser der Fehlerseiten (#567, null = das Titelbild der Startseite)
+    fehlerbildMediumId: z.uuid().nullable(),
   })
   .partial()
   .refine((f) => Object.keys(f).length > 0);
@@ -31,16 +37,20 @@ const FEHLER = {
 
 // Einstellungen der Website für die ganze Abteilung. Das Recht «Seiten veröffentlichen» genügt für das Logo; den Namen der Abteilung ändert nur der Entwickler (auch nicht die Abteilungsleitung), denn er steht auch in der App
 export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
-  const pruefeRecht = async (person: Person) => {
-    if (!(await hatPlattformRecht(db, person, "seiten.veroeffentlichen"))) {
-      throw new HTTPException(403);
-    }
-  };
+  // Abteilungsweit: Das Recht für die eigene Stufenseite oder die eigene Gruppe genügt nicht (die Stufenleitung sieht die Einstellungen nicht)
+  const pruefeRecht = (person: Person) =>
+    verlange(db, person, "seiten.veroeffentlichen", {
+      abteilungId: person.abteilungId,
+      abteilungsweit: true,
+    });
   const lese = async (person: Person) => {
     const [z] = await db
       .select({
         name: abteilung.name,
         logoMediumId: abteilung.websiteLogoMediumId,
+        logoDunkelMediumId: abteilung.websiteLogoDunkelMediumId,
+        zeichenMediumId: abteilung.websiteZeichenMediumId,
+        fehlerbildMediumId: abteilung.websiteFehlerbildMediumId,
       })
       .from(abteilung)
       .where(eq(abteilung.id, person.abteilungId));
@@ -63,7 +73,13 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
       }
 
       const fehler = await db.transaction(async (tx) => {
-        if (f.logoMediumId) {
+        for (const mediumId of [
+          f.logoMediumId,
+          f.logoDunkelMediumId,
+          f.zeichenMediumId,
+          f.fehlerbildMediumId,
+        ]) {
+          if (!mediumId) continue;
           // FOR SHARE: Ein gleichzeitiges Löschen des Mediums wartet und sieht danach den Verweis
           const [m] = await tx
             .select({
@@ -73,7 +89,7 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
             .from(medium)
             .where(
               and(
-                eq(medium.id, f.logoMediumId),
+                eq(medium.id, mediumId),
                 eq(medium.abteilungId, person.abteilungId),
               ),
             )
@@ -90,6 +106,15 @@ export function erstelleWebsiteEinstellungsRouten({ db }: { db: Db }) {
             ...(f.name !== undefined && { name: f.name }),
             ...(f.logoMediumId !== undefined && {
               websiteLogoMediumId: f.logoMediumId,
+            }),
+            ...(f.logoDunkelMediumId !== undefined && {
+              websiteLogoDunkelMediumId: f.logoDunkelMediumId,
+            }),
+            ...(f.zeichenMediumId !== undefined && {
+              websiteZeichenMediumId: f.zeichenMediumId,
+            }),
+            ...(f.fehlerbildMediumId !== undefined && {
+              websiteFehlerbildMediumId: f.fehlerbildMediumId,
             }),
           })
           .where(eq(abteilung.id, person.abteilungId));

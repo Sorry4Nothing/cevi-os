@@ -1,8 +1,11 @@
 import { and, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import type { Db } from "./db/client.js";
-import { abteilung, bearbeiter, personTag, tag } from "./db/schema.js";
+import { abteilung, anlass, bearbeiter, personTag, tag } from "./db/schema.js";
 import { plattformRechtSql } from "./plattform.js";
 import { hatRolle, type Person } from "./rechte.js";
+import { darf } from "./rechtemodell/darf.js";
+import { rechteModus } from "./rechtemodell/modus.js";
+import { rechtSql } from "./rechtemodell/sql.js";
 
 // Ein Modell für alle bearbeitbaren Objekte (#334), aufgebaut auf Person aus rechte.ts:
 // Abteilungsleitung (person.admin) darf alles; eine Stufenleitung die Objekte ihrer Stufe; wer das Plattformrecht «Seiten bearbeiten» hat (Rolle Webmaster, #426), alle Seiten;
@@ -73,6 +76,37 @@ export async function darfBearbeiten(
   return zeile?.ok === true;
 }
 
+// Der Anlass, dessen Seite diese Seite ist (anlass.seite_id): Rollen des OK gelten für die Seite ihres Anlasses (#643). Als Ausdruck für Listen und als Abfrage für eine einzelne Seite
+const anlassDerSeite = (seiteId: AnyColumn | SQL) =>
+  sql`(select ${anlass.id} from ${anlass} where ${anlass.seiteId} = ${seiteId} limit 1)`;
+
+// Das Recht an einer einzelnen Seite über das Rechtemodell (#648): Abteilungsleitung, Plattformrollen, Stufenleitung, Sonderrechte, Gruppenrollen. Die Seite kommt aus der Abteilung der Person geladen (fremd = 404 vorher); abteilungId der Zeile sichert das zusätzlich. veroeffentlichen: Die Frage gilt dem Veröffentlichen und Zurückziehen. Wirft nie: Ein Fehler der Abfrage ist ein 500, nie «erlaubt»
+export async function darfSeite(
+  db: Pick<Db, "select" | "execute">,
+  person: Person,
+  zeile: { id: string; abteilungId?: string; tagId: string | null },
+  { veroeffentlichen = false }: { veroeffentlichen?: boolean } = {},
+) {
+  if (person.admin) return true;
+  const [a] = await db
+    .select({ id: anlass.id })
+    .from(anlass)
+    .where(eq(anlass.seiteId, zeile.id))
+    .limit(1);
+  return darf(
+    db,
+    person,
+    veroeffentlichen ? "seiten.veroeffentlichen" : "seiten.bearbeiten",
+    {
+      abteilungId: zeile.abteilungId ?? person.abteilungId,
+      seiteId: zeile.id,
+      tagId: zeile.tagId,
+      stufeId: zeile.tagId,
+      anlassId: a?.id ?? null,
+    },
+  );
+}
+
 // Filter für Listen im Editor: nur Objekte der Abteilung der Person, die sie bearbeiten darf. spalten sind die Spalten der Objekttabelle
 export function bearbeitbar(
   person: Person,
@@ -86,6 +120,23 @@ export function bearbeitbar(
 ): SQL {
   const eigeneAbteilung = sql`${spalten.abteilungId} = ${person.abteilungId}`;
   if (person.admin) return eigeneAbteilung;
+  const modus = rechteModus();
+  const rechtSpalten = {
+    abteilungId: spalten.abteilungId,
+    id: spalten.id,
+    stufeId: spalten.stufeId,
+    tagId: spalten.tagId,
+    anlassId: anlassDerSeite(spalten.id),
+  };
+  // Modus «neu»: nur das Rechtemodell entscheidet, in einer Bedingung für die ganze Liste
+  if (modus === "neu") {
+    return rechtSql(person, "seiten.bearbeiten", rechtSpalten);
+  }
+  // Schatten: der alte Weg und zusätzlich, was Plattform- und Gruppenrollen geben
+  const ausRollen =
+    modus === "alt"
+      ? sql``
+      : sql` or ${rechtSql(person, "seiten.bearbeiten", rechtSpalten, "rollen")}`;
   const stufen = person.rollen
     .filter((r) => r.typ === "stufenleitung")
     .map((r) => r.stufeId);
@@ -102,6 +153,6 @@ export function bearbeitbar(
       spalten.tagId
         ? sql` or ${teamVerantwortung(person, spalten.tagId)}`
         : sql``
-    })`,
+    }${ausRollen})`,
   ) as SQL;
 }

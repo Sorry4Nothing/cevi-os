@@ -116,15 +116,6 @@
 .tm *::after {
   box-sizing: border-box;
 }
-.tm a {
-  color: var(--accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  text-decoration-thickness: 1px;
-}
-.tm a:hover {
-  text-decoration-thickness: 2px;
-}
 .tm :focus-visible {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
@@ -185,9 +176,9 @@
   height: 24px;
   fill: none;
   stroke: currentColor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
   flex: none;
 }
 .tm .i.k {
@@ -230,65 +221,6 @@
 }
 
 /* Knöpfe */
-.tm .btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 24px;
-  border-radius: var(--r-full);
-  border: 1px solid transparent;
-  font: inherit;
-  font-size: 1rem;
-  line-height: 1.25;
-  font-weight: 700;
-  cursor: pointer;
-  text-decoration: none;
-  background: transparent;
-  color: var(--on-surface);
-}
-@media (max-width: 720px) {
-  .tm .btn {
-    text-align: center;
-    padding-top: 10px;
-    padding-bottom: 10px;
-  }
-}
-.tm a.btn {
-  text-decoration: none;
-}
-.tm .btn.p,
-.tm a.btn.p {
-  background: var(--primary);
-  color: var(--on-primary);
-}
-.tm .btn.p:hover {
-  filter: brightness(1.1);
-}
-.tm .btn.s,
-.tm a.btn.s {
-  border-color: var(--outline);
-  color: var(--on-surface);
-}
-.tm .btn.s:hover {
-  background: var(--surface-container);
-}
-.tm .btn.t,
-.tm a.btn.t {
-  color: var(--accent);
-  padding: 0 12px;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-.tm .btn.gross {
-  min-height: 56px;
-  padding: 0 32px;
-  font-size: 1.0625rem;
-}
-.tm .btn.voll {
-  width: 100%;
-}
 .tm .btn[aria-disabled="true"] {
   background: var(--surface-container-high);
   color: var(--on-surface-variant);
@@ -562,98 +494,13 @@
   background: var(--surface-container-low);
 }
 
-/* Skeleton */
-.tm .sk {
-  background: var(--skeleton);
-  border-radius: 8px;
-  display: block;
-}
-.tm .sk.r {
-  border-radius: var(--r-full);
-}
-.tm .sk.t {
-  height: 14px;
-  margin: 6px 0;
-}
-.tm .b30 {
-  width: 30%;
-}
-.tm .b40 {
-  width: 40%;
-}
-.tm .b50 {
-  width: 50%;
-}
-.tm .b60 {
-  width: 60%;
-}
-.tm .b70 {
-  width: 70%;
-}
-.tm .b90 {
-  width: 90%;
-}
-.tm .b100 {
-  width: 100%;
-}
-.tm .bpx70 {
-  width: 70px;
-}
-.tm .bpx160 {
-  width: 160px;
-}
-.tm .h20 {
-  height: 20px;
-}
-.tm .h24 {
-  height: 24px;
-}
-.tm .h28 {
-  height: 28px;
-}
-.tm .h48 {
-  height: 48px;
-}
-.tm .h52 {
-  height: 52px;
-}
-.tm .h56 {
-  height: 56px;
-}
-.tm .skel {
-  position: relative;
-  overflow: hidden;
-}
-.tm .schimmer {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: -80px;
-  width: 72px;
-  background: var(--skeleton-highlight);
-  opacity: 0.85;
-  transform: skewX(-18deg);
-  pointer-events: none;
-  animation: tm-schimmer 1.6s ease-in-out infinite;
-}
-@keyframes tm-schimmer {
-  to {
-    left: 100%;
-  }
-}
+/* Skeleton (#574): die Teile (.sk) stehen in website.css; nur der Knopf-Ring ruht bei reduzierter Bewegung */
 @media (prefers-reduced-motion: reduce) {
-  .tm .schimmer {
-    animation: none;
-    left: 38%;
-  }
   .tm .btn .lade {
     animation: none;
   }
 }
 
-.tm .mt {
-  margin-top: 8px;
-}
 .tm .reiter-hinweis {
   margin-top: 16px;
 }
@@ -687,6 +534,7 @@
 }
 .tm a.termin:hover {
   border-color: var(--outline);
+  background: var(--surface-container);
 }
 .tm .datum {
   display: flex;
@@ -698,6 +546,10 @@
   background: var(--secondary);
   color: var(--on-secondary);
   text-align: center;
+}
+.tm .datum-skelett {
+  min-height: 80px;
+  border-radius: var(--r-sm);
 }
 .tm .datum .tag {
   font-size: 0.875rem;
@@ -757,58 +609,346 @@
   margin-top: 24px;
 }
 
-/* Monat */
-.tm .monat {
+/* Monat (#564): Kalender mit Tagesfeld. Links das Raster, jeder Tag eine Schaltfläche; daneben (schmal: darunter) die Termine des gewählten Tages */
+.tm .kal {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 26rem);
+  gap: 24px;
+  /* Das Tagesfeld ist so hoch wie der Kalender und rollt in sich: Beim Blättern und Wählen springt nichts */
+  align-items: stretch;
+}
+.tm .kal-tagfeld {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.tm .kal-karte,
+.tm .kal-tagfeld {
   border: 1px solid var(--outline-variant);
-  border-radius: var(--r-sm);
-  overflow: hidden;
+  border-radius: var(--r-md);
   background: var(--surface-container-low);
 }
-.tm .monat .wochentage,
-.tm .monat .tage {
+.tm .kal-karte {
+  padding: 8px;
+  max-width: 56rem;
+}
+.tm .kal-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 12px 16px 16px;
+}
+.tm .kal-kopf .monat-titel {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.25;
+}
+.tm .kal-anzahl,
+.tm .kal-abstand {
+  margin: 2px 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--on-surface-variant);
+}
+.tm .kal-nav {
+  display: flex;
+  gap: 4px;
+}
+.tm .kal-blatt {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--on-surface);
+  cursor: pointer;
+  transition: background-color var(--dauer) var(--kurve);
+}
+.tm .kal-blatt:hover {
+  background: var(--surface-container);
+}
+.tm .kal-blatt[aria-disabled="true"] {
+  color: var(--outline);
+  background: transparent;
+  cursor: default;
+}
+.tm .kal-wochentage,
+.tm .kal-tage,
+.tm .kal-skelett-tage {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
 }
-.tm .monat .tage {
-  list-style: none;
-}
-.tm .monat .wt {
-  padding: 10px 12px;
+.tm .kal-wochentage {
+  padding: 0 0 8px;
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--on-surface-variant);
-  border-bottom: 1px solid var(--outline-variant);
+  text-align: center;
 }
-.tm .monat .zelle {
-  min-height: 120px;
+.tm .kal-leer,
+.tm .kal-zelle,
+.tm .kal-tag {
+  aspect-ratio: 5 / 4;
   min-width: 0;
-  padding: 8px 10px;
-  border-top: 1px solid var(--outline-variant);
-  border-left: 1px solid var(--outline-variant);
+  min-height: 44px;
+  border-radius: var(--r-sm);
+}
+.tm .kal-leer {
+  background: var(--surface);
+  opacity: 0.5;
+}
+.tm .kal-tag {
   display: flex;
   flex-direction: column;
+  align-items: flex-start;
   gap: 6px;
-}
-.tm .monat .zelle:nth-child(7n + 1) {
-  border-left: 0;
-}
-.tm .monat .zelle.leer {
+  padding: 6px;
+  overflow: hidden;
+  border: 2px solid transparent;
   background: var(--surface);
+  color: var(--on-surface);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    background-color var(--dauer) var(--kurve),
+    border-color var(--dauer) var(--kurve);
 }
-.tm .monat .zelle .n {
+.tm .kal-tag:hover {
+  background: var(--surface-container);
+}
+.tm .kal-tag[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--secondary-container);
+}
+.tm .kal-tag:focus-visible {
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+.tm .kal-nr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 4px;
+  border-radius: 8px;
   font-size: 0.9375rem;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
-.tm .monat .zelle.heute .n {
-  display: inline-flex;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
+.tm .kal-tag.heute .kal-nr {
   background: var(--secondary);
   color: var(--on-secondary);
+}
+.tm .kal-chips {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  min-width: 0;
+}
+.tm .kal-chips .eintrag {
+  padding: 3px 6px;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tm .eintrag-mehr {
+  padding: 0 6px;
+  font-size: 0.8125rem;
+  line-height: 1.25;
+  font-weight: 700;
+  color: var(--on-surface-variant);
+  white-space: nowrap;
+}
+.tm .kal-punkte {
+  display: none;
+  gap: 3px;
+  margin-top: auto;
+}
+.tm .kal-punkte .punkt {
+  width: 6px;
+  height: 6px;
+}
+
+.tm .kal-tagkopf {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--outline-variant);
+}
+.tm .kal-tagkopf h3 {
+  margin: 0;
+  font-size: 1.25rem;
+  line-height: 1.3;
+  font-weight: 800;
+}
+.tm .kal-termine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  flex: 1 1 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0;
+  padding: 16px;
+  list-style: none;
+}
+.tm .kal-termine:focus-visible {
+  outline-offset: -3px;
+  border-radius: var(--r-md);
+}
+.tm .kal-termin {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
   align-items: center;
-  justify-content: center;
+  padding: 12px 14px;
+  border: 1px solid var(--outline-variant);
+  border-left: 4px solid var(--accent);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--on-surface);
+}
+.tm a.kal-termin {
+  color: var(--on-surface);
+  text-decoration: none;
+  transition: background-color var(--dauer) var(--kurve);
+}
+.tm a.kal-termin:hover {
+  background: var(--surface-container);
+}
+.tm .kal-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.tm .kal-termin .titel {
+  font-size: 1.0625rem;
+  line-height: 1.35;
+  font-weight: 700;
+}
+.tm .kal-zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+.tm .kal-zeile .i {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+.tm .kal-termin .chips {
+  margin-top: 4px;
+}
+.tm .kal-termin .i .f {
+  fill: currentcolor;
+  stroke: none;
+}
+.tm .kal-ohne {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 48px 20px;
+  text-align: center;
+}
+.tm .kal-ohne .i {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+  color: var(--outline);
+}
+.tm .kal-ohne p {
+  margin: 0;
+}
+
+@media (max-width: 1100px) {
+  .tm .kal {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .tm .kal-karte {
+    max-width: none;
+  }
+  /* Untereinander: feste Höhe, damit die Seite beim Wählen eines Tages gleich lang bleibt */
+  .tm .kal-tagfeld {
+    height: 26rem;
+  }
+}
+/* Schmal: Punkte statt Titel, Tage mindestens 44 px */
+@media (max-width: 720px) {
+  .tm .kal-karte {
+    padding: 6px;
+  }
+  .tm .kal-kopf {
+    padding: 8px 4px 12px 10px;
+  }
+  .tm .kal-wochentage,
+  .tm .kal-tage,
+  .tm .kal-skelett-tage {
+    gap: 4px;
+  }
+  .tm .kal-leer,
+  .tm .kal-zelle,
+  .tm .kal-tag {
+    aspect-ratio: 1;
+  }
+  .tm .kal-tag {
+    align-items: center;
+    padding: 3px;
+    gap: 2px;
+  }
+  .tm .kal-chips {
+    display: none;
+  }
+  .tm .kal-punkte {
+    display: flex;
+    margin-bottom: 3px;
+  }
+}
+@media screen and (prefers-reduced-motion: no-preference) {
+  .tm .kal-termine > li,
+  .tm .kal-ohne {
+    animation: kal-ein var(--dauer) var(--kurve) both;
+  }
+}
+@keyframes kal-ein {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tm .kal-tag,
+  .tm .kal-blatt,
+  .tm a.kal-termin {
+    transition: none;
+  }
+}
+@media (forced-colors: active) {
+  .tm .kal-tag[aria-pressed="true"] {
+    border-color: Highlight;
+  }
+  .tm .kal-tag.heute .kal-nr {
+    border: 1px solid CanvasText;
+  }
+  .tm .kal-punkte .punkt {
+    background: CanvasText;
+  }
 }
 .tm .eintrag {
   display: block;
@@ -823,10 +963,6 @@
   overflow-wrap: anywhere;
   hyphens: auto;
 }
-.tm a.eintrag {
-  color: var(--on-stufe-container);
-  text-decoration: none;
-}
 .tm .eintrag.abgesagt {
   text-decoration: line-through;
 }
@@ -835,27 +971,6 @@
   height: 8px;
   border-radius: 50%;
   background: var(--accent);
-}
-.tm .monat .zelle .punkt {
-  display: none;
-}
-@media (max-width: 720px) {
-  .tm .monat .wt {
-    padding: 8px 0;
-    text-align: center;
-  }
-  .tm .monat .zelle {
-    min-height: 52px;
-    padding: 6px 0;
-    align-items: center;
-    gap: 4px;
-  }
-  .tm .monat .zelle .eintrag {
-    display: none;
-  }
-  .tm .monat .zelle .punkt {
-    display: block;
-  }
 }
 
 /* Faktenkasten */
@@ -1215,4 +1330,129 @@
 }
 .tm .seite-spalte .btn {
   align-self: flex-start;
+}
+
+/* Öffentlicher Datenplan (#564): Liste aus dem HTML und aus termine.json, Angebot zur Anmeldung in der Zeile der Reiter */
+/* Angebot in der Zeile der Reiter: ruhiger Text, die Anmeldung als Textlink mit Pfeil */
+.tm .reiter-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0 24px;
+  border-bottom: 1px solid var(--outline-variant);
+}
+.tm .reiter-zeile .reiter {
+  border-bottom: 0;
+}
+.tm .reiter-angebot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin: 0;
+  padding: 8px 0;
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  color: var(--on-surface-variant);
+}
+/* Zeile mit Link: Pfeil am Ende (Form und Bewegung aus website.css) */
+.tm .plan a.termin {
+  grid-template-columns: 72px minmax(0, 1fr) auto;
+  align-items: center;
+}
+@media (max-width: 720px) {
+  .tm .plan a.termin {
+    grid-template-columns: 60px minmax(0, 1fr) auto;
+  }
+}
+.tm .plan .i .f {
+  fill: currentcolor;
+  stroke: none;
+}
+
+/* Termin und Mein Konto (#671): Antwortzeilen mit Name und Schaltern, Linkliste */
+.tm .seite-spalte.breit {
+  max-width: 640px;
+}
+.tm .seite-spalte .seite-spalte {
+  max-width: none;
+}
+.tm .antworten {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+.tm .antwort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--outline-variant);
+}
+.tm .antwort:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+.tm .antwort-name {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.tm .antwort-text {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.tm .antwort-offen {
+  flex-basis: 100%;
+  font-size: 0.9375rem;
+  color: var(--on-surface-variant);
+}
+.tm .teil-titel {
+  margin-top: 8px;
+  font-size: 1rem;
+}
+.tm .linkliste {
+  display: flex;
+  flex-direction: column;
+  list-style: none;
+}
+.tm .linkliste a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+}
+.tm .frage {
+  color: var(--on-surface-variant);
+}
+.tm .antwort .seg button[aria-disabled="true"] {
+  cursor: progress;
+}
+/* Die Karte «fakten» der Website ist dunkel (weisse Schrift); unter .tm ist sie hell (#671) */
+.tm .fakten.karte dt {
+  color: var(--on-surface-variant);
+}
+.tm .fakten.karte dd {
+  color: var(--on-surface);
+}
+
+/* Angaben aus der Cevi-Datenbank (#691): Herkunft unter dem Feld und Zeile über den Feldern; die Höhe bleibt immer reserviert, damit nichts springt */
+.tm .cevi-note,
+.tm .cevi-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 1.75rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--on-surface-variant);
+}
+.tm .cevi-note .skelett {
+  flex: 1;
 }

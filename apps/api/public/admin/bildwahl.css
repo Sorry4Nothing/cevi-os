@@ -1,0 +1,182 @@
+/* Bildwahl im Fluss und Bild-Platzhalter (#591). Klassen «bw-» und «bild-»; Farben nur über die Tokens. */
+
+/* Bild mit Platzhalter: Die Hülle trägt die Fläche, bis das Bild geladen ist; das Pulsieren läuft nur, wenn Bewegung erlaubt ist */
+.bild-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background: var(--skeleton);
+}
+
+.bild-box > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: opacity var(--dauer) var(--kurve);
+}
+
+.bild-box.bild-laedt {
+  background: var(--skeleton);
+}
+
+.bild-box.bild-laedt > img {
+  opacity: 0;
+}
+
+.bild-box:not(.bild-laedt) {
+  background: var(--erhoben);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .bild-box.bild-laedt {
+    animation: bild-puls 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes bild-puls {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.bild-fehlt {
+  padding: 8px;
+  color: var(--leise);
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  text-align: center;
+}
+
+/* Die Wahl unter dem Feld */
+.bw {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--leiste);
+  border-radius: 16px;
+}
+
+.bw[hidden] {
+  display: none;
+}
+
+.bw .suche {
+  max-width: none;
+}
+
+.bw-raster {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 7.5rem), 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+}
+
+/* Die Bilder scrollen in ihrem Bereich; die Seite darum herum bleibt ruhig */
+.bw > .bw-raster {
+  max-height: 26rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.bw-karte {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  min-height: 44px;
+  padding: 8px;
+  color: var(--text);
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color var(--dauer) var(--kurve);
+}
+
+.bw-karte:hover {
+  border-color: var(--rand);
+}
+
+.bw-karte.gewaehlt,
+.bw-karte[aria-pressed="true"] {
+  padding: 7px;
+  border: 2px solid var(--akzent);
+}
+
+.bw-bild {
+  aspect-ratio: 4 / 3;
+  width: 100%;
+  border-radius: 8px;
+}
+
+.bw-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
+  overflow-wrap: anywhere;
+}
+
+/* Zustand nie nur über Farbe: Ein Haken im gewählten Bild */
+.bw-haken {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  display: none;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  color: var(--auf-akzent);
+  background: var(--akzent);
+  border-radius: 9999px;
+}
+
+.bw-haken .i {
+  width: 16px;
+  height: 16px;
+  stroke-width: 2.6;
+}
+
+.bw-karte[aria-pressed="true"] .bw-haken {
+  display: grid;
+}
+
+.bw-fuss {
+  display: flex;
+  justify-content: center;
+}
+
+.bw-fuss [hidden] {
+  display: none;
+}
+
+.bw-skeleton .bw-raster li {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.bw-skeleton .sk--b {
+  height: 6rem;
+}
+
+/* Liegt die Wahl in einem «.feld», gilt dessen Innenabstand; der Platz für das Suchsymbol bleibt */
+.bw .suche .eingabe {
+  padding-left: 48px;
+}
+
+/* Eine Flussseite mit Zweispalter ist so breit wie die breiten Seiten (die Formularseiten sind schmal) */
+.fluss-seite:has(.formularraster) {
+  max-width: 64rem;
+}

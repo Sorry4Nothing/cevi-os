@@ -3,8 +3,8 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
-import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import {
   sichtbarkeitSchema,
   tagsGehoerenZurAbteilung,
@@ -46,21 +46,15 @@ export function erstelleVorlagenRouten({ db }: { db: Db }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/vorlagen", async (c) => {
       // Name und Beschreibung, nie die Dokumente
-      if (!(await hatPlattformRecht(db, c.get("person"), "vorlagen.nutzen"))) {
-        throw new HTTPException(403);
-      }
+      await verlange(db, c.get("person"), "vorlagen.nutzen");
       return c.json({ vorlagen: vorlagenInfos() });
     })
     .post("/seiten/aus-vorlage", eingabe("json", erzeugenSchema), async (c) => {
       const person = c.get("person");
       const felder = c.req.valid("json");
       // Eine Vorlage nutzen und wie POST /seiten anlegen dürfen
-      if (
-        !(await hatPlattformRecht(db, person, "vorlagen.nutzen")) ||
-        !(await hatPlattformRecht(db, person, "seiten.anlegen_loeschen"))
-      ) {
-        throw new HTTPException(403);
-      }
+      await verlange(db, person, "vorlagen.nutzen");
+      await verlange(db, person, "seiten.anlegen_loeschen");
       if (
         felder.sichtbarkeit.art === "tags" &&
         !(await tagsGehoerenZurAbteilung(

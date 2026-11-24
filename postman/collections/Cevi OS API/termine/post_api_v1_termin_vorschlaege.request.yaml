@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/termin-vorschlaege"
-order: 437000
+order: 490000
 method: POST
 url: "{{baseUrl}}/api/v1/termin-vorschlaege"
 headers:
@@ -20,9 +20,9 @@ body:
     {
       "titel": "Matrix: Terminvorschlag",
       "ganztaegig": true,
-      "tagVon": "2026-12-22",
-      "tagBis": "2026-12-22",
+      "tagVon": "2026-12-23",
+      "tagBis": "2026-12-23",
       "tagIds": [
-        "01a2041e-1e9b-758c-8ec6-8857147e50a2"
+        "01a20640-4aa3-75cc-9f35-298c632f28da"
       ]
     }

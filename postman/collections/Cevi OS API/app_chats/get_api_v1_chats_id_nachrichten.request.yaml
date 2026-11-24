@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/chats/:id/nachrichten"
-order: 153000
+order: 201000
 method: GET
 url: "{{baseUrl}}/api/v1/chats/{{gruppenchatAId}}/nachrichten"
 headers:

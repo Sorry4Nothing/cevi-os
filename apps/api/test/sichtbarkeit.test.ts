@@ -227,7 +227,7 @@ describe("Sichtbarkeit je Persona", () => {
     expect(ausSql[persona]).toEqual(ERWARTET[persona]);
   });
 
-  test("leere Menge: nur Admin der Abteilung", () => {
+  test("leere Menge: nur Abteilungsleitung der Abteilung", () => {
     const leer = objekte.find((o) => o.id === "leer")!;
     const sieht = PERSONAS.filter((p) => sichtbarFuer(personen[p], leer));
     expect(sieht.sort()).toEqual(["admin", "adminOhneZweitenFaktor"]);

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/tags"
-order: 105000
+order: 151000
 method: POST
 url: "{{baseUrl}}/api/v1/admin/tags"
 headers:
@@ -17,4 +17,4 @@ headers:
 body:
   type: json
   content: |-
-    {{body_110}}
+    {{body_156}}

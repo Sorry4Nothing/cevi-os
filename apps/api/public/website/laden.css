@@ -1,0 +1,1677 @@
+/* Lädeli (#566): Laden mit Raster, Artikelfenster, Warenkorb und Bestellübersicht. Markup: src/website/laden.ts, Verhalten: laden.js.
+   Aufbau und Proportionen folgen einem Ladenmuster (Kachel 4:5 mit schnellem Hinzufügen, Fenster mit grossem Bild, Blatt von rechts, Übersichtskarte); Farben, Schrift und Symbole sind die der Website (Tokens aus website.css), hell und dunkel.
+   Fotos stehen unbeschnitten auf ihrer Fläche und werden nie über ihre eigene Grösse gezogen (object-fit: scale-down). */
+
+.laden {
+  /* Eigene Rollen aus den Tokens der Website: ruhige Hauptfarbe (Cevi-Blau) für «in den Warenkorb» und Gewähltes, Rot nur für «Bestellen» */
+  --l-haupt: var(--secondary);
+  --l-auf-haupt: var(--on-secondary);
+  --l-flaeche: var(--karte);
+  --l-kachel: #ffffff;
+  --l-linie: var(--outline-variant);
+  --l-leise: var(--on-surface-variant);
+  --l-still: var(--surface-container);
+  --l-radius: var(--r-sm);
+  /* Kurven der Bewegung: Fenster und Zahlen laufen aus, das Blatt gleitet */
+  --l-aus: cubic-bezier(0.23, 1, 0.32, 1);
+  --l-blatt: cubic-bezier(0.32, 0.72, 0, 1);
+  display: flex;
+  flex-direction: column;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .laden {
+    --l-haupt: var(--accent);
+    --l-auf-haupt: #0b1b2e;
+    --l-kachel: #e9e9e4;
+  }
+}
+
+:root[data-theme="dark"] .laden {
+  --l-haupt: var(--accent);
+  --l-auf-haupt: #0b1b2e;
+  --l-kachel: #e9e9e4;
+}
+
+.laden *,
+.laden *::before,
+.laden *::after {
+  box-sizing: border-box;
+}
+
+.laden .nur-leser {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.laden .i {
+  flex: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+}
+
+.laden p,
+.laden dl,
+.laden dd {
+  margin: 0;
+}
+
+.laden .meta {
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.laden .mitte {
+  text-align: center;
+}
+
+.laden .leise {
+  color: var(--l-leise);
+}
+
+.laden :focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ===== Knöpfe: eine Form, vier Gewichte ===== */
+
+.laden-knopf {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0 1.125rem;
+  border: 1px solid transparent;
+  border-radius: var(--l-radius);
+  background: transparent;
+  color: var(--on-surface);
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.laden-knopf.voll {
+  width: 100%;
+}
+
+.laden-knopf--haupt {
+  background: var(--l-haupt);
+  color: var(--l-auf-haupt);
+}
+
+/* Die eine Hauptaktion des Ladens: Bestellen */
+.laden-knopf--bestellen,
+a.laden-knopf--bestellen {
+  min-height: 3rem;
+  padding: 0 1.5rem;
+  background: var(--primary);
+  color: var(--on-primary);
+}
+
+.laden-knopf--zweit {
+  border-color: var(--l-linie);
+  background: var(--l-flaeche);
+}
+
+.laden-knopf--zweit:hover {
+  background: var(--l-still);
+}
+
+.laden-knopf--still {
+  min-height: 2.25rem;
+  padding: 0 0.625rem;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+}
+
+.laden-knopf--still:hover {
+  background: var(--l-still);
+  color: var(--on-surface);
+}
+
+.laden-knopf--haupt:hover,
+.laden-knopf--bestellen:hover {
+  filter: brightness(1.12);
+}
+
+.laden-knopf[aria-disabled="true"] {
+  background: var(--surface-container-high);
+  color: var(--l-leise);
+  cursor: not-allowed;
+  filter: none;
+}
+
+.laden-knopf:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.laden-knopf .lade {
+  width: 1.125rem;
+  height: 1.125rem;
+  flex: none;
+  border: 2.5px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+.laden-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--on-surface);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--outline);
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+/* Kleiner Text als Knopf: Die Fläche zum Treffen reicht über die Zeile hinaus */
+.laden-link,
+.laden-knopf--still {
+  position: relative;
+}
+
+.laden-link::after,
+.laden-knopf--still::after {
+  content: "";
+  position: absolute;
+  inset: 50% -0.25rem auto;
+  height: 2.75rem;
+  translate: 0 -50%;
+}
+
+/* ===== Kopf des Ladens: Anzahl, Hinweis, Warenkorb ===== */
+
+.laden-leiste {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.5rem;
+  border-bottom: 1px solid var(--l-linie);
+}
+
+.laden-zahl {
+  font-size: 1.0625rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-notiz {
+  display: none;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+}
+
+@media (min-width: 48rem) {
+  .laden-notiz {
+    display: block;
+  }
+}
+
+/* Hinweise der Abteilung unter der Leiste (#642): wann und wo übergeben wird, oder dass gerade nicht bestellt werden kann; auch auf dem Telefon sichtbar */
+.laden-hinweiszeile {
+  max-width: 44rem;
+  margin: 0.75rem 0 0;
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  line-height: 1.5;
+}
+
+.laden-hinweiszeile--zu {
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.laden-bedingungen p {
+  margin: 0 0 0.25rem;
+}
+
+.laden-leiste-korb {
+  margin-left: auto;
+}
+
+.laden-korbknopf {
+  padding: 0 0.625rem 0 0.875rem;
+}
+
+.laden-korbknopf .wort {
+  display: none;
+}
+
+@media (min-width: 40rem) {
+  .laden-korbknopf .wort {
+    display: inline;
+  }
+}
+
+.laden-anzahl {
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.5rem;
+  height: 1.5rem;
+  padding: 0 0.3125rem;
+  border-radius: 0.375rem;
+  background: var(--l-still);
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bleibt erreichbar, wenn der Kopf des Ladens weggescrollt ist: unten rechts, in der Zone des Daumens */
+.laden-schwebe {
+  position: fixed;
+  right: var(--rand);
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  z-index: 10;
+  min-height: 3rem;
+  box-shadow: var(--schatten);
+}
+
+.laden-schwebe .laden-anzahl {
+  background: rgb(255 255 255 / 18%);
+}
+
+.laden-schwebe .betrag {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ===== Werkzeuge: Sortierung und Spalten ===== */
+
+.laden-werkzeuge {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.75rem 0;
+}
+
+.laden-sort {
+  width: min(100%, 14.5rem);
+}
+
+.laden-sort .aw-knopf {
+  min-height: 2.75rem;
+  border-color: var(--l-linie);
+  border-radius: var(--l-radius);
+  font-size: 0.9375rem;
+}
+
+.laden-dichte {
+  display: none;
+  gap: 0.125rem;
+  padding: 0.1875rem;
+  border-radius: var(--l-radius);
+  background: var(--l-still);
+}
+
+@media (min-width: 64rem) {
+  .laden-dichte {
+    display: flex;
+  }
+}
+
+.laden-dichte button {
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 2.375rem;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--l-radius) - 0.1875rem);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: pointer;
+}
+
+/* Gewählt: helles Feld und dunklere Zeichnung, dazu aria-pressed */
+.laden-dichte button[aria-pressed="true"] {
+  background: var(--l-flaeche);
+  color: var(--on-surface);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 12%);
+}
+
+/* ===== Raster ===== */
+
+.laden-raster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.75rem 0.75rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.laden--an .laden-raster {
+  margin-top: 0;
+}
+
+@media (min-width: 40rem) {
+  .laden-raster {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 2.25rem 1.25rem;
+  }
+}
+
+@media (min-width: 75rem) {
+  .laden-raster {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 64rem) {
+  .laden-raster[data-spalten="2"] {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .laden-raster[data-spalten="3"] {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .laden-raster[data-spalten="4"] {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.laden-artikel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+/* Die Kachel: ein ruhiges Feld im Format 4:5, das Foto auf gut drei Vierteln der Breite */
+.laden-kachel {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 4 / 5;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--l-kachel);
+}
+
+.laden-kachel img {
+  width: 78%;
+  height: 78%;
+  border-radius: 0;
+  object-fit: scale-down;
+}
+
+.laden-kachel--leer {
+  background: var(--l-still);
+}
+
+.laden-artikel--weg .laden-kachel img {
+  opacity: 0.45;
+}
+
+/* Marke in der Ecke der Fläche: der Zustand als Wort */
+.laden-marke {
+  position: absolute;
+  top: 0.75rem;
+  left: 0.875rem;
+  color: #2b2b2b;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+/* Die ganze Kachel öffnet das Artikelfenster */
+.laden-oeffnen {
+  position: absolute;
+  inset: 0;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-md);
+  background: transparent;
+  cursor: pointer;
+}
+
+.laden-oeffnen:focus-visible {
+  outline-offset: -3px;
+}
+
+/* Runder Knopf in der Ecke: öffnet das schnelle Hinzufügen. Nur auf Geräten ohne Zeigen (Touch); mit der Maus erscheint der Streifen beim Zeigen, mit der Tastatur beim Fokus auf der Kachel */
+.laden-plus {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  display: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: #ffffff;
+  color: #1a1a1a;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 14%);
+  cursor: pointer;
+}
+
+@media (hover: none) {
+  .laden-plus {
+    display: grid;
+  }
+
+  .schnell-offen .laden-plus,
+  .laden-kachel:focus-within .laden-plus:not(:focus) {
+    display: none;
+  }
+}
+
+/* Schnelles Hinzufügen: ein Streifen am unteren Rand der Kachel, sonst unter dem Rand verborgen */
+.laden-schnell-ort {
+  position: absolute;
+  inset: auto 0.5rem 0.5rem;
+  translate: 0 calc(100% + 0.75rem);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.laden-kachel:focus-within .laden-schnell-ort,
+.schnell-offen .laden-schnell-ort {
+  translate: 0;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: hover) {
+  .laden-artikel:hover .laden-schnell-ort {
+    translate: 0;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .laden-schnell-zu {
+    display: none;
+  }
+}
+
+.laden-schnell {
+  padding: 0.5rem;
+  border-radius: var(--l-radius);
+  background: rgb(255 255 255 / 96%);
+  color: #1a1a1a;
+  box-shadow:
+    0 1px 2px rgb(0 0 0 / 6%),
+    0 8px 24px -12px rgb(0 0 0 / 24%);
+}
+
+.laden-schnell-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+  margin-bottom: 0.375rem;
+  padding: 0 0.25rem;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.laden-schnell-kopf .titel {
+  font-weight: 700;
+}
+
+.laden-schnell-kopf .notiz {
+  overflow: hidden;
+  margin-left: auto;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.laden-schnell-zu {
+  position: relative;
+  place-items: center;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: #4d4d4d;
+  cursor: pointer;
+}
+
+.laden-schnell-zu:not([hidden]) {
+  display: grid;
+}
+
+@media (hover: hover) {
+  .laden-schnell-zu:not([hidden]) {
+    display: none;
+  }
+}
+
+.laden-schnell-zu::after {
+  content: "";
+  position: absolute;
+  inset: -0.625rem;
+}
+
+.laden-schnell-knoepfe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+}
+
+.laden-schnell-knoepfe button {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  white-space: nowrap;
+  padding: 0 0.375rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background: #eceff3;
+  color: #1a1a1a;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.laden-schnell-knoepfe button:hover {
+  background: #dfe4ea;
+}
+
+/* Eben hinzugefügt: dunkles Feld mit Haken, nicht nur eine andere Farbe */
+.laden-schnell-knoepfe button.dazu {
+  background: #013974;
+  color: #ffffff;
+}
+
+.laden-schnell-knoepfe .i {
+  width: 1rem;
+  height: 1rem;
+}
+
+/* Unter der Kachel: Name, dann Preis links und Varianten rechts */
+.laden-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0 0.125rem;
+}
+
+.laden .name {
+  margin: 0;
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-weight: 600;
+  letter-spacing: 0;
+  hyphens: auto;
+}
+
+.laden-fuss {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.laden .preis {
+  flex: none;
+  color: var(--on-surface);
+  font-size: 1rem;
+  line-height: 1.375rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-varianten {
+  display: flex;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  white-space: nowrap;
+}
+
+/* Eine Grösse, die nicht zu haben ist (#629): durchgestrichen, dazu das Wort in der Notiz darunter; nie nur eine Farbe */
+.laden-variante--weg s,
+.laden-schnell-knoepfe button.weg s,
+.laden-wahl-knoepfe button.weg s {
+  text-decoration-thickness: 2px;
+}
+
+.laden-weg-notiz,
+.laden-wahl-notiz {
+  margin: 0;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.laden-wahl-notiz {
+  margin-top: 0.5rem;
+}
+
+.laden-schnell-knoepfe button.weg,
+.laden-schnell-knoepfe button.weg:hover {
+  border: 1px dashed var(--l-linie);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: not-allowed;
+}
+
+.laden-wahl-knoepfe button.weg,
+.laden-wahl-knoepfe button.weg:hover {
+  border-style: dashed;
+  border-color: var(--l-linie);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: not-allowed;
+}
+
+/* Zeile im Warenkorb, deren Grösse entfallen ist: Rand links und Hinweis mit Symbol */
+.laden-zeilen > li.laden-zeile--weg {
+  box-shadow: inset 3px 0 0 var(--l-leise);
+  padding-left: 0.75rem;
+}
+
+.laden-zeile-hinweis {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.375rem;
+  margin: 0;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+}
+
+.laden-zeile-hinweis .i {
+  flex: none;
+  width: 1rem;
+  height: 1.25rem;
+}
+
+.laden .hinweis {
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* ===== Menge: ruhige Schrittknöpfe in einem feinen Rahmen ===== */
+
+.laden-menge {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  height: 2.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0.125rem;
+  border: 1px solid var(--l-linie);
+  border-radius: var(--l-radius);
+}
+
+.laden-menge button {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 2.5rem;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  border-radius: calc(var(--l-radius) - 0.1875rem);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: pointer;
+}
+
+.laden-menge button:hover {
+  background: var(--l-still);
+  color: var(--on-surface);
+}
+
+.laden-menge .i {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Am Ende der Spanne: blass und ohne Wirkung; der Zustand steht in aria-disabled */
+.laden-menge button[aria-disabled="true"],
+.laden-menge button[aria-disabled="true"]:hover {
+  background: transparent;
+  color: var(--outline);
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.laden-menge .zahl {
+  width: 2rem;
+  font-size: 1rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.laden-menge--klein {
+  height: 2.25rem;
+}
+
+.laden-menge--klein button {
+  width: 2.125rem;
+}
+
+/* Die Fläche zum Treffen bleibt 44 px hoch */
+.laden-menge--klein button::after {
+  content: "";
+  position: absolute;
+  inset: -0.375rem 0;
+}
+
+.laden-menge--klein .zahl {
+  width: 1.625rem;
+}
+
+/* ===== Fenster, Blatt und Karte: gemeinsamer Grund ===== */
+
+.laden dialog {
+  border: 1px solid var(--l-linie);
+  background: var(--l-flaeche);
+  color: var(--on-surface);
+}
+
+.laden dialog::backdrop {
+  background: rgb(10 14 22 / 45%);
+}
+
+.laden-zu {
+  position: relative;
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--l-radius);
+  background: transparent;
+  color: var(--l-leise);
+  cursor: pointer;
+}
+
+.laden-zu::after {
+  content: "";
+  position: absolute;
+  inset: -0.25rem;
+}
+
+.laden-zu:hover {
+  background: var(--l-still);
+  color: var(--on-surface);
+}
+
+/* ===== Artikelfenster: schmal ein Blatt von unten, breit ein Fenster in der Mitte ===== */
+
+.laden-dialog {
+  width: 100%;
+  max-width: 57.5rem;
+  max-height: calc(100dvh - 1.5rem);
+  margin: auto auto 0;
+  padding: 0.5rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--r-md) var(--r-md) 0 0;
+  box-shadow: var(--schatten);
+}
+
+@media (min-width: 40rem) {
+  .laden-dialog {
+    width: calc(100% - 3rem);
+    margin: auto;
+    border-radius: var(--r-md);
+  }
+}
+
+.laden-fenster {
+  position: relative;
+}
+
+.laden-fenster > .laden-zu {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  z-index: 1;
+}
+
+/* Schmal liegt das Schliessen auf der hellen Bühne: eigenes helles Feld, in beiden Tönen lesbar */
+@media (max-width: 39.99rem) {
+  .laden-fenster > .laden-zu {
+    background: rgb(255 255 255 / 90%);
+    color: #1a1a1a;
+  }
+}
+
+.laden-fenster-raster {
+  display: grid;
+  gap: 0.5rem;
+}
+
+/* Die Bühne: dieselbe ruhige Fläche wie die Kachel, das Foto gross darauf */
+.laden-buehne {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 1;
+  max-height: 42dvh;
+  width: 100%;
+  overflow: hidden;
+  border-radius: var(--l-radius);
+  background: var(--l-kachel);
+}
+
+.laden-buehne-bild {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+}
+
+.laden-buehne-bild img {
+  width: 72%;
+  height: 80%;
+  border-radius: 0;
+  object-fit: scale-down;
+}
+
+.laden-buehne-bild--leer {
+  background: var(--l-still);
+}
+
+.laden-fenster-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.75rem 0.75rem 1rem;
+}
+
+@media (min-width: 46rem) {
+  .laden-fenster-raster {
+    grid-template-columns: 1.05fr 1fr;
+  }
+
+  .laden-buehne {
+    aspect-ratio: auto;
+    min-height: 27.5rem;
+    max-height: none;
+  }
+
+  .laden-fenster-text {
+    padding: 1.5rem 1.25rem 1rem;
+  }
+}
+
+.laden-fenster-kopf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding-right: 2.5rem;
+}
+
+.laden-fenster-kopf h2 {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 1.875rem;
+  letter-spacing: -0.01em;
+}
+
+.laden-fenster-kopf .preis {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.laden-fenster-kopf .beschrieb {
+  margin-top: 0.25rem;
+  color: var(--l-leise);
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.laden-wahl {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.laden-wahl legend {
+  margin-bottom: 0.5rem;
+  padding: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.laden-wahl-knoepfe {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0.375rem;
+}
+
+/* Längere Namen (Farben, Ausführungen) bekommen breitere Felder */
+.laden-wahl-knoepfe--breit {
+  grid-template-columns: repeat(auto-fill, minmax(7.5rem, 1fr));
+}
+
+.laden-wahl-knoepfe button {
+  min-height: 2.75rem;
+  padding: 0 0.375rem;
+  overflow: hidden;
+  border: 1px solid var(--l-linie);
+  border-radius: var(--l-radius);
+  background: transparent;
+  color: var(--on-surface);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.laden-wahl-knoepfe button:hover {
+  border-color: var(--outline);
+  background: var(--l-still);
+}
+
+/* Gewählt: gefülltes Feld, dazu aria-pressed */
+.laden-wahl-knoepfe button[aria-pressed="true"] {
+  border-color: var(--l-haupt);
+  background: var(--l-haupt);
+  color: var(--l-auf-haupt);
+}
+
+.laden-kauf {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.laden-kauf-zeile {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.laden-dazu {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  padding: 0 0.75rem;
+}
+
+.laden-tausch {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+
+.laden-tausch .punkt {
+  opacity: 0.5;
+}
+
+.laden-imkorb {
+  min-height: 1.25rem;
+}
+
+.laden-angaben {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin: 0;
+  padding: 1rem 0 0;
+  border-top: 1px solid var(--l-linie);
+  list-style: none;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+.laden-angaben li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.laden-angaben .i {
+  margin-top: 1px;
+  color: var(--l-leise);
+}
+
+/* ===== Warenkorb: ein Blatt am rechten Rand, schmal über die ganze Breite ===== */
+
+.laden-blatt {
+  inset: 0 0 0 auto;
+  width: min(26.25rem, 100%);
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  border-width: 0 0 0 1px;
+}
+
+.laden-blatt[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.laden-blatt-kopf {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: space-between;
+  height: 3.5rem;
+  padding: 0 0.875rem 0 1.25rem;
+  border-bottom: 1px solid var(--l-linie);
+}
+
+.laden-blatt-kopf h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 0;
+  color: var(--on-surface);
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+  letter-spacing: 0;
+}
+
+.laden-blatt-kopf h2:focus,
+.laden-karte-kopf h2:focus {
+  outline: none;
+}
+
+.laden-blatt-kopf .zahl {
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-blatt-rumpf {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 0 1.25rem;
+}
+
+.laden-blatt-rumpf > .band {
+  margin-top: 1rem;
+}
+
+.laden-blatt-fuss {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem 1.25rem;
+  border-top: 1px solid var(--l-linie);
+}
+
+/* Zeilen: Bildfläche, Name und Betrag, darunter Variante, Menge und «Entfernen» */
+.laden-zeilen {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.laden-zeilen > li {
+  display: flex;
+  gap: 0.875rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--l-linie);
+}
+
+.laden-zeilen > li:last-child {
+  border-bottom: 0;
+}
+
+.laden-zeile-bild {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 4.75rem;
+  height: 4.75rem;
+  overflow: hidden;
+  border-radius: var(--l-radius);
+  background: var(--l-kachel);
+}
+
+.laden-zeile-bild img {
+  width: 80%;
+  height: 80%;
+  border-radius: 0;
+  object-fit: scale-down;
+}
+
+.laden-zeile-bild--leer {
+  background: var(--l-still);
+}
+
+.laden-zeilen--klein .laden-zeile-bild {
+  width: 3.5rem;
+  height: 3.5rem;
+}
+
+.laden-zeile-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.laden-zeile-kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.laden-zeile-kopf .name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.laden .betrag {
+  flex: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-zeile-text .meta {
+  min-height: 1.25rem;
+  margin-top: 0.125rem;
+}
+
+.laden-zeile-fuss {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+}
+
+.laden-zeile-fuss .laden-knopf--still {
+  margin-right: -0.5rem;
+}
+
+/* Entfernte Zeile: bleibt an ihrem Platz, bis der Korb sich das nächste Mal ändert */
+.laden-zeilen > li.laden-entfernt {
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin: 0.5rem 0;
+  padding: 0.75rem 0.875rem;
+  border: 0;
+  border-radius: var(--l-radius);
+  background: var(--l-still);
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+.laden-entfernt p {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.laden-entfernt strong {
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.laden-entfernt .laden-link {
+  flex: none;
+}
+
+.laden-reihen {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.laden-reihen > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+  color: var(--l-leise);
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+}
+
+.laden-reihen dd {
+  color: var(--on-surface);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.laden-reihen > .stark {
+  margin-top: 0.375rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--l-linie);
+  color: var(--on-surface);
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.laden-leer {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  padding: 3rem 2rem;
+  text-align: center;
+}
+
+.laden-leer-bild {
+  width: 9rem;
+  margin-bottom: 1rem;
+  fill: none;
+  stroke: var(--outline);
+  stroke-width: 2;
+}
+
+.laden-leer .titel {
+  font-size: 1.0625rem;
+  font-weight: 600;
+}
+
+.laden-leer .laden-knopf {
+  margin-top: 1.25rem;
+}
+
+/* ===== Bestellübersicht: eine ruhige Karte ===== */
+
+.laden-uebersicht {
+  width: min(26rem, calc(100% - 1.5rem));
+  max-height: calc(100dvh - 1.5rem);
+  padding: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  border-radius: var(--r-md);
+  box-shadow: var(--schatten);
+}
+
+.laden-karte {
+  display: flex;
+  flex-direction: column;
+  padding: 1.25rem 1.25rem 1.5rem;
+}
+
+@media (min-width: 40rem) {
+  .laden-karte {
+    padding: 1.5rem;
+  }
+}
+
+.laden-karte-kopf {
+  display: flex;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.25rem;
+}
+
+.laden-karte-kopf h2 {
+  margin: 0;
+  color: var(--on-surface);
+  font-size: 1.1875rem;
+  line-height: 1.5rem;
+  letter-spacing: -0.01em;
+}
+
+.laden-karte-kopf .meta {
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-karte-kopf .laden-zu {
+  align-self: center;
+  margin: -0.375rem -0.5rem -0.375rem auto;
+}
+
+.laden-karte-leer {
+  padding: 0.75rem 0;
+}
+
+.laden-karte > .band {
+  margin: 0.75rem 0 1rem;
+}
+
+.laden-karte-wahl {
+  margin-top: 0.75rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--l-linie);
+}
+
+.laden-karte-wahl .feld {
+  margin: 0;
+}
+
+.laden-karte-reihen {
+  padding-top: 0.375rem;
+}
+
+/* Fuss: links die Summe gross, rechts die eine Hauptaktion */
+.laden-karte-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-top: 0.875rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--l-linie);
+}
+
+.laden-karte-fuss .summe {
+  margin-top: 0.125rem;
+  font-size: 1.75rem;
+  line-height: 2.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+.laden-karte-notiz {
+  margin-top: 0.875rem;
+}
+
+.laden-positionen,
+.laden-liste {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.laden-positionen {
+  gap: 0.375rem;
+}
+
+.laden-positionen li {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+/* ===== Deine Bestellungen ===== */
+
+.laden-bestellungen {
+  display: grid;
+  gap: 1.25rem;
+  max-width: 46rem;
+  margin-top: 3.5rem;
+  padding-top: 2rem;
+  border-top: 1px solid var(--l-linie);
+  scroll-margin-top: 6rem;
+}
+
+.laden-bestellungen > h2 {
+  margin: 0;
+}
+
+.laden-bestellungen > .laden-knopf {
+  justify-self: start;
+}
+
+.laden-liste {
+  gap: 1rem;
+}
+
+.laden-liste > li {
+  display: grid;
+  gap: 0.875rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--l-linie);
+  border-radius: var(--r-md);
+  background: var(--l-flaeche);
+}
+
+.laden-liste-kopf,
+.laden-liste-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.laden-liste-kopf h3 {
+  margin: 0;
+  color: var(--on-surface);
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+  letter-spacing: 0;
+}
+
+.laden-liste-fuss {
+  padding-top: 0.875rem;
+  border-top: 1px solid var(--l-linie);
+}
+
+/* ===== Bewegung: nur, wenn erlaubt; ohne sie steht alles sofort da ===== */
+
+.laden-rolle {
+  display: inline-block;
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  .laden-knopf,
+  .laden-zu,
+  .laden-menge button,
+  .laden-dichte button,
+  .laden-wahl-knoepfe button,
+  .laden-schnell-knoepfe button {
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease,
+      color 0.15s ease,
+      filter 0.15s ease;
+  }
+
+  /* Der Streifen gleitet von unten in die Kachel */
+  .laden-schnell-ort {
+    transition:
+      translate 0.2s var(--l-aus),
+      opacity 0.2s var(--l-aus);
+  }
+
+  /* Zahlen rollen: aufwärts von unten, abwärts von oben */
+  .laden-rolle.rollt-auf {
+    animation: laden-rollt-auf 0.3s var(--l-aus);
+  }
+
+  .laden-rolle.rollt-ab {
+    animation: laden-rollt-ab 0.3s var(--l-aus);
+  }
+
+  /* Fenster und Karte: wachsen aus 96 % und steigen 12 px; zurück schneller */
+  .laden-dialog,
+  .laden-uebersicht {
+    opacity: 0;
+    scale: 0.98;
+    translate: 0 0.5rem;
+    transition:
+      opacity 0.15s var(--l-aus),
+      scale 0.15s var(--l-aus),
+      translate 0.15s var(--l-aus),
+      overlay 0.15s allow-discrete,
+      display 0.15s allow-discrete;
+  }
+
+  .laden-dialog[open],
+  .laden-uebersicht[open] {
+    opacity: 1;
+    scale: 1;
+    translate: 0;
+    transition-duration: 0.26s;
+  }
+
+  @starting-style {
+    .laden-dialog[open],
+    .laden-uebersicht[open] {
+      opacity: 0;
+      scale: 0.96;
+      translate: 0 0.75rem;
+    }
+  }
+
+  /* Das Blatt gleitet von rechts herein und wieder hinaus */
+  .laden-blatt {
+    translate: 100%;
+    transition:
+      translate 0.3s var(--l-blatt),
+      overlay 0.3s allow-discrete,
+      display 0.3s allow-discrete;
+  }
+
+  .laden-blatt[open] {
+    translate: 0;
+  }
+
+  @starting-style {
+    .laden-blatt[open] {
+      translate: 100%;
+    }
+  }
+
+  .laden dialog::backdrop {
+    opacity: 0;
+    transition:
+      opacity 0.2s var(--l-aus),
+      overlay 0.3s allow-discrete,
+      display 0.3s allow-discrete;
+  }
+
+  .laden dialog[open]::backdrop {
+    opacity: 1;
+  }
+
+  @starting-style {
+    .laden dialog[open]::backdrop {
+      opacity: 0;
+    }
+  }
+}
+
+@keyframes laden-rollt-auf {
+  from {
+    opacity: 0;
+    translate: 0 70%;
+  }
+}
+
+@keyframes laden-rollt-ab {
+  from {
+    opacity: 0;
+    translate: 0 -70%;
+  }
+}
+
+/* Erzwungene Farben: Flächen und Knöpfe bekommen einen Rand, damit sie sichtbar bleiben */
+@media (forced-colors: active) {
+  .laden-kachel,
+  .laden-plus,
+  .laden-schnell,
+  .laden-knopf,
+  .laden-liste > li {
+    border: 1px solid CanvasText;
+  }
+
+  .laden-wahl-knoepfe button[aria-pressed="true"],
+  .laden-dichte button[aria-pressed="true"] {
+    outline: 2px solid Highlight;
+  }
+}
+
+/* ===== Besucher ohne Konto: Hinweis mit dem Weg zur Anmeldung ===== */
+
+.laden-anmelden {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.laden-anmelden .meta {
+  margin: 0;
+}
+
+/* Im Kopf des Ladens steht der Hinweis schon als Notiz daneben: dort nur der Knopf */
+.laden-leiste-korb .laden-anmelden .meta {
+  display: none;
+}
+
+/* ===== Zeile über dem Raster: wer angemeldet ist, mit dem Weg zum Abmelden (#638) ===== */
+
+.laden-konto {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  padding: 0.75rem 0 0;
+  color: var(--l-leise);
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+}
+
+.laden-konto-text {
+  margin: 0;
+}
+
+.laden-konto-text strong {
+  color: var(--on-surface);
+}
+
+.laden-konto-fehler {
+  flex-basis: 100%;
+  margin: 0;
+  color: var(--on-surface);
+  font-weight: 600;
+}
+
+.laden-konto-ort .band {
+  margin-top: 0.75rem;
+}

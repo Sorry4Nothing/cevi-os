@@ -1,5 +1,8 @@
 import { ApiFehler, fehlertext } from "./api.js";
+import { zurueckKlick } from "./verlauf.js";
+import { datumsfeld } from "./datumsfeld.js";
 import { el, feld, icon, knopf } from "./dom.js";
+import { adressSuche } from "./ort-suche.js";
 
 // Gemeinsames des Bereichs «Lager» (#527): Texte, Symbole, Statuschip, Datum und die Meldung, die eine Navigation überlebt. Klassen mit dem Vorsatz «lg-».
 
@@ -43,6 +46,18 @@ export function zeigeWartende(ctx) {
   ctx.melde(wartend.text, wartend.art, wartend.aktion);
   wartend = null;
 }
+
+// Stand des Lagers für den Rahmen (#686): Beim Wechsel zwischen Modulen desselben Lagers stehen Leiste und Navigation sofort; nur das Modul lädt. Der Stand gilt kurz (Rechte und Status ändern sich selten) und «Aktualisieren», Statuswechsel und die Lagerliste holen ihn neu.
+const RAHMEN_FRIST_MS = 20000;
+const rahmenStand = new Map();
+export const merkeRahmen = (id, daten) =>
+  rahmenStand.set(id, { daten, zeit: Date.now() });
+export function frischerRahmen(id) {
+  const e = rahmenStand.get(id);
+  return e && Date.now() - e.zeit < RAHMEN_FRIST_MS ? e.daten : null;
+}
+export const vergissRahmen = (id) =>
+  id ? rahmenStand.delete(id) : rahmenStand.clear();
 
 // Symbole, die das Design braucht und dom.js nicht kennt; Rest über dom.icon
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -127,6 +142,27 @@ export const datumKurz = (iso) => {
     : `${zweistellig(wert.getDate())}.${zweistellig(wert.getMonth() + 1)}.${wert.getFullYear()}`;
 };
 
+// Der Stand der Ortssuche für das Wetter (#694) als Satz. Der Server bestimmt den Wetterort aus dem Lagerort; hier gibt es nie ein Feld für Koordinaten. «wetterOrt» kommt vom Lager ({ status, name })
+export function wetterOrtZeile(w) {
+  switch (w?.status) {
+    case "gefunden":
+      return `Das Wetter kommt für ${w.name}.`;
+    case "nicht_gefunden":
+      return "Der Ort wurde nicht gefunden, darum gibt es kein Wetter. Schreibe nur den Ortsnamen, zum Beispiel «Musterstadt».";
+    case "mehrdeutig":
+      return "Mehrere Orte passen, darum gibt es kein Wetter. Ergänze bei der Adresse die Postleitzahl.";
+    case "nicht_erreichbar":
+      return "Der Ortsdienst antwortet gerade nicht. Der Server versucht es später nochmals.";
+    case "kein_ort":
+      return "Ohne Ort gibt es kein Wetter. Trage einen Ort ein.";
+    default:
+      return "Das Wetter wird für diesen Ort geholt.";
+  }
+}
+// Ein Ort, der sich nicht bestimmen liess, verdient einen Hinweis statt einer stillen Meldung
+export const wetterOrtProblem = (w) =>
+  ["nicht_gefunden", "mehrdeutig"].includes(w?.status);
+
 // Fehler direkt unter einem Feld aus feld() oder auswahl(); der Fokus geht ins Feld. Eine alte Meldung verschwindet beim nächsten Tippen.
 export function feldFehler(f, text, { fokus = true } = {}) {
   const alt = f.wurzel.querySelector(".feld-fehler");
@@ -157,7 +193,7 @@ export function feldFehler(f, text, { fokus = true } = {}) {
   if (fokus) f.eingabe.focus();
 }
 
-// Die Felder der Grunddaten (Anlegen und Ändern): Name, Beginn, Ende, Ort. Daten als Datumsfeld, damit der Wert schon ISO ist.
+// Die Felder der Grunddaten (Anlegen und Ändern): Name, Beginn, Ende, Ort. Beginn und Ende sind eigene Datumsfelder (Tippen und Kalender), ihr Wert ist schon ISO.
 // pruefe() liefert die Fehler [{ f, id, label, text }]; leer heisst gültig. koerper() liefert den Teil der Anfrage.
 export function grunddaten(start = {}) {
   const name = feld({
@@ -166,15 +202,16 @@ export function grunddaten(start = {}) {
     maxlength: 200,
     autocomplete: "off",
   });
-  const von = feld({ label: "Beginn", typ: "date", wert: start.von ?? "" });
-  const bis = feld({ label: "Ende", typ: "date", wert: start.bis ?? "" });
-  const ort = feld({
+  const von = datumsfeld({ label: "Beginn", wert: start.von ?? "" });
+  const bis = datumsfeld({ label: "Ende", wert: start.bis ?? "" });
+  // Mit Vorschlägen aus der Adresssuche; der Text bleibt frei, auch ohne Wahl
+  const ort = adressSuche({
     label: "Ort",
-    hilfe: "Freiwillig.",
-    wert: start.ort ?? "",
-    maxlength: 200,
-    autocomplete: "off",
+    hilfe:
+      "Freiwillig. Tippe Ort oder Adresse und wähle einen Vorschlag. Das Wetter wird für diesen Ort geholt.",
+    beiWahl: () => {},
   });
+  ort.eingabe.value = start.ort ?? "";
   const wert = (f) => f.eingabe.value.trim();
   return {
     felder: { name, von, bis, ort },
@@ -207,9 +244,24 @@ export const nichtGefunden = () => Promise.reject(new ApiFehler(404));
 
 // Zurück-Link über dem Inhalt einer Unterseite
 export function zurueckLink(text, href) {
-  return el("a", { class: "lg-zurueck", href }, symbol("zurueck"), text);
+  return el(
+    "a",
+    { class: "lg-zurueck", href, onclick: zurueckKlick },
+    symbol("zurueck"),
+    text,
+  );
 }
 
 // Hängt Knoten an und lässt false, null und undefined weg (append() schriebe sie als Text)
 export const haenge = (ziel, ...kinder) =>
   ziel.append(...kinder.filter(Boolean));
+
+// Schmale Bildschirme: Die Tabelle wird zu einer Kartenliste (Zeile = Karte, Spaltenname vor dem Wert). Der Aufrufer ruft beschrifteZellen() nach jedem Neuaufbau der Zeilen.
+export const kartenTabelle = (rahmen) =>
+  rahmen.querySelector("table").classList.add("lg-karten");
+export function beschrifteZellen(koerper, namen) {
+  for (const tr of koerper.querySelectorAll("tr"))
+    [...tr.children].forEach((zelle, i) => {
+      if (i > 0 && namen[i]) zelle.setAttribute("data-label", namen[i]);
+    });
+}

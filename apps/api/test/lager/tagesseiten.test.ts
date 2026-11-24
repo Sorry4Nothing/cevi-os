@@ -15,6 +15,7 @@ import { erstelleDb } from "../../src/db/client.js";
 import * as schema from "../../src/db/schema.js";
 import { MAX_BLOECKE } from "../../src/lager/tagesseiten.js";
 import type { WetterTag } from "../../src/lager/wetter-openmeteo.js";
+import { aufgeloest, dienst } from "./wetter-hilfen.js";
 import { ladeSeiten } from "../../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "../hilfen/auth.js";
 import { API_URL } from "../hilfen/datenbank.js";
@@ -47,10 +48,10 @@ const app = erstelleApp({
   db,
   auth,
   seiten: ladeSeiten(),
-  wetter: async (breite, laenge) => {
+  wetter: dienst(async (breite, laenge) => {
     abrufe.push([breite, laenge]);
     return wetterTage;
-  },
+  }),
 });
 afterAll(() => sql.end());
 
@@ -90,8 +91,9 @@ async function neuesLager(
       von: "2027-07-10",
       bis: "2027-07-24",
       status: p.status ?? "aktiv",
-      breite: p.breite,
-      laenge: p.laenge,
+      ...(p.breite !== undefined && p.laenge !== undefined
+        ? aufgeloest(p.breite, p.laenge)
+        : {}),
     })
     .returning({ id: schema.lager.id });
   const id = zeile!.id;
@@ -789,9 +791,9 @@ describe("Was der Tag zeigt", () => {
       db,
       auth,
       seiten: ladeSeiten(),
-      wetter: async () => {
+      wetter: dienst(async () => {
         throw new Error("https://api.open-meteo.com/v1/forecast?latitude=47");
-      },
+      }),
     });
     const tag = await neuerTag(l);
     const res = await kaputt.request(`${T(l)}/${tag.id}`, {
