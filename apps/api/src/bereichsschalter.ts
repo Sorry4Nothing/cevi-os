@@ -94,11 +94,11 @@ export function erstelleSchalterZustand() {
 export type SchalterZustand = ReturnType<typeof erstelleSchalterZustand>;
 
 // Welcher Bereich eine Route ist; die Routen der Plattform selbst (und alles, was kein Bereich ist) gehören keinem. Nur «alles» trifft einen Pfad ohne Bereich.
-// Das Lädeli (Laden, Bestellungen und seine Verwaltung, #566) gehört zur Website. Kalender, Termine, Anlässe, Terminvorschläge, Räume und Anwesenheit der Stufen sind «programme»; die Lager-Einstellungen der Person (ich/lager-…) sind «lager». Der ICS-Feed (/ical/…) liegt ausserhalb von /api/v1 und prüft den Schalter selbst (routes/termine/ical.ts).
+// Das Lädeli (Laden, Bestellungen und seine Verwaltung, #566) und die Fotos (#690) gehören zur Website. Kalender, Termine, Anlässe, Terminvorschläge, Räume und Anwesenheit der Stufen sind «programme»; die Lager-Einstellungen der Person (ich/lager-…) sind «lager». Der ICS-Feed (/ical/…) liegt ausserhalb von /api/v1 und prüft den Schalter selbst (routes/termine/ical.ts).
 // Der Test «bereichsschalter-routen» geht alle Routen der App durch: Eine neue Route ohne Bereich fällt dort auf, bis sie hier steht oder in seiner Ausnahmeliste.
 const BEREICH_NACH_PFAD: [RegExp, SchalterBereich][] = [
   [
-    /^\/api\/v1\/(redaktion|website|medien|admin\/medien|laden|admin\/laden)(\/|$)/,
+    /^\/api\/v1\/(redaktion|website|medien|admin\/medien|laden|admin\/laden|fotos|admin\/fotos)(\/|$)/,
     "website",
   ],
   [

@@ -1,4 +1,5 @@
 import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
@@ -11,6 +12,7 @@ import {
 import type { Db } from "../db/client.js";
 import {
   chat,
+  lagerMitglied,
   leitungAnmeldung,
   programm,
   profilbild,
@@ -39,7 +41,7 @@ const BILD_FORMAT = {
 const UPLOADS = 10;
 const FENSTER_MS = 10 * 60_000;
 
-// Wer die Person mit Namen sieht, sieht auch ihr Bild: dieselben Wege wie bei den Namen, keine neue Preisgabe. Die Wege sind der Chat (Autorin einer sichtbaren Nachricht, Gegenüber im Einzelchat), die Kontakte der Stufe und die Kontakte eines Programms
+// Wer die Person mit Namen sieht, sieht auch ihr Bild: dieselben Wege wie bei den Namen, keine neue Preisgabe. Die Wege sind der Chat (Autorin einer sichtbaren Nachricht, Gegenüber im Einzelchat), die Kontakte der Stufe, die Kontakte eines Programms und die Mitglieder eines gemeinsamen Lagers (die Lager-Antworten nennen sie mit Namen und bildUrl, #697; dort gilt dieselbe Bedingung in bildUrlImLager)
 async function darfBildSehen(db: Db, person: Person, zielId: string) {
   if (zielId === person.id) return true;
   // Die Verwaltung sieht alle Personen der Abteilung, also auch ihre Bilder
@@ -71,6 +73,25 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
   ) {
     return true;
   }
+  // Gemeinsames Lager: beide sind Mitglieder, die Zielperson mit aktivem Konto der Abteilung
+  const zielMitglied = alias(lagerMitglied, "ziel_mitglied");
+  const [gemeinsam] = await db
+    .select({ id: lagerMitglied.lagerId })
+    .from(lagerMitglied)
+    .innerJoin(
+      zielMitglied,
+      and(
+        eq(zielMitglied.lagerId, lagerMitglied.lagerId),
+        eq(zielMitglied.personId, zielId),
+      ),
+    )
+    .innerJoin(
+      user,
+      and(eq(user.id, zielMitglied.personId), aktivesKonto(person.abteilungId)),
+    )
+    .where(eq(lagerMitglied.personId, person.id))
+    .limit(1);
+  if (gemeinsam) return true;
   const n = sichtbareNachrichten(db, person);
   const [nachricht] = await db
     .select({ id: n.id })

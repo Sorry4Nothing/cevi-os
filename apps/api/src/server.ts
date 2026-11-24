@@ -27,6 +27,7 @@ import { verbindeDatenbank } from "./datenbank.js";
 import { erstelleDb } from "./db/client.js";
 import * as schema from "./db/schema.js";
 import { erstelleFcm } from "./fcm.js";
+import { erstelleFlickr } from "./fotos/flickr.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
@@ -101,6 +102,18 @@ const medienspeicher =
     : undefined;
 if (!medienspeicher)
   log(undefined, { ereignis: "medien", code: "ohne-speicher" });
+// Fotos aus Flickr (#690): ohne Schlüssel und Secret der App startet die API ohne Fotos; mit Token sieht sie auch die nicht öffentlichen Fotos des Kontos. Nichts davon gelangt in Log oder Antworten
+const fotos = konfiguration.FLICKR_API_KEY
+  ? erstelleFlickr({
+      apiKey: konfiguration.FLICKR_API_KEY,
+      apiSecret: konfiguration.FLICKR_API_SECRET,
+      token: konfiguration.FLICKR_OAUTH_TOKEN,
+      tokenSecret: konfiguration.FLICKR_OAUTH_TOKEN_SECRET,
+      apiBasis: konfiguration.FLICKR_API_BASIS,
+      bildBasis: konfiguration.FLICKR_BILD_BASIS,
+    })
+  : undefined;
+if (!fotos) log(undefined, { ereignis: "fotos", code: "ohne-schluessel" });
 const sql = verbindeDatenbank(konfiguration.DATABASE_URL);
 const db = erstelleDb(sql);
 // Cevi-Datenbank (#691): ohne Adresse und Token (die Konfiguration prüft, dass beide oder keines gesetzt sind) füllt die Anmeldung nichts vor
@@ -168,6 +181,7 @@ const app = erstelleApp({
   kodiereLogo: kodiereStufenlogo,
   kodiereMedienbild,
   medienspeicher,
+  fotos,
   seiten,
   schalter,
   website: websiteSperre,

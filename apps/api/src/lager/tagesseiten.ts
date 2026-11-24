@@ -1,6 +1,7 @@
 import { and, asc, count, eq, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   lagertag,
@@ -158,6 +159,7 @@ export async function ladeTagesliste(db: Leser, lagerId: string) {
       seite: tagesseite,
       name: user.name,
       ceviName: user.ceviName,
+      bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
     })
     .from(lagertag)
     .leftJoin(
@@ -182,6 +184,7 @@ export async function ladeTagesliste(db: Leser, lagerId: string) {
                 id: z.seite.tageschefPersonId,
                 name: z.name,
                 ceviName: z.ceviName,
+                bildUrl: z.bildUrl,
               }
             : null,
         }
@@ -203,6 +206,7 @@ export async function ladeTagesseite(
       seite: tagesseite,
       name: user.name,
       ceviName: user.ceviName,
+      bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
     })
     .from(lagertag)
     .leftJoin(
@@ -257,6 +261,7 @@ export async function ladeTagesseite(
                 id: seite.tageschefPersonId,
                 name: zeile.name,
                 ceviName: zeile.ceviName,
+                bildUrl: zeile.bildUrl,
               }
             : null,
         }

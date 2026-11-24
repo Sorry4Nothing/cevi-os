@@ -194,6 +194,11 @@ const AUSNAHMEN = {
     "geaendert",
   ],
   "POST /api/v1/admin/mitteilungen": ["Mitteilung", "gesendet", "gesendet"],
+  "POST /api/v1/admin/fotos/verbindung": [
+    "Verbindung zu Flickr",
+    "geprüft",
+    "status",
+  ],
   "POST /api/v1/admin/mitteilungen/vorschau": [
     "Mitteilung",
     "geprüft",
@@ -861,6 +866,7 @@ const NICHT_ERFASST = {
     "POST /api/v1/admin/mitteilungen/vorschau",
     "POST /api/v1/admin/import/vorschau",
     "POST /api/v1/admin/cevi-db/pruefen",
+    "POST /api/v1/admin/fotos/verbindung",
     "POST /api/v1/admin/rechte/gruppen/:p/rollen/vorschau",
     "POST /api/v1/redaktion/orte/vorschau",
     "POST /api/v1/lager/:p/schichtplan/vorschlag",

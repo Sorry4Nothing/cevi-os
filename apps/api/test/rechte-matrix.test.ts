@@ -141,6 +141,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/favicon.svg": { erwartet: alle(200) },
   "GET /admin/hintergrund.svg": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
+  "GET /admin/website-fotos.js": { erwartet: alle(200) },
+  "GET /admin/website-fotos.css": { erwartet: alle(200) },
   "GET /admin/kinder-konto.js": { erwartet: alle(200) },
   "GET /admin/mitteilungen.js": { erwartet: alle(200) },
   "GET /admin/personen.js": { erwartet: alle(200) },
@@ -1376,6 +1378,100 @@ const MATRIX: Record<string, Zeile> = {
       admin: 204,
       adminOhneZweitenFaktor: 403,
       demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Fotos aus Flickr (#690): lesen darf jede Person mit Sitzung (das Konto eines Kindes nicht, siehe test/fotos-routen.test.ts), die Verwaltung nur das Recht fotos.verwalten; Wirkung und Fehler in test/fotos-routen.test.ts
+  "GET /api/v1/fotos/alben": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/fotos/alben/:id": {
+    // Ohne Quelle (die Matrix hat keine Zugangsdaten zu Flickr) gibt es kein Album: 404 für jede Person mit Sitzung
+    url: () => "/api/v1/fotos/alben/1234567890",
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/fotos/alben/:id/titel": {
+    // Ohne Quelle (die Matrix hat keine Zugangsdaten zu Flickr) gibt es kein Album: 404 für jede Person mit Sitzung
+    url: () => "/api/v1/fotos/alben/1234567890/titel",
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/fotos/alben/:id/bilder/:bildId": {
+    // Ohne Quelle (die Matrix hat keine Zugangsdaten zu Flickr) gibt es kein Album: 404 für jede Person mit Sitzung
+    url: () => "/api/v1/fotos/alben/1234567890/bilder/1234567891",
+    erwartet: {
+      ...alle(404),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/admin/fotos": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "POST /api/v1/admin/fotos/verbindung": {
+    body: () => ({}),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/fotos/einstellung": {
+    body: () => ({ flickrKonto: null, flickrLinkZeigen: false, version: 0 }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/fotos/alben/reihenfolge": {
+    body: () => ({ ids: ["1234567890"] }),
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      demoAdmin: 204,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "PUT /api/v1/admin/fotos/alben/:id": {
+    url: () => "/api/v1/admin/fotos/alben/987654321",
+    body: () => ({ titel: "Matrix", version: 0 }),
+    // Ohne Zugang zu Flickr gibt es kein Album: erst das Objekt (404), dann das Recht
+    erwartet: {
+      ...alle(404),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
     },

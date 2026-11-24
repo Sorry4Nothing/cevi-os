@@ -45,4 +45,4 @@ Cevi OS lädt die Personen der eigenen Ebene (höchstens 15 Minuten im Arbeitssp
 
 Die Pfade und Feldnamen stammen aus der Dokumentation von hitobito (JSON:API), nicht aus der Instanz der Cevi. Sie stehen als `ANNAHMEN` in `apps/api/src/cevi-db/client.ts`: Pfad der Personen (`/api/people`), Pfad einer Gruppe, Kopf `X-TOKEN`, Seitengrösse, `include` für Telefonnummern. Stimmt etwas nicht (zum Beispiel «die Antwort hat ein unerwartetes Format» oder keine Telefonnummer), wird nur diese Stelle angepasst. Ob ein Token auf «nur lesen» festgelegt werden kann, sagt die Dokumentation nicht; Cevi OS schreibt in jedem Fall nie.
 
-Siehe auch: [Betrieb](betrieb.md) (Ausgehende Verbindungen), [Bedrohungsmodell](sicherheit/bedrohungsmodell.md) (Abschnitt 62).
+Siehe auch: [Betrieb](betrieb.md) (Ausgehende Verbindungen), [Bedrohungsmodell](sicherheit/bedrohungsmodell.md) (Abschnitt 65).

@@ -868,6 +868,9 @@ export * from "./schema-bereichsschalter.js";
 // Lädeli (#566)
 export * from "./schema-laden.js";
 
+// Fotos aus Flickr (#690)
+export * from "./schema-fotos.js";
+
 // Aktivitätsprotokoll (#637)
 export * from "./schema-aktivitaet.js";
 

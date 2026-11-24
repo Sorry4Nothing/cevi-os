@@ -15,9 +15,9 @@ const RESERVIERT = new Set([
   "ical",
 ]);
 
-// Dazu als einzige Anfrage «?id=» mit einer UUID: Die Seiten eines Anlasses brauchen sie (#530)
+// Dazu als einzige Anfragen «?id=» mit einer UUID (die Seiten eines Anlasses brauchen sie, #530) und «?album=» mit der Kennung eines Fotoalbums, nur Ziffern (#690)
 const MUSTER =
-  /^\/(?:[a-z0-9-]{1,60}(?:\/[a-z0-9-]{1,60}){0,4})?(?:\?id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})?$/;
+  /^\/(?:[a-z0-9-]{1,60}(?:\/[a-z0-9-]{1,60}){0,4})?(?:\?id=[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|\?album=[0-9]{1,20})?$/;
 
 export function sicheresZiel(wert) {
   if (typeof wert !== "string" || wert.length > 400 || !MUSTER.test(wert)) {

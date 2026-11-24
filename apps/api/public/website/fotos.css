@@ -1,0 +1,181 @@
+/* Fotoalben (#690): Albumraster, Kopf eines Albums und Bilderraster. Markup: fotos.js (der Behälter «.fotos» steht in src/website/fotoalben.ts). Farben, Schrift und Radien sind die Tokens der Website, hell und dunkel.
+   Das Bilderraster ist die «.galerie» der Website (Kacheln 4:3, Bild ausgeschnitten; die Grossansicht zeigt es unbeschnitten, lichtkasten.css). Alles hat seine Form, bevor ein Bild da ist: Layout ohne Sprung. */
+
+.fotos {
+  display: block;
+  min-width: 0;
+}
+
+.fotos-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+/* ---------- Übersicht der Alben ---------- */
+
+.fotos-alben {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+  gap: 2rem 1.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fotos-album {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--r-md);
+}
+
+.fotos-album:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 4px;
+}
+
+.fotos-titelbild {
+  position: relative;
+  display: block;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+}
+
+.fotos-titelbild img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Ein Album ohne Titelbild: ruhige Fläche mit dem Zeichen für Bilder */
+.fotos-leer {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: var(--on-surface-variant);
+}
+
+.fotos-leer .i {
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.fotos-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+}
+
+.fotos-titel {
+  margin: 0;
+  font-size: 1.1875rem;
+  line-height: 1.625rem;
+  font-weight: 700;
+  color: var(--on-surface);
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.fotos-album:hover .fotos-titel {
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.fotos-meta {
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.375rem;
+  color: var(--on-surface-variant);
+}
+
+/* ---------- Ein Album ---------- */
+
+.fotos-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1.25rem;
+}
+
+/* Zurück steht über dem Titel in einer eigenen Zeile; Zielhöhe 44 px */
+.fotos-zurueck {
+  display: inline-flex;
+  flex-basis: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  width: fit-content;
+  font-weight: 600;
+  color: var(--accent);
+  text-underline-offset: 0.2em;
+}
+
+.fotos-zurueck .i {
+  transform: scaleX(-1);
+}
+
+.fotos-kopf-titel {
+  flex-basis: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.fotos-kopf-titel:focus {
+  outline: none;
+}
+
+.fotos-kopf .fotos-meta {
+  flex: 1 1 auto;
+}
+
+/* ---------- Ladezustand: dieselbe Form wie der Inhalt ---------- */
+
+.fotos-skelett {
+  display: grid;
+  gap: 2rem 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(17rem, 1fr));
+}
+
+.fotos-skelett.galerie {
+  gap: 1rem;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+}
+
+.sk.fotos-sk-bild {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-md);
+}
+
+@media (max-width: 47.5em) {
+  .fotos-alben,
+  .fotos-skelett {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 1.5rem;
+  }
+
+  .fotos-skelett.galerie {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+}
+
+/* Bewegung nur, wenn die Person sie will */
+@media (prefers-reduced-motion: no-preference) {
+  .fotos-titelbild img {
+    transition: transform var(--dauer-lang) var(--kurve);
+  }
+
+  .fotos-album:hover .fotos-titelbild img {
+    transform: scale(1.03);
+  }
+}

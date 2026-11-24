@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   EINGANG_ARTEN,
@@ -177,7 +178,12 @@ export async function ladeEingaenge(
   },
 ) {
   const zeilen = await db
-    .select({ zeile: eingang, name: user.name, ceviName: user.ceviName })
+    .select({
+      zeile: eingang,
+      name: user.name,
+      ceviName: user.ceviName,
+      bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
+    })
     .from(eingang)
     .leftJoin(user, eq(user.id, eingang.personId))
     .where(
@@ -200,6 +206,7 @@ export async function ladeEingaenge(
             id: z.zeile.personId,
             name: z.name,
             ceviName: z.ceviName,
+            bildUrl: z.bildUrl,
           }
         : null,
     })),

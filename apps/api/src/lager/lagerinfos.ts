@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   infoAbschnitt,
@@ -389,6 +390,8 @@ export type NotfallKontakt = {
   personId: string | null;
   name: string;
   ceviName: string | null;
+  // Pfad des Profilbilds der Person (Mitglied des Lagers mit Bild), sonst null
+  bildUrl: string | null;
   telefon: string | null;
   reihenfolge: number | null;
 };
@@ -404,6 +407,7 @@ export async function ladeKontakte(
       zeile: notfallKontakt,
       name: user.name,
       ceviName: user.ceviName,
+      bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
       kontoTelefon: user.telefon,
     })
     .from(notfallKontakt)
@@ -423,6 +427,7 @@ export async function ladeKontakte(
     personId: z.zeile.personId,
     name: z.zeile.name ?? z.name ?? "",
     ceviName: z.ceviName,
+    bildUrl: z.bildUrl,
     telefon: z.zeile.telefon ?? z.kontoTelefon,
     reihenfolge: z.zeile.reihenfolge,
   }));
@@ -443,9 +448,11 @@ export async function ladeSicherheit(
       zeile: ressort,
       leitungName: leitung.name,
       leitungCevi: leitung.ceviName,
+      leitungBild: bildUrlImLager(sql`${leitung.id}`, lagerId),
       leitungTelefon: leitung.telefon,
       stvName: stv.name,
       stvCevi: stv.ceviName,
+      stvBild: bildUrlImLager(sql`${stv.id}`, lagerId),
       stvTelefon: stv.telefon,
     })
     .from(ressort)
@@ -478,6 +485,7 @@ export async function ladeSicherheit(
     personId: string | null,
     name: string | null,
     ceviName: string | null,
+    bildUrl: string | null,
     telefon: string | null,
   ) => {
     if (!personId) return;
@@ -489,6 +497,7 @@ export async function ladeSicherheit(
       personId,
       name: name ?? "",
       ceviName,
+      bildUrl,
       telefon,
       reihenfolge: null,
     });
@@ -499,6 +508,7 @@ export async function ladeSicherheit(
       z.zeile.leitungPersonId,
       z.leitungName,
       z.leitungCevi,
+      z.leitungBild,
       z.leitungTelefon,
     );
     fuegeHinzu(
@@ -506,6 +516,7 @@ export async function ladeSicherheit(
       z.zeile.stvPersonId,
       z.stvName,
       z.stvCevi,
+      z.stvBild,
       z.stvTelefon,
     );
   }

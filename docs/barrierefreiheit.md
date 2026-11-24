@@ -1140,6 +1140,36 @@ Gilt für die Seite «Anlass-Anmeldung» der Website (`public/website/anmeldung.
 
 Im Browser (Chromium, headless) gegen eine Kopie der Demo-Datenbank mit einem lokalen Test-Double der Cevi-Datenbank (erfundene Personen) gesehen; siehe die Angaben im Pull Request. Nicht geprüft: Screenreader, Kontrastmessung mit Werkzeug, Windows-Hochkontrast.
 
+## 66. Website und Verwaltung: Fotos aus Flickr (#690)
+
+Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, `public/website/fotos.js`, `fotos.css`, Grossansicht `lichtkasten.js`) und für die Unterseite «Fotos» in der Verwaltung (`public/admin/website-fotos.js`, `website-fotos.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
+
+**Website**
+
+- [ ] **66.1** Ohne JavaScript steht ein Hinweis («Zum Anzeigen braucht diese Seite JavaScript.») als Band; die Seite ist sonst statisch und enthält weder Titel noch Bilder noch Alben.
+- [ ] **66.2** Ohne Sitzung (401) steht «Nur angemeldet sichtbar» mit Schloss-Symbol, Satz und dem Knopf «Anmelden» (Ziel: die Anmeldung mit Rückweg zum selben Album). Der Wechsel wird angesagt (Statusregion); nichts blinkt, nichts springt.
+- [ ] **66.3** Zustände: lädt (Skeleton in der Form der Albumkarten oder Kacheln, `aria-busy`, nach 4 Sekunden «Das dauert länger als sonst.»), leer («Hier gibt es noch keine Fotos.» mit Hilfe), kein Zugriff für das Konto eines Kindes, Zeitlimit und Fehler (`role="alert"`, «Nochmals versuchen»), 429, Album nicht gefunden (mit «Alle Alben»).
+- [ ] **66.4** Alben sind Links (`a.fotos-album`) mit Titel als Überschrift (`h2`), Anzahl und Datum als Text; ein Album ohne Titelbild zeigt eine ruhige Fläche mit Symbol, nie ein kaputtes Bild. Titelbilder sind dekorativ (`alt=""`), weil der Titel daneben steht.
+- [ ] **66.5** Ein Album hat eine teilbare Adresse (`?album=<Kennung>`); Browser-Zurück führt zur Übersicht zurück, der Fokus liegt dort wieder auf dem Album. Beim Öffnen springt der Fokus auf den Titel des Albums, der Titel des Tabs folgt.
+- [ ] **66.6** Das Bilderraster ist eine Liste (`role="list"`); jedes Bild ist ein Link zur Grossansicht mit Alt-Text (Titel bei Flickr, sonst «Foto 3 von 80»). Bilder haben `width` und `height` und `loading="lazy"`: Der Platz steht fest, bevor das Bild geladen ist (kein Layoutsprung); ein Bild, das nicht lädt, zeigt die ruhige Fläche mit Alt-Text.
+- [ ] **66.7** Grossansicht (`lichtkasten.js`, natives `dialog`): Fokus im Dialog, Esc und Klick daneben schliessen, Pfeiltasten und Knöpfe «Vorheriges Bild» und «Nächstes Bild» blättern, Wischen am Handy, «Bild 3 von 80» als Ansage, Fokus zurück aufs Bild.
+- [ ] **66.8** «Album auf Flickr öffnen» steht nur, wenn die Abteilung es einschaltet; es ist ein externer Link mit dem Zeichen für «fremde Seite» und öffnet in einem neuen Tab (`rel="noopener noreferrer"`).
+- [ ] **66.9** Zielgrössen mindestens 44 Pixel (Albumkarte, Zurück, Knöpfe); sichtbarer Fokus (Ring 3 Pixel, 3 : 1); Kontrast aller Texte mindestens 4,5 : 1 in Hell und Dunkel; 390, 1440 und 2560 Pixel ohne Seitenscroll, 200 Prozent Zoom.
+- [ ] **66.10** Bewegung: Das leichte Heranzoomen des Titelbilds beim Zeigen nur unter «Bewegung nicht reduzieren»; Skeleton und Einblenden folgen den Regeln der Website (kein Schimmer bei reduzierter Bewegung).
+
+**Verwaltung**
+
+- [ ] **66.11** «Verbindung testen» zeigt das Ergebnis als Meldung (`role="status"`, Fehler `role="alert"`) ohne Geheimnisse; der Knopf zeigt `aria-busy`. Die Verbindung steht als Wort im Band («Die Verbindung zu Flickr steht.» oder der Grund), nie nur als Farbe.
+- [ ] **66.12** Ohne Zugangsdaten steht eine Anleitung Schritt für Schritt (geordnete Liste), ohne Werte.
+- [ ] **66.13** Die Kennung des Kontos hat ein sichtbares Label, Hilfetext, Prüfung beim Speichern mit Meldung beim Feld und Fokus darauf; die Wahl «Link zu Flickr» ist ein Kästchen mit Erklärung.
+- [ ] **66.14** Jedes Album: Schalter «Auf der Website zeigen» (`role="switch"`, `aria-checked`, Name nennt das Album) mit dem Zustand als Wort («Sichtbar», «Nicht sichtbar»); Änderungen gelten sofort, die Meldung bietet «Rückgängig» an. «Titel ändern» öffnet ein Feld in der Zeile (`aria-expanded`), Fokus ins Feld und beim Schliessen zurück auf den Knopf.
+- [ ] **66.15** Die Reihenfolge lässt sich per Ziehen, mit Tastatur (Leertaste, Pfeile) und mit Knöpfen «Nach oben» und «Nach unten» ändern (2.5.7); die Änderung wird angesagt und lässt sich in der Frist zurücknehmen.
+- [ ] **66.16** Zustände der Liste: lädt (Skeleton), leer (Bei Flickr gibt es noch keine Alben), Fehler mit «Nochmals versuchen»; Zielgrössen 44 Pixel, Hell und Dunkel, 390 bis 1440 Pixel.
+
+### Stand der Prüfung (#690)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Attrappe von Flickr (eigener kleiner Server mit erfundenen Alben und erzeugten Pixelbildern, keine Verbindung zu Flickr) gesehen: Übersicht, Album und Grossansicht der Website bei 390, 1440 und 2560 Pixel, Hell und Dunkel, ohne Sitzung, mit Sitzung und mit reduzierter Bewegung; Verwaltung bei 1440 und 390 Pixel. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), echte Fotos und echte Antworten von Flickr (es gibt keine Zugangsdaten), Kontrastwerte mit einem Messwerkzeug, 200 Prozent Zoom am Gerät, Ladezeit grosser Alben über ein langsames Netz.
+
 ## 69. Verwaltung: Adresssuche der Orte (#695)
 
 Gilt für `ort-suche.js` (Kombinationsfeld), das Formular in `website-orte.js` und den Abschnitt «Adresssuche» in `website-orte.css`. Ergänzt 46.4. Massstab WCAG 2.2 AA; das Muster ist «Combobox with listbox popup» der ARIA Authoring Practices.
@@ -1189,3 +1219,17 @@ Gilt für `lager-rahmen.js`, `lager-status.js`, `lager-detail.js`, `lager-rahmen
 ### Stand der Prüfung (#693)
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank) bei 1440 und 390 px gemessen: Wechsel des Moduls von weit unten (Seite bleibt, der Anfang des Moduls steht oben), Reiter bei Protokollen (Stelle bleibt), Haken in Packliste und Einkauf (Stelle bleibt), Navigation ohne Scrollleiste (Höhe 472 px, keine Überlänge) bei 900 und 640 px Fensterhöhe. Status: Entwurf, Frage, Starten, Meldung, Menü, «Rückgängig». Per Test: Schritte je Status, Folgesätze, kein «Aktivieren» auf einem Knopf, Verdrahtung des Behaltens der Stelle. **Nicht geprüft:** Screenreader, 200 % Zoom per Browser-Einstellung, Firefox und Safari, das Verhalten ohne Recht «Lager verwalten» im Browser (nur nach dem Quelltext), mehrere Wechsel in schneller Folge auf langsamer Leitung.
+
+## 70. Verwaltung: Profilbilder in den Lager-Modulen (#697)
+
+Gilt für alle Stellen in `lager-*.js`, an denen eine Person mit Namen steht (Mitglieder, Personenwahl, Aufgaben, Höcks, Pinnwand, Fahrten, Gruppen, Zimmer, Schichtplan, Anwesenheit, Diensttausch, Ressorts, Notfallkontakte, Umfragen). Die Schnittstelle liefert dafür neu das optionale Feld `bildUrl` (`LagerBildUrl` in `docs/api/openapi.yaml`); die Anzeige selbst ist `avatar()` aus `dom.js`. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9, 55 und 64 gelten sinngemäss.
+
+- [ ] **70.1** Wo die Antwort `bildUrl` nennt, zeigt der Kreis der Person das Bild, sonst die Initialen. Fehlt das Feld (ältere Antwort) oder lädt das Bild nicht (403, 404, Netz), bleiben die Initialen; es gibt keinen kaputten Bildrahmen und keine Fehlermeldung.
+- [ ] **70.2** Das Bild ist dekorativ (`alt=""`), der Name steht als Text daneben und ist die einzige Beschriftung. Ein Bild ersetzt nie den Namen; der Zustand einer Zeile (zum Beispiel «anwesend») steht weiter in Wort und Symbol, nie nur im Bild.
+- [ ] **70.3** Teilnehmende ohne Konto (Kinder) zeigen immer Initialen: Die Antwort nennt für sie kein `bildUrl` oder `null`. Ein Test hält es fest (`test/lager/profilbild.test.ts`).
+- [ ] **70.4** Das Bild lädt erst, wenn die Zeile sichtbar wird (`loading="lazy"`), mit fester Grösse im Kreis (kein Springen des Layouts, auch nicht in langen Listen wie der Personenwahl oder dem Schichtplan).
+- [ ] **70.5** Ein Konto, das nicht (mehr) Mitglied des Lagers ist, und die Abteilungsleitung ohne Mitgliedschaft zeigen Initialen (die Antwort nennt kein `bildUrl`). Das ist gewollt: Es erscheint nie ein Bild, das die Route der Person nicht herausgäbe.
+
+### Stand der Prüfung (#697)
+
+Per Test (Schnittstelle): `bildUrl` bei Mitgliedern, Aufgaben (Verantwortliche, Unterstützung), Ressorts, Pinnwand, Fahrten, Personen ohne Fahrt, Gruppen, Schichtplan, Statistik, Anwesenheit; Teilnehmende `null` oder ohne Feld; Nicht-Mitglieder und deaktivierte Konten `null`; Weg «gemeinsames Lager» in `GET /personen/{id}/bild` (Mitglied 200, Aussenstehende 404). **Nicht geprüft:** die Anzeige im Browser je Modul (Kreise, Lazy-Laden, Nachtmodus, 390 px), Screenreader, 200 % Zoom.
