@@ -20,7 +20,7 @@ import { aendereZeile, legeZeileAn, loescheZeile, type Tx } from "./sync.js";
 import { registriereSuchquelle } from "./suche.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 import { ladeWetter } from "./wetter.js";
-import type { WetterHolen } from "./wetter-openmeteo.js";
+import type { Wetterdienst } from "./wetter-openmeteo.js";
 
 // Tagesseiten (#391): je Lagertag Tageschef, Notiz und Blöcke. Lesen braucht tagesseiten.lesen, Ändern tagesseiten.bearbeiten (Standard: Leitung und Lagerleitung). Die Seite entsteht beim ersten Schreiben. Die Antwort für einen Tag fasst zusammen, was der Tag zeigt: die Seite mit Blöcken, das Wetter des Tages (wetter.lesen, lager/wetter.ts) und die Aufgaben mit Frist an diesem Tag (die To-dos des Tages sind Aufgaben aus #372, keine eigene Tabelle). Alle Schreibwege gehen durch lager/sync.ts (Version, 409 VERSION_KONFLIKT, Feed); Löschen ist endgültig (#427)
 registriereLagerTabelle({ tabelle: tagesseite, recht: "tagesseiten.lesen" });
@@ -197,7 +197,7 @@ export async function ladeTagesseite(
   db: Db,
   zugriff: LagerZugriff,
   lagertagId: string,
-  holen: WetterHolen,
+  dienst: Wetterdienst,
 ) {
   const lagerId = zugriff.lager.id;
   const [zeile] = await db
@@ -239,7 +239,7 @@ export async function ladeTagesseite(
   const umfang = leseUmfang(zugriff);
   const [wetter, aufgaben] = await Promise.all([
     darf(zugriff, "wetter.lesen")
-      ? ladeWetter(db, zugriff.lager, holen)
+      ? ladeWetter(db, zugriff.lager, dienst)
       : undefined,
     umfang
       ? ladeAufgaben(db, lagerId, {

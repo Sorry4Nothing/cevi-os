@@ -755,10 +755,9 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 
 ## Lager: wetter
 
-| Route                              | Zweck                     | Status je Persona                                                                                                                                                                                                                                                                                               |
-| ---------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/lager/:id/wetter`     | Wetter des Lagers lesen   | **200** abteilungsleitung, lagerleitung, leitung, team, lesen<br>**401** ohneLogin<br>**404** ohneMitgliedschaft, fremdeAbteilung                                                                                                                                                                               |
-| `PUT /api/v1/lager/:id/wetter/ort` | Ort für das Wetter setzen | **200** abteilungsleitung, lagerleitung<br>**401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>Lager abgeschlossen: **401** ohneLogin<br>**403** leitung, team, lesen<br>**404** ohneMitgliedschaft, fremdeAbteilung<br>**409** abteilungsleitung, lagerleitung |
+| Route                          | Zweck                   | Status je Persona                                                                                                                 |
+| ------------------------------ | ----------------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/lager/:id/wetter` | Wetter des Lagers lesen | **200** abteilungsleitung, lagerleitung, leitung, team, lesen<br>**401** ohneLogin<br>**404** ohneMitgliedschaft, fremdeAbteilung |
 
 ## Lager: zeitplan
 

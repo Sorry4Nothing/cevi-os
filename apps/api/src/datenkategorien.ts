@@ -334,8 +334,8 @@ export const KATEGORIEN = {
   lagerWetter: {
     titel: "Wetter im Lager",
     zweck:
-      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des Lagers als Breite und Länge fest. Der Server holt die Vorhersage dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen gerundet, keine Namen und keine Angaben zu Personen.",
-    frist: `Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
+      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Niemand gibt Koordinaten ein: Der Server bestimmt den Wetterort aus dem Ort des Lagers. Dazu sucht er den Ortsnamen beim Ortsdienst von Open-Meteo (gesendet wird nur der Ortsname, nie die Adresse) und speichert Breite und Länge auf zwei Stellen gerundet, den gefundenen Namen und das Ergebnis der Suche am Lager. Die Vorhersage holt er dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, keine Namen und keine Angaben zu Personen.",
+    frist: `Der Wetterort, bis sich der Ort des Lagers ändert oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -873,7 +873,14 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
     lagerNotfall: ["karten_link"],
-    lagerWetter: ["breite", "laenge"],
+    lagerWetter: [
+      "breite",
+      "laenge",
+      "wetter_ort_schluessel",
+      "wetter_ort_name",
+      "wetter_ort_ergebnis",
+      "wetter_ort_versuch_am",
+    ],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {

@@ -1170,6 +1170,20 @@ Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, 
 
 Im Browser (Chromium, headless, Playwright) gegen eine Attrappe von Flickr (eigener kleiner Server mit erfundenen Alben und erzeugten Pixelbildern, keine Verbindung zu Flickr) gesehen: Übersicht, Album und Grossansicht der Website bei 390, 1440 und 2560 Pixel, Hell und Dunkel, ohne Sitzung, mit Sitzung und mit reduzierter Bewegung; Verwaltung bei 1440 und 390 Pixel. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), echte Fotos und echte Antworten von Flickr (es gibt keine Zugangsdaten), Kontrastwerte mit einem Messwerkzeug, 200 Prozent Zoom am Gerät, Ladezeit grosser Alben über ein langsames Netz.
 
+## 68. Lager: Wetter aus dem Lagerort (#694)
+
+Gilt für das Modul «Wetter» (`lager-m-wetter.js`), die Zeile unter dem Feld «Ort» (Assistent «Neues Lager» und «Angaben ändern») und die Zeile «Wetter» in den Angaben des Lagers. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6 und 9 gelten.
+
+- [ ] **68.1** Es gibt kein Feld für Koordinaten, weder im Modul noch im Assistenten noch in den Angaben. Der Ort steht im Feld «Ort» des Lagers; das Modul «Wetter» zeigt nur, wofür es gilt, und führt mit einem Verweis («Zu den Angaben») dorthin.
+- [ ] **68.2** Der Stand der Ortssuche steht als Satz, nie nur als Farbe oder Symbol: gefunden («Das Wetter kommt für …»), nicht gefunden, mehrere Orte passen, Ortsdienst nicht erreichbar, kein Ort. Jeder Satz nennt den nächsten Schritt («Schreibe nur den Ortsnamen», «Ergänze die Postleitzahl», «Trage einen Ort ein»).
+- [ ] **68.3** Das Feld «Ort» trägt die Zeile «Das Wetter wird für diesen Ort geholt.» in `aria-describedby` (Hilfetext des Feldes), sie wird beim Fokus vorgelesen. Nach dem Speichern meldet die Statusmeldung (`role="status"`) den Stand der Suche; bei «nicht gefunden» und «mehrere Orte» mit der Art «warn», nicht als Fehler.
+- [ ] **68.4** Fällt der Wetterdienst aus, steht «Das Wetter ist gerade nicht verfügbar. Versuche es später nochmals.» als Karte, keine leere Seite und kein Fehler. Der Verweis «Zu den Angaben» hat ein sichtbares Fokuszeichen und eine Zielgrösse von mindestens 44 px (Verweise der Verwaltung, `lg-verweis`).
+- [ ] **68.5** Überschriften: «Wetter für <Ort>» (h2) steht vor der Vorhersage; die Tabelle behält ihre Beschriftung und die Kartenansicht unter 640 px.
+
+### Stand der Prüfung (#694)
+
+Siehe PR (Abschnitt «Barrierefreiheit»): Der Stand der Prüfung im Browser steht dort. Nicht geprüft: Screenreader (NVDA, VoiceOver, TalkBack), 200 % Zoom per Browser-Einstellung.
+
 ## 69. Verwaltung: Adresssuche der Orte (#695)
 
 Gilt für `ort-suche.js` (Kombinationsfeld), das Formular in `website-orte.js` und den Abschnitt «Adresssuche» in `website-orte.css`. Ergänzt 46.4. Massstab WCAG 2.2 AA; das Muster ist «Combobox with listbox popup» der ARIA Authoring Practices.

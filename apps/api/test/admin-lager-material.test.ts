@@ -17,6 +17,7 @@ let einkauf: Modul;
 let notfall: Modul;
 let infos: Modul;
 let wetter: Modul;
+let gemeinsam: Modul;
 let tagesseiten: Modul;
 let register: {
   MODULE: { schluessel: string; recht?: string; gruppe: string }[];
@@ -33,6 +34,7 @@ beforeAll(async () => {
   notfall = await lade("lager-m-notfall.js");
   infos = await lade("lager-m-infos.js");
   wetter = await lade("lager-m-wetter.js");
+  gemeinsam = await lade("lager-gemeinsam.js");
   tagesseiten = await lade("lager-m-tagesseiten.js");
   register = (await lade("lager-module.js")) as unknown as typeof register;
   vi.unstubAllGlobals();
@@ -296,11 +298,48 @@ describe("Material und Infos: Notfall, Infos, Wetter, Tagesseiten", () => {
     expect(q).toContain("sortierListe");
   });
 
-  test("parseKoordinate: Komma, leer, Grenzen", () => {
-    expect(wetter.parseKoordinate!("47,37", 90)).toBe(47.37);
-    expect(wetter.parseKoordinate!("", 90)).toBeNull();
-    expect(wetter.parseKoordinate!("91", 90)).toBeUndefined();
-    expect(wetter.parseKoordinate!("abc", 180)).toBeUndefined();
+  test("der Wetterort kommt aus dem Lagerort: kein Feld und keine Route für Koordinaten (#694)", () => {
+    const q = quelle("lager-m-wetter.js");
+    for (const verboten of [
+      "Breitengrad",
+      "Längengrad",
+      "/wetter/ort",
+      "parseKoordinate",
+      "feld(",
+    ]) {
+      expect(q).not.toContain(verboten);
+    }
+    expect(wetter.parseKoordinate).toBeUndefined();
+    // Der Weg zur Änderung führt zu den Angaben des Lagers
+    expect(q).toContain("Zu den Angaben");
+    expect(q).toContain("Wetter für ${ort.name}");
+    expect(q).toContain("Das Wetter ist gerade nicht verfügbar");
+  });
+
+  test("wetterOrtZeile: ein Satz je Stand der Ortssuche, nie nur Farbe", () => {
+    const z = gemeinsam.wetterOrtZeile!;
+    expect(
+      z({ status: "gefunden", name: "Musterstadt, Kanton Beispiel" }),
+    ).toBe("Das Wetter kommt für Musterstadt, Kanton Beispiel.");
+    expect(z({ status: "nicht_gefunden", name: null })).toContain(
+      "nicht gefunden",
+    );
+    expect(z({ status: "mehrdeutig", name: null })).toContain("Postleitzahl");
+    expect(z({ status: "nicht_erreichbar", name: null })).toContain(
+      "antwortet gerade nicht",
+    );
+    expect(z({ status: "kein_ort", name: null })).toContain(
+      "Trage einen Ort ein",
+    );
+    expect(z(undefined)).toBe("Das Wetter wird für diesen Ort geholt.");
+    expect(gemeinsam.wetterOrtProblem!({ status: "nicht_gefunden" })).toBe(
+      true,
+    );
+    expect(gemeinsam.wetterOrtProblem!({ status: "gefunden" })).toBe(false);
+    // Unter dem Feld «Ort» steht, dass das Wetter für diesen Ort geholt wird
+    expect(quelle("lager-gemeinsam.js")).toContain(
+      "Freiwillig. Das Wetter wird für diesen Ort geholt.",
+    );
   });
 
   test("temperaturText und wetterSatz", () => {

@@ -1777,12 +1777,6 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "geändert",
     gruppe: "geaendert",
   },
-  "PUT /api/v1/lager/:p/wetter/ort": {
-    titel: "Ort für das Wetter setzen",
-    objekt: "Ort für das Wetter",
-    aktion: "gesetzt",
-    gruppe: "geaendert",
-  },
   "PUT /api/v1/plattform/schalter": {
     titel:
       "Wartungsmodus oder Informationssperre für einen Bereich setzen oder ändern",

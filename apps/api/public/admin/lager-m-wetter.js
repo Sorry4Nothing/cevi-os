@@ -1,12 +1,12 @@
 import { anfrage } from "./api.js";
-import { chip, el, feld, knopf, tabelle, zeit } from "./dom.js";
+import { chip, el, tabelle, zeit } from "./dom.js";
 import { skeletonVon } from "./lager-skeleton.js";
-import { feldFehler, haenge, meldung } from "./lager-gemeinsam.js";
-import { angabe, lagerPfad } from "./lager-m-hilfen.js";
+import { ADRESSE, haenge } from "./lager-gemeinsam.js";
+import { lagerPfad } from "./lager-m-hilfen.js";
 import { leerKarte } from "./zustaende.js";
 
-// Wetter im Lager-Arbeitsbereich (#674): die Vorhersage für den Ort des Lagers (heute und die nächsten Tage) mit Warnungen, und der Ort. Adresse: …/wetter. Lesen: wetter.lesen; den Ort setzt nur die Lagerleitung. Der Server holt die Vorhersage höchstens alle sechs Stunden und hält sie je Lager; die Seite fragt nur beim Öffnen und bei «Aktualisieren». Ohne Ort oder bei einem Ausfall des Dienstes gibt es kein Wetter statt eines Fehlers.
-// Routen: GET /wetter, PUT /wetter/ort ({ breite, laenge } oder beide null).
+// Wetter im Lager-Arbeitsbereich (#674): die Vorhersage für den Ort des Lagers (heute und die nächsten Tage) mit Warnungen, und der Ort, aus dem sie kommt. Adresse: …/wetter. Lesen: wetter.lesen. Den Ort gibt niemand ein: Der Server bestimmt ihn aus dem Lagerort (#694). Der Server holt die Vorhersage höchstens alle sechs Stunden und hält sie je Lager; die Seite fragt nur beim Öffnen und bei «Aktualisieren». Ohne Ort oder bei einem Ausfall des Dienstes gibt es kein Wetter statt eines Fehlers.
+// Route: GET /wetter ({ ort: { status, name }, stand, tage }).
 
 const WARNUNG = {
   gewitter: "Gewitter",
@@ -14,17 +14,6 @@ const WARNUNG = {
   hitze: "Hitze",
   regen: "Viel Regen",
 };
-
-// Reine Funktion (testbar): eine Koordinate aus dem Feld; «47,37» wie «47.37». Leer ist null, ausserhalb des Bereichs oder keine Zahl ist undefined
-export function parseKoordinate(text, grenze) {
-  const roh = String(text ?? "")
-    .trim()
-    .replace(",", ".");
-  if (roh === "") return null;
-  if (!/^-?\d+(\.\d+)?$/.test(roh)) return undefined;
-  const n = Number(roh);
-  return Math.abs(n) <= grenze ? n : undefined;
-}
 
 // Reine Funktion (testbar): «12 bis 21 °C», nur ein Wert oder nichts
 export function temperaturText(tmin, tmax) {
@@ -72,131 +61,66 @@ export function wetterSatz(tag) {
 export function zeige(bereich, ctx, lagerId, lager) {
   ctx.titel(
     "Wetter",
-    "Vorhersage für den Ort des Lagers, mit Warnungen bei Gewitter, Böen, Hitze und viel Regen.",
+    "Vorhersage für den Lagerort, mit Warnungen bei Gewitter, Böen, Hitze und viel Regen.",
   );
   ctx.lade(
     () => anfrage("GET", lagerPfad(lagerId, "/wetter")),
-    (daten, neu) => haenge(bereich, zeichne(ctx, lagerId, lager, daten, neu)),
+    (daten) => haenge(bereich, zeichne(lagerId, lager, daten)),
     { skeleton: skeletonVon({ inhalt: "flaechen", zeilen: 2 }) },
   );
 }
 
-function ortKarte(ctx, lagerId, lager, daten, neu) {
-  const darf = lager.rolle === "lagerleitung" && !lager.schreibgeschuetzt;
-  const breite = feld({
-    label: "Breitengrad",
-    wert: daten.ort ? String(daten.ort.breite).replace(".", ",") : "",
-    inputmode: "decimal",
-    autocomplete: "off",
-    hilfe: "Zum Beispiel 47,37.",
-  });
-  const laenge = feld({
-    label: "Längengrad",
-    wert: daten.ort ? String(daten.ort.laenge).replace(".", ",") : "",
-    inputmode: "decimal",
-    autocomplete: "off",
-    hilfe: "Zum Beispiel 8,54.",
-  });
-  const fehler = el("p", { class: "feld-fehler", role: "alert", hidden: true });
-  const sende = async (b, l) => {
-    try {
-      await anfrage("PUT", lagerPfad(lagerId, "/wetter/ort"), {
-        breite: b,
-        laenge: l,
-      });
-      ctx.melde(
-        b === null
-          ? "Das Wetter ist ausgeschaltet."
-          : "Der Ort ist gespeichert.",
-      );
-      neu();
-    } catch (f) {
-      fehler.textContent = meldung(f);
-      fehler.hidden = false;
-    }
-  };
-  const speichern = () => {
-    fehler.hidden = true;
-    const b = parseKoordinate(breite.eingabe.value, 90);
-    const l = parseKoordinate(laenge.eingabe.value, 180);
-    if (b === undefined) {
-      feldFehler(breite, "Der Breitengrad liegt zwischen −90 und 90.");
-      return;
-    }
-    if (l === undefined) {
-      feldFehler(laenge, "Der Längengrad liegt zwischen −180 und 180.");
-      return;
-    }
-    if ((b === null) !== (l === null)) {
-      feldFehler(
-        b === null ? breite : laenge,
-        "Fülle beide Felder aus oder lasse beide leer.",
-      );
-      return;
-    }
-    sende(b, l);
-  };
+// Der Wetterort kommt aus dem Lagerort (#694): Die Karte zeigt ihn nur an und führt zu den Angaben, wo der Ort steht. Es gibt nie ein Feld für Koordinaten.
+function ortKarte(lagerId, lager, daten) {
+  const ort = daten.ort;
+  const zuAngaben = el(
+    "a",
+    { class: "lg-verweis", href: `${ADRESSE}/${lagerId}` },
+    "Zu den Angaben",
+  );
+  const text = {
+    kein_ort:
+      "Das Lager hat keinen Ort. Trage im Lager einen Ort ein, dann zeigt es das Wetter.",
+    nicht_gefunden: `Der Ort «${lager.ort ?? ""}» wurde nicht gefunden. Schreibe nur den Ortsnamen, zum Beispiel «Musterstadt».`,
+    mehrdeutig: `Zum Ort «${lager.ort ?? ""}» passen mehrere Orte. Ergänze bei der Adresse die Postleitzahl.`,
+    nicht_erreichbar:
+      "Der Ortsdienst antwortet gerade nicht. Der Server versucht es später nochmals.",
+    offen: "Der Ort wird bestimmt. Lade die Seite in einem Moment neu.",
+  }[ort.status];
   return el(
     "section",
     { class: "flaeche lm-nicht-drucken" },
-    el("h2", {}, "Ort für das Wetter"),
-    daten.ort && !darf
-      ? el(
-          "dl",
-          { class: "lm-angaben" },
-          angabe("Breitengrad", String(daten.ort.breite).replace(".", ",")),
-          angabe("Längengrad", String(daten.ort.laenge).replace(".", ",")),
-        )
-      : daten.ort
-        ? null
-        : el(
-            "p",
-            { class: "leise" },
-            darf
-              ? "Es ist noch kein Ort gesetzt. Trage ihn ein, dann zeigt das Lager das Wetter."
-              : "Es ist noch kein Ort gesetzt. Die Lagerleitung kann ihn eintragen.",
-          ),
-    darf &&
-      el(
-        "div",
-        { class: "lm-ortform" },
-        el("div", { class: "lg-zweispaltig" }, breite.wurzel, laenge.wurzel),
-        fehler,
-        el(
-          "div",
-          { class: "reihe" },
-          knopf("Ort speichern", {
-            art: "haupt",
-            symbol: "haken",
-            onclick: speichern,
-          }),
-          daten.ort &&
-            knopf("Wetter ausschalten", {
-              art: "still",
-              symbol: "papierkorb",
-              onclick: () => sende(null, null),
-            }),
-        ),
-        el(
-          "p",
-          { class: "hilfe" },
-          "Zwei Nachkommastellen genügen, das sind rund ein Kilometer. Der Server speichert nie die genaue Lage eines Hauses.",
-        ),
-      ),
+    el(
+      "h2",
+      {},
+      ort.status === "gefunden"
+        ? `Wetter für ${ort.name}`
+        : "Ort für das Wetter",
+    ),
+    el(
+      "p",
+      { class: ort.status === "gefunden" ? "leise" : "" },
+      ort.status === "gefunden"
+        ? "Der Ort kommt aus dem Lagerort. Ändere ihn bei den Angaben des Lagers."
+        : text,
+      " ",
+      zuAngaben,
+    ),
   );
 }
 
-function zeichne(ctx, lagerId, lager, daten, neu) {
+function zeichne(lagerId, lager, daten) {
   const imLager = (datum) => datum >= lager.von && datum <= lager.bis;
   const wurzel = el("div", { class: "lm-seite" });
   haenge(
     wurzel,
+    ortKarte(lagerId, lager, daten),
     daten.tage.length === 0
-      ? leerKarte(
-          daten.ort
-            ? "Im Moment gibt es kein Wetter. Der Wetterdienst antwortet nicht oder hat für diesen Ort nichts. Versuche es später nochmals."
-            : "Für dieses Lager gibt es kein Wetter, weil kein Ort gesetzt ist.",
-        )
+      ? daten.ort.status === "gefunden"
+        ? leerKarte(
+            "Das Wetter ist gerade nicht verfügbar. Versuche es später nochmals.",
+          )
+        : null
       : el(
           "section",
           { class: "flaeche" },
@@ -259,7 +183,6 @@ function zeichne(ctx, lagerId, lager, daten, neu) {
             "Die Vorhersage kommt von einem Wetterdienst. Der Server holt sie höchstens alle sechs Stunden.",
           ),
         ),
-    ortKarte(ctx, lagerId, lager, daten, neu),
   );
   return wurzel;
 }

@@ -11,6 +11,8 @@ import {
   meldung,
   merkeMeldung,
   symbol,
+  wetterOrtProblem,
+  wetterOrtZeile,
   zeitraum,
 } from "./lager-gemeinsam.js";
 import { personenWahl } from "./lager-personenwahl.js";
@@ -515,13 +517,22 @@ export function zeige(bereich, ctx) {
       );
     }
     await Promise.all(aufgaben);
+    // Der Server hat den Wetterort aus dem Ort bestimmt; das Lager sagt, ob er ihn gefunden hat
+    const wetter = st.grund.ort
+      ? (await anfrage("GET", `${BASIS}/${id}`).catch(() => null))?.wetterOrt
+      : null;
     const text = `Lager «${st.grund.titel}» angelegt.`;
+    const wetterText = wetter ? ` ${wetterOrtZeile(wetter)}` : "";
     if (offen.length > 0)
       merkeMeldung(
-        `${text} Das hat nicht geklappt: ${offen.join(", ")}. Hole es im Lager nach.`,
+        `${text} Das hat nicht geklappt: ${offen.join(", ")}. Hole es im Lager nach.${wetterText}`,
         "warn",
       );
-    else merkeMeldung(erste ? `${text} Die Vorlage ist übernommen.` : text);
+    else
+      merkeMeldung(
+        `${erste ? `${text} Die Vorlage ist übernommen.` : text}${wetterText}`,
+        wetterOrtProblem(wetter) ? "warn" : "ok",
+      );
     // Die Eingaben sind verbraucht; das neue Lager ersetzt den Eintrag des letzten Schritts, Zurück führt nicht in den fertigen Assistenten
     entwurf = null;
     location.replace(`${ADRESSE}/${id}`);

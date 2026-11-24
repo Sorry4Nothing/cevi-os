@@ -68,7 +68,7 @@ import {
 import { erstelleEditorRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
-import type { WetterHolen } from "./lager/wetter-openmeteo.js";
+import type { Wetterdienst } from "./lager/wetter-openmeteo.js";
 import type { OrtssucheHolen } from "./ortssuche/index.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleIcalRoute } from "./routes/termine/ical.js";
@@ -151,7 +151,7 @@ export function erstelleApp({
   // Cevi-Datenbank (#691): Abruf der Personen der eigenen Ebene mit Zwischenspeicher; ohne Angabe ist die Funktion aus (die Anmeldung füllt nichts vor), die Tests spritzen einen Dienst mit einer Attrappe ein
   ceviDb?: CeviDbDienst;
   // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
-  wetter?: WetterHolen;
+  wetter?: Wetterdienst;
   // Adresssuche der Orte (#695); ohne Angabe antwortet die Suche mit 503, server.ts setzt die Suche des Bundes ein, die Tests eine Attrappe
   ortssuche?: OrtssucheHolen;
   // Uhr der Lager-Aggregate (#395); ohne Angabe die Systemzeit
@@ -344,7 +344,7 @@ export function erstelleApp({
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db, auth }))
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
-      .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
+      .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db, wetter }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/vorlagen", erstelleAdminVorlagenRouten({ db }))
       .route(

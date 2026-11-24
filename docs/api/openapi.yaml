@@ -21397,11 +21397,13 @@ paths:
       operationId: holeLagerWetter
       summary: Wetter des Lagers lesen
       description: |
-        Braucht das Recht `wetter.lesen` (Standard: alle Rollen). Liefert die Vorhersage für den Ort des Lagers (`ort`, von der Lagerleitung gesetzt) mit Wort, Temperatur, Regen, Böen und Warnungen je Tag, dazu den Zeitpunkt des Abrufs (`stand`). Die Warnungen: `gewitter`, `boeen` (ab 60 km/h), `hitze` (ab 30 Grad Höchsttemperatur) und `regen` (ab 20 mm am Tag).
+        Braucht das Recht `wetter.lesen` (Standard: alle Rollen). Liefert die Vorhersage für den Ort des Lagers mit Wort, Temperatur, Regen, Böen und Warnungen je Tag, dazu den Zeitpunkt des Abrufs (`stand`). Die Warnungen: `gewitter`, `boeen` (ab 60 km/h), `hitze` (ab 30 Grad Höchsttemperatur) und `regen` (ab 20 mm am Tag).
 
-        Der Server holt die Vorhersage beim Wetterdienst Open-Meteo und hält sie je Lager zwischen: höchstens ein Abruf je Lager und 6 Stunden, egal wie viele Personen fragen; nach einem Fehlschlag frühestens nach 15 Minuten ein neuer Versuch. Zum Wetterdienst gehen nur Breite und Länge, auf zwei Stellen gerundet. Ohne Ort, bei Ausfall des Dienstes und wenn der Stand älter ist als 24 Stunden ist `tage` leer, es gibt keinen Fehler. Die Antwort enthält Tage von zwei Tagen zurück bis 16 Tage voraus.
+        Der Server holt die Vorhersage beim Wetterdienst Open-Meteo und hält sie je Lager zwischen: höchstens ein Abruf je Lager und 6 Stunden, egal wie viele Personen fragen; nach einem Fehlschlag frühestens nach 15 Minuten ein neuer Versuch. Zum Wetterdienst gehen nur Breite und Länge, auf zwei Stellen gerundet.
 
-        Datenbanklast: eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang.
+        Den Ort gibt niemand ein: Der Server bestimmt ihn aus dem Lagerort («Ort» des Lagers, die Postleitzahl aus Ort oder Adresse hilft bei mehreren Treffern) mit dem Ortsdienst von Open-Meteo und hält Koordinaten und Namen am Lager. Zum Ortsdienst geht nur der Ortsname, nie die Adresse. Ändert sich Ort oder Adresse, sucht der Server beim nächsten Lesen neu. `ort.status` sagt, wie es steht: `gefunden` (mit `name`), `kein_ort` (das Lager hat keinen Ort), `nicht_gefunden`, `mehrdeutig` (mehrere Orte passen), `nicht_erreichbar` (der Ortsdienst antwortet nicht, neuer Versuch frühestens nach 15 Minuten) oder `offen`. Ohne gefundenen Ort, bei Ausfall des Dienstes und wenn der Stand älter ist als 24 Stunden ist `tage` leer, es gibt keinen Fehler. Eine Route zum Setzen des Ortes gibt es nicht. Die Antwort enthält Tage von zwei Tagen zurück bis 16 Tage voraus.
+
+        Datenbanklast: eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang; ist der Ort noch nicht bestimmt, kommt eine Suche beim Ortsdienst und ein Schreibvorgang auf das Lager dazu.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
 
@@ -21432,59 +21434,6 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/lager/{id}/wetter/ort:
-    put:
-      operationId: setzeLagerWetterOrt
-      summary: Ort für das Wetter setzen
-      description: |
-        Nur die Lagerleitung (die Abteilungsleitung gilt als Lagerleitung); der Ort lässt sich nicht je Rolle einstellen. Speichert Breite und Länge des Lagerorts in Grad, auf zwei Stellen gerundet; beide `null` schaltet das Wetter aus. Beide Werte oder keiner (sonst 400). Die Änderung steht im Protokoll (`lager_wetter_ort`, ohne den Ort).
-
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
-
-        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `nur Lagerleitung`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
-      tags:
-        - Lager
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - name: id
-          in: path
-          required: true
-          description: ID des Lagers (UUID).
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LagerWetterOrt"
-      responses:
-        "200":
-          description: "Der gespeicherte Ort."
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LagerWetterOrt"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "409":
-          description: |
-            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -30005,6 +29954,7 @@ components:
         - uebung
         - farbe
         - logoMediumId
+        - wetterOrt
       properties:
         id:
           type: string
@@ -30017,6 +29967,8 @@ components:
         bis:
           type: string
           format: date
+        wetterOrt:
+          $ref: "#/components/schemas/LagerWetterOrt"
         uebung:
           type: boolean
           description: Wahr bei einem Übungslager (erfundene Daten).
@@ -36813,21 +36765,6 @@ components:
           items:
             type: string
             enum: [gewitter, boeen, hitze, regen]
-    LagerWetterOrtWerte:
-      type: object
-      additionalProperties: false
-      required:
-        - breite
-        - laenge
-      properties:
-        breite:
-          type: number
-          minimum: -90
-          maximum: 90
-        laenge:
-          type: number
-          minimum: -180
-          maximum: 180
     LagerWetter:
       type: object
       additionalProperties: false
@@ -36837,10 +36774,7 @@ components:
         - tage
       properties:
         ort:
-          description: "Der Ort des Lagers; null, solange die Lagerleitung keinen gesetzt hat."
-          oneOf:
-            - $ref: "#/components/schemas/LagerWetterOrtWerte"
-            - type: "null"
+          $ref: "#/components/schemas/LagerWetterOrt"
         stand:
           description: "Zeitpunkt des letzten gelungenen Abrufs; null ohne Werte."
           type: [string, "null"]
@@ -36850,21 +36784,27 @@ components:
           items:
             $ref: "#/components/schemas/LagerWetterTag"
     LagerWetterOrt:
-      description: "Breite und Länge in Grad; beide null schaltet das Wetter aus."
+      description: "Stand der Ortssuche für das Wetter: Der Server bestimmt den Ort aus dem Lagerort, niemand gibt Koordinaten ein."
       type: object
       additionalProperties: false
       required:
-        - breite
-        - laenge
+        - status
+        - name
       properties:
-        breite:
-          type: [number, "null"]
-          minimum: -90
-          maximum: 90
-        laenge:
-          type: [number, "null"]
-          minimum: -180
-          maximum: 180
+        status:
+          type: string
+          enum:
+            [
+              kein_ort,
+              offen,
+              gefunden,
+              nicht_gefunden,
+              mehrdeutig,
+              nicht_erreichbar,
+            ]
+        name:
+          description: "Der gefundene Ort mit Kanton; nur bei `gefunden`."
+          type: [string, "null"]
     LagerTagesseite:
       description: "Was ein Tag zeigt: Seite mit Blöcken, Wetter des Tages und die Aufgaben mit Frist an diesem Tag."
       type: object

@@ -1,6 +1,7 @@
 import { z } from "zod";
+import { sucheOpenMeteo, type OrtSuchen } from "./wetter-geocoding.js";
 
-// Abruf der Wettervorhersage bei Open-Meteo (#391). Es gehen nur zwei Zahlen hinaus (Breite und Länge des Lagers, auf zwei Stellen gerundet), keine Namen, kein Schlüssel, keine Kennung der Person oder des Lagers. Der Host ist fest verdrahtet und nie eine Eingabe; die Adresse entsteht aus Zahlen. Kein Weiterleiten, ein Zeitlimit und eine gedeckelte Antwort: Ein langsamer oder geschwätziger Dienst hält den Server nicht auf.
+// Abruf der Wettervorhersage bei Open-Meteo (#391). Es gehen nur zwei Zahlen hinaus (Breite und Länge des Lagers, vom Server aus dem Lagerort bestimmt und auf zwei Stellen gerundet), keine Namen, kein Schlüssel, keine Kennung der Person oder des Lagers. Der Host ist fest verdrahtet und nie eine Eingabe; die Adresse entsteht aus Zahlen. Kein Weiterleiten, ein Zeitlimit und eine gedeckelte Antwort: Ein langsamer oder geschwätziger Dienst hält den Server nicht auf.
 const HOST = "api.open-meteo.com";
 const ZEITLIMIT_MS = 5_000;
 const MAX_BYTES = 64 * 1024;
@@ -88,4 +89,11 @@ export const holeOpenMeteo: WetterHolen = async (breite, laenge) => {
     regen: d.precipitation_sum[i] ?? null,
     boeen: d.wind_gusts_10m_max[i] ?? null,
   }));
+};
+
+// Beide Dienste, die das Wetter braucht: die Vorhersage und die Ortssuche (#694). Die Tests spritzen Attrappen ein, damit kein Abruf ins Netz geht
+export type Wetterdienst = { holen: WetterHolen; suchen: OrtSuchen };
+export const openMeteo: Wetterdienst = {
+  holen: holeOpenMeteo,
+  suchen: sucheOpenMeteo,
 };
