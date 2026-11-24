@@ -15,6 +15,7 @@ import {
 } from "./dom.js";
 import { oeffneFluss } from "./fluss.js";
 import { formularRaster } from "./formularraster.js";
+import { melde } from "./melden.js";
 import { entferneFehler, feldFehler, pruefHinweis } from "./liste-hilfen.js";
 import { suchWahl } from "./personen-wahl.js";
 import { siehtAlles } from "./sicht.js";
@@ -92,7 +93,6 @@ export function rollenFelder(stufen, rollen) {
     stufen.find((s) => s.id === id)?.name ?? "Unbekannte Stufe";
   const wurzel = el("div", { class: "pe-stufenzuweisung" });
   const aktiv = () => stufen.filter((s) => zugewiesen.get(s.id)?.weg === false);
-  const meldung = el("p", { class: "klein leise", role: "status" });
   const hinweis = el("p", { class: "hilfe" });
   const aendere = () =>
     wurzel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -165,7 +165,10 @@ export function rollenFelder(stufen, rollen) {
               else if (!rollen.some((r) => r.stufeId === s.id)) {
                 zugewiesen.delete(s.id);
               } else z.weg = true;
-              meldung.textContent = `${s.name}: ${z.weg || !zugewiesen.has(s.id) ? "wird entfernt" : "bleibt"}.`;
+              melde(
+                `${s.name}: ${z.weg || !zugewiesen.has(s.id) ? "wird entfernt" : "bleibt"}.`,
+                "info",
+              );
               zeichne(s.id);
               aendere();
             },
@@ -204,7 +207,10 @@ export function rollenFelder(stufen, rollen) {
           return;
         }
         zugewiesen.set(id, { typ, weg: false });
-        meldung.textContent = `${stufenName(id)} ist hinzugefügt. Sie gilt mit «Speichern».`;
+        melde(
+          `${stufenName(id)} ist hinzugefügt. Sie gilt mit «Speichern».`,
+          "info",
+        );
         zeichne(id, "rolle");
         aendere();
       },
@@ -233,7 +239,6 @@ export function rollenFelder(stufen, rollen) {
               hinzufuegen,
             )
           : el("p", { class: "hilfe" }, "Die Person hat schon alle Stufen."),
-      meldung,
       hinweis,
     );
     zeigeHinweis();

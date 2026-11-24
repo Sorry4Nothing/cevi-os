@@ -2,6 +2,7 @@
 
 import { fehlertext as standardFehlertext } from "./api.js";
 import { oeffneFluss } from "./fluss.js";
+import { melde } from "./melden.js";
 
 let zaehler = 0;
 export const neueId = (vorsatz) => `${vorsatz}-${++zaehler}`;
@@ -791,16 +792,17 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
   const titelId = neueId("titel");
   // Ein Absatz statt <output>: Das hätte die Rolle «status» und sagte das Passwort ungefragt an
   const anzeige = el("p", { class: "geheimnis" }, wert);
-  const rueck = el("p", { class: "hilfe", role: "status" });
   const kopieren = knopf("Kopieren", {
     symbol: "kopieren",
     onclick: async () => {
       try {
         await navigator.clipboard.writeText(wert);
-        rueck.textContent = "Kopiert.";
+        melde("Kopiert.");
       } catch {
-        rueck.textContent =
-          "Kopieren ist nicht möglich. Markiere das Passwort von Hand.";
+        melde(
+          "Kopieren ist nicht möglich. Markiere das Passwort von Hand.",
+          "fehler",
+        );
       }
     },
   });
@@ -820,7 +822,6 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
     el("h2", { id: titelId, tabindex: "-1" }, titel),
     el("p", { class: "beschreibung" }, beschreibung),
     anzeige,
-    rueck,
     el("div", { class: "dialog-knoepfe" }, kopieren, schliessen),
   );
   dialog.close = () => {

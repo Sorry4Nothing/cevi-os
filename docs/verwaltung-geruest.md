@@ -11,7 +11,7 @@ Kopf (header.kopfzeile, wie website/kopf.css)
   Unterleiste      die Unterseiten des aktiven Bereichs auf der Fläche der Seite, Zähler als roter Kreis; scrollt mit weg
 main#inhalt        .rahmen (max. 105 rem und Seitenrand clamp(1rem, 4vw, 4.5rem): dieselben Werte wie .wrap und --rand der Website, in der Verwaltung als --seitenbreite und --seitenrand, weil --rand hier die Randfarbe ist; Kopf, Leisten, Hinweisband, Seitenkopf und Inhalt haben exakt dieselben Kanten wie die Website)
   #seitenkopf      h1 + Untertitel + rechts die Hauptaktion
-  #rueckmeldung    Meldungen; darunter die Toasts mit «Rückgängig»
+  (Toasts)         feste Region unten links (`.toasts`, position fixed, im Baum gleich nach dem Kopf): Rückmeldungen und «Rückgängig»
   #bereich         hier zeichnet dein Modul
 ```
 
@@ -45,6 +45,7 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `auswahl.js`, `auswahl.css`                                                                                                                                                                                       | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                                                                                                                                         |
 | `fluss.js`, `fluss.css`, `verlauf.js`                                                                                                                                                                             | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                                                                                                                                      |
 | `rueckgaengig.js`, `toast.css`                                                                                                                                                                                    | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                                                                                                                             |
+| `melden.js`                                                                                                                                                                                                       | Rückmeldung (Toast) für Dateien ohne `ctx`: `melde(text, art, aktion)`                                                                                                                                                  |
 | `admin.css`                                                                                                                                                                                                       | Verweise auf die Tokens und die Bausteine der Verwaltung                                                                                                                                                                |
 | `geruest.css`                                                                                                                                                                                                     | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                                                                                                                            |
 | `komponenten.css`                                                                                                                                                                                                 | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                                                                                                                                |
@@ -84,7 +85,7 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `admin.js`                                            | Anmeldung, zweiter Faktor, Sperren, Router, `ctx` für die Module                                                                      |
 | `navigation.js`                                       | **Bereiche und Unterseiten**, Recht je Eintrag (`darfSehen`), Rolle im Kopf (`rolleVon`). Hier meldet sich ein Modul an               |
 | `sicht.js`                                            | **Wer die Person ist** (#737): `siehtAlles`, `istAbteilungsleitung`, `istEntwickler`                                                  |
-| `rahmen.js`                                           | Marke, Logozeile, Leisten, Bereichsauswahl (schmal), Seitenkopf, Rückmeldungen, Toasts                                                |
+| `rahmen.js`                                           | Marke, Logozeile, Leisten, Bereichsauswahl (schmal), Seitenkopf, Toasts (Rückmeldungen und «Rückgängig»)                              |
 | `lader.js`                                            | `erstelleLader` (Laden mit Skeleton) und die Skeleton-Bausteine                                                                       |
 | `zustaende.js`                                        | `zustandsDaten`, `rahmenzustand`, `zustandsKarte`, `leerKarte`, `nochmals`, `zeichen`                                                 |
 | `platzhalter.js`                                      | Karte «noch nicht umgesetzt» für Unterseiten ohne Modul                                                                               |
@@ -96,6 +97,7 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `auswahl.js`, `auswahl.css`                           | Eigenes Auswahlfeld (Kopien der Dateien der Website), wertet jedes `select` auf                                                       |
 | `fluss.js`, `fluss.css`, `verlauf.js`                 | Seiten im Fluss statt Dialoge, Panel im Editor, Verlauf und Zurück                                                                    |
 | `rueckgaengig.js`, `toast.css`                        | Toasts mit «Rückgängig», zweistufige Knöpfe                                                                                           |
+| `melden.js`                                           | Rückmeldung (Toast) für Dateien ohne `ctx`: `melde(text, art, aktion)`                                                                |
 | `admin.css`                                           | Verweise auf die Tokens und die Bausteine der Verwaltung                                                                              |
 | `geruest.css`                                         | Kopf, Leisten, Zustandsseiten, Rückmeldungen                                                                                          |
 | `komponenten.css`                                     | Fläche, Skeleton, Schalter, Pillen, Wahlkarte, Snackbar, Fortschritt, Schritte, Konflikt                                              |
@@ -379,9 +381,29 @@ Zustände in `zustaende.js`:
 
 Für Fehler ohne eigenen Fall (500 und andere) kann eine Ansicht den Titel nennen, den ihr Board vorgibt: `ctx.lade(mitFehlertitel("Die Gruppen konnten nicht geladen werden.", laden), …)` (`liste-hilfen.js`). Der Fehler trägt dann `zustandTitel`; `zustandsDaten` zeigt ihn mit «Prüfe die Verbindung und versuche es nochmals.». Verbindung, Sitzung, Rechte und 404 behalten ihre Texte.
 
-## Rückmeldungen
+## Rückmeldungen: Toast oder inline (#761)
 
-`ctx.melde(text, art, aktion)` stapelt Hinweise in einer Live-Region (`#rueckmeldung`). Jede hat «Hinweis schliessen». Erfolg und Info (`ok`, `info`) ohne Aktion blenden nach 6 Sekunden von selbst aus; die Zeit hält an, solange der Zeiger auf der Meldung steht oder der Fokus darin liegt, und beginnt danach neu. Warnungen, Fehler und jede Meldung mit einer Aktion bleiben, bis man sie schliesst. Fehler sind `role="alert"`. Dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle; der Router tut das bei jeder Navigation.
+**Regel:** Das Ergebnis einer Aktion ist ein **Toast**: Erfolg («Gespeichert.»), ein Fehler, der nichts blockiert («Speichern hat nicht geklappt.»), eine Info nach einer Aktion («Link kopiert.»), eine Warnung nach einer Aktion. Es gibt genau eine Stelle (unten links, am Handy über die ganze Breite) und ein Bauteil (`erstelleToasts` in `rahmen.js`, `toast.css`).
+
+- In Modulen: `ctx.melde(text, art, aktion)`. In Dateien ohne `ctx` (Hilfen, Bauteile): `import { melde } from "./melden.js"`. `art` ist `ok`, `info`, `warn` oder `fehler`; `aktion` ist `{ text, onclick }` («Beheben», «Nochmals versuchen»).
+- **Zeit:** Erfolg und Info 4 Sekunden, Warnung und Fehler 8 Sekunden. Mit `aktion` bleibt der Toast, bis man ihn schliesst: Dort gibt es etwas zu entscheiden. Zeiger und Tastaturfokus halten die Zeit an (WCAG 2.2.1), nach dem Verlassen beginnt sie neu. Jeder Toast hat «Hinweis schliessen»; Esc schliesst den Toast mit Fokus oder unter dem Zeiger; F6 setzt den Fokus auf den ersten Knopf der Region.
+- **Ansage (4.1.3):** Erfolg, Info und Warnung sagt die höfliche Statusregion (`aria-live="polite"`) an, nur ein Fehler ist `role="alert"`. Der Toast bekommt den Fokus nie von selbst.
+- **Stapel:** höchstens drei Rückmeldungen zugleich, die älteste geht zuerst; dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle. Der Router leert die Toasts nicht: Eine Meldung nach dem Speichern bleibt, wenn die Ansicht wechselt.
+- **Bewegung:** Mit «Bewegung reduzieren» kein Gleiten, kein Ausblenden. Farben aus den Tokens (Tag und Nacht), Symbol vor dem Text (Haken, Info, Warndreieck), bei erzwungenen Farben ein Rand.
+- **Text:** kurz, im Perfekt oder Zustand, ohne Emoji: «Gespeichert.», «Link kopiert.», «Nicht gespeichert. Deine Eingaben sind noch da.».
+
+**Bleibt inline** (Prüfliste für neue Ansichten; die erlaubten Stellen stehen mit Grund in `test/admin-toasts.test.ts`):
+
+| Grund          | Beispiel                                                                                                                              | Warum nicht Toast                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `feld`         | «Bitte ausfüllen.» am Feld, `aria-describedby`                                                                                        | gehört zum Feld (WCAG 3.3.1)                                               |
+| `absenden`     | Fehlerzusammenfassung eines offenen Formulars oder Blatts, der Fokus springt hin                                                      | die Person muss etwas ändern und bleibt im Formular (3.3.1, 3.3.3)         |
+| `zustand`      | Skeleton, «Noch keine Einträge», «Konnte nicht geladen werden» mit «Nochmals versuchen», Trefferzahl                                  | Zustand der Ansicht, nicht Ergebnis einer Aktion                           |
+| `dauerhaft`    | Marke «Nicht gespeichert», Banner «Startpasswort ändern», Berechtigungshinweise, Verbindungsstatus, Fortschritt, Vorschau eines Werts | bleibt wahr, solange die Seite so ist                                      |
+| `entscheidung` | Versionskonflikt mit «Meine Änderung übernehmen», «Änderungen verwerfen?»                                                             | verlangt eine Entscheidung (dann im Inhalt oder als Dialog, nie als Toast) |
+| `ansage`       | Live-Region nur für Screenreader (neue Position nach dem Verschieben)                                                                 | sagt etwas, das kein Toast sagt                                            |
+
+Ein Fehler, der nach 8 Sekunden weg wäre, obwohl er der einzige Hinweis auf nicht gespeicherte Eingaben ist, braucht eine dauerhafte Marke («Nicht gespeichert», Speicherleiste) oder bleibt inline. Wer ein neues `role="status"`, `role="alert"`, `aria-live` oder `class="hinweis"` einbaut, erweitert die Liste im Test und nennt den Grund; ist es das Ergebnis einer Aktion, ruft er `ctx.melde` auf.
 
 ### Aktionen mit «Rückgängig» statt Rückfrage (#578)
 
@@ -401,7 +423,7 @@ ctx.mitRueckgaengig({
 
 - Der Toast (unten links, am Handy volle Breite) trägt den Text, «Rückgängig», einen Schliessen-Knopf und einen Balken, der in 8 Sekunden abläuft (nur bei erlaubter Bewegung). Zeiger und Fokus halten die Frist an. «Schliessen» heisst in der Frist «jetzt ausführen» (Beschriftung «Jetzt ausführen und schliessen»), nie «verwerfen».
 - «Rückgängig» geht per Knopf, mit Strg oder Cmd + Z (ausser in Eingabefeldern, dort gilt das Rückgängig des Feldes) und über F6, das den Fokus auf den ersten Knopf setzt. Der Toast bekommt den Fokus nie von selbst; die Region steht im Seitenaufbau gleich nach dem Kopf, und die Statusregion sagt die Aktion mit der Möglichkeit zum Rückgängigmachen an («… Rückgängig mit dem Knopf oder mit Strg Z.»).
-- Nach der Frist läuft die Anfrage; der Toast wechselt zu «Erledigt.» und geht nach 6 Sekunden von selbst. Ein Fehler stellt die Ansicht wieder her und bleibt als Toast (`role="alert"`) stehen, bis man ihn schliesst.
+- Nach der Frist läuft die Anfrage; der Toast wechselt zu «Erledigt.» und geht nach 4 Sekunden von selbst. Ein Fehler stellt die Ansicht wieder her und bleibt als Toast (`role="alert"`) stehen, bis man ihn schliesst.
 - Verlässt die Person die Seite oder den Tab vor Ablauf (`pagehide`) oder meldet sie sich ab, laufen alle offenen Aktionen sofort (mit `keepalive`), nie still verworfen. Mehrere Aktionen stapeln sich.
 - Die Logik steht rein in `rueckgaengig.js` (Zeitgeber einsetzbar, Test `admin-rueckgaengig.test.ts`), die Darstellung in `rahmen.js` (`erstelleToasts`) und `toast.css`.
 
@@ -434,30 +456,30 @@ Schrift: Archivo als eigene Datei (`/admin/archivo-latin.woff2`, die CSP der Ver
 
 Das Design schreibt `knopf haupt`, im Code heisst es `knopf knopf--haupt`. Die Helfer in `dom.js` setzen die Klassen für dich.
 
-| Baustein           | Code                                                                                         | Design (G4/G6)                          |
-| ------------------ | -------------------------------------------------------------------------------------------- | --------------------------------------- |
-| Knopf              | `knopf(text, { art: "haupt" \| "blau" \| "gefahr" \| "still", klein, symbol })`              | `knopf haupt/blau/gefahr/still/kompakt` |
-| Knopf lädt         | `aria-busy="true"` und `disabled` am Knopf (Ladekreis per CSS)                               | Ladekreis im Aktionsknopf               |
-| Knopf rund         | `class="knopf knopf--rund"` mit `aria-label`                                                 | `knopf rund`                            |
-| Chip               | `chip(text, "ok" \| "warn" \| "fehler" \| "stufe", symbol)` in `ul.chips`; `zeichen([...])`  | `chip ok/wa/fe/st`                      |
-| Hinweis            | `ctx.melde(...)`; fest eingebaut `div.hinweis.hinweis--ok/--info/--warn/--fehler`            | `hinweis ok/wa/fe`                      |
-| Fläche             | `section.flaeche` (mit `h2`), `ul.liste-zeilen`, `dl.werte > div > dt + dd`                  | `flaeche`, `liste-zeilen`, `werte`      |
-| Tabelle            | `tabelle({ beschriftung, spalten, zeilen })`; `th scope`, `aria-sort` und Sortierwort selbst | `box table`                             |
-| Blättern           | `seitenwahl({ beiWechsel })` (`nav.seitenwahl`)                                              | `pagination`                            |
-| Filter             | `filterGruppe({...})` (`aria-pressed`)                                                       | `filter`                                |
-| Pillen             | `button.pille[aria-pressed]` in `div.pillen`                                                 | `pille`                                 |
-| Schalter           | `button.schalter[role=switch][aria-checked]`, Zeile `div.schalterzeile`                      | `schalter`                              |
-| Wahlkarte          | `label.wahlkarte > input[type=radio] + div(strong, span)`                                    | `wahlkarte`                             |
-| Feld               | `feld({ label, hilfe, wert })`, `auswahl`, `ankreuzen`, `gruppe`, `codefeld`                 | `feld`, `eingabe`                       |
-| Kästchen           | `ankreuzen`; jedes `input[type=checkbox]` hat die Gestaltung aus `admin.css` (#668)          | `wahl`                                  |
-| Dialog             | `dialogFormular({...})`; Rückfragen: `ctx.mitRueckgaengig({...})` (Toast), `zweistufig(...)` | `dialog`                                |
-| Seitenblatt        | `seitenblatt({ titel, untertitel, inhalt, fusszeile })` (ohne Radius, 600 px)                | `blatt`                                 |
-| Snackbar           | `div.snack` (nur wenn nötig; sonst `ctx.melde`)                                              | `snack`                                 |
-| Fortschritt        | `div.fortschritt > span`, `ol.schritte > li[aria-current=step]`                              | `fortschritt`, `schritte`               |
-| Konflikt           | `div.konflikt` mit zwei Spalten                                                              | `konflikt`                              |
-| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)` (roter Kreis, 24 px)                                       | `pille-zaehler`                         |
+| Baustein           | Code                                                                                                         | Design (G4/G6)                          |
+| ------------------ | ------------------------------------------------------------------------------------------------------------ | --------------------------------------- |
+| Knopf              | `knopf(text, { art: "haupt" \| "blau" \| "gefahr" \| "still", klein, symbol })`                              | `knopf haupt/blau/gefahr/still/kompakt` |
+| Knopf lädt         | `aria-busy="true"` und `disabled` am Knopf (Ladekreis per CSS)                                               | Ladekreis im Aktionsknopf               |
+| Knopf rund         | `class="knopf knopf--rund"` mit `aria-label`                                                                 | `knopf rund`                            |
+| Chip               | `chip(text, "ok" \| "warn" \| "fehler" \| "stufe", symbol)` in `ul.chips`; `zeichen([...])`                  | `chip ok/wa/fe/st`                      |
+| Hinweis            | Ergebnis einer Aktion: `ctx.melde(...)` (Toast); dauerhaft: `div.hinweis.hinweis--ok/--info/--warn/--fehler` | `hinweis ok/wa/fe`                      |
+| Fläche             | `section.flaeche` (mit `h2`), `ul.liste-zeilen`, `dl.werte > div > dt + dd`                                  | `flaeche`, `liste-zeilen`, `werte`      |
+| Tabelle            | `tabelle({ beschriftung, spalten, zeilen })`; `th scope`, `aria-sort` und Sortierwort selbst                 | `box table`                             |
+| Blättern           | `seitenwahl({ beiWechsel })` (`nav.seitenwahl`)                                                              | `pagination`                            |
+| Filter             | `filterGruppe({...})` (`aria-pressed`)                                                                       | `filter`                                |
+| Pillen             | `button.pille[aria-pressed]` in `div.pillen`                                                                 | `pille`                                 |
+| Schalter           | `button.schalter[role=switch][aria-checked]`, Zeile `div.schalterzeile`                                      | `schalter`                              |
+| Wahlkarte          | `label.wahlkarte > input[type=radio] + div(strong, span)`                                                    | `wahlkarte`                             |
+| Feld               | `feld({ label, hilfe, wert })`, `auswahl`, `ankreuzen`, `gruppe`, `codefeld`                                 | `feld`, `eingabe`                       |
+| Kästchen           | `ankreuzen`; jedes `input[type=checkbox]` hat die Gestaltung aus `admin.css` (#668)                          | `wahl`                                  |
+| Dialog             | `dialogFormular({...})`; Rückfragen: `ctx.mitRueckgaengig({...})` (Toast), `zweistufig(...)`                 | `dialog`                                |
+| Seitenblatt        | `seitenblatt({ titel, untertitel, inhalt, fusszeile })` (ohne Radius, 600 px)                                | `blatt`                                 |
+| Snackbar           | Toast: `ctx.melde(...)`; kein eigenes `div.snack`                                                            | `snack`                                 |
+| Fortschritt        | `div.fortschritt > span`, `ol.schritte > li[aria-current=step]`                                              | `fortschritt`, `schritte`               |
+| Konflikt           | `div.konflikt` mit zwei Spalten                                                                              | `konflikt`                              |
+| Zähler Unterleiste | `ctx.zaehler(unterSchluessel, n)` (roter Kreis, 24 px)                                                       | `pille-zaehler`                         |
 
-Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit «Rückgängig» (Toast) oder, wo das nicht geht, zwei Stufen im Knopf, nie mit einem Popup; Tabellen mit `th scope` und `aria-sort`; nur Erfolgs- und Infomeldungen verschwinden von selbst, nie ein Fehler oder eine Rückfrage. Eine Meldung, die bleiben muss, bis jemand handelt, bekommt die Art `warn` oder `fehler` oder eine Aktion.
+Regeln, die weiter gelten: genau eine rote Hauptaktion je Ansicht; fehlt die Aktion in der API, fehlt der Knopf (nicht ausgegraut); Löschen, Wiederherstellen und Archivieren nie rot-primär und immer mit «Rückgängig» (Toast) oder, wo das nicht geht, zwei Stufen im Knopf, nie mit einem Popup; Tabellen mit `th scope` und `aria-sort`; Ergebnisse von Aktionen sind Toasts (Erfolg 4 s, Fehler 8 s, mit Aktion bis zum Schliessen), nie ein Kasten im Inhalt; eine Rückfrage verschwindet nie von selbst. Eine Meldung, die bleiben muss, bis jemand handelt, bekommt eine Aktion.
 
 ### Listen und Formulare (Personen, Gruppen und Tags)
 

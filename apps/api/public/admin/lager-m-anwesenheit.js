@@ -225,7 +225,6 @@ function zeichne(bereich, ctx, d) {
     hidden: true,
   });
   const anfragenOrt = el("div");
-  const meldeOrt = el("p", { class: "nur-leser", role: "status" });
 
   function zeichneFrist() {
     const text = frist
@@ -878,7 +877,6 @@ function zeichne(bereich, ctx, d) {
     anfragenOrt,
     eigeneAnfragen,
     leiste,
-    meldeOrt,
   );
   zeichneFrist();
   zeichneTabelle();

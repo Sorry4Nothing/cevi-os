@@ -86,17 +86,12 @@ function zeichneMitglieder(bereich, ctx, lager, alle, neu) {
           .filter(Boolean);
         if (fehler.length === gewaehlt.length) throw fehler[0][1];
         await neu();
-        if (fehler.length > 0)
-          ctx.melde(
-            `Nicht hinzugefügt: ${fehler.map(([p]) => p.name).join(", ")}. ${meldung(fehler[0][1])}`,
-            "warn",
-          );
-        else
-          ctx.melde(
-            gewaehlt.length === 1
-              ? `${gewaehlt[0].name} ist jetzt ${ROLLENNAME[rolle]}.`
-              : `${gewaehlt.length} Personen sind jetzt ${ROLLENNAME[rolle]}.`,
-          );
+        if (fehler.length === 0) return;
+        ctx.melde(
+          `Nicht hinzugefügt: ${fehler.map(([p]) => p.name).join(", ")}. ${meldung(fehler[0][1])}`,
+          "warn",
+        );
+        return false;
       },
       fehlertext: meldung,
     });

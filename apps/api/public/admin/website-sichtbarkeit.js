@@ -273,9 +273,8 @@ function rechteBereich(r, tagNamen) {
     );
     return wurzel;
   }
-  const meldung = el("p", { class: "hilfe", role: "status", tabindex: "-1" });
   const platz = el("div", {});
-  wurzel.append(platz, meldung);
+  wurzel.append(platz);
   let personen = new Map();
   const bezeichnung = (b) =>
     b.tagId
@@ -300,13 +299,11 @@ function rechteBereich(r, tagNamen) {
             try {
               await anfrage("DELETE", `/api/v1/admin/bearbeiter/${b.id}`);
               li.remove();
-              meldung.setAttribute("role", "status");
-              meldung.textContent = `Das Recht von ${name} ist entzogen.`;
+              platz.querySelector("button")?.focus();
+              melde(`Das Recht von ${name} ist entzogen.`);
             } catch (f) {
-              meldung.setAttribute("role", "alert");
-              meldung.textContent = fehlertext(f);
+              melde(fehlertext(f), "fehler");
             }
-            meldung.focus();
           },
         }),
       );

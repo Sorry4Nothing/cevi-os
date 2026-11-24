@@ -329,12 +329,15 @@ function zeichneListe(bereich, ctx, erste) {
       anlaesse.push(...seite.anlaesse);
       weitere = seite.weitere;
       naechste = seite.naechste;
-      meldung.textContent = `${zaehlwort(seite.anlaesse.length, "weiterer Anlass", "weitere Anlässe")} geladen.`;
+      ctx.melde(
+        `${zaehlwort(seite.anlaesse.length, "weiterer Anlass", "weitere Anlässe")} geladen.`,
+      );
       zeichneFilter();
       zeichneAnlaesse();
     } catch (f) {
-      meldung.textContent = `${meldungVon(f)} Versuche es nochmals.`;
+      ctx.melde(`${meldungVon(f)} Versuche es nochmals.`, "fehler");
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
     }
@@ -856,7 +859,6 @@ function zeichneEinstellungen(
       aktualisiere();
     },
   });
-  const meldungen = el("div", {});
 
   function aktualisiere() {
     const n = anzahlAenderungen(start, f.lies());
@@ -868,7 +870,6 @@ function zeichneEinstellungen(
   }
 
   async function speichern(knopfNode) {
-    ersetze(meldungen);
     if (f.pruefe()) return;
     knopfNode.disabled = true;
     knopfNode.setAttribute("aria-busy", "true");
@@ -887,15 +888,13 @@ function zeichneEinstellungen(
       await neu();
       document.querySelector("h1")?.focus();
     } catch (fehler) {
-      const hinweis = el(
-        "div",
-        { class: "hinweis hinweis--fehler", role: "alert", tabindex: "-1" },
+      ctx.melde(
         `Nicht gespeichert. ${meldungVon(fehler)} Deine Eingaben sind noch da.`,
+        "fehler",
       );
-      ersetze(meldungen, hinweis);
-      hinweis.focus();
       knopfNode.disabled = false;
       knopfNode.removeAttribute("aria-busy");
+      knopfNode.focus();
     }
   }
 
@@ -919,7 +918,6 @@ function zeichneEinstellungen(
   const form = el(
     "div",
     { class: "anl-einstellungen" },
-    meldungen,
     el(
       "section",
       { class: "flaeche", "aria-labelledby": "anl-e-anm" },

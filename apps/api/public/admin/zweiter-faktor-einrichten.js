@@ -4,6 +4,7 @@
 import { ApiFehler, anfrage, fehlertext } from "./api.js";
 import { ankreuzen, codefeld, el, feld, icon, knopf, neueId } from "./dom.js";
 import { feldFehler } from "./liste-hilfen.js";
+import { melde } from "./melden.js";
 import { zeichneQr } from "./qr.js";
 
 // Der geheime Schlüssel aus dem Link otpauth://…?secret=…; ohne ihn gibt es nichts einzurichten
@@ -41,7 +42,6 @@ export function erstelleEinrichtung({
   fertigText = "Fertig",
 } = {}) {
   const wurzel = el("div", { class: "zf" });
-  const ansage = el("p", { class: "nur-leser", role: "status" });
   let ueberschrift = null;
 
   // Ein Schritt ersetzt den vorigen; der Fokus geht auf seine Überschrift
@@ -51,7 +51,6 @@ export function erstelleEinrichtung({
       el("p", { class: "ueber" }, `Schritt ${schritt} von 3`),
       ueberschrift,
       ...inhalt,
-      ansage,
     );
     ueberschrift.focus();
   };
@@ -150,16 +149,17 @@ export function erstelleEinrichtung({
   }
 
   function schrittScannen(link, schluessel, ersatzcodes) {
-    const rueck = el("p", { class: "hilfe", role: "status" });
     const kopieren = knopf("Schlüssel kopieren", {
       symbol: "kopieren",
       onclick: async () => {
         try {
           await navigator.clipboard.writeText(schluessel);
-          rueck.textContent = "Schlüssel kopiert.";
+          melde("Schlüssel kopiert.");
         } catch {
-          rueck.textContent =
-            "Kopieren ist nicht möglich. Markiere den Schlüssel von Hand.";
+          melde(
+            "Kopieren ist nicht möglich. Markiere den Schlüssel von Hand.",
+            "fehler",
+          );
         }
       },
     });
@@ -268,14 +268,12 @@ export function erstelleEinrichtung({
           "Gruppen zu vier Zeichen, Gross- und Kleinschreibung egal. Wähle in der App «zeitbasiert» mit sechs Ziffern und 30 Sekunden.",
         ),
         el("div", { class: "zf-aktionen" }, kopieren),
-        rueck,
       ),
       formular,
     );
   }
 
   function schrittErsatzcodes(codes) {
-    const rueck = el("p", { class: "hilfe", role: "status" });
     const liste = el(
       "ul",
       { class: "zf-codes", "aria-label": "Ersatzcodes" },
@@ -286,10 +284,12 @@ export function erstelleEinrichtung({
       onclick: async () => {
         try {
           await navigator.clipboard.writeText(codes.join("\n"));
-          rueck.textContent = "Ersatzcodes kopiert.";
+          melde("Ersatzcodes kopiert.");
         } catch {
-          rueck.textContent =
-            "Kopieren ist nicht möglich. Markiere die Codes von Hand.";
+          melde(
+            "Kopieren ist nicht möglich. Markiere die Codes von Hand.",
+            "fehler",
+          );
         }
       },
     });
@@ -338,7 +338,6 @@ export function erstelleEinrichtung({
       ),
       liste,
       el("div", { class: "zf-aktionen" }, kopieren),
-      rueck,
       gespeichert.wurzel,
       fehler,
       el("div", { class: "zf-aktionen" }, fertig),

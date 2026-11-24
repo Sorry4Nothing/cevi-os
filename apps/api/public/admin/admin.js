@@ -24,7 +24,6 @@ import {
 } from "./navigation.js";
 import {
   erstelleLeisten,
-  erstelleRueckmeldungen,
   erstelleToasts,
   bindeThema,
   ladeOeffentlicheMarke,
@@ -32,6 +31,7 @@ import {
   seitenkopf,
   setzeMarke,
 } from "./rahmen.js";
+import { verdrahteMelder } from "./melden.js";
 import { mitRueckgaengig, steuerung, verdrahte } from "./rueckgaengig.js";
 import { merkeEintrag, stelleWiederHer } from "./verlauf.js";
 import {
@@ -425,23 +425,22 @@ async function abmelden() {
   try {
     await anfrage("POST", "/api/auth/sign-out", {});
   } catch (f) {
-    if (document.getElementById("rueckmeldung")) melde(fehlertext(f), "fehler");
+    if (toasts.wurzel.isConnected) melde(fehlertext(f), "fehler");
     else zeigeLogin(fehlertext(f));
     return;
   }
   zeigeLogin("Du bist abgemeldet.");
 }
 
-// Rückmeldung in die Live-Region (nach dem Aufbau der Verwaltung gesetzt)
-let rueckmeldungen = null;
+// Rückmeldung als Toast (#761); ohne Aufbau der Verwaltung (Anmeldeseite, Rahmenseiten) zeigt sie nichts
 function melde(text, art = "ok", aktion) {
-  rueckmeldungen?.melde(text, art, aktion);
+  toasts.melde(text, art, aktion);
 }
+verdrahteMelder(melde);
 
 // Schlichte Seite im Rahmen ohne Konto und ohne Bereichsleiste (A30: 401, 502 und 503 beim Start): Logozeile und der Zustand
 function zeigeRahmenSeite(daten, aktionen) {
   ich = null;
-  rueckmeldungen = null;
   const karte = rahmenzustand(daten, aktionen);
   zeichne(
     el(
@@ -490,7 +489,7 @@ const leisten = erstelleLeisten();
 const hinweisband = erstelleHinweisband();
 const darfPlattform = () =>
   siehtAlles(ich) || zugang?.bereiche.includes("plattform") === true;
-// Toasts mit «Rückgängig» (#578): Die Region steht im Seitenaufbau gleich nach dem Kopf; sie bleibt bei jeder Navigation bestehen
+// Toasts (#578, #761): «Rückgängig» und die Rückmeldungen nach Aktionen. Die Region steht im Seitenaufbau gleich nach dem Kopf; sie bleibt bei jeder Navigation bestehen, auch eine Meldung nach dem Speichern, wenn die Ansicht wechselt
 const toasts = erstelleToasts(steuerung);
 verdrahte({
   beiAenderung: toasts.zeichne,
@@ -520,7 +519,6 @@ async function zeigeVerwaltung(profil) {
     zugang,
     profil,
   });
-  rueckmeldungen = erstelleRueckmeldungen();
   // Name und Logo der Abteilung aus den Einstellungen der Website; ohne Recht darauf bleibt, was die öffentliche Website zeigt, sonst die Wortmarke «CEVI»
   if (einstellungen) setzeMarke(einstellungen);
   zaehlerStand.clear();
@@ -550,7 +548,6 @@ async function zeigeVerwaltung(profil) {
           "div",
           { class: "rahmen" },
           el("div", { id: "seitenkopf" }),
-          rueckmeldungen.wurzel,
           el("div", { id: "bereich" }),
         ),
       ),
@@ -567,7 +564,6 @@ function zeigeKeinZugriff(bereichName) {
     .getElementById("seitenkopf")
     .replaceWith(el("div", { id: "seitenkopf" }));
   document.title = "Kein Zugriff – Verwaltung – Cevi OS";
-  melde("");
   const karte = rahmenzustand(
     {
       ueber: "Fehler 403",
@@ -589,7 +585,6 @@ function zeigeNichtGefunden() {
     .getElementById("seitenkopf")
     .replaceWith(el("div", { id: "seitenkopf" }));
   document.title = "Nicht gefunden – Verwaltung – Cevi OS";
-  melde("");
   const karte = rahmenzustand(
     {
       ueber: "Fehler 404",
@@ -636,7 +631,6 @@ async function navigiere() {
   const kopf = seitenkopf({ titel: unter.name, untertitel: unter.untertitel });
   document.getElementById("seitenkopf").replaceWith(kopf.wurzel);
   document.title = `${unter.name} – Verwaltung – Cevi OS`;
-  melde("");
   // Ein neuer Container je Navigation: Späte Antworten des alten landen in einem abgehängten Knoten
   const container = el("div", { id: "bereich" });
   document.getElementById("bereich").replaceWith(container);

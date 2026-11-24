@@ -530,11 +530,18 @@ function zeigeBestellungen(bereich, ctx) {
         bestellungen.push(...seite.bestellungen);
         weitere = seite.weitere;
         naechste = seite.naechste;
-        meldung.textContent = `${zaehlwort(seite.bestellungen.length, "weitere Bestellung", "weitere Bestellungen")} geladen.`;
         zeichneListe();
+        ctx.melde(
+          `${zaehlwort(seite.bestellungen.length, "weitere Bestellung", "weitere Bestellungen")} geladen.`,
+          "info",
+        );
       } catch (f) {
-        meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
+        ctx.melde(fehlertext(f), "fehler", {
+          text: "Nochmals versuchen",
+          onclick: ladeWeitere,
+        });
       } finally {
+        meldung.textContent = "";
         mehr.disabled = false;
         mehr.removeAttribute("aria-busy");
       }

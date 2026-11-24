@@ -186,27 +186,17 @@ export function zeige(bereich, ctx, id, lager = null) {
             if (!bereich.isConnected) return;
             fortschritt.hidden = true;
             if (f?.name === "AbortError") {
-              meldungZeile.textContent =
-                "Abgebrochen. Es wurde nichts gespeichert.";
-              zeigeBereit();
-              zustand.firstChild.focus();
-              return;
+              meldungZeile.textContent = "";
+              ctx.melde("Abgebrochen. Es wurde nichts gespeichert.", "info");
+            } else {
+              meldungZeile.textContent = "";
+              ctx.melde(
+                `${name}: Erstellen fehlgeschlagen. ${TEXTE[f?.status] ?? meldung(f)}`,
+                "fehler",
+              );
             }
-            meldungZeile.replaceChildren(
-              el(
-                "span",
-                { class: "lg-dl-fehler" },
-                symbol("info"),
-                `Erstellen fehlgeschlagen. ${TEXTE[f?.status] ?? meldung(f)}`,
-              ),
-            );
-            const nochmal = knopfMit("Nochmals versuchen", {
-              symbol: "aktualisieren",
-              kontext: name,
-              onclick: erstellen,
-            });
-            zustand.replaceChildren(nochmal);
-            nochmal.focus();
+            zeigeBereit();
+            zustand.firstChild.focus();
           }
         };
         zeigeBereit();

@@ -37,7 +37,7 @@ const TEXTE = {
 // Die Meldung für einen Fehler der Lager-Routen; Codes ohne eigenen Text folgen dem Gerüst
 export const meldung = (f) => TEXTE[f?.code] ?? fehlertext(f);
 
-// Eine Meldung, die nach einer Navigation stehen soll (der Router leert die Rückmeldungen bei jedem Wechsel); die nächste Seite zeigt sie einmal
+// Eine Meldung, die erst die nächste Seite zeigt (nach dem Anlegen oder Löschen eines Lagers); sie erscheint einmal als Toast
 let wartend = null;
 export const merkeMeldung = (text, art = "ok", aktion) =>
   (wartend = { text, art, aktion });

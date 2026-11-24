@@ -229,7 +229,6 @@ function zeichne(bereich, ctx, start) {
   function zeichneDetail(v, { fokus = false, vermerk = null } = {}) {
     const titel = el("h2", { tabindex: "-1" }, v.titel);
     const eigener = v.vorgeschlagenVon === ctx.ich.id;
-    const rueck = el("p", { class: "klein", role: "status" });
     const zeilen = [
       ["Datum", terminAnzeige(v).tag],
       [
@@ -288,14 +287,13 @@ function zeichne(bereich, ctx, start) {
       block("Beschreibung", v.beschreibung),
       block("Bemerkung", v.bemerkung),
       v.status === "abgelehnt" && block("Begründung", v.begruendung),
-      aktionen(v, eigener, rueck),
-      rueck,
+      aktionen(v, eigener),
     );
     detail.removeAttribute("aria-busy");
     if (fokus) titel.focus();
   }
 
-  function aktionen(v, eigener, rueck) {
+  function aktionen(v, eigener) {
     if (v.status === "offen") {
       if (eigener) {
         return el(
@@ -333,10 +331,12 @@ function zeichne(bereich, ctx, start) {
             onclick: async () => {
               try {
                 await navigator.clipboard.writeText(v.kategorien.join("; "));
-                rueck.textContent = "Kategorien kopiert.";
+                ctx.melde("Kategorien kopiert.");
               } catch {
-                rueck.textContent =
-                  "Kopieren ist nicht möglich. Markiere die Kategorien von Hand.";
+                ctx.melde(
+                  "Kopieren ist nicht möglich. Markiere die Kategorien von Hand.",
+                  "fehler",
+                );
               }
             },
           }),
@@ -392,7 +392,6 @@ function zeichne(bereich, ctx, start) {
     const mein = ++lauf;
     const alt = status;
     status = neu;
-    meldung.textContent = "";
     const ziel = `#termine/vorschlaege/${adresseVon(neu)}`;
     if (neuerEintrag) schiebeAdresse(ziel);
     else ersetzeAdresse(ziel);
@@ -420,7 +419,7 @@ function zeichne(bereich, ctx, start) {
       // Der Filter zeigt wieder den Stand, den die Liste noch hat
       status = alt;
       filter.setze(alt);
-      meldung.textContent = `${fehlerText(f)} Versuche es nochmals.`;
+      ctx.melde(`${fehlerText(f)} Versuche es nochmals.`, "fehler");
       zeichneListe();
     } finally {
       if (mein === lauf) listeBox.removeAttribute("aria-busy");
@@ -439,13 +438,16 @@ function zeichne(bereich, ctx, start) {
       vorschlaege.push(...seite.vorschlaege);
       weitere = seite.weitere;
       naechste = seite.naechste;
-      meldung.textContent = `${zaehlwort(seite.vorschlaege.length, "weiterer Vorschlag", "weitere Vorschläge")} geladen.`;
+      ctx.melde(
+        `${zaehlwort(seite.vorschlaege.length, "weiterer Vorschlag", "weitere Vorschläge")} geladen.`,
+      );
       zeichneListe();
       meldeZaehler();
     } catch (f) {
       if (mein === lauf)
-        meldung.textContent = `${fehlerText(f)} Versuche es nochmals.`;
+        ctx.melde(`${fehlerText(f)} Versuche es nochmals.`, "fehler");
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
     }

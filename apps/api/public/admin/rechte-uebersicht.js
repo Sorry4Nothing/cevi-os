@@ -586,7 +586,9 @@ function zeigeVerlauf(ort, z) {
       status.textContent =
         liste.children.length === 0 ? "Es wurde noch nichts geändert." : "";
     } catch (f) {
-      status.textContent = text(f);
+      // Ältere Einträge nachladen gescheitert: Toast; ohne Einträge steht der Fehler als Zustand der Ansicht da
+      if (liste.children.length === 0) status.textContent = text(f);
+      else z.ctx.melde(text(f), "fehler");
     } finally {
       laedt = false;
       mehr.disabled = false;

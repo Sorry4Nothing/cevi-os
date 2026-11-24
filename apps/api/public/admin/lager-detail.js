@@ -98,8 +98,8 @@ function aendernDialog(lager, ctx, neu) {
   });
 }
 
-// Die Vorlagen laden, erst wenn man sie braucht; gibt es keine, steht der Hinweis in der Karte und führt zum Anlegen
-async function vorlageDialog(lager, ctx, neu, hinweis) {
+// Die Vorlagen laden, erst wenn man sie braucht; gibt es keine, sagt es ein Hinweis und führt zum Anlegen
+async function vorlageDialog(lager, ctx, neu) {
   let vorlagen;
   try {
     vorlagen = (await anfrage("GET", "/api/v1/admin/vorlagen")).vorlagen;
@@ -108,15 +108,10 @@ async function vorlageDialog(lager, ctx, neu, hinweis) {
     return;
   }
   if (vorlagen.length === 0) {
-    hinweis.replaceChildren(
-      "Es gibt noch keine Vorlage. ",
-      el(
-        "a",
-        { class: "lg-verweis", href: "#lager/vorlagen" },
-        "Vorlage anlegen",
-      ),
-    );
-    hinweis.hidden = false;
+    ctx.melde("Es gibt noch keine Vorlage.", "info", {
+      text: "Vorlage anlegen",
+      onclick: () => (location.hash = "#lager/vorlagen"),
+    });
     return;
   }
   const wahl = auswahl({
@@ -201,11 +196,6 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neuModul) {
       { class: "werte" },
       paare.map(([k, v]) => el("div", {}, el("dt", {}, k), el("dd", {}, v))),
     );
-  const vorlagenHinweis = el("p", {
-    class: "hinweis hinweis--info",
-    role: "status",
-    hidden: true,
-  });
   haenge(
     bereich,
     el(
@@ -263,14 +253,13 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neuModul) {
             { class: "leise" },
             "Ergänze die Aufgaben oder die Packliste dieses Lagers aus einer Vorlage der Abteilung.",
           ),
-          vorlagenHinweis,
           el(
             "div",
             { class: "lg-fuss" },
             !geschlossen &&
               knopfMit("Vorlage anwenden", {
                 symbol: "plus",
-                onclick: () => vorlageDialog(lager, ctx, neu, vorlagenHinweis),
+                onclick: () => vorlageDialog(lager, ctx, neu),
               }),
             zahlKnopf("Vorlagen verwalten", "#lager/vorlagen"),
           ),

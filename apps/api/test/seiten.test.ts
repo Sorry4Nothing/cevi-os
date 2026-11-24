@@ -172,27 +172,27 @@ describe("Verwaltung unter /admin", () => {
     expect(String(admin["rahmen.js"])).toContain('"aria-pressed"');
   });
 
-  // Entscheid des Auftraggebers (#570): nur Erfolg und Info ohne Aktion vergehen; Warnung, Fehler und alles mit Aktion bleiben (docs/barrierefreiheit.md 8.2)
-  test("Rückmeldungen: Erfolg und Info ohne Aktion vergehen von selbst, alles andere bleibt", async () => {
+  // Entscheid des Auftraggebers (#570, #761): Rückmeldungen sind Toasts; Erfolg und Info 4 s, Warnung und Fehler 8 s, mit Aktion bleiben sie (docs/barrierefreiheit.md 82)
+  test("Rückmeldungen: Erfolg und Info 4 Sekunden, Warnung und Fehler 8, mit Aktion bis zum Schliessen", async () => {
     // dom.js hängt beim Laden einen Klick-Zuhörer an document: Ohne Browser genügt eine Attrappe
     vi.stubGlobal("document", { addEventListener: () => {} });
     // fluss.js hört auf popstate und pagehide (#578)
     vi.stubGlobal("window", { addEventListener: () => {} });
     // Als Text, damit tsc die Browserdatei nicht als Modul des Programms prüft
     const rahmenPfad = "../public/admin/rahmen.js";
-    const { vergehtVonSelbst } = (await import(
-      /* @vite-ignore */ rahmenPfad
-    )) as { vergehtVonSelbst: (art: string, aktion?: object) => boolean };
+    const { dauerVon } = (await import(/* @vite-ignore */ rahmenPfad)) as {
+      dauerVon: (art: string, aktion?: object) => number;
+    };
     vi.unstubAllGlobals();
-    expect(vergehtVonSelbst("ok", undefined)).toBe(true);
-    expect(vergehtVonSelbst("info", undefined)).toBe(true);
+    expect(dauerVon("ok", undefined)).toBe(4000);
+    expect(dauerVon("info", undefined)).toBe(4000);
     for (const art of ["warn", "fehler"])
-      expect(vergehtVonSelbst(art, undefined)).toBe(false);
+      expect(dauerVon(art, undefined)).toBe(8000);
     for (const art of ["ok", "info", "warn", "fehler"])
-      expect(vergehtVonSelbst(art, { text: "Beheben" })).toBe(false);
+      expect(dauerVon(art, { text: "Beheben" })).toBe(0);
   });
 
-  test("Rückmeldungen: Zeiger und Fokus halten die Zeit an, mit «Bewegung reduzieren» ohne Übergang", () => {
+  test("Rückmeldungen: Zeiger und Fokus halten die Zeit an, Esc und Knopf schliessen, mit «Bewegung reduzieren» ohne Übergang", () => {
     const rahmen = String(admin["rahmen.js"]);
     for (const ereignis of [
       "pointerenter",
@@ -203,9 +203,10 @@ describe("Verwaltung unter /admin", () => {
       expect(rahmen).toContain(`"${ereignis}"`);
     expect(rahmen).toContain("prefers-reduced-motion: reduce");
     expect(rahmen).toContain("Hinweis schliessen");
+    expect(rahmen).toContain('e.key === "Escape"');
     // Der Übergang steht nur im Zweig für erlaubte Bewegung
-    expect(String(admin["geruest.css"])).toMatch(
-      /@media \(prefers-reduced-motion: no-preference\) \{\s*\.rueckmeldung \.hinweis--geht \{\s*transition:/,
+    expect(String(admin["toast.css"])).toMatch(
+      /@media \(prefers-reduced-motion: no-preference\) \{[^@]*\.toast--geht \{\s*opacity: 0;\s*transition:/,
     );
   });
 

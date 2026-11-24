@@ -188,8 +188,7 @@ function punkteKarte(ctx, lager, punkte, neu) {
             zeigeLeer();
             titel.eingabe.focus();
           } catch (f) {
-            fehler.textContent = schreibFehlertext(f);
-            fehler.hidden = false;
+            ctx.melde(schreibFehlertext(f), "fehler");
           } finally {
             k.disabled = false;
           }

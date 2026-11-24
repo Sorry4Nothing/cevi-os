@@ -3,8 +3,8 @@
 // Reine Logik ohne DOM: Zeitgeber sind einsetzbar (Tests); die Darstellung steht in rahmen.js, die Verdrahtung in admin.js.
 
 export const FRIST_MS = 8000;
-// So lange bleibt «Erledigt» stehen (Regel aus #570: Erfolgsmeldungen gehen nach 6 Sekunden)
-export const ERLEDIGT_MS = 6000;
+// So lange bleibt «Erledigt» stehen (wie jede Erfolgsmeldung: 4 Sekunden, #761)
+export const ERLEDIGT_MS = 4000;
 // So lange bleibt die zweite Stufe einer zweistufigen Aktion scharf
 export const SCHARF_MS = 6000;
 

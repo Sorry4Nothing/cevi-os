@@ -572,7 +572,7 @@ export function baumAnsicht(k, zustand) {
         nachId(seite.id).titel = titel;
         fertig = true;
         zeichne(seite.id);
-        sage(`Der Titel ist jetzt «${titel}».`);
+        k.ctx.melde(`Der Titel ist jetzt «${kuerze(titel, 60)}».`);
       } catch (f) {
         eingabe.removeAttribute("aria-busy");
         fertig = false;

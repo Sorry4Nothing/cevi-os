@@ -612,8 +612,7 @@ function besetzenSeite(ctx, k, dienst, tag, aktuell, mitglieder, danach) {
         stopp();
         mitKinder.an = false;
         kinderWahl.eingabe.checked = false;
-        fehler.textContent = meldung(f);
-        fehler.hidden = false;
+        ctx.melde(meldung(f), "fehler");
       }
     }
     zeichneListe();

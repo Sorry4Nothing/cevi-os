@@ -287,8 +287,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     eingabe.select();
   }
 
-  const ansage = el("p", { class: "nur-leser", role: "status" });
-
   // --- Stand: Zeichen im Kopf, Speicherstand unter dem Titel, Knöpfe oben
   const speichernKnopf = knopf("Speichern", { klein: true });
   const knoepfe = {};
@@ -848,7 +846,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
           k.aenderung();
           zeichneListe();
           titelbild.querySelector("button")?.focus();
-          ansage.textContent = "Das Titelbild ist gesetzt.";
+          ctx.melde("Das Titelbild ist gesetzt.");
         }),
     });
     titelbild.replaceChildren(
@@ -962,7 +960,9 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     k.dok.bausteine.splice(i + 1, 0, neu);
     k.aenderung();
     zeichneListe({ id: neu.id, was: "bearbeiten" });
-    ansage.textContent = `«${name(b)}» ist dupliziert. Die Kopie steht an Position ${i + 2}.`;
+    ctx.melde(
+      `«${name(b)}» ist dupliziert. Die Kopie steht an Position ${i + 2}.`,
+    );
   }
 
   // Mit «Rückgängig» (Toast, Strg+Z): Der Baustein verschwindet sofort aus dem Entwurf; zurückgeholt kommt er an dieselbe Stelle.
@@ -1082,7 +1082,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   kopfAktionen();
 
   wurzel.append(
-    ansage,
     konfliktPlatz,
     fehlerPlatz,
     el(
