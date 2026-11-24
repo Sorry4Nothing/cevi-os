@@ -343,7 +343,23 @@
 .lg-sm-ergebnis progress {
   flex: 1 1 10rem;
   height: 10px;
-  accent-color: var(--akzent);
+  appearance: none;
+  overflow: hidden;
+  background: var(--rand-leise);
+  border: 0;
+  border-radius: var(--r-full);
+}
+
+.lg-sm-ergebnis progress::-webkit-progress-bar {
+  background: var(--rand-leise);
+}
+
+.lg-sm-ergebnis progress::-webkit-progress-value {
+  background: var(--akzent);
+}
+
+.lg-sm-ergebnis progress::-moz-progress-bar {
+  background: var(--akzent);
 }
 
 .lg-sm-gesehen summary {
