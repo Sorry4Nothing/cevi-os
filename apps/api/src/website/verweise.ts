@@ -8,6 +8,7 @@ import {
   type DokumentFehler,
   type Seitendokument,
 } from "./dokument.js";
+import { ALT_PFLICHT } from "./medien-schema.js";
 import { ANMELDEN_PFAD, TERMINE_PFAD } from "./rendern.js";
 import { adressenVon, type Knoten } from "./seiten.js";
 
@@ -87,8 +88,8 @@ export async function pruefeVerweise(
         fehler.push({ pfad, code: "MEDIUM_FORMAT" });
       } else if (oeffentlich && m.sichtbarkeit !== "oeffentlich") {
         fehler.push({ pfad, code: "MEDIUM_NICHT_OEFFENTLICH" });
-      } else if (b.typ === "karussell" && m.dekorativ) {
-        // Im Karussell trägt jedes Bild den Inhalt, ein Alt-Text ist Pflicht (WCAG 1.1.1)
+      } else if (ALT_PFLICHT.has(b.typ) && m.dekorativ) {
+        // Im Karussell, im Bildvergleich und in der Logo-Reihe trägt jedes Bild den Inhalt, ein Alt-Text ist Pflicht (WCAG 1.1.1)
         fehler.push({ pfad, code: "MEDIUM_ALT_FEHLT" });
       }
     }

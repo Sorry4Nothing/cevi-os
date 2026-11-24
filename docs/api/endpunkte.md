@@ -69,6 +69,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/website-bausteine.js`             | Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten         | **200** alle      |
 | `GET /admin/website-dialoge.js`               | Skript der Verwaltung – Bereich Website, Fenster und Hinweise                        | **200** alle      |
 | `GET /admin/website-felder.js`                | Skript der Verwaltung – Bereich Website, Felder und Typen der Bausteine              | **200** alle      |
+| `GET /admin/website-felder-medien.js`         | Skript der Verwaltung – Bereich Website, Felder der Bilder und Medien                | **200** alle      |
 | `GET /admin/website-sichtbarkeit.js`          | Skript der Verwaltung – Bereich Website, Sichtbarkeit                                | **200** alle      |
 | `GET /admin/website-symbole.js`               | Skript der Verwaltung – Bereich Website, Symbole                                     | **200** alle      |
 | `GET /admin/website-veroeffentlichen.js`      | Skript der Verwaltung – Bereich Website, Veröffentlichen und Versionen               | **200** alle      |

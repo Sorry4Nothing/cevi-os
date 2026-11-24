@@ -24,6 +24,16 @@ import {
   STILE_LADEN,
   type LadenArtikel,
 } from "./laden.js";
+import {
+  istMedienBaustein,
+  LICHTKASTEN_TYPEN,
+  medienAnforderungen,
+  MEDIEN_BREIT,
+  rendereMedienBaustein,
+  rendereVideolink,
+  SKRIPT_VERGLEICH,
+  STIL_MEDIEN,
+} from "./medien-bausteine.js";
 import { symbol } from "./symbole.js";
 import { zeichenLinks } from "./zeichen.js";
 
@@ -244,13 +254,13 @@ function textBlock(b: TextBlock): HtmlKnoten {
   );
 }
 
-function groesse(bytes: number) {
+export function groesse(bytes: number) {
   return bytes < 1024 * 1024
     ? `${Math.max(1, Math.round(bytes / 1024))} KB`
     : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function bild(
+export function bild(
   id: string,
   m: MedienDaten | undefined,
   unterschrift?: string,
@@ -435,6 +445,8 @@ function rendereBaustein(
   if (istInhaltsBaustein(b)) {
     return rendereInhaltsBaustein(b, daten, letzte);
   }
+  // Bilder und Medien (#742)
+  if (istMedienBaustein(b)) return rendereMedienBaustein(b, daten, letzte);
   if (b.typ === "laden") {
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
@@ -681,11 +693,7 @@ function rendereBaustein(
         ? el("hr")
         : el("div", { class: "abstand", "aria-hidden": "true" });
     case "videolink":
-      return el(
-        "p",
-        undefined,
-        ...verlinke(b.daten.url, [b.daten.beschriftung], "verweis"),
-      );
+      return rendereVideolink(b, daten);
     case "stufenfakten": {
       const fakten = daten.stufenfakten.get(seiteId) ?? [];
       return fakten.length === 0 ? null : faktenTafel(fakten);
@@ -1065,6 +1073,9 @@ const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
   "karten",
   "galerie",
   "karussell",
+  "bildraster",
+  "bildstreifen",
+  "logoreihe",
 ]);
 const istBreit = (b: Baustein) =>
   b.typ === "artikel" ||
@@ -1072,6 +1083,7 @@ const istBreit = (b: Baustein) =>
   b.typ === "fotoalben" ||
   b.typ === "galerie" ||
   b.typ === "karussell" ||
+  MEDIEN_BREIT.has(b.typ) ||
   (b.typ === "karten" &&
     (b.daten.darstellung === "karten" || b.daten.darstellung === "stufen"));
 // Abschnitte ab dieser Nummer liegen unterhalb des ersten Bildschirms: ihre Bilder laden erst beim Scrollen
@@ -1199,10 +1211,11 @@ export const SKRIPT_THEMA = "/website/theme.js";
 export const SKRIPT_LADEZUSTAND = "/website/ladezustand.js";
 export { SKRIPT_KARUSSELL };
 // Bausteine, deren Bilder sich gross öffnen lassen
-const BILD_BAUSTEINE = new Set<Baustein["typ"]>([
+const BILD_BAUSTEINE = new Set<string>([
   "bild",
   "galerie",
   "karussell",
+  ...LICHTKASTEN_TYPEN,
 ]);
 // Die klassischen Skripte im <head> (Darstellung, Ladezustand der Bilder #574), die die Vorschau im Editor entfernt (sie läuft unter der CSP der Verwaltung)
 export const THEMA_SKRIPT_TAG = `<script src="${SKRIPT_THEMA}"></script>
@@ -1347,6 +1360,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   const mitLaden = eintraege.some(
     (e) => e.b.typ === "laden" && istOeffentlich(e.b) && e.knoten !== null,
   );
+  const medien = medienAnforderungen(s.dokument.bausteine);
   const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
   // Fotoalben (#690): der Baustein ist nur ein Behälter; das Skript holt die Alben nach der Anmeldung (auch in einem geschützten Baustein, den geschuetzt.js erst nachlädt)
   const mitFotos = s.dokument.bausteine.some((b) => b.typ === "fotoalben");
@@ -1359,13 +1373,21 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     // Stil und Skript des Karussells nur auf Seiten, die eines zeigen oder nach der Anmeldung nachladen (das Skript rüstet nachgeladene aus)
     // Stil der Inhaltsbausteine (#560) nur auf Seiten, die einen davon haben (auch einen geschützten, der nachgeladen wird)
     // Die Fotoalben öffnen ihre Bilder in der Grossansicht (lichtkasten.js)
+    // Bilder und Medien (#742): Grossansicht für Bildraster, Bildstreifen und breites Bild, dazu Stil und Skript des Bildvergleichs
     zusatzSkripte: [
-      ...(bilder ? bilder.zusatzSkripte : []),
-      ...(mitFotos && !bilder ? [SKRIPT_LICHTKASTEN] : []),
+      ...new Set([
+        ...(bilder ? bilder.zusatzSkripte : []),
+        ...(mitFotos || medien.lichtkasten ? [SKRIPT_LICHTKASTEN] : []),
+        ...medien.skripte,
+      ]),
     ],
     stile: [
-      ...(bilder ? bilder.stile : []),
-      ...(mitFotos ? [...(bilder ? [] : [STIL_LICHTKASTEN]), STIL_FOTOS] : []),
+      ...new Set([
+        ...(bilder ? bilder.stile : []),
+        ...(mitFotos || medien.lichtkasten ? [STIL_LICHTKASTEN] : []),
+      ]),
+      ...(mitFotos ? [STIL_FOTOS] : []),
+      ...medien.stile,
       // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
       ...(s.dokument.bausteine.some(
         (b) => istInhaltsBaustein(b) || b.typ === "leitungsteam",
@@ -1419,8 +1441,8 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell oder Fotoalbum findet Stil und Skript vor
     skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS],
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
-    zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
-    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS],
+    zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL, SKRIPT_VERGLEICH],
+    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS, STIL_MEDIEN],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>

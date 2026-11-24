@@ -1,5 +1,5 @@
 // Grossansicht für Bilder (#559): Ein Bild ist im Markup ein Link auf die Bilddatei («a.bildgross»). Dieses Skript öffnet es stattdessen gross über der Seite.
-// Die Bilder desselben Karussells oder derselben Galerie bilden eine Folge mit Vor und Zurück; ein einzelnes Bild steht allein.
+// Die Bilder desselben Karussells, derselben Galerie, desselben Bildrasters oder Bildstreifens bilden eine Folge mit Vor und Zurück; ein einzelnes Bild steht allein.
 // Ein natives <dialog> (showModal): Es hält den Fokus innen, macht die Seite dahinter untätig und schliesst mit Esc. Schliessen auch per Knopf und per Klick neben das Bild; der Fokus geht zurück aufs Bild.
 // Andere Skripte erfahren davon über die Ereignisse «lichtkasten:auf» und «lichtkasten:zu» am Dokument (detail.link: der Link des zuletzt gezeigten Bildes).
 // Keine Bibliothek, kein innerHTML, keine Abrufe ausser dem Bild selbst (eigene Herkunft). Links, die später dazukommen (geschützte Bausteine), gelten von selbst: Das Skript hört am Dokument.
@@ -158,7 +158,9 @@
     window.clearTimeout(zuTimer);
     dialog.removeAttribute("data-zu");
     // Die Folge: alle Bilder desselben Karussells oder derselben Galerie, sonst das Bild allein
-    var gruppe = link.closest(".karussell, .galerie");
+    var gruppe = link.closest(
+      ".karussell, .galerie, .bildraster, .bildstreifen",
+    );
     folge = gruppe
       ? Array.prototype.slice.call(gruppe.querySelectorAll("a.bildgross"))
       : [link];

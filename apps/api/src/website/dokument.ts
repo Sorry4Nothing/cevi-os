@@ -6,6 +6,7 @@ import {
   MAX_SEITENTITEL,
   type Baustein,
 } from "./bausteine.js";
+import { sammleMedienVerweise } from "./medien-schema.js";
 
 // Seitendokument Version 1 (#349): Titel und geordnete Bausteine. Das Feld `v` trägt spätere Schemawechsel.
 export const seitendokumentSchema = z
@@ -76,6 +77,8 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
     if (b.sichtbarkeit !== "erbt" && b.sichtbarkeit.art === "tags") {
       b.sichtbarkeit.tagIds.forEach((id) => tags.add(id));
     }
+    // Bilder und Medien (#742): Bildraster, Logo-Reihe, Vorschaubilder und weitere
+    sammleMedienVerweise(b, medien, ziel);
     switch (b.typ) {
       case "bild":
         medien.add(b.daten.mediumId);

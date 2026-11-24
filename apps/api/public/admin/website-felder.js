@@ -9,6 +9,7 @@ import {
 } from "./website-richtext.js";
 import { sk } from "./lader.js";
 import { sortierListe } from "./sortieren.js";
+import { medienTypen, MEDIEN_KATALOG } from "./website-felder-medien.js";
 import { symbol } from "./website-symbole.js";
 
 // Felder und Typen der Bausteine (Boards E3 und E4). Ein Baustein hat einen Typ mit Name, Kurztext für die Liste, Prüfung und Formular.
@@ -84,6 +85,15 @@ export const FELDNAMEN = {
   email: "Die E-Mail-Adresse",
   preis: "Der Preis",
   hinweis: "Der Hinweis",
+  // Bilder und Medien (#742)
+  spalten: "Die Zahl der Spalten",
+  format: "Das Format",
+  position: "Die Lage des Textes",
+  hoehe: "Die Höhe",
+  fokusX: "Der waagrechte Fokus",
+  fokusY: "Der senkrechte Fokus",
+  vorherText: "Die Bezeichnung links",
+  nachherText: "Die Bezeichnung rechts",
 };
 export const CODE_TEXTE = {
   too_small: "fehlt oder ist zu kurz.",
@@ -102,7 +112,7 @@ export const VERWEIS_TEXTE = {
   MEDIUM_NICHT_OEFFENTLICH:
     "Das Bild ist nicht öffentlich. Wähle ein öffentliches Bild oder stelle den Baustein auf «Nur angemeldet».",
   MEDIUM_ALT_FEHLT:
-    "Im Karussell braucht jedes Bild einen Alt-Text. Wähle ein Bild mit Alt-Text oder ergänze ihn in der Medienbibliothek.",
+    "Im Karussell, im Bildvergleich und in der Logo-Reihe braucht jedes Bild einen Alt-Text. Wähle ein Bild mit Alt-Text oder ergänze ihn in der Medienbibliothek.",
   TAG_UNBEKANNT: "Die gewählte Gruppe gibt es nicht mehr.",
   PERSON_UNBEKANNT: "Die gewählte Person gibt es nicht mehr.",
   SEITE_UNBEKANNT:
@@ -1246,6 +1256,12 @@ export const TYPEN = {
         hilfe:
           "Die Webadresse des Videos oder Beitrags, mit https. Sie wird nur als Link gezeigt, nie eingebettet.",
       }),
+      // Vorschaubild (#742): ein Bild der Medienbibliothek; die Karte führt weiter auf die Seite des Videos
+      bildWahl(k, b, reg, b.daten, "daten.bild", {
+        schluessel: "bild",
+        optional: true,
+        name: "Vorschaubild (optional)",
+      }),
     ],
   },
   // Hinweisband (#549): ein Satz, optional mit Link
@@ -1497,6 +1513,17 @@ export const TYPEN = {
       ),
     ],
   },
+  ...medienTypen({
+    eingabe,
+    teilEingabe,
+    wahl,
+    bildWahl,
+    listenForm,
+    linkTeil,
+    groesseFeld,
+    anzahlText,
+    LINK_HILFE,
+  }),
   stufenfakten: {
     name: "Samstagsangaben der Stufen",
     kurz: () => "Datum, Treffpunkt und Mitnehmen der Stufe",
@@ -1606,7 +1633,7 @@ export const KATALOG = [
   },
   {
     typ: "videolink",
-    beschreibung: "Nur als Link, ohne Einbetten.",
+    beschreibung: "Ein Link auf ein Video, auf Wunsch mit Vorschaubild.",
     neu: () => ({ art: "video", beschriftung: "", url: "" }),
   },
   {
@@ -1645,6 +1672,8 @@ export const KATALOG = [
       "«Fragen? Melde dich bei uns.» mit Knöpfen für E-Mail und Telefon, Anschrift und Verweisen.",
     neu: () => ({}),
   },
+  // Bilder und Medien (#742)
+  ...MEDIEN_KATALOG,
 ].map((e) => ({ name: TYPEN[e.typ].name, ...e }));
 
 // Ein Karten-Baustein heisst nach seiner Darstellung («Zeitstrahl»): So findet man ihn in der Liste der Seite wieder

@@ -2481,6 +2481,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/website-felder-medien.js:
+    get:
+      operationId: getAdminWebsiteFelderMedienSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder der Bilder und Medien
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/website-sichtbarkeit.js:
     get:
       operationId: getAdminWebsiteSichtbarkeitSkript
