@@ -360,6 +360,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   ),
   // Lädeli (#566): das Raster der Artikel der Abteilung mit Warenkorb und Bestellung für angemeldete Personen. Der Baustein hat keine eigenen Daten: Die Artikel pflegt die Verwaltung unter «Lädeli»
   baustein("laden", z.strictObject({})),
+  // Fotoalben (#690): die Alben der Abteilung aus Flickr, nur für angemeldete Personen. Der Baustein hat keine eigenen Daten und steht als Behälter im HTML; das Skript holt Alben und Bilder von unserem Server (GET /api/v1/fotos/alben), der sie bei Flickr abholt. Welche Alben erscheinen, stellt die Verwaltung unter «Website, Fotos» ein
+  baustein("fotoalben", z.strictObject({})),
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

@@ -69,6 +69,8 @@ import type { WetterHolen } from "./lager/wetter-openmeteo.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleIcalRoute } from "./routes/termine/ical.js";
 import { erstelleLadenRouten } from "./routes/laden/index.js";
+import { erstelleFotoRouten } from "./routes/fotos/index.js";
+import type { FotoQuelle } from "./fotos/quelle.js";
 import { erstelleTermineRouten } from "./routes/termine/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
@@ -133,6 +135,7 @@ export function erstelleApp({
   website,
   websiteKontakt,
   aktivitaet,
+  fotos,
 }: {
   appMinVersion: string;
   sql: Sql;
@@ -163,6 +166,8 @@ export function erstelleApp({
   };
   // Aktivitätsprotokoll (#637): nimmt jede schreibende Anfrage entgegen; ohne Angabe (Tests, Werkzeuge) wird nichts erfasst. Die Route des Protokolls liest die Tabelle ohnehin
   aktivitaet?: AktivitaetSenke;
+  // Quelle der Fotos (#690), heute Flickr (fotos/flickr.ts); ohne sie antworten die Foto-Routen mit «nicht eingerichtet». Die Tests spritzen eine Attrappe ein
+  fotos?: FotoQuelle;
   // Adresse, Telefon und E-Mail der Abteilung für die Vorschau im Editor (#570); der Abgleich bekommt dieselben Werte in server.ts
   websiteKontakt?: { adresse?: string; telefon?: string; email?: string };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
@@ -190,6 +195,7 @@ export function erstelleApp({
   const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
   // Bis zu 100 Operationen der Offline-Warteschlange des Lagers (#367)
   const warteschlangeLimit = bodyLimit({ maxSize: 256 * 1024 });
+  const fotoRouten = erstelleFotoRouten({ db, quelle: fotos });
   const protokollieren = aktivitaet
     ? aktivitaetMiddleware(aktivitaet)
     : undefined;
@@ -318,6 +324,9 @@ export function erstelleApp({
       .route("/api/v1", erstelleTermineRouten({ db, fcm }))
       // Lädeli (#566): Laden, Bestellungen und ihre Verwaltung
       .route("/api/v1", erstelleLadenRouten({ db }))
+      // Fotos aus Flickr (#690): nur angemeldet; die Verwaltung erbt den zweiten Faktor
+      .route("/api/v1/fotos", fotoRouten.oeffentlich)
+      .route("/api/v1/admin/fotos", fotoRouten.verwaltung)
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db, auth }))

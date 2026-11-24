@@ -17,6 +17,8 @@ const BEREICH_NACH_RECHT: Record<string, readonly string[]> = {
     "laden.einstellungen",
   ],
   lager: ["lager.verwalten", "lager.vorlagen_pflegen"],
+  // Fotos aus Flickr (#690): gehören zur Website, öffnen aber nur ihre eigene Seite («recht:fotos.verwalten»)
+  fotos: ["fotos.verwalten"],
   system: ["system.lesen", "zeitregeln.verwalten"],
 };
 

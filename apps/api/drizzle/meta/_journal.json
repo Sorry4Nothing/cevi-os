@@ -757,6 +757,13 @@
       "when": 1793556900000,
       "tag": "0149_abteilungsleitung_rechte",
       "breakpoints": true
+    },
+    {
+      "idx": 156,
+      "version": "7",
+      "when": 1793557600000,
+      "tag": "0156_fotos",
+      "breakpoints": true
     }
   ]
 }

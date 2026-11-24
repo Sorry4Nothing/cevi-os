@@ -15,6 +15,7 @@ import {
   STIL_KARUSSELL,
   STIL_LICHTKASTEN,
 } from "./karussell.js";
+import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
 import { fuss, kontaktkarte, STIL_FUSS } from "./kontakt.js";
 import {
@@ -437,6 +438,7 @@ function rendereBaustein(
   if (b.typ === "laden") {
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
+  if (b.typ === "fotoalben") return rendereFotoalben();
   switch (b.typ) {
     case "ueberschrift": {
       const ebene = Math.min(b.daten.ebene, letzte.ebene + 1);
@@ -1067,6 +1069,7 @@ const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
 const istBreit = (b: Baustein) =>
   b.typ === "artikel" ||
   b.typ === "laden" ||
+  b.typ === "fotoalben" ||
   b.typ === "galerie" ||
   b.typ === "karussell" ||
   (b.typ === "karten" &&
@@ -1345,6 +1348,8 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     (e) => e.b.typ === "laden" && istOeffentlich(e.b) && e.knoten !== null,
   );
   const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
+  // Fotoalben (#690): der Baustein ist nur ein Behälter; das Skript holt die Alben nach der Anmeldung (auch in einem geschützten Baustein, den geschuetzt.js erst nachlädt)
+  const mitFotos = s.dokument.bausteine.some((b) => b.typ === "fotoalben");
   return rahmen(k, {
     titel: s.dokument.titel,
     aktuell: s.pfad,
@@ -1353,9 +1358,14 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     vollbreit: true,
     // Stil und Skript des Karussells nur auf Seiten, die eines zeigen oder nach der Anmeldung nachladen (das Skript rüstet nachgeladene aus)
     // Stil der Inhaltsbausteine (#560) nur auf Seiten, die einen davon haben (auch einen geschützten, der nachgeladen wird)
-    zusatzSkripte: bilder ? bilder.zusatzSkripte : [],
+    // Die Fotoalben öffnen ihre Bilder in der Grossansicht (lichtkasten.js)
+    zusatzSkripte: [
+      ...(bilder ? bilder.zusatzSkripte : []),
+      ...(mitFotos && !bilder ? [SKRIPT_LICHTKASTEN] : []),
+    ],
     stile: [
       ...(bilder ? bilder.stile : []),
+      ...(mitFotos ? [...(bilder ? [] : [STIL_LICHTKASTEN]), STIL_FOTOS] : []),
       // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
       ...(s.dokument.bausteine.some(
         (b) => istInhaltsBaustein(b) || b.typ === "leitungsteam",
@@ -1365,10 +1375,11 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
       ...(mitLaden ? STILE_LADEN : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
-    ...((geschuetzt || mitLaden) && {
+    ...((geschuetzt || mitLaden || mitFotos) && {
       skript: [
         ...(geschuetzt ? [SKRIPT_GESCHUETZT] : []),
         ...(mitLaden ? [SKRIPT_LADEN] : []),
+        ...(mitFotos ? [SKRIPT_FOTOS] : []),
       ],
     }),
     ...(geschuetzt && { hauptAttr: ` data-pfad="${esc(s.pfad)}"` }),
@@ -1405,11 +1416,11 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     titel: "Geschützte Seite",
     aktuell: null,
     robots: "noindex",
-    skript: SKRIPT_GESCHUETZT,
+    // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell oder Fotoalbum findet Stil und Skript vor
+    skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS],
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
-    // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell findet Stil und Skript vor
     zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL],
-    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL],
+    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>

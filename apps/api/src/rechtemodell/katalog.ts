@@ -344,6 +344,20 @@ export const RECHTE_KATALOG = {
     ALLE,
   ),
 
+  // Fotos aus Flickr (#690)
+  "fotos.ansehen": s(
+    "website",
+    "Fotos ansehen",
+    "Jede angemeldete Person der Abteilung sieht die Alben, die die Abteilung freigegeben hat. Ausgenommen ist das Konto eines Kindes (es sieht nur sein eigenes Kind).",
+  ),
+  "fotos.verwalten": v(
+    "website",
+    "Fotoalben verwalten",
+    "Das Flickr-Konto wählen, Alben auf der Website zeigen oder ausblenden, ordnen und umbenennen und die Verbindung prüfen. Die Fotos selbst bleiben bei Flickr.",
+    "erweitert",
+    ALLE,
+  ),
+
   // Lager (Verwaltung der Abteilung). Mitglieder und Rollen eines Lagers vergibt nur die Abteilungsleitung (rechte.verwalten); die Rechte im Lager stellt die Lagerleitung je Lager ein (lager/rechte-katalog.ts, Anhang A)
   "lager.verwalten": v(
     "lager",
