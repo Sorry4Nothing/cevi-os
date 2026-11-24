@@ -1807,6 +1807,126 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-aufgaben-detail.js:
+    get:
+      operationId: getAdminLagerAufgabenDetailSkript
+      summary: Skript der Verwaltung – Bereich Lager, aufgaben detail
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-aufgaben-gemeinsam.js:
+    get:
+      operationId: getAdminLagerAufgabenGemeinsamSkript
+      summary: Skript der Verwaltung – Bereich Lager, aufgaben gemeinsam
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-aufgaben-logik.js:
+    get:
+      operationId: getAdminLagerAufgabenLogikSkript
+      summary: Skript der Verwaltung – Bereich Lager, aufgaben logik
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-aufgaben-neu.js:
+    get:
+      operationId: getAdminLagerAufgabenNeuSkript
+      summary: Skript der Verwaltung – Bereich Lager, aufgaben neu
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-aufgaben.css:
+    get:
+      operationId: getAdminLagerAufgabenStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Lager, aufgaben
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/lager-m-aufgaben.js:
+    get:
+      operationId: getAdminLagerMAufgabenSkript
+      summary: Skript der Verwaltung – Bereich Lager, m aufgaben
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-todos.js:
+    get:
+      operationId: getAdminLagerMTodosSkript
+      summary: Skript der Verwaltung – Bereich Lager, m todos
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-m-zeitplan.js:
+    get:
+      operationId: getAdminLagerMZeitplanSkript
+      summary: Skript der Verwaltung – Bereich Lager, m zeitplan
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kalenderhilfen.js:
     get:
       operationId: getAdminKalenderhilfenSkript
