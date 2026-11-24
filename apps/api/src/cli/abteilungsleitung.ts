@@ -1,15 +1,14 @@
 import { parseArgs } from "node:util";
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { verbindeDatenbank } from "../datenbank.js";
-import { erstelleDb, type Db } from "../db/client.js";
+import { erstelleDb } from "../db/client.js";
 import {
-  abteilung,
   abteilungsleitungPerson,
   auditLog,
-  plattformEntwickler,
   session,
   user,
 } from "../db/schema.js";
+import { aktiveVerwalter, istLetzterVerwalter } from "../verwalter.js";
 
 // Abteilungsleitung vergeben und entziehen, der Weg für den Notfall (#730), wenn die Verwaltung nicht erreichbar ist. Im Alltag vergibt man die Abteilungsleitung über «Person ändern».
 //   npm run abteilungsleitung:vergeben -w apps/api -- --benutzername <benutzername>
@@ -44,34 +43,6 @@ function leseArgumente() {
   }
 }
 
-// shortcut: Zählt selbst, ob die Abteilung ausser dem Ziel noch eine aktive Abteilungsleitung oder einen aktiven Entwickler hat. Teil 4 des Epics #714 (#731) baut dieselbe Regel für die Verwaltung; dann diese Funktion durch deren Hilfe ersetzen.
-async function hatAndereVerwalter(
-  tx: Pick<Db, "select">,
-  abteilungId: string,
-  zielId: string,
-) {
-  // Erst die Abteilungszeile sperren, dann zählen: Zwei gleichzeitige Entziehen sähen sonst beide die andere Person
-  await tx
-    .select({ id: abteilung.id })
-    .from(abteilung)
-    .where(eq(abteilung.id, abteilungId))
-    .for("no key update");
-  const zeilen = await tx
-    .select({ id: user.id })
-    .from(user)
-    .where(
-      and(
-        eq(user.abteilungId, abteilungId),
-        // banned ist nullable, «is not true» zählt auch null als aktiv
-        sql`${user.banned} is not true`,
-        isNull(user.deaktiviertAm),
-        sql`${user.id} <> ${zielId}`,
-        sql`(exists (select 1 from ${abteilungsleitungPerson} where ${abteilungsleitungPerson.userId} = ${user.id}) or exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${user.id}))`,
-      ),
-    );
-  return zeilen.length > 0;
-}
-
 const argumente = leseArgumente();
 if (!argumente) {
   console.error(VERWENDUNG);
@@ -103,10 +74,9 @@ if (!argumente) {
               .select({ id: abteilungsleitungPerson.userId })
               .from(abteilungsleitungPerson)
               .where(eq(abteilungsleitungPerson.userId, ziel.id));
-            if (
-              ist &&
-              !(await hatAndereVerwalter(tx, ziel.abteilungId, ziel.id))
-            ) {
+            // Dieselbe Regel wie die Verwaltung (#731): Ein Entwickler dieser Person zählt weiter
+            const verwalter = await aktiveVerwalter(tx, ziel.abteilungId);
+            if (ist && istLetzterVerwalter(verwalter, ziel.id, true)) {
               throw new AbbruchFehler(
                 "Die Abteilung hätte danach weder Abteilungsleitung noch Entwickler. Vergib zuerst die Abteilungsleitung oder die Entwickler-Rolle an eine andere Person.",
               );

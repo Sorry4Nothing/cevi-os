@@ -195,6 +195,17 @@ describe("Kommandozeile: Abteilungsleitung vergeben und entziehen", () => {
     expect(await rolleVon(al.id)).toBe("user");
   });
 
+  test("wer selbst Entwickler ist, behält die Abteilung: Entziehen der Abteilungsleitung ist erlaubt (#731)", async () => {
+    const abteilungId = await neueAbteilung();
+    const al = await neuesKonto(abteilungId);
+    await macheAl(al);
+    await db.insert(schema.plattformEntwickler).values({ userId: al.id });
+
+    const ergebnis = starte("entziehen", "--benutzername", al.benutzername);
+    expect(ergebnis.status, ergebnis.stderr).toBe(0);
+    expect(await alZeile(al.id)).toHaveLength(0);
+  });
+
   test("unbekannte Person, fehlende und falsche Argumente", async () => {
     const konto = await neuesKonto(await neueAbteilung());
     const unbekannt = starte("vergeben", "--benutzername", "gibt.es.nicht");
