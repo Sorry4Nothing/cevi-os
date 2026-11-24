@@ -855,6 +855,6 @@ describe("Vorschau einzelner Bausteine", () => {
     expect(html).toContain("Übergeordnete Seite");
     expect(html).toContain("Nächste Seite");
     expect(html).toContain("Erster Abschnitt");
-    expect(html).not.toMatch(/<a[^>]*href=/);
+    expect(html).not.toMatch(/<a\b[^>]*href=/);
   });
 });
