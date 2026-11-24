@@ -1,0 +1,5 @@
+/* Unterseite «Ohne Kategorie» (A11). Klassen mit dem Vorsatz «tm-»: die gemeinsamen stehen in termine.css */
+
+.liste-zeilen .text > .name.tm-roh {
+  display: block;
+}

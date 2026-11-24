@@ -1,0 +1,771 @@
+/* Aufgaben, Zeitplan und To-dos im Lager (#670). Klassen mit dem Vorsatz «la-»; Farben nur aus den Tokens, Masse in rem, Bewegung nur bei erlaubter Bewegung; Zustand nie nur über Farbe. */
+
+.la-umschalter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.la-gruppenwahl {
+  min-width: 12rem;
+}
+
+.la-gruppenwahl[hidden] {
+  display: none;
+}
+
+.la-koerper {
+  margin-top: 0.5rem;
+}
+
+/* ---- Tabelle ---- */
+.la-wahl,
+.la-wahlkopf {
+  width: 3rem;
+  padding-inline-end: 0;
+}
+
+.la-wahl .wahl,
+.la-wahlkopf .wahl {
+  min-height: 2.75rem;
+}
+
+.la-erste {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.la-titel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  min-width: 0;
+}
+
+.la-name {
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+  padding-block: 0.6rem;
+}
+
+.la-name:hover {
+  text-decoration: underline;
+}
+
+.la-teil {
+  flex-basis: 100%;
+}
+
+.la-stern {
+  display: inline-flex;
+  align-items: center;
+  color: var(--akzent);
+}
+
+.la-stern .i {
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+.la-person {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.125rem;
+}
+
+.la-person-zeile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.la-unterstuetzung {
+  display: block;
+}
+
+.la-frist {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+tr.la-gruppe > th {
+  padding-block: 0.75rem 0.5rem;
+  background: var(--leiste);
+  font-size: 0.9375rem;
+  text-align: left;
+}
+
+/* Der Haken zum Erledigen: Rand und Haken, gefüllt wenn erledigt */
+.la-tick {
+  flex: none;
+  border: 2px solid var(--rand);
+  border-radius: 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  color: var(--leise);
+}
+
+.la-tick .i {
+  width: 1.25rem;
+  height: 1.25rem;
+  opacity: 0.45;
+}
+
+.la-tick--erledigt {
+  background: var(--blau);
+  border-color: var(--blau);
+  color: var(--auf-blau);
+}
+
+.la-tick--erledigt .i {
+  opacity: 1;
+}
+
+.la-tick:disabled {
+  cursor: default;
+}
+
+/* ---- Mehrfachauswahl ---- */
+.la-auswahlleiste {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 5;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: var(--umkehr);
+  color: var(--auf-umkehr);
+  border-radius: var(--r-md);
+  box-shadow: var(--schatten);
+}
+
+.la-auswahlleiste[hidden] {
+  display: none;
+}
+
+.la-auswahlzahl {
+  font-weight: 700;
+}
+
+.la-auswahlknoepfe,
+.la-bulkform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.la-auswahlform {
+  flex-basis: 100%;
+  padding: 0.75rem;
+  background: var(--karte);
+  color: var(--text);
+  border-radius: 0.75rem;
+}
+
+.la-auswahlform:empty {
+  display: none;
+}
+
+.la-auswahlleiste .knopf--still {
+  color: var(--auf-umkehr);
+  border-color: var(--auf-umkehr);
+}
+
+.la-auswahlform .knopf--still {
+  color: var(--text);
+  border-color: var(--rand);
+}
+
+/* ---- Board ---- */
+.la-board {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(22rem, 1fr);
+  gap: 1rem;
+  align-items: start;
+  overflow-x: auto;
+  padding-bottom: 0.5rem;
+}
+
+.la-board:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.la-spalte .sortier-inhalt {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.la-spalte .la-person-zeile {
+  flex-wrap: wrap;
+}
+
+.la-spalte .la-name {
+  overflow-wrap: break-word;
+  word-break: normal;
+}
+
+.la-spalte .sortier-eintrag {
+  flex-wrap: wrap;
+}
+
+.la-spalte {
+  padding: 0.75rem;
+  background: var(--leiste);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+.la-spaltentitel {
+  margin: 0 0 0.75rem;
+  font-size: 1rem;
+}
+
+.la-karten,
+.la-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.la-karte {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.la-karte-kopf {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.la-karte-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.la-spalte .sortier-eintrag {
+  background: var(--karte);
+}
+
+.la-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.la-reihe-titel {
+  font-weight: 700;
+}
+
+/* ---- Schnelleingabe und Vorlagen ---- */
+.la-schnell-liste,
+.la-vorlage-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.la-schnell-zeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+.la-schnell-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.la-schnell-wahl {
+  max-width: 24rem;
+}
+
+.la-vorlage-liste {
+  gap: 0.25rem;
+}
+
+/* ---- Detail ---- */
+.la-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.la-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.la-angaben {
+  gap: 1rem;
+}
+
+.la-angaben-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.la-angaben-kopf:empty {
+  display: none;
+}
+
+.la-unterfeld {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.la-chipliste {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.la-chipliste .chip {
+  align-items: center;
+  gap: 0.25rem;
+  padding-block: 0.125rem;
+}
+
+.la-chip-weg {
+  display: inline-grid;
+  place-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  margin: -0.5rem -0.75rem -0.5rem 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+}
+
+.la-chip-weg .i {
+  width: 1rem;
+  height: 1rem;
+}
+
+.la-frist-feld {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.la-relfrist {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: 0.75rem;
+}
+
+.la-relfrist[hidden] {
+  display: none;
+}
+
+.la-haken {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2rem;
+}
+
+.la-notiz {
+  white-space: pre-wrap;
+}
+
+.la-punkt {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+}
+
+.la-punkt .wahl {
+  flex: 1 1 14rem;
+}
+
+.la-punkt-knoepfe {
+  display: flex;
+  gap: 0.25rem;
+  margin-left: auto;
+}
+
+.la-punktform,
+.la-linkform {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem 1rem;
+}
+
+.la-punktform .feld,
+.la-linkform .feld {
+  flex: 1 1 14rem;
+}
+
+.la-link {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.la-link > a {
+  flex: 1 1 12rem;
+  padding-block: 0.6rem;
+  overflow-wrap: anywhere;
+}
+
+.la-verlauf li {
+  padding-block: 0.125rem;
+}
+
+.la-konflikt {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.75rem;
+  text-align: left;
+}
+
+.la-konflikt h2 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.la-konflikttabelle {
+  min-width: 0;
+}
+
+.la-konfliktort:empty {
+  display: none;
+}
+
+.la-detail .lg-speicherleiste {
+  margin-top: 0.5rem;
+}
+
+/* ---- Zeitplan ---- */
+.la-zeitplan {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.la-tage {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.la-tag {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+/* Heute: starker Rand und das Wort «Heute»; vergangene Tage nur leiser, nie unlesbar */
+.la-tag--heute {
+  border: 2px solid var(--akzent);
+}
+
+.la-tag--vorbei .la-tag-titel {
+  color: var(--leise);
+}
+
+.la-tag-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.la-tag-titel {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.la-eintraege {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.la-eintrag {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}
+
+.la-verwaltung {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(20rem, 1fr));
+  gap: 1rem;
+  align-items: start;
+}
+
+.la-vorschau {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* Monat */
+.la-monat {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.la-monat-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.la-monat-titel {
+  margin: 0;
+  font-size: 1.125rem;
+}
+
+.la-monatstabelle {
+  table-layout: fixed;
+  min-width: 42rem;
+}
+
+.la-zelle {
+  height: 6.5rem;
+  padding: 0.25rem 0.5rem;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+
+.la-zelle--leer {
+  background: var(--leiste);
+}
+
+.la-zelle--lager {
+  background: var(--blau-f);
+  color: var(--auf-blau-f);
+}
+
+.la-zelle--heute {
+  outline: 2px solid var(--akzent);
+  outline-offset: -2px;
+}
+
+.la-zelle-tag {
+  display: block;
+  font-weight: 700;
+}
+
+.la-zelle-liste {
+  margin: 0.25rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+}
+
+/* ---- To-dos ---- */
+.la-todos {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-block: 0.75rem;
+}
+
+.la-neu {
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .la-monatstabelle {
+    min-width: 36rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .la-tick,
+  .la-tick .i {
+    transition:
+      background-color 0.15s ease,
+      opacity 0.15s ease;
+  }
+}
+
+@media (forced-colors: active) {
+  .la-tick--erledigt {
+    forced-color-adjust: none;
+    background: Highlight;
+    color: HighlightText;
+    border-color: Highlight;
+  }
+
+  .la-tag--heute,
+  .la-zelle--heute {
+    outline: 2px solid Highlight;
+  }
+
+  .la-auswahlleiste {
+    border: 1px solid CanvasText;
+  }
+}
+
+.la-punktform > .knopf,
+.la-linkform > .knopf {
+  margin-top: 1.75rem;
+}
+
+.la-schnell-ergebnis {
+  margin-top: 1rem;
+}
+
+.la-pruefzeile {
+  margin-top: 0.75rem;
+}
+
+/* ---- Skeletons, Bewegung und Rückmeldung (#685) ---- */
+.la-sk,
+.la-todos-sk {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.la-sk > .la-umschalter {
+  margin-bottom: 0;
+}
+
+.la-sk-filter {
+  display: grid;
+  grid-template-columns: 2fr repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+  align-items: end;
+}
+
+.la-sk-filter2 {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.la-sk-feld {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.la-sk-filter .sk--b {
+  width: 100%;
+}
+
+/* To-do-Zeile im Skeleton: Karte mit Kästchen und einer Textzeile, die schmal werden darf */
+.la-todos-sk .la-punkt {
+  flex-wrap: nowrap;
+  padding: 1rem;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 0.75rem;
+}
+
+.la-todos-sk .la-punkt .sk--t {
+  flex: 0 1 18rem;
+  width: auto;
+}
+
+.la-todos-sk .sk--b,
+.la-detail .sk--b {
+  width: 100%;
+}
+
+.la-sk .sk--t,
+.la-todos-sk .sk--t {
+  max-width: 100%;
+}
+
+.la-sk > .sk--t {
+  margin-block: 0.5rem;
+}
+
+@media (max-width: 40rem) {
+  .la-sk-filter {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Karte der Zahl in der Zählzeile: Ziffern gleich breit, damit das Zählen nicht wackelt */
+.la-kennzahlen .lg-zahl {
+  font-variant-numeric: tabular-nums;
+}
+
+.la-fortschritt {
+  margin-block: 0.25rem 0.5rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Die Speicherleiste im Detail steigt auf, wenn sich etwas ändert */
+  .la-detail .lg-speicherleiste:not([hidden]) {
+    animation: lg-hoch 0.24s var(--kurve) both;
+  }
+
+  /* Ein Teil lädt neu: Der alte Inhalt bleibt, wird aber ruhiger */
+  .la-zeitplan[aria-busy="true"] > * {
+    opacity: 0.55;
+    transition: opacity var(--dauer) var(--kurve);
+  }
+
+  /* Gewählte Zeilen färben sich weich */
+  .la-koerper tr {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+}

@@ -106,7 +106,7 @@ const waldtag = () =>
 const empfaenger = () => fcmAttrappe.nachrichten.map((n) => n.token).sort();
 
 describe("Anmelde-Push bei PUT /programme/:id/teilnahmen/:kindId", () => {
-  test("geht an Leitung und SL der Stufe, ohne Kindernamen und nie an fremde Stufen, Eltern oder Admins", async () => {
+  test("geht an Leitung und SL der Stufe, ohne Kindernamen und nie an fremde Stufen, Eltern odie Abteilungsleitung", async () => {
     const [eltern, leitung, sl, leitungB, slB, admin] = await Promise.all([
       person("elternA"),
       person("leitendeA"),

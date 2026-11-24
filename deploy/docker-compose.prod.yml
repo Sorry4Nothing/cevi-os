@@ -27,11 +27,41 @@ services:
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?fehlt in deploy/.env}
       BETTER_AUTH_URL: ${BETTER_AUTH_URL:?fehlt in deploy/.env}
       FCM_SCHLUESSEL_DATEI: /run/secrets/fcm-service-account.json
+      # Medienspeicher (#335): ohne Wert, damit docker compose sie aus deploy/.env übernimmt; fehlen alle, startet die API ohne Medien
+      MEDIEN_S3_ENDPOINT:
+      MEDIEN_S3_REGION:
+      MEDIEN_S3_BUCKET:
+      MEDIEN_S3_ZUGANGSSCHLUESSEL:
+      MEDIEN_S3_GEHEIMSCHLUESSEL:
+      MEDIEN_S3_PFADSTIL:
+      # Verantwortliche Stelle, Anschrift und Kontakt der Seiten /datenschutz, /konto-loeschen und /support: ohne Wert gelten die Vorgaben im Code, ein Wert in deploy/.env überschreibt sie
+      VERANTWORTLICHE_STELLE:
+      VERANTWORTLICHE_ADRESSE:
+      KONTAKT_EMAIL:
+      # Telefon im Fuss und in der Kontaktkarte der Website (leer = nicht gesetzt)
+      KONTAKT_TELEFON:
+      # Cevi-Datenbank (#691): Adresse und Dienstkonto-Token der Abteilung; beide oder keines (leer = Anmeldung füllt nichts vor)
+      CEVI_DB_URL:
+      CEVI_DB_TOKEN:
+      # Fotos aus Flickr (#690): Geheimnisse aus deploy/.env, leer = nicht gesetzt (Anleitung: docs/flickr-einrichten.md)
+      FLICKR_API_KEY:
+      FLICKR_API_SECRET:
+      FLICKR_OAUTH_TOKEN:
+      FLICKR_OAUTH_TOKEN_SECRET:
+      # Website (#705): Die API schreibt die fertigen Seiten in das Volume «website», der Edge-Caddy liefert sie aus (docs/website-auslieferung.md); ohne diese drei erzeugt sie nichts
+      # Nur mit gesetzter ID: Die API verlangt alle drei oder keine
+      WEBSITE_AUSGABE_PFAD: ${WEBSITE_ABTEILUNG_ID:+/srv/website}
+      WEBSITE_ABTEILUNG_ID:
+      WEBSITE_BASIS_URL:
+      # alt, schatten oder neu (docs/rechte-umstellung.md); leer = schatten
+      RECHTE_MODELL:
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:
       - /tmp
     volumes:
+      # Beschreibbar nur für die API; der Edge-Caddy bindet es lesend ein (docs/betrieb.md, «Edge-Caddy»)
+      - website:/srv/website
       - type: bind
         source: ./secrets/fcm-service-account.json
         target: /run/secrets/fcm-service-account.json
@@ -138,3 +168,6 @@ networks:
 
 volumes:
   postgres:
+  # Die erzeugte Website; fester Name, damit der Edge-Caddy es als externes Volume einbinden kann
+  website:
+    name: cevi-os_website

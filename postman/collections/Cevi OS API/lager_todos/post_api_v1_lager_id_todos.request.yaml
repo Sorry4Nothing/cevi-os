@@ -1,0 +1,22 @@
+$kind: http-request
+name: "POST /api/v1/lager/:id/todos"
+order: 414000
+method: POST
+url: "{{baseUrl}}{{pfad_L211}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "text": "30f41288-9adf-44b1-afa7-cb76b0fdb4a4"
+    }

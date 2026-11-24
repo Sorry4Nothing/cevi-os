@@ -1,22 +1,29 @@
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   bigint,
   boolean,
   check,
   customType,
   date,
+  doublePrecision,
   index,
   integer,
   jsonb,
   pgTable,
   pgView,
   primaryKey,
+  smallint,
   text,
   timestamp,
   unique,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
+// Zyklus mit schema-anlass.ts, harmlos: Der Verweis steht nur in einer Funktion, die erst beim Aufbau des Fremdschlüssels läuft
+import { anlass } from "./schema-anlass.js";
+// Ebenso: Die Gruppenrolle der Zuordnung (#643)
+import { gruppenRolle } from "./schema-plattform.js";
 
 const id = () =>
   uuid("id")
@@ -34,6 +41,28 @@ export const abteilung = pgTable("abteilung", {
   googleKalenderId: text("google_kalender_id"),
   syncOkAm: zeitpunkt("sync_ok_am"),
   syncFehler: text("sync_fehler"),
+  // Erlaubte Hosts für Datei-Links im Lager (#370), kleingeschrieben; NULL = keine Einschränkung
+  dateiHosts: text("datei_hosts").array(),
+  // Logo im Kopf der Website (#550): ein Bild der Abteilung im Medienspeicher; fällt es weg, zeigt der Kopf nur den Namen
+  websiteLogoMediumId: uuid("website_logo_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
+  // Fassung des Logos für den dunklen Modus (#558), zum Beispiel mit heller Schrift; ohne sie gilt das Logo oben auch dort
+  websiteLogoDunkelMediumId: uuid("website_logo_dunkel_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
+  // Quadratisches Zeichen für das Favicon der Website (#558); ohne es gilt das Cevi-Zeichen der Plattform
+  websiteZeichenMediumId: uuid("website_zeichen_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
+  // Bild für die Fehlerseiten der Website (#567); ohne es gilt das Titelbild der Startseite
+  websiteFehlerbildMediumId: uuid("website_fehlerbild_medium_id").references(
+    (): AnyPgColumn => medium.id,
+    { onDelete: "set null" },
+  ),
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen
@@ -50,6 +79,8 @@ export const user = pgTable("user", {
   displayUsername: text("display_username"),
   // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
   ceviName: text("cevi_name"),
+  // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
+  ceviDbId: text("cevi_db_id"),
   role: text("role"),
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
@@ -162,25 +193,14 @@ export const twoFactor = pgTable(
   ],
 );
 
-// Löschbar nur ohne Kinder und Leitung: Die Fremdschlüssel sind RESTRICT, die API-Rolle hat DELETE seit Migration 0023
-export const stufe = pgTable(
-  "stufe",
-  {
-    id: id(),
-    abteilungId: uuid("abteilung_id")
-      .notNull()
-      .references(() => abteilung.id, { onDelete: "restrict" }),
-    name: text("name").notNull(),
-    kuerzel: text("kuerzel").notNull(),
-  },
-  (t) => [
-    // Ohne Gross-/Kleinschreibung: «Biber» und «biber» sind dieselbe Stufe
-    uniqueIndex("stufe_name_pro_abteilung").on(
-      t.abteilungId,
-      sql`lower(${t.name})`,
-    ),
-  ],
-);
+// Kompatibilitätsschicht (#332): «stufe» und «rolle» sind seit Migration 0035 beschreibbare Sichten auf tag (Typ «stufe») und person_tag (Rolle «leitung» oder «stufenleitung»); die Daten liegen dort. Die Fremdschlüssel zeigen auf tag.id. Löschbar ist eine Stufe nur ohne Kinder und Leitung: Die Fremdschlüssel sind RESTRICT.
+// Als pgTable beschrieben, weil Drizzle auf einer pgView nicht schreibt; Migrationen entstehen von Hand. Der Abbau der Schicht ersetzt beide durch tag und personTag
+export const stufe = pgTable("stufe", {
+  id: id(),
+  abteilungId: uuid("abteilung_id").notNull(),
+  name: text("name").notNull(),
+  kuerzel: text("kuerzel").notNull(),
+});
 
 // Optionales Logo der Stufe; ohne Zeile gilt in den Clients das Cevi-Logo
 export const stufenlogo = pgTable(
@@ -188,7 +208,7 @@ export const stufenlogo = pgTable(
   {
     stufeId: uuid("stufe_id")
       .primaryKey()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .references(() => tag.id, { onDelete: "restrict" }),
     inhalt: bytea("inhalt").notNull(),
     geaendertAm: zeitpunkt("geaendert_am").notNull().defaultNow(),
   },
@@ -198,26 +218,111 @@ export const stufenlogo = pgTable(
   ],
 );
 
-// Dass Person, Kind und Stufe zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank
-export const rolle = pgTable(
-  "rolle",
+// Dass Person, Kind und Stufe zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank. Sicht auf person_tag, siehe stufe
+export const rolle = pgTable("rolle", {
+  userId: uuid("user_id").notNull(),
+  stufeId: uuid("stufe_id").notNull(),
+  typ: text("typ", { enum: ["leitung", "stufenleitung"] }).notNull(),
+  // Reihenfolge der SL einer Stufe in den Kontakten: 1 = erster Ansprechpartner; null = nicht eingereiht, steht hinter den anderen
+  prioritaet: integer("prioritaet"),
+  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+});
+
+// Tags (#331): Gruppenzugehörigkeit einer Person. Eine Stufe ist ein Tag vom Typ «stufe» mit ihrer bisherigen ID (#332)
+export const tag = pgTable(
+  "tag",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    typ: text("typ", {
+      enum: ["stufe", "funktion", "team", "lager", "anlass"],
+    }).notNull(),
+    name: text("name").notNull(),
+    kuerzel: text("kuerzel").notNull(),
+    // Nur bei Typ «anlass» (#626): der Anlass der Gruppe, zum Beispiel das OK. Fällt der Anlass weg, bleibt die Gruppe ohne Verknüpfung. Dass der Anlass zur Abteilung gehört und die Art «anlass» hat (kein Lager), prüft die Route
+    anlassId: uuid("anlass_id").references((): AnyPgColumn => anlass.id, {
+      onDelete: "set null",
+    }),
+  },
+  (t) => [
+    // Über alle Typen und ohne Gross-/Kleinschreibung, wie stufe_name_pro_abteilung
+    uniqueIndex("tag_name_pro_abteilung").on(
+      t.abteilungId,
+      sql`lower(${t.name})`,
+    ),
+    // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
+    check(
+      "tag_typ_check",
+      sql`${t.typ} in ('stufe', 'funktion', 'team', 'lager', 'anlass')`,
+    ),
+    check(
+      "tag_anlass_check",
+      sql`${t.typ} = 'anlass' or ${t.anlassId} is null`,
+    ),
+    // Höchstens eine Gruppe je Anlass
+    uniqueIndex("tag_anlass_eindeutig")
+      .on(t.anlassId)
+      .where(sql`${t.anlassId} is not null`),
+  ],
+);
+
+// Dass Person und Tag zur selben Abteilung gehören, prüfen die Routen, nicht die Datenbank. Löschen lässt sich ein Tag nur ohne Zuordnung (RESTRICT)
+export const personTag = pgTable(
+  "person_tag",
   {
     userId: uuid("user_id")
       .notNull()
       .references(() => user.id, { onDelete: "cascade" }),
-    stufeId: uuid("stufe_id")
+    tagId: uuid("tag_id")
       .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
-    typ: text("typ", { enum: ["leitung", "stufenleitung"] }).notNull(),
-    // Reihenfolge der SL einer Stufe in den Kontakten: 1 = erster Ansprechpartner; null = nicht eingereiht, steht hinter den anderen
+      .references(() => tag.id, { onDelete: "restrict" }),
+    // Freier Text, zum Beispiel «Stufenleitung»; null = keine Rolle
+    rolle: text("rolle"),
+    // Reihenfolge innerhalb des Tags: 1 = zuerst; null = nicht eingereiht
     prioritaet: integer("prioritaet"),
+    // Die Gruppenrolle der Person in dieser Gruppe (#643): sie trägt die Rechte. Dass die Rolle zur Gruppe gehört, prüfen die Routen und jede Abfrage des Rechtemodells. Der Trigger person_tag_rolle_abgleich führt die Systemrollen dem Freitext «rolle» nach
+    rolleId: uuid("rolle_id").references((): AnyPgColumn => gruppenRolle.id, {
+      onDelete: "set null",
+    }),
     erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
   },
   (t) => [
-    primaryKey({ columns: [t.userId, t.stufeId] }),
-    check("rolle_prioritaet_check", sql`${t.prioritaet} >= 1`),
+    primaryKey({ columns: [t.userId, t.tagId] }),
+    index("person_tag_tag_id_idx").on(t.tagId),
+    index("person_tag_rolle_id_idx").on(t.rolleId),
+    check("person_tag_prioritaet_check", sql`${t.prioritaet} >= 1`),
+  ],
+);
+
+// Bearbeitungsrechte (#334): Sonderrechte pro Objekt für genau eine Person oder einen Tag. objekt_id ist Pflicht (seit #426): «alle Seiten» ist das Plattformrecht «Seiten bearbeiten» der Rolle Webmaster; das Recht steht hier, nie am Tag selbst.
+// Dass Person und Tag zur Abteilung gehören, prüfen die Routen und jede Abfrage in bearbeiten.ts. Fällt eine Person oder ein Tag weg, fällt das Recht mit
+export const bearbeiter = pgTable(
+  "bearbeiter",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    objektTyp: text("objekt_typ", { enum: ["seite"] }).notNull(),
+    objektId: uuid("objekt_id").notNull(),
+    userId: uuid("user_id").references(() => user.id, { onDelete: "cascade" }),
+    tagId: uuid("tag_id").references(() => tag.id, { onDelete: "cascade" }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    unique("bearbeiter_eindeutig")
+      .on(t.abteilungId, t.objektTyp, t.objektId, t.userId, t.tagId)
+      .nullsNotDistinct(),
+    index("bearbeiter_user_id_idx").on(t.userId),
+    index("bearbeiter_tag_id_idx").on(t.tagId),
     // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
-    check("rolle_typ_check", sql`${t.typ} in ('leitung', 'stufenleitung')`),
+    check("bearbeiter_objekt_typ_check", sql`${t.objektTyp} in ('seite')`),
+    check(
+      "bearbeiter_person_oder_tag_check",
+      sql`(${t.userId} is null) <> (${t.tagId} is null)`,
+    ),
   ],
 );
 
@@ -230,13 +335,60 @@ export const kind = pgTable("kind", {
   nachname: text("nachname").notNull(),
   // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
   ceviName: text("cevi_name"),
+  // Nummer in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
+  ceviDbId: text("cevi_db_id"),
   stufeId: uuid("stufe_id")
     .notNull()
-    .references(() => stufe.id, { onDelete: "restrict" }),
+    .references(() => tag.id, { onDelete: "restrict" }),
   stufeSeit: zeitpunkt("stufe_seit").notNull().defaultNow(),
   // Ohne Datum ist das Kind aktiv
   inaktivSeit: zeitpunkt("inaktiv_seit"),
+  // Das eigene Konto des Kindes (#644); ein Konto gehört zu höchstens einem Kind. Fällt das Konto weg, bleibt das Kind ohne Konto. Die Stufe steht nur im Kind, das Konto hat keine Stufenrolle
+  userId: uuid("user_id")
+    .unique()
+    .references(() => user.id, { onDelete: "set null" }),
+  kontoSeit: zeitpunkt("konto_seit"),
+  // Vermerk der Abteilung, dass die Eltern vom Konto wissen (Datum der Mitteilung); der Text der Einwilligung bleibt ausserhalb von Cevi OS
+  elternInformiertAm: date("eltern_informiert_am", { mode: "string" }),
+  // Sehen die verknüpften Eltern weiter, was das Kind sieht? Gilt nur, solange das Kind ein Konto hat (Sicht kind_zugang)
+  elternEinsicht: boolean("eltern_einsicht").notNull().default(true),
 });
+
+// Einstellungen der Konten für Kinder je Abteilung (#644). Ohne Zeile gelten die Vorgaben aus kind-konto.ts: Konten aus, Chat aus
+export const KIND_CHAT_ARTEN = ["aus", "lesen", "schreiben"] as const;
+export const kindKontoEinstellung = pgTable(
+  "kind_konto_einstellung",
+  {
+    abteilungId: uuid("abteilung_id")
+      .primaryKey()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    erlaubt: boolean("erlaubt").notNull().default(false),
+    chat: text("chat", { enum: KIND_CHAT_ARTEN }).notNull().default("aus"),
+    // Hinweis für die Abteilungsleitung beim Erstellen; Cevi OS kennt das Alter der Kinder nicht und prüft es nicht
+    mindestalter: smallint("mindestalter"),
+    elternEinsichtVorgabe: boolean("eltern_einsicht_vorgabe")
+      .notNull()
+      .default(true),
+  },
+  (t) => [
+    check(
+      "kind_konto_einstellung_chat_check",
+      sql`${t.chat} in ('aus', 'lesen', 'schreiben')`,
+    ),
+    check(
+      "kind_konto_einstellung_mindestalter_check",
+      sql`${t.mindestalter} is null or ${t.mindestalter} between 6 and 18`,
+    ),
+  ],
+);
+
+// Sicht (Migration 0144): Wer ein Kind sehen darf. Die verknüpften Eltern, solange das Kind kein Konto hat oder die Einsicht der Eltern gilt (eigen = false), und das eigene Konto (eigen = true). Jede Sichtregel für Eltern fragt diese Sicht statt kind_eltern
+export const kindZugang = pgView("kind_zugang", {
+  kindId: uuid("kind_id").notNull(),
+  userId: uuid("user_id").notNull(),
+  erstelltAm: zeitpunkt("erstellt_am").notNull(),
+  eigen: boolean("eigen").notNull(),
+}).existing();
 
 export const kindEltern = pgTable(
   "kind_eltern",
@@ -278,6 +430,13 @@ export const programm = pgTable(
     })
       .notNull()
       .default("eltern"),
+    // Rohe Kategorien des Outlook-Termins (CATEGORIES), für die Warnliste; die Tags stehen in programm_tag (#432)
+    kategorien: text("kategorien")
+      .array()
+      .notNull()
+      .default(sql`'{}'::text[]`),
+    // LOCATION des Termins (#432)
+    ort: text("ort"),
   },
   (t) => [
     unique("programm_abteilung_google_event_eindeutig").on(
@@ -300,44 +459,89 @@ export const programm = pgTable(
   ],
 );
 
-// Von der Webseite der Stufe abgerufen (kalender/eckdaten-sync.ts), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
+// Orte der Abteilung (#646): Treffpunkte und Schlussorte, die oft vorkommen, einmal angelegt und per Auswahl gewählt (routes/redaktion/orte.ts).
+// Der Standort steht in höchstens einer Form: Adresse zum Suchen, Koordinaten oder ein geprüfter Link von Google Maps (karten-standort.ts); den Link zur Karte erzeugt der Server selbst
+export const ort = pgTable(
+  "ort",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    // Adresszeile oder Hinweis («Beim Hintereingang»); steht auf der Website unter dem Namen
+    beschreibung: text("beschreibung"),
+    karteAdresse: text("karte_adresse"),
+    breite: doublePrecision("breite"),
+    laenge: doublePrecision("laenge"),
+    karteUrl: text("karte_url"),
+    reihenfolge: integer("reihenfolge").notNull().default(0),
+    // Nicht aktive Orte bleiben in der Verwaltung, erscheinen aber nicht mehr in der Auswahl
+    aktiv: boolean("aktiv").notNull().default(true),
+    zuletztVerwendetAm: zeitpunkt("zuletzt_verwendet_am"),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("ort_name_pro_abteilung").on(
+      t.abteilungId,
+      sql`lower(${t.name})`,
+    ),
+    index("ort_abteilung_idx").on(t.abteilungId, t.reihenfolge),
+    check(
+      "ort_laenge_check",
+      sql`char_length(${t.name}) between 1 and 100 and (${t.beschreibung} is null or char_length(${t.beschreibung}) <= 200) and (${t.karteAdresse} is null or char_length(${t.karteAdresse}) <= 200) and (${t.karteUrl} is null or char_length(${t.karteUrl}) <= 500)`,
+    ),
+    check(
+      "ort_koordinaten_check",
+      sql`(${t.breite} is null) = (${t.laenge} is null) and (${t.breite} is null or (${t.breite} between -90 and 90 and ${t.laenge} between -180 and 180))`,
+    ),
+    check(
+      "ort_eine_form_check",
+      sql`(case when ${t.karteAdresse} is null then 0 else 1 end) + (case when ${t.breite} is null then 0 else 1 end) + (case when ${t.karteUrl} is null then 0 else 1 end) <= 1`,
+    ),
+  ],
+);
+
+// Die festen Felder der Stufenseite, im Editor gepflegt (routes/redaktion/eckdaten.ts), nicht aus dem Kalender: Der Kalender-Upsert berührt sie nie.
 // Der Schlüssel ist Stufe und Tag; die Route hängt sie über beides an das Programm
 export const programmEckdaten = pgTable(
   "programm_eckdaten",
   {
     stufeId: uuid("stufe_id")
       .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .references(() => tag.id, { onDelete: "restrict" }),
     tag: date("tag").notNull(),
+    // HH:mm
+    treffZeit: text("treff_zeit"),
+    // Der Text ist der Name zum Zeitpunkt der Wahl (Schnappschuss): Er bleibt, wenn der Ort gelöscht wird; die Kennung führt zur Karte (#646)
     treffpunkt: text("treffpunkt"),
+    treffpunktOrtId: uuid("treffpunkt_ort_id").references(() => ort.id, {
+      onDelete: "set null",
+    }),
     schlussOrt: text("schluss_ort"),
+    schlussOrtId: uuid("schluss_ort_id").references(() => ort.id, {
+      onDelete: "set null",
+    }),
     // HH:mm
     schlussZeit: text("schluss_zeit"),
     mitnehmen: text("mitnehmen"),
     abgerufenAm: zeitpunkt("abgerufen_am").notNull().defaultNow(),
-  },
-  (t) => [primaryKey({ columns: [t.stufeId, t.tag] })],
-);
-
-export const programmStufe = pgTable(
-  "programm_stufe",
-  {
-    programmId: uuid("programm_id")
+    // Nur noch «seite» (gepflegt im Editor, #355); «web» war das Auslesen der alten Webseiten, das #361 entfernt hat
+    quelle: text("quelle", { enum: ["seite"] })
       .notNull()
-      .references(() => programm.id, { onDelete: "cascade" }),
-    stufeId: uuid("stufe_id")
-      .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .default("seite"),
   },
-  (t) => [primaryKey({ columns: [t.programmId, t.stufeId] })],
+  (t) => [
+    primaryKey({ columns: [t.stufeId, t.tag] }),
+    check("programm_eckdaten_quelle_check", sql`${t.quelle} = 'seite'`),
+    index("programm_eckdaten_treffpunkt_ort_idx")
+      .on(t.treffpunktOrtId)
+      .where(sql`${t.treffpunktOrtId} is not null`),
+    index("programm_eckdaten_schluss_ort_idx")
+      .on(t.schlussOrtId)
+      .where(sql`${t.schlussOrtId} is not null`),
+  ],
 );
-
-// Wirksame Stufen eines Programms: die zugeordneten, bei keiner Zuordnung alle Stufen der Abteilung (auch später angelegte).
-// Alle lesenden Abfragen nehmen diese Sicht; geschrieben wird nur programm_stufe. Die Sicht legt die Migration an
-export const programmStufeWirksam = pgView("programm_stufe_wirksam", {
-  programmId: uuid("programm_id").notNull(),
-  stufeId: uuid("stufe_id").notNull(),
-}).existing();
 
 // Ohne Zeile gilt «offen»; ein Kind ohne Antwort ist keine Absage
 export const teilnahme = pgTable(
@@ -429,7 +633,7 @@ export const chat = pgTable(
     typ: text("typ", { enum: ["stufe", "direkt"] }).notNull(),
     stufeId: uuid("stufe_id")
       .notNull()
-      .references(() => stufe.id, { onDelete: "restrict" }),
+      .references(() => tag.id, { onDelete: "restrict" }),
     // Nur bei typ direkt: das Elternteil des Einzelchats
     elternUserId: uuid("eltern_user_id").references(() => user.id, {
       onDelete: "cascade",
@@ -526,7 +730,7 @@ export const zeitregel = pgTable(
       .notNull()
       .references(() => abteilung.id, { onDelete: "restrict" }),
     // RESTRICT wie jede Stufen-Referenz; die Löschroute der Stufe löscht die Regeln vorher
-    stufeId: uuid("stufe_id").references(() => stufe.id, {
+    stufeId: uuid("stufe_id").references(() => tag.id, {
       onDelete: "restrict",
     }),
     wochentag: integer("wochentag").notNull(),
@@ -563,20 +767,25 @@ export const zeitregelGesendet = pgTable(
 );
 
 // akteur_id und ziel_id ohne Fremdschlüssel, damit das Log Löschungen übersteht
-export const auditLog = pgTable("audit_log", {
-  id: id(),
-  abteilungId: uuid("abteilung_id")
-    .notNull()
-    .references(() => abteilung.id, { onDelete: "restrict" }),
-  // UUID einer Person, «cli» für die Kommandozeile, die kein Konto hat, oder «system» für die automatische Zuordnung des Kalender-Syncs
-  akteurId: text("akteur_id").notNull(),
-  aktion: text("aktion").notNull(),
-  zielTyp: text("ziel_typ").notNull(),
-  zielId: uuid("ziel_id").notNull(),
-  // Ohne Personendaten
-  details: jsonb("details"),
-  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
-});
+export const auditLog = pgTable(
+  "audit_log",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    // UUID einer Person, «cli» für die Kommandozeile, die kein Konto hat, oder «system» für die automatische Zuordnung des Kalender-Syncs
+    akteurId: text("akteur_id").notNull(),
+    aktion: text("aktion").notNull(),
+    zielTyp: text("ziel_typ").notNull(),
+    zielId: uuid("ziel_id").notNull(),
+    // Ohne Personendaten
+    details: jsonb("details"),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  // Das Änderungsprotokoll (#662) sucht die Audit-Angaben einer Anfrage nach Zeit
+  (t) => [index("audit_log_erstellt_am_idx").on(t.erstelltAm)],
+);
 
 // Das Profilbild einer Person (#173): höchstens eines, vom Server auf 256 × 256 JPEG neu kodiert; die Zeile geht mit dem Konto
 export const profilbild = pgTable(
@@ -593,3 +802,77 @@ export const profilbild = pgTable(
     check("profilbild_inhalt_klein", sql`octet_length(${t.inhalt}) <= 262144`),
   ],
 );
+
+// Ein Bild oder PDF im Medienspeicher (#335); der Inhalt liegt im S3 unter speicherSchluessel, nie in der Datenbank. Bilder sind verkleinert und ohne Metadaten (WebP), PDFs unverändert. Die Sichtbarkeit kennt vorerst nur «oeffentlich» und «angemeldet»; die Tag-Menge folgt mit #333. Die Zeile bleibt, wenn das Konto geht
+export const medium = pgTable(
+  "medium",
+  {
+    id: id(),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    mimeTyp: text("mime_typ").notNull(),
+    groesse: integer("groesse").notNull(),
+    // Nur bei Bildern
+    breite: integer("breite"),
+    hoehe: integer("hoehe"),
+    // Bild: genau eines von altText und dekorativ; PDF: freiwillige Beschreibung, nie dekorativ
+    altText: text("alt_text"),
+    dekorativ: boolean("dekorativ").notNull().default(false),
+    sichtbarkeit: text("sichtbarkeit", {
+      enum: ["oeffentlich", "angemeldet"],
+    }).notNull(),
+    // Zufällig, ohne Dateinamen der Nutzer
+    speicherSchluessel: text("speicher_schluessel").notNull().unique(),
+    hochgeladenVon: uuid("hochgeladen_von").references(() => user.id, {
+      onDelete: "set null",
+    }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    index("medium_abteilung").on(t.abteilungId, t.erstelltAm),
+    check(
+      "medium_sichtbarkeit_check",
+      sql`${t.sichtbarkeit} in ('oeffentlich', 'angemeldet')`,
+    ),
+    check(
+      "medium_inhalt_check",
+      sql`${t.groesse} > 0 and (
+        (${t.mimeTyp} = 'application/pdf' and not ${t.dekorativ} and ${t.breite} is null and ${t.hoehe} is null)
+        or (${t.mimeTyp} in ('image/jpeg', 'image/png', 'image/webp') and ${t.breite} > 0 and ${t.hoehe} > 0 and ${t.dekorativ} = (${t.altText} is null))
+      )`,
+    ),
+  ],
+);
+
+// Tabellen der Website (#348)
+export * from "./schema-website.js";
+
+// Lager-Modul (#364): eigene Datei je Modul, damit parallele Issues sich nicht in dieser Datei begegnen
+export * from "./schema-lager.js";
+export * from "./schema-lager-vorlagen.js";
+
+// Plattformrollen (#423)
+export * from "./schema-plattform.js";
+
+// Termine (Epic #430, Gerüst #431): eine Datei je Bereich, alle fünf hier eingehängt, damit die Folge-Issues schema.ts nicht anfassen
+export * from "./schema-termine.js";
+export * from "./schema-ical.js";
+export * from "./schema-vorschlag.js";
+export * from "./schema-anlass.js";
+export * from "./schema-raum.js";
+
+// Bereichsschalter (#424, #425)
+export * from "./schema-bereichsschalter.js";
+
+// Lädeli (#566)
+export * from "./schema-laden.js";
+
+// Fotos aus Flickr (#690)
+export * from "./schema-fotos.js";
+
+// Aktivitätsprotokoll (#637)
+export * from "./schema-aktivitaet.js";
+
+// Cevi-Datenbank (#691)
+export * from "./schema-cevi-db.js";

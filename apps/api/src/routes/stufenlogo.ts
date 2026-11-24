@@ -12,6 +12,8 @@ import type { Db } from "../db/client.js";
 import { stufe, stufenlogo } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import type { Person } from "../rechte.js";
+import { verlange } from "../rechtemodell/darf.js";
+import { stufeObjekt } from "../rechtemodell/personenrechte.js";
 
 const pfadSchema = z.strictObject({ id: z.uuid() });
 const BILD_FORMAT = {
@@ -47,7 +49,13 @@ export function erstelleStufenlogoRouten({
           const person = c.get("person");
           const { id } = c.req.valid("param");
           await eigeneStufe(person, id);
-          if (!person.admin) throw new HTTPException(403);
+          // Das Logo gehört zur Stufe: Gruppen verwalten (#650)
+          await verlange(
+            db,
+            person,
+            "gruppen.verwalten",
+            stufeObjekt(person, id),
+          );
           if (!kodiereLogo) throw new HTTPException(501);
           const daten = new Uint8Array(await c.req.arrayBuffer());
           if (!istErlaubtesBild(daten)) return c.json(BILD_FORMAT, 415);
@@ -76,7 +84,13 @@ export function erstelleStufenlogoRouten({
           const person = c.get("person");
           const { id } = c.req.valid("param");
           await eigeneStufe(person, id);
-          if (!person.admin) throw new HTTPException(403);
+          // Das Logo gehört zur Stufe: Gruppen verwalten (#650)
+          await verlange(
+            db,
+            person,
+            "gruppen.verwalten",
+            stufeObjekt(person, id),
+          );
           await db.delete(stufenlogo).where(eq(stufenlogo.stufeId, id));
           return c.body(null, 204);
         },

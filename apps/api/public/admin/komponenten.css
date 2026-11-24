@@ -1,0 +1,522 @@
+/* Bausteine des Designs, die es vor dem Neuaufbau nicht gab (G4, G5, G6): Flächen, Skeleton, Schalter, Pillen, Wahlkarten, Snackbar, Fortschritt, Schritte, Konflikt. Farben nur aus den Tokens in admin.css; Klassen wie in docs/verwaltung-geruest.md. */
+
+/* Flächen und Zeilen (Übersicht, Detail) */
+
+.flaeche {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 20px 24px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.flaeche > h2 {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.flaeche > h2.gross {
+  font-size: 1.375rem;
+  line-height: 1.75rem;
+}
+
+.liste-zeilen {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.liste-zeilen > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: 12px 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.liste-zeilen > li:first-child {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.liste-zeilen .text {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* «Das braucht dich»: Zahl im blauen Kreis, Satz, Knopf rechts */
+.braucht .zahl-kreis {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 44px;
+  height: 44px;
+  color: var(--auf-blau);
+  background: var(--blau);
+  border-radius: 9999px;
+  font-size: 1.125rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Skeleton: Formen wie der echte Inhalt, nur die Deckkraft pulsiert und nur, wenn Bewegung erlaubt ist */
+
+.sk {
+  display: block;
+  background: var(--skeleton);
+  border-radius: 8px;
+}
+
+.sk--t {
+  height: 14px;
+  margin: 4px 0;
+}
+
+.sk--r {
+  height: 24px;
+  border-radius: 9999px;
+}
+
+.sk--k {
+  height: 36px;
+  border-radius: 9999px;
+}
+
+.sk--k.sk-b24 {
+  height: 24px;
+}
+
+.sk--k.sk-b48 {
+  height: 48px;
+}
+
+.sk--b {
+  max-width: 100%;
+  height: 52px;
+  border-radius: 12px;
+}
+
+.sk-zeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.sk-zeile--paar {
+  justify-content: space-between;
+}
+
+.sk-zeile--knopf {
+  gap: 16px;
+  padding: 10px 0;
+}
+
+.sk-zeile--knopf > :last-child {
+  width: 100px;
+  height: 44px;
+  margin-left: auto;
+}
+
+.sk-zeile--liste {
+  padding: 14px 16px;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.sk-zeile--liste:first-child {
+  border-top: 0;
+}
+
+.sk-tabelle table {
+  min-width: 0;
+}
+
+.sk-huelle {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sk-langsam {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .sk-huelle .sk {
+    animation: sk-puls 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes sk-puls {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.sk-b24 {
+  width: 24px;
+}
+
+.sk-b36 {
+  width: 36px;
+}
+
+.sk-b48 {
+  width: 48px;
+}
+
+.sk-b64 {
+  width: 64px;
+}
+
+.sk-b80 {
+  width: 80px;
+}
+
+.sk-b96 {
+  width: 96px;
+}
+
+.sk-b112 {
+  width: 112px;
+}
+
+.sk-b136 {
+  width: 136px;
+}
+
+.sk-b160 {
+  width: 160px;
+}
+
+.sk-b200 {
+  width: 200px;
+}
+
+.sk-b260 {
+  width: 260px;
+}
+
+.sk-b320 {
+  width: 320px;
+}
+
+.sk-b380 {
+  width: 380px;
+}
+
+/* Aktualisieren: Der alte Inhalt bleibt stehen */
+.aktualisiert {
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+/* Knopf im Ladezustand: Ladekreis vor dem Text; dazu aria-busy="true" und disabled */
+.knopf[aria-busy="true"]::before {
+  content: "";
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid currentcolor;
+  border-right-color: transparent;
+  border-radius: 50%;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .knopf[aria-busy="true"]::before {
+    animation: drehen 0.9s linear infinite;
+  }
+}
+
+@keyframes drehen {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Sichtbar, aber nicht verfügbar (selten: Bietet die API die Aktion nicht an, fehlt der Knopf) */
+.knopf[aria-disabled="true"] {
+  color: var(--leise);
+  background: var(--erhoben);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+/* Schalter (role="switch", aria-checked): wechselt sofort */
+
+.schalterzeile {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 4px 0;
+}
+
+.schalter {
+  position: relative;
+  flex: none;
+  width: 52px;
+  height: 32px;
+  padding: 0;
+  background: var(--leiste);
+  border: 2px solid var(--rand);
+  border-radius: 9999px;
+  cursor: pointer;
+}
+
+/* Trefferfläche 44 px hoch, ohne dass der Schalter grösser aussieht */
+.schalter::before {
+  content: "";
+  position: absolute;
+  inset: -6px -2px;
+}
+
+.schalter::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  left: 4px;
+  width: 20px;
+  height: 20px;
+  background: var(--rand);
+  border-radius: 50%;
+}
+
+.schalter[aria-checked="true"] {
+  background: var(--blau);
+  border-color: var(--blau);
+}
+
+.schalter[aria-checked="true"]::after {
+  left: 24px;
+  background: var(--auf-blau);
+}
+
+/* Pillen: gewählt mit Rahmen, Haken und fetter Schrift (nie nur Farbe) */
+
+.pillen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pille {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--rand);
+  border-radius: 9999px;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.pille[aria-pressed="true"] {
+  padding: 0 15px;
+  color: var(--auf-blau-f);
+  background: var(--blau-f);
+  border: 2px solid var(--akzent);
+  font-weight: 800;
+}
+
+.pille[aria-pressed="true"]::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  background: currentcolor;
+  -webkit-mask: var(--ic-ok) center / contain no-repeat;
+  mask: var(--ic-ok) center / contain no-repeat;
+}
+
+/* Wahlkarte: Radio mit Titel und Erklärung */
+
+.wahlkarte {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 16px;
+  border: 1px solid var(--rand);
+  border-radius: 16px;
+  cursor: pointer;
+}
+
+.wahlkarte input {
+  appearance: none;
+  -webkit-appearance: none;
+  flex: none;
+  width: 22px;
+  height: 22px;
+  margin: 2px 0 0;
+  border: 2px solid var(--rand);
+  border-radius: 50%;
+}
+
+.wahlkarte input:checked {
+  border: 7px solid var(--akzent);
+}
+
+.wahlkarte:has(input:checked) {
+  padding: 13px 15px;
+  background: var(--blau-f);
+  border: 2px solid var(--akzent);
+}
+
+.wahlkarte strong {
+  display: block;
+  font-size: 0.9375rem;
+}
+
+.wahlkarte span {
+  display: block;
+  color: var(--leise);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+/* Snackbar: umgekehrte Farben, bleibt, bis man sie schliesst oder die Aktion wählt */
+
+.snack {
+  position: fixed;
+  z-index: 60;
+  bottom: 32px;
+  left: 50%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 6px 6px 6px 18px;
+  color: var(--auf-umkehr);
+  background: var(--umkehr);
+  border-radius: 16px;
+  box-shadow: var(--schatten);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  transform: translateX(-50%);
+}
+
+.snack button {
+  min-height: 44px;
+  padding: 0 14px;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+/* Fortschritt und Schritte (lange Vorgänge) */
+
+.fortschritt {
+  height: 10px;
+  overflow: hidden;
+  background: var(--leiste);
+  border-radius: 9999px;
+}
+
+.fortschritt > span {
+  display: block;
+  height: 100%;
+  background: var(--akzent);
+  border-radius: inherit;
+}
+
+.schritte {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.schritte li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 48px;
+  padding: 0 18px 0 8px;
+  color: var(--leise);
+  background: var(--leiste);
+  border-radius: 9999px;
+  font-weight: 700;
+}
+
+.schritte .nr {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--rand);
+  border-radius: 50%;
+  font-size: 0.875rem;
+}
+
+.schritte li[aria-current="step"] {
+  color: var(--auf-blau);
+  background: var(--blau);
+}
+
+.schritte li[aria-current="step"] .nr {
+  border-color: var(--auf-blau);
+}
+
+.schritte li.fertig {
+  color: var(--text);
+}
+
+.schritte li.fertig .nr {
+  color: var(--ok);
+  background: var(--ok-f);
+  border-color: transparent;
+}
+
+/* Konflikt: zwei Fassungen nebeneinander (gleichzeitiges Bearbeiten) */
+
+.konflikt {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.markiert {
+  padding: 8px 10px;
+  color: var(--wa);
+  background: var(--wa-f);
+  border-radius: 8px;
+}
+
+/* Blättern (Pagination): Bereich links, Knöpfe rechts */
+
+.seitenwahl {
+  flex-wrap: wrap;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+@media (max-width: 760px) {
+  .konflikt {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .snack {
+    right: 16px;
+    left: 16px;
+    transform: none;
+  }
+}

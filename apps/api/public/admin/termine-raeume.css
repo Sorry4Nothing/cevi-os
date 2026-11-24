@@ -1,0 +1,6 @@
+/* Unterseiten «Räume» (A14, A15) und «Anfragen» (A16). Klassen mit dem Vorsatz «tm-» */
+
+/* «Raum löschen» steht links im Fuss des Blatts, abgesetzt von Abbrechen und Speichern */
+.tm-fuss-links {
+  margin-right: auto;
+}

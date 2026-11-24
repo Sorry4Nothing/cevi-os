@@ -169,7 +169,7 @@ describe("POST /api/v1/admin/personen", () => {
     expect(await sitzungen(angelegt.id)).toHaveLength(1);
   });
 
-  test("das Startpasswort steht nicht im Klartext in account.password, in der Datenbank oder in den Logs; die Liste zeigt es nur dem Admin", async () => {
+  test("das Startpasswort steht nicht im Klartext in account.password, in der Datenbank oder in den Logs; die Liste zeigt es nur der Abteilungsleitung", async () => {
     const angelegt = await legePersonAn();
     const formen = [
       angelegt.startpasswort,
@@ -306,7 +306,7 @@ describe("GET /api/v1/admin/personen", () => {
     }
   });
 
-  test("der Demo-Admin sieht nur die eigene Abteilung: eigene Liste, 404 auf fremde IDs, 400 auf fremde Stufen", async () => {
+  test("der Demo-Abteilungsleitung sieht nur die eigene Abteilung: eigene Liste, 404 auf fremde IDs, 400 auf fremde Stufen", async () => {
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
     const fremde = await legePersonAn();
     const liste = await anfrage(demoAdmin, "GET");
@@ -430,7 +430,7 @@ describe("Cevi-Name", () => {
 });
 
 describe("PATCH /api/v1/admin/personen/:id", () => {
-  test("ändert Name, Admin und Listen; unveränderte kind_eltern-Zeilen behalten erstellt_am", async () => {
+  test("ändert Name, Abteilungsleitung und Listen; unveränderte kind_eltern-Zeilen behalten erstellt_am", async () => {
     const angelegt = await legePersonAn({
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
       elternteilVon: [welt.kindAId],
@@ -478,7 +478,7 @@ describe("PATCH /api/v1/admin/personen/:id", () => {
 
   test("das eigene Konto darf den Namen per PATCH ändern", async () => {
     const antwort = await anfrage(admin, "PATCH", `/${admin.id}`, {
-      name: "Admin Umbenannt",
+      name: "Abteilungsleitung Umbenannt",
     });
     expect(antwort.status).toBe(204);
   });
@@ -603,6 +603,7 @@ describe("POST /api/v1/admin/personen/:id/startpasswort", () => {
 
   test.each([
     ["startpasswort", "POST", "/startpasswort"],
+    ["aktivieren", "POST", "/aktivieren"],
     ["deaktivieren", "POST", "/deaktivieren"],
     ["löschen", "DELETE", ""],
   ])(
@@ -616,7 +617,7 @@ describe("POST /api/v1/admin/personen/:id/startpasswort", () => {
 });
 
 describe("Deaktivieren und Aktivieren", () => {
-  test("Deaktivieren sperrt Login und löscht Sitzungen, Aktivieren öffnet wieder", async () => {
+  test("Deaktivieren sperrt Login und löscht Sitzungen, Aktivieren gibt ein neues Startpasswort und das alte gilt nicht mehr", async () => {
     const angelegt = await legePersonAn();
     await anmelden(angelegt.benutzername, angelegt.startpasswort);
 
@@ -639,11 +640,21 @@ describe("Deaktivieren und Aktivieren", () => {
       "POST",
       `/${angelegt.id}/aktivieren`,
     );
-    expect(aktiviert.status).toBe(204);
+    expect(aktiviert.status).toBe(200);
+    const { startpasswort } = (await aktiviert.json()) as {
+      startpasswort: string;
+    };
+    expect(startpasswort).toMatch(STARTPASSWORT_FORM);
+    expect(startpasswort).not.toBe(angelegt.startpasswort);
     const wieder = await userZeile(angelegt.id);
     expect(wieder.banned).toBe(false);
     expect(wieder.deaktiviertAm).toBeNull();
-    await anmelden(angelegt.benutzername, angelegt.startpasswort);
+    expect(wieder.mussPasswortAendern).toBe(true);
+    // Das alte Startpasswort ist ungültig, das neue öffnet
+    await expect(
+      anmelden(angelegt.benutzername, angelegt.startpasswort),
+    ).rejects.toMatchObject({ body: { code: "INVALID_USERNAME_OR_PASSWORD" } });
+    await anmelden(angelegt.benutzername, startpasswort);
     expect(await sitzungen(angelegt.id)).toHaveLength(1);
   });
 });
@@ -672,8 +683,8 @@ describe("DELETE /api/v1/admin/personen/:id", () => {
   });
 });
 
-// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver Admins ihrer Abteilung
-describe("Schutz des letzten Admins", () => {
+// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver die Abteilungsleitung ihrer Abteilung
+describe("Schutz des letzte Abteilungsleitungs", () => {
   async function eigeneWelt() {
     const eigene = await erstelleWelt(db, auth);
     return {
@@ -682,7 +693,7 @@ describe("Schutz des letzten Admins", () => {
     };
   }
 
-  test("der einzige Admin kann sich die Rolle nicht selbst nehmen", async () => {
+  test("der einzige Abteilungsleitung kann sich die Rolle nicht selbst nehmen", async () => {
     const { ersterAdmin } = await eigeneWelt();
     const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
       admin: false,
@@ -692,11 +703,11 @@ describe("Schutz des letzten Admins", () => {
     expect((await userZeile(ersterAdmin.id!)).role).toBe("admin");
   });
 
-  test("mit zwei Admins geht das Entfernen des einen, der letzte bleibt; deaktivierte zählen nicht", async () => {
+  test("mit zwei die Abteilungsleitung geht das Entfernen des einen, der letzte bleibt; deaktivierte zählen nicht", async () => {
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
     const zweiter = await legePersonaAn(eigene, "adminOhneZweitenFaktor");
 
-    // Zwei Admins: den anderen zurückstufen geht
+    // Zwei die Abteilungsleitung: den anderen zurückstufen geht
     expect(
       (await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: false }))
         .status,
@@ -709,7 +720,7 @@ describe("Schutz des letzten Admins", () => {
         })
       ).status,
     ).toBe(409);
-    // Wieder zwei Admins, aber der zweite deaktiviert: er zählt nicht
+    // Wieder zwei die Abteilungsleitung, aber der zweite deaktiviert: er zählt nicht
     expect(
       (await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: true }))
         .status,
@@ -727,9 +738,9 @@ describe("Schutz des letzten Admins", () => {
     ).toBe(409);
   });
 
-  test("gegenseitiges Deaktivieren über Promise.all lässt genau einen aktiven Admin übrig", async () => {
+  test("gegenseitiges Deaktivieren über Promise.all lässt genau einen aktiven Abteilungsleitung übrig", async () => {
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
-    // Mit zweitem Faktor: Ohne ihn sperrt die Admin-Sperre (#23) seine Anfrage vor dem Rennen
+    // Mit zweitem Faktor: Ohne ihn sperrt die Sperre der Abteilungsleitung (#23) seine Anfrage vor dem Rennen
     const zweiter = await legePersonaAn(eigene, "admin");
 
     const antworten = await Promise.all([
@@ -745,7 +756,7 @@ describe("Schutz des letzten Admins", () => {
     expect(await aktiveAdminIds(db, eigene.testabteilungId)).toHaveLength(1);
   });
 
-  test("gegenseitiges Zurückstufen über Promise.all lässt genau einen aktiven Admin übrig", async () => {
+  test("gegenseitiges Zurückstufen über Promise.all lässt genau einen aktiven Abteilungsleitung übrig", async () => {
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
     const zweiter = await legePersonaAn(eigene, "admin");
 
@@ -772,5 +783,20 @@ describe("Schutz des letzten Admins", () => {
     expect(await aktiveAdminIds(db, eigene.testabteilungId)).toEqual([
       ersterAdmin.id,
     ]);
+  });
+});
+
+describe("Keine Freigabe für die Website (#610)", () => {
+  test("das alte Feld gibt es nicht mehr: PATCH lehnt es mit 400 ab, die Liste nennt es nicht", async () => {
+    const ziel = await legePersonaAn(welt, "elternA");
+    expect(
+      (await anfrage(admin, "PATCH", `/${ziel.id}`, { websiteFreigabe: true }))
+        .status,
+    ).toBe(400);
+    const liste = (await (await anfrage(admin, "GET")).json()) as {
+      personen: Record<string, unknown>[];
+    };
+    for (const p of liste.personen)
+      expect(p).not.toHaveProperty("websiteFreigabe");
   });
 });

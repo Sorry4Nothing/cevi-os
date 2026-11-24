@@ -321,7 +321,7 @@ describe("POST /api/v1/admin/mitteilungen", () => {
     expect(JSON.stringify(zeilen)).not.toContain("Titeltext");
   });
 
-  test("Nicht-Admins bekommen 403, es geht nichts hinaus und nichts ins Audit-Log", async () => {
+  test("alle anderen bekommen 403, es geht nichts hinaus und nichts ins Audit-Log", async () => {
     for (const schluessel of ["slA", "leitendeA", "elternA"] as const) {
       const konto = await person(schluessel);
       expect((await senden(konto, ALLE)).status).toBe(403);
@@ -405,5 +405,347 @@ describe("POST /api/v1/admin/mitteilungen", () => {
     for (let i = 0; i < 10; i++) await senden(admin, ALLE);
     expect((await senden(admin, ALLE)).status).toBe(429);
     expect((await senden(demoAdmin, ALLE)).status).toBe(200);
+  });
+});
+
+describe("Ziele: Gruppen mit passenden Rollen", () => {
+  // Ein Tag der Testabteilung (oder der Demo-Abteilung) und seine Mitglieder; rolle ist der Freitext an der Zuordnung
+  async function gruppe(
+    typ: "team" | "funktion" | "lager",
+    mitglieder: [PersonaKonto, string | null][],
+    abteilungId = welt.testabteilungId,
+  ) {
+    const [zeile] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId,
+        typ,
+        name: `Gruppe ${randomUUID()}`,
+        kuerzel: "G",
+      })
+      .returning();
+    for (const [konto, rolle] of mitglieder) {
+      await db
+        .insert(schema.personTag)
+        .values({ userId: konto.id!, tagId: zeile!.id, rolle });
+    }
+    return zeile!.id;
+  }
+  const mitZielen = (ziele: unknown) => ({ titel: "Hallo", ziele });
+
+  test("Leitende einer Stufe, Kinder einer anderen und ein ganzes Team lassen sich kombinieren", async () => {
+    const admin = await person("admin");
+    await person("leitendeA");
+    await person("slA");
+    await person("elternA");
+    await person("elternB");
+    await person("slB");
+    const materialwart = await person("leitendeB", "materialwart");
+    const team = await gruppe("team", [
+      [materialwart, null],
+      [admin, "Verantwortlich"],
+    ]);
+
+    const antwort = await senden(
+      admin,
+      mitZielen([
+        { gruppeId: welt.stufeAId, rollen: ["leitung"] },
+        { gruppeId: welt.stufeBId, rollen: ["eltern"] },
+        { gruppeId: team, rollen: ["alle"] },
+      ]),
+    );
+    expect(antwort.status).toBe(200);
+    expect(await antwort.json()).toEqual({ empfaenger: 4 });
+    expect(empfangen()).toEqual(
+      erwartet("admin", "leitendeA", "elternB", "materialwart"),
+    );
+  });
+
+  test("eine Person in mehreren Zielen bekommt den Push einmal", async () => {
+    const admin = await person("admin");
+    const doppelt = await person("leitendeAElternB");
+    const team = await gruppe("team", [[doppelt, null]]);
+    const antwort = await senden(
+      admin,
+      mitZielen([
+        { gruppeId: welt.stufeAId, rollen: ["leitung"] },
+        { gruppeId: welt.stufeBId, rollen: ["eltern"] },
+        { gruppeId: team, rollen: ["alle"] },
+      ]),
+    );
+    expect(await antwort.json()).toEqual({ empfaenger: 1 });
+    expect(empfangen()).toEqual(erwartet("leitendeAElternB"));
+  });
+
+  test("«Verantwortliche» sind die Mitglieder mit der Rolle «verantwortlich»; «alle» nimmt alle Mitglieder", async () => {
+    const admin = await person("admin");
+    const chef = await person("elternA", "chef");
+    const helfer = await person("elternB", "helfer");
+    await person("slA", "keinMitglied");
+    const funktion = await gruppe("funktion", [
+      [chef, "verantwortlich"],
+      [helfer, "Helfer"],
+    ]);
+    await senden(
+      admin,
+      mitZielen([{ gruppeId: funktion, rollen: ["verantwortliche"] }]),
+    );
+    expect(empfangen()).toEqual(erwartet("chef"));
+    gesendet = [];
+    await senden(admin, mitZielen([{ gruppeId: funktion, rollen: ["alle"] }]));
+    expect(empfangen()).toEqual(erwartet("chef", "helfer"));
+  });
+
+  test("Mitglieder ohne Option oder mit gesperrtem Konto bekommen nichts; die absendende Person nur, wenn sie zum Ziel gehört", async () => {
+    const admin = await person("admin");
+    const still = await person("elternA", "still");
+    const gesperrt = await person("elternB", "gesperrt");
+    const aktiv = await person("slA", "aktiv");
+    await db
+      .update(schema.user)
+      .set({ pushProgramme: false })
+      .where(eq(schema.user.id, still.id!));
+    await db
+      .update(schema.user)
+      .set({ banned: true, deaktiviertAm: new Date() })
+      .where(eq(schema.user.id, gesperrt.id!));
+    const team = await gruppe("team", [
+      [still, null],
+      [gesperrt, null],
+      [aktiv, null],
+    ]);
+    const antwort = await senden(
+      admin,
+      mitZielen([{ gruppeId: team, rollen: ["alle"] }]),
+    );
+    expect(await antwort.json()).toEqual({ empfaenger: 1 });
+    expect(empfangen()).toEqual(erwartet("aktiv"));
+  });
+
+  test("Eltern erreichen nur aktive Kinder der Stufe", async () => {
+    const admin = await person("admin");
+    await person("elternA");
+    const nurInaktiv = await person("elternB", "nurInaktiv");
+    const [inaktiv] = await db
+      .insert(schema.kind)
+      .values({
+        abteilungId: welt.testabteilungId,
+        vorname: "Kind",
+        nachname: "Inaktiv",
+        stufeId: welt.stufeAId,
+        inaktivSeit: new Date(),
+      })
+      .returning();
+    await db
+      .insert(schema.kindEltern)
+      .values({ kindId: inaktiv!.id, userId: nurInaktiv.id! });
+    const antwort = await senden(
+      admin,
+      mitZielen([{ gruppeId: welt.stufeAId, rollen: ["eltern"] }]),
+    );
+    expect(await antwort.json()).toEqual({ empfaenger: 1 });
+    expect(empfangen()).toEqual(erwartet("elternA"));
+  });
+
+  test("der Audit-Eintrag nennt Gruppen, Rollen und Zahl, nie Text oder Namen", async () => {
+    const admin = await person("admin");
+    const mitglied = await person("elternA");
+    const team = await gruppe("team", [[mitglied, null]]);
+    await senden(admin, {
+      titel: "Geheimer Titeltext",
+      ziele: [
+        { gruppeId: welt.stufeAId, rollen: ["leitung", "stufenleitung"] },
+        { gruppeId: team, rollen: ["alle"] },
+      ],
+    });
+    const [zeile] = await auditZeilen();
+    expect(zeile!.details).toEqual({
+      empfaenger: "ziele",
+      ziele: [
+        { gruppeId: welt.stufeAId, rollen: ["leitung", "stufenleitung"] },
+        { gruppeId: team, rollen: ["alle"] },
+      ],
+      anzahl: 1,
+    });
+    expect(JSON.stringify(zeile)).not.toContain("Titeltext");
+  });
+
+  test("das Limit gilt auch für Ziele", async () => {
+    const admin = await person("admin");
+    const body = mitZielen([{ gruppeId: welt.stufeAId, rollen: ["eltern"] }]);
+    for (let i = 0; i < 10; i++) await senden(admin, body);
+    gesendet = [];
+    expect((await senden(admin, body)).status).toBe(429);
+    expect(gesendet).toEqual([]);
+  });
+
+  test("fremde Abteilung, unbekannte Gruppe, falsche Rolle und doppelte Ziele sind 400, es geht nichts hinaus", async () => {
+    const admin = await person("admin");
+    const demoTeam = await gruppe("team", [], welt.demoAbteilungId);
+    const team = await gruppe("team", []);
+    const fehler: unknown[] = [
+      [{ gruppeId: welt.demoStufeId, rollen: ["eltern"] }],
+      [{ gruppeId: demoTeam, rollen: ["alle"] }],
+      [{ gruppeId: randomUUID(), rollen: ["alle"] }],
+      // Stufen kennen «alle» und «verantwortliche» nicht
+      [{ gruppeId: welt.stufeAId, rollen: ["alle"] }],
+      [{ gruppeId: welt.stufeAId, rollen: ["eltern", "verantwortliche"] }],
+      // Andere Gruppen kennen die Stufenrollen nicht
+      [{ gruppeId: team, rollen: ["eltern"] }],
+      [{ gruppeId: team, rollen: ["leitung"] }],
+      [{ gruppeId: team, rollen: ["alle", "leitung"] }],
+      // Dieselbe Gruppe oder Rolle zweimal
+      [
+        { gruppeId: team, rollen: ["alle"] },
+        { gruppeId: team, rollen: ["verantwortliche"] },
+      ],
+      [{ gruppeId: team, rollen: ["alle", "alle"] }],
+      // Form
+      [],
+      [{ gruppeId: team, rollen: [] }],
+      [{ gruppeId: "kein-uuid", rollen: ["alle"] }],
+      [{ gruppeId: team, rollen: ["alle"], name: "Mat" }],
+      [{ rollen: ["alle"] }],
+      Array.from({ length: 31 }, () => ({
+        gruppeId: randomUUID(),
+        rollen: ["alle"],
+      })),
+    ];
+    for (const ziele of fehler) {
+      expect((await senden(admin, mitZielen(ziele))).status).toBe(400);
+    }
+    // Die alte und die neue Form nicht gemischt
+    for (const mix of [
+      { empfaenger: "alle" },
+      { empfaenger: "stufen", stufeIds: [welt.stufeAId] },
+      { rollen: ["eltern"] },
+    ]) {
+      const body = {
+        ...mix,
+        ...mitZielen([{ gruppeId: team, rollen: ["alle"] }]),
+      };
+      expect((await senden(admin, body)).status).toBe(400);
+    }
+    expect(gesendet).toEqual([]);
+    expect(await auditZeilen()).toEqual([]);
+  });
+
+  test("die alte Form mit einem Team als Stufe ist 400", async () => {
+    const admin = await person("admin");
+    const team = await gruppe("team", []);
+    const antwort = await senden(admin, {
+      titel: "Hallo",
+      empfaenger: "stufen",
+      stufeIds: [team],
+    });
+    expect(antwort.status).toBe(400);
+  });
+
+  test("alle anderen bekommen 403", async () => {
+    for (const schluessel of ["slA", "leitendeA", "elternA"] as const) {
+      const konto = await person(schluessel);
+      const body = mitZielen([{ gruppeId: welt.stufeAId, rollen: ["eltern"] }]);
+      expect((await senden(konto, body)).status).toBe(403);
+    }
+    expect(gesendet).toEqual([]);
+  });
+});
+
+describe("POST /api/v1/admin/mitteilungen/vorschau", () => {
+  const vorschau = (
+    konto: PersonaKonto,
+    body: Record<string, unknown>,
+    anwendung = app,
+  ) =>
+    anwendung.request(`${BASIS}/vorschau`, {
+      method: "POST",
+      headers: { ...konto.headers, "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+
+  test("zählt je Ziel und gesamt, Personen in mehreren Zielen einmal, ohne Namen, Versand oder Audit-Eintrag", async () => {
+    const admin = await person("admin");
+    await person("elternA");
+    await person("elternB");
+    const doppelt = await person("leitendeAElternB");
+    const [team] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId: welt.testabteilungId,
+        typ: "team",
+        name: "Material",
+        kuerzel: "Mat",
+      })
+      .returning();
+    await db
+      .insert(schema.personTag)
+      .values({ userId: doppelt.id!, tagId: team!.id, rolle: null });
+
+    const antwort = await vorschau(admin, {
+      ziele: [
+        { gruppeId: welt.stufeAId, rollen: ["leitung", "eltern"] },
+        { gruppeId: welt.stufeBId, rollen: ["eltern"] },
+        { gruppeId: team!.id, rollen: ["alle", "verantwortliche"] },
+      ],
+    });
+    expect(antwort.status).toBe(200);
+    const json = await antwort.json();
+    // Stufe A: Eltern A und Leitende A+B-Eltern; Stufe B: Eltern B und der doppelte; Team: der doppelte
+    expect(json).toEqual({
+      empfaenger: 3,
+      ziele: [
+        { gruppeId: welt.stufeAId, anzahl: 2 },
+        { gruppeId: welt.stufeBId, anzahl: 2 },
+        { gruppeId: team!.id, anzahl: 1 },
+      ],
+    });
+    expect(gesendet).toEqual([]);
+    expect(await auditZeilen()).toEqual([]);
+  });
+
+  test("die alten Formen lassen sich auch zählen und stimmen mit dem Versand überein", async () => {
+    const admin = await person("admin");
+    await person("elternA");
+    await person("slA");
+    const alt = { empfaenger: "stufen", stufeIds: [welt.stufeAId] };
+    const gezaehlt = (await (await vorschau(admin, alt)).json()) as {
+      empfaenger: number;
+    };
+    expect(gezaehlt.empfaenger).toBe(3);
+    const versand = await senden(admin, { titel: "Hallo", ...alt });
+    expect(await versand.json()).toEqual({ empfaenger: gezaehlt.empfaenger });
+    expect(
+      await (await vorschau(admin, { empfaenger: "alle" })).json(),
+    ).toEqual({ empfaenger: 3, ziele: [] });
+  });
+
+  test("zählt nicht gegen das Limit und geht auch ohne Push-Dienst", async () => {
+    const admin = await person("admin");
+    const body = { ziele: [{ gruppeId: welt.stufeAId, rollen: ["eltern"] }] };
+    for (let i = 0; i < 12; i++) {
+      expect((await vorschau(admin, body, baue(false))).status).toBe(200);
+    }
+    expect((await senden(admin, { titel: "Hallo", ...body })).status).toBe(200);
+  });
+
+  test("alle anderen bekommen 403, fremde Gruppen, falsche Rollen und fehlende Wahl 400", async () => {
+    for (const schluessel of ["slA", "leitendeA", "elternA"] as const) {
+      const konto = await person(schluessel);
+      const antwort = await vorschau(konto, {
+        ziele: [{ gruppeId: welt.stufeAId, rollen: ["eltern"] }],
+      });
+      expect(antwort.status).toBe(403);
+    }
+    const admin = await person("admin");
+    for (const ziele of [
+      [{ gruppeId: welt.demoStufeId, rollen: ["eltern"] }],
+      [{ gruppeId: welt.stufeAId, rollen: ["alle"] }],
+    ]) {
+      expect((await vorschau(admin, { ziele })).status).toBe(400);
+    }
+    expect((await vorschau(admin, {})).status).toBe(400);
+    expect(
+      (await vorschau(admin, { titel: "Hallo", empfaenger: "alle" })).status,
+    ).toBe(400);
   });
 });

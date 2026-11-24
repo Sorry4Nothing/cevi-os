@@ -7,6 +7,7 @@ import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb } from "../db/client.js";
 import * as schema from "../db/schema.js";
 import { ladeKonfiguration } from "../konfiguration.js";
+import { legeWebmasterAn } from "../plattform.js";
 import {
   erzeugeStartpasswort,
   normalisiereStartpasswort,
@@ -91,6 +92,8 @@ if (!argumente) {
           .values({ name: abteilungsname })
           .returning({ id: schema.abteilung.id });
         abteilungId = angelegt.id;
+        // Die Vorgabe jeder Abteilung (#423); bestehende Abteilungen bekamen sie mit Migration 0100
+        await legeWebmasterAn(tx, abteilungId);
       } else {
         const zeilen = await tx
           .select({ id: schema.abteilung.id })
@@ -137,13 +140,13 @@ if (!argumente) {
     });
     // stdout erst nach dem Commit: Ein zurückgenommenes Startpasswort darf nie gedruckt sein
     if (neu) console.log(`Abteilung «${abteilungsname}» angelegt.`);
-    console.log(`Admin «${ergebnis.gespeichert}» angelegt.`);
+    console.log(`Abteilungsleitung «${ergebnis.gespeichert}» angelegt.`);
     console.log(`Startpasswort: ${ergebnis.startpasswort}`);
     console.log(
       "Nicht weiterleiten. Gilt 7 Tage und nur für die erste Anmeldung.",
     );
   } catch (fehler) {
-    console.error(`Admin nicht angelegt: ${beschreibe(fehler)}`);
+    console.error(`Abteilungsleitung nicht angelegt: ${beschreibe(fehler)}`);
     process.exitCode = 1;
   } finally {
     // Kein process.exit(): offene Verbindungen zeigten sich in Tests nur als Timeout

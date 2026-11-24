@@ -1,0 +1,516 @@
+/* Editor einer Seite (E2 bis E6). Klassen mit dem Vorsatz «ws-» */
+
+.ws-editor-seite {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Kopf: Titel mit Zeichen, Zurück-Link darüber */
+.ws-titelzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+
+.ws-zurueck {
+  margin-bottom: 8px;
+}
+
+/* Speicherstand unter dem Titel: Zeichen und Text, nie nur Farbe */
+.ws-stand {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  min-height: 2.75rem;
+  margin: 0;
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.ws-stand .i {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+}
+
+/* Titel direkt umbenennen: das Feld hat die Grösse der Überschrift */
+.ws-titel-eingabe {
+  flex: 1 1 16rem;
+  min-width: 0;
+  min-height: 3rem;
+  font-size: 1.5rem;
+  font-weight: 800;
+}
+
+.ws-zurueck a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+}
+
+.ws-zurueck .i {
+  width: 18px;
+  height: 18px;
+}
+
+.ws-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 400px;
+  gap: 24px;
+  align-items: start;
+}
+
+.ws-spalte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* Zwei Spalten, zwei Scrollbereiche (#578): Ab 1100 px (zwei Spalten) hat der Editor die Höhe des Fensters unter der Navigation und jede Spalte ihren eigenen Bereich, der für sich scrollt, so wie die Spalten der Website mit Bild daneben. Nichts wird abgeschnitten (innen Platz für den Fokusring), nichts springt (der Platz der Leiste bleibt reserviert). Die Leiste gestalten die Tokens in tokens.css. */
+@media (min-width: 68.8125em) {
+  .ws-editor {
+    height: calc(100vh - 8.25rem);
+    height: calc(100dvh - 8.25rem);
+    min-height: 24rem;
+    align-items: stretch;
+  }
+
+  .ws-editor > .ws-spalte {
+    min-height: 0;
+    margin: -4px;
+    padding: 4px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-gutter: stable;
+  }
+}
+
+/* Liste der Bausteine */
+.ws-bausteine {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws-fest {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-fest:empty {
+  display: none;
+}
+
+/* Eine Zeile der Sortierliste: Text mit Chips, rechts Bearbeiten, Duplizieren, Löschen */
+.ws-bausteine .sortier-eintrag {
+  min-height: 4.5rem;
+  border-radius: 16px;
+}
+
+.ws-bauzeile {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.ws-bauzeile .ws-bausteintext {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.ws-bauzeile .akt {
+  display: flex;
+  gap: 2px;
+  align-items: center;
+}
+
+.ws-bauzeile .typ {
+  color: var(--leise);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.125rem;
+}
+
+.ws-bauzeile .zus {
+  font-size: 0.9375rem;
+  line-height: 1.3125rem;
+  overflow-wrap: anywhere;
+}
+
+.ws-bauzeile .chips {
+  margin-top: 6px;
+}
+
+.ws-bauzeile .knopf--rund {
+  color: var(--leise);
+}
+
+.ws-bauzeile .knopf--rund:hover {
+  color: var(--text);
+}
+
+.baustein {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 8px 12px;
+  align-items: center;
+  padding: 12px 12px 12px 6px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.baustein .typ {
+  color: var(--leise);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  line-height: 1.125rem;
+}
+
+.baustein .zus {
+  font-size: 0.9375rem;
+  line-height: 1.3125rem;
+  overflow-wrap: anywhere;
+}
+
+.baustein .akt {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.baustein .knopf--rund {
+  color: var(--leise);
+}
+
+.baustein .knopf--rund:hover {
+  color: var(--text);
+}
+
+.baustein .chips {
+  margin-top: 6px;
+}
+
+.baustein.fest {
+  grid-template-columns: minmax(0, 1fr) auto;
+  padding-left: 16px;
+  background: var(--leiste);
+}
+
+.ws-leer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 24px;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.ws-leer h2 {
+  font-size: 1.125rem;
+}
+
+.ws-gestrichelt {
+  width: 100%;
+  min-height: 56px;
+  border-style: dashed;
+}
+
+.fusszeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding-top: 4px;
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.fusszeile .i {
+  width: 20px;
+  height: 20px;
+}
+
+/* Fehler vom Server und Konflikt */
+.ws-fehlerliste {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-sprung {
+  min-height: 44px;
+  padding: 0;
+  color: inherit;
+  background: none;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.ws-konflikt {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 16px;
+  padding: 16px 20px;
+}
+
+.ws-konfliktkopf {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ws-konflikt .flaeche {
+  color: var(--text);
+}
+
+.ws-konfliktliste {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-konfliktliste li {
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.875rem;
+}
+
+.ws-konfliktliste .markiert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+/* Vorschau: der Rahmen läuft verkleinert, damit eine ganze Seite in die Spalte passt */
+.ws-vorschauplatz {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ws-vorschau-leer {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ws-huelle {
+  position: relative;
+  width: 100%;
+  height: 360px;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--rand-leise);
+  border-radius: 12px;
+}
+
+.ws-huelle .ws-rahmen {
+  display: block;
+  width: 1100px;
+  height: 1160px;
+  border: 0;
+  zoom: 0.31;
+}
+
+.ws-huelle--mobil .ws-rahmen {
+  width: 390px;
+  height: 480px;
+  zoom: 0.9;
+}
+
+.ws-vorschau-laden {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ws-huelle[aria-busy="true"] {
+  display: none;
+}
+
+/* Titelbild der Seite: Bild links, Erklärung und Knöpfe rechts; schmal untereinander */
+.ws-titelbild {
+  gap: 12px;
+}
+
+.ws-titelbild-in {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: flex-start;
+}
+
+.ws-titelbild-bild {
+  width: 200px;
+  max-width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.ws-titelbild-text {
+  display: flex;
+  flex: 1 1 260px;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+/* Einstellungen */
+.ws-einstellungen {
+  gap: 16px;
+}
+
+@media (max-width: 1100px) {
+  .ws-editor {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .baustein {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+
+  .baustein .akt {
+    grid-column: 1 / -1;
+    justify-content: flex-start;
+  }
+
+  .baustein.fest {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Versionen als Zeitleiste (#595): ein Punkt je Version auf einer senkrechten Linie, die veröffentlichte ist gefüllt und trägt zusätzlich die Marke «Veröffentlicht» */
+.ws-zeitleiste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-zeitpunkt {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr) auto;
+  gap: 0.5rem 0.75rem;
+  align-items: start;
+  padding: 0 0 1.25rem;
+}
+
+.ws-zeitpunkt::before {
+  position: absolute;
+  top: 1.25rem;
+  bottom: -0.25rem;
+  left: 0.6875rem;
+  width: 2px;
+  background: var(--outline-variant);
+  content: "";
+}
+
+.ws-zeitpunkt:last-child::before {
+  display: none;
+}
+
+.ws-punkt {
+  z-index: 1;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-top: 0.125rem;
+  background: var(--karte);
+  border: 2px solid var(--outline);
+  border-radius: 50%;
+}
+
+.ws-zeitpunkt--online .ws-punkt {
+  background: var(--secondary);
+  border-color: var(--secondary);
+}
+
+.ws-zeitpunkt--entwurf .ws-punkt {
+  border-style: dashed;
+}
+
+.ws-zeitaktion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+@media (max-width: 40rem) {
+  .ws-zeitpunkt {
+    grid-template-columns: 1.5rem minmax(0, 1fr);
+  }
+
+  .ws-zeitaktion {
+    grid-column: 2;
+    justify-content: flex-start;
+  }
+}
+
+/* Unteransicht im Panel: ersetzt den Inhalt des Panels, kein zweites Panel */
+.ws-unteransicht {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.ws-unteransicht > .fluss-kopf {
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-start;
+}
+
+.ws-recht-neu {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  margin-top: 0.75rem;
+  padding: 1rem;
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+.ws-teil[hidden] + .ws-teil {
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Format-Leiste über dem Textfeld: gewöhnliche Knöpfe, die Schreibweise bleibt im Feld sichtbar */
+.ws-format {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin: 0.25rem 0 0.5rem;
+}

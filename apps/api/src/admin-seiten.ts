@@ -1,19 +1,21 @@
 import { Hono } from "hono";
 
 // Dateiname -> Inhalt; index.html liegt unter /admin, alle anderen unter /admin/<Dateiname>
-export type AdminDateien = Record<string, string>;
+// Text, ausser der Schrift für die Vorschau der Website (Bytes)
+export type AdminDateien = Record<string, string | Uint8Array<ArrayBuffer>>;
 
 const TYPEN: Record<string, string> = {
   html: "text/html; charset=UTF-8",
   css: "text/css; charset=UTF-8",
   js: "text/javascript; charset=UTF-8",
   svg: "image/svg+xml",
+  woff2: "font/woff2",
 };
 
-// Nichts Fremdes: Skript, Stil, Bild (data: für Symbole) und Verbindungen nur von der eigenen Herkunft; die Seite lässt sich nicht einbetten
+// Nichts Fremdes: Skript, Stil, Schrift (Archivo, #578), Bild (data: für Symbole) und Verbindungen nur von der eigenen Herkunft; die Seite lässt sich nicht einbetten. Eigene Rahmen (frame-src) nur für die Vorschau der Website im Editor (#353); sie bleiben auf dieselbe Herkunft beschränkt
 const KOPFZEILEN = {
   "Content-Security-Policy":
-    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
+    "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data:; font-src 'self'; connect-src 'self'; frame-src 'self'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'",
   "X-Content-Type-Options": "nosniff",
   "Referrer-Policy": "no-referrer",
   // Für Browser, die frame-ancestors nicht kennen

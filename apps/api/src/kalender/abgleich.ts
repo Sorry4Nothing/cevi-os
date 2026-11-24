@@ -1,5 +1,6 @@
 import ICAL from "ical.js";
 import { ANTWORT_UNGUELTIG, KalenderFehler } from "./fehler.js";
+import { kategorienVon } from "./kategorien.js";
 
 export type ProgrammAusKalender = {
   googleEventId: string;
@@ -10,8 +11,14 @@ export type ProgrammAusKalender = {
   ende: Date | null;
   tagVon: string | null;
   tagBis: string | null;
+  // Rohe Namen aus CATEGORIES (kategorien.ts); die Tags dazu berechnet tags-zuordnen.ts
+  kategorien: string[];
+  // LOCATION, getrimmt; leer wird null
+  ort: string | null;
 };
 
+// Ein Ort länger als das ist kein Ort; die Spalte ist Fremdtext
+const MAX_ORT = 200;
 const TAG_MS = 24 * 60 * 60 * 1000;
 // Schutz vor Serien, die nie enden und ewig zurückliegen; ein Lauf zählt nur Termine im Fenster, rund 400 Tage voraus
 const MAX_SCHRITTE = 100_000;
@@ -66,6 +73,11 @@ export function liegtAmSamstag(
   return false;
 }
 
+function ortVon(termin: ICAL.Event) {
+  const ort = termin.location?.trim();
+  return ort ? ort.slice(0, MAX_ORT) : null;
+}
+
 function abbilden(ics: string, jetzt: Date) {
   const wurzel = new ICAL.Component(ICAL.parse(ics));
   if (wurzel.name !== "vcalendar") throw new KalenderFehler(ANTWORT_UNGUELTIG);
@@ -118,6 +130,8 @@ function abbilden(ics: string, jetzt: Date) {
       ende: ganztaegig ? null : schluss,
       tagVon: ganztaegig ? start.toString() : null,
       tagBis,
+      kategorien: kategorienVon(termin),
+      ort: ortVon(termin),
     });
   }
 
@@ -172,44 +186,4 @@ function abbilden(ics: string, jetzt: Date) {
     }
   }
   return { programme, absagen };
-}
-
-const ENTITAETEN: Record<string, string> = {
-  amp: "&",
-  lt: "<",
-  gt: ">",
-  quot: '"',
-  apos: "'",
-  nbsp: " ",
-};
-
-// Die App rendert nur Text: Links werden «Text (Ziel)», Blockenden ein Zeilenumbruch, Tags fallen weg («Alter < 10» bleibt), Entities werden aufgelöst
-export function htmlZuText(html: string): string | null {
-  const text = html
-    .replace(
-      /<a\s[^>]*href="([^"]*)"[^>]*>([\s\S]*?)<\/a>/gi,
-      (_, href: string, inhalt: string) => {
-        const t = inhalt.replace(/<[^>]*>/g, "");
-        return t === href ? t : `${t} (${href})`;
-      },
-    )
-    .replace(/<br\s*\/?>|<\/(p|div|li|h[1-6])>/gi, "\n")
-    .replace(/<\/?[a-z][^>]*>/gi, "")
-    .replace(
-      /&(#\d+|#x[0-9a-f]+|amp|lt|gt|quot|apos|nbsp);/gi,
-      (treffer, e: string) => {
-        const klein = e.toLowerCase();
-        if (klein.startsWith("#")) {
-          const n = klein.startsWith("#x")
-            ? parseInt(klein.slice(2), 16)
-            : parseInt(klein.slice(1), 10);
-          // fromCodePoint wirft ausserhalb von Unicode, und NUL lehnt Postgres ab: beides hielte den Lauf der Abteilung an
-          return n >= 1 && n <= 0x10ffff ? String.fromCodePoint(n) : treffer;
-        }
-        return ENTITAETEN[klein];
-      },
-    )
-    .replace(/\n{3,}/g, "\n\n")
-    .trim();
-  return text || null;
 }

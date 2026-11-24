@@ -111,45 +111,39 @@ const MIT_ALLEN = Object.fromEntries(
   NAMEN.filter((n) => n !== "demo").map((n) => [n, true]),
 ) as Partial<Record<Name, boolean>>;
 
-// Ohne Stufe («leitende», «eltern», «intern») gilt ein Programm für alle Stufen.
-// Die Liste lässt «intern» für alle weg (nur der Detailaufruf von Admins findet es); die Verwaltung holt sie mit alle=1.
+// Ohne Stufen-Tag («leitende», «eltern», «intern») gilt ein Programm für keine Stufe: Es sehen nur die Abteilungsleitung und SL (#449).
+// Die Liste lässt «intern» für alle weg (nur der Detailaufruf von der Abteilungsleitung findet es); die Verwaltung holt sie mit alle=1.
 // Fehlt der Eintrag, ist das Programm unsichtbar (404)
 const SICHT: Record<
   Exclude<Persona, "deaktiviert" | "ohneLogin" | "mussPasswortAendern">,
   Partial<Record<Name, boolean>>
 > = {
   admin: MIT_ALLEN,
-  // #23 sperrt Admins ohne zweiten Faktor nur unter /api/v1/admin/*; hier zählt allein die Rolle
+  // #23 sperrt die Abteilungsleitung ohne zweiten Faktor nur unter /api/v1/admin/*; hier zählt allein die Rolle
   adminOhneZweitenFaktor: MIT_ALLEN,
   slA: MIT_ALLEN,
   slB: MIT_ALLEN,
   leitendeA: {
-    leitende: true,
-    eltern: true,
     "leitende-A": true,
     "leitende-AB": true,
     "eltern-A": true,
     "eltern-AB": true,
   },
   leitendeB: {
-    leitende: true,
-    eltern: true,
     "leitende-B": true,
     "leitende-AB": true,
     "eltern-B": true,
     "eltern-AB": true,
   },
   leitendeAElternB: {
-    leitende: true,
-    eltern: true,
     "leitende-A": true,
     "leitende-AB": true,
     "eltern-A": true,
     "eltern-AB": true,
     "eltern-B": false,
   },
-  elternA: { eltern: false, "eltern-A": false, "eltern-AB": false },
-  elternB: { eltern: false, "eltern-B": false, "eltern-AB": false },
+  elternA: { "eltern-A": false, "eltern-AB": false },
+  elternB: { "eltern-B": false, "eltern-AB": false },
   demoAdmin: { demo: true },
   demoEltern: { demo: false },
 };
@@ -334,7 +328,7 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
     expect(await liste("2027-10-30", "2027-10-30")).not.toContain(nacht.id);
   });
 
-  test("«intern» ist in der Liste für alle ausgeblendet; nur Admins holen es mit alle=1", async () => {
+  test("«intern» ist in der Liste für alle ausgeblendet; nur die Abteilungsleitung holen es mit alle=1", async () => {
     const intern = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
       sichtbarkeit: "intern",
@@ -354,7 +348,7 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
     };
     expect(await ids("admin")).not.toContain(intern.id);
     expect(await ids("admin", "&alle=1")).toContain(intern.id);
-    // alle=1 gilt nur für Admins
+    // alle=1 gilt nur für die Abteilungsleitung
     expect(await ids("slA", "&alle=1")).not.toContain(intern.id);
     expect(await ids("elternA", "&alle=1")).not.toContain(intern.id);
   });

@@ -23,7 +23,7 @@ function leseBenutzername() {
   }
 }
 
-// Letzter Ausweg, wenn kein Admin mehr durch den zweiten Faktor kommt, auch nach einem Wechsel des Auth-Geheimnisses: Darum ohne better-auth, nur mit der Datenbank
+// Letzter Ausweg, wenn keine Abteilungsleitung mehr durch den zweiten Faktor kommt, auch nach einem Wechsel des Auth-Geheimnisses: Darum ohne better-auth, nur mit der Datenbank
 const benutzername = leseBenutzername();
 if (!benutzername) {
   console.error(VERWENDUNG);

@@ -6,7 +6,7 @@ export interface TestProgramm {
   id: string;
 }
 
-// Legt ein Programm mit Stufen an; mit tagVon ganztägig, sonst mit Zeit. Daten 2027, damit kein Fenster-Test versehentlich trifft
+// Legt ein Programm mit Stufen an (Stufen-Tags in programm_tag, ohne Tag sehen es nur Abteilungsleitung und SL); mit tagVon ganztägig, sonst mit Zeit. Daten 2027, damit kein Fenster-Test versehentlich trifft
 export async function legeProgrammAn(
   db: Db,
   {
@@ -48,8 +48,8 @@ export async function legeProgrammAn(
     .returning({ id: schema.programm.id });
   if (stufen.length > 0) {
     await db
-      .insert(schema.programmStufe)
-      .values(stufen.map((stufeId) => ({ programmId: zeile.id, stufeId })));
+      .insert(schema.programmTag)
+      .values(stufen.map((tagId) => ({ programmId: zeile.id, tagId })));
   }
   return { id: zeile.id };
 }

@@ -2,7 +2,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "./db/client.js";
 import { abteilung, user } from "./db/schema.js";
 
-// Serialisiert das Entfernen von Admins einer Abteilung (#18): erst die Abteilungszeile sperren, dann zählen.
+// Serialisiert das Entfernen von der Abteilungsleitung einer Abteilung (#18): erst die Abteilungszeile sperren, dann zählen.
 // Zwei Statements, weil unter READ COMMITTED nur ein nach dem Warten gestartetes Statement den fremden Commit sieht.
 // «no key update» statt «for update»: Fremdschlüssel-Prüfungen anderer Verbindungen nehmen «key share» und warteten sonst
 export async function aktiveAdminIds(
@@ -28,7 +28,7 @@ export async function aktiveAdminIds(
   return zeilen.map((zeile) => zeile.id);
 }
 
-// Ziel gelistet und keine zweite aktive Admin-ID: der letzte Admin bleibt
+// Ziel gelistet und keine zweite aktive ID der Abteilungsleitung: die letzte Abteilungsleitung bleibt
 export function istLetzterAdmin(admins: readonly string[], zielId: string) {
   return admins.includes(zielId) && !admins.some((id) => id !== zielId);
 }
@@ -36,5 +36,5 @@ export function istLetzterAdmin(admins: readonly string[], zielId: string) {
 // Der Text, den die App kennt (fehlertexte.ts); die Verwaltung antwortet damit
 export const LETZTER_ADMIN = {
   code: "LETZTER_ADMIN",
-  message: "Der letzte Admin lässt sich nicht entfernen.",
+  message: "Die letzte Abteilungsleitung lässt sich nicht entfernen.",
 } as const;

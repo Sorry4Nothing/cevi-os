@@ -51,7 +51,7 @@ const FALSCH = "nur-fuer-tests-falsch";
 const FEHLGESCHLAGEN = {
   code: "ANMELDUNG_FEHLGESCHLAGEN",
   message:
-    "Anmeldung nicht möglich. Bitte Benutzername und Passwort prüfen oder später nochmals versuchen. Sonst hilft ein Admin.",
+    "Anmeldung nicht möglich. Bitte Benutzername und Passwort prüfen oder später nochmals versuchen. Sonst hilft eine Person der Abteilungsleitung.",
 };
 const MINUTE = 60_000;
 
@@ -260,7 +260,7 @@ describe("Bremse pro Benutzername, nur für Fehlversuche", () => {
     expect(naechsterVersuchAb!.getTime()).toBeLessThanOrEqual(Date.now());
   });
 
-  test("viele Fehlversuche, dann 15 Minuten ohne: Der Zähler beginnt bei 0, und das richtige Passwort meldet ohne Admin an", async () => {
+  test("viele Fehlversuche, dann 15 Minuten ohne: Der Zähler beginnt bei 0, und das richtige Passwort meldet ohne Abteilungsleitung an", async () => {
     const konto = await legeKonto();
     // 4 ohne Wartezeit, dann 1, 5 und 15 Minuten, jede abgewartet
     for (const minuten of [0, 0, 0, 0, 1, 5, 15]) {

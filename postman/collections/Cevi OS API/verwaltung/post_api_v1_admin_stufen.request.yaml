@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/admin/stufen"
-order: 55000
+order: 122000
 method: POST
 url: "{{baseUrl}}/api/v1/admin/stufen"
 headers:
@@ -17,7 +17,4 @@ headers:
 body:
   type: json
   content: |-
-    {
-      "name": "Matrix Stufe",
-      "kuerzel": "M"
-    }
+    {{body_127}}

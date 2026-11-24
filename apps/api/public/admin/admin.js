@@ -1,77 +1,84 @@
-import { ApiFehler, anfrage, beiSitzungsende, fehlertext } from "./api.js";
-import { avatar, codefeld, el, feld, icon, knopf, kopf, leere } from "./dom.js";
-import * as importieren from "./import.js";
-import * as kalender from "./kalender.js";
-import * as kinder from "./kinder.js";
-import * as mitteilungen from "./mitteilungen.js";
-import * as personen from "./personen.js";
-import * as stufen from "./stufen.js";
-import * as system from "./system.js";
-import * as uebersicht from "./uebersicht.js";
-import * as zeitregeln from "./zeitregeln.js";
-
-// [Schlüssel im Hash, Name, Modul, Icon, Untertitel im Seitenkopf]
-const BEREICHE = [
-  [
-    "uebersicht",
-    "Übersicht",
-    uebersicht,
-    "uebersicht",
-    "Zustand der Abteilung und der API auf einen Blick.",
-  ],
-  [
-    "personen",
-    "Personen",
-    personen,
-    "personen",
-    "Konten, Rollen in den Stufen und Eltern-Zuordnung.",
-  ],
-  ["stufen", "Stufen", stufen, "stufen", "Die Stufen der Abteilung."],
-  ["kinder", "Kinder", kinder, "kinder", "Kinder, ihre Stufe und ihre Eltern."],
-  [
-    "import",
-    "Import",
-    importieren,
-    "ablage",
-    "Kinder und Leitende aus einem Export der Cevi-Datenbank anlegen.",
-  ],
-  [
-    "mitteilungen",
-    "Mitteilungen",
-    mitteilungen,
-    "glocke",
-    "Push-Mitteilung an Eltern und Leitende senden.",
-  ],
-  [
-    "kalender",
-    "Kalender",
-    kalender,
-    "kalender",
-    "Anstehende Programme und ihre Stufen.",
-  ],
-  [
-    "zeitregeln",
-    "Erinnerungen",
-    zeitregeln,
-    "uhr",
-    "Pushes an Eltern, die noch nicht geantwortet haben.",
-  ],
-  [
-    "system",
-    "System",
-    system,
-    "system",
-    "Zustand von API, Datenbank und Anfragen.",
-  ],
-];
+// Der Wächter für ungespeicherte Änderungen hört auf «hashchange» vor der Navigation unten (#699)
+import "./ungespeichert.js";
+import "./tipp.js";
+import {
+  ApiFehler,
+  anfrage,
+  beiSitzungsende,
+  fehlertext,
+  setzeVerlassen,
+} from "./api.js";
+import { codefeld, el, feld, icon, knopf, leere } from "./dom.js";
+import { schliesseAlle } from "./fluss.js";
+import { erstellePalette } from "./befehlspalette.js";
+import { erstelleHinweisband } from "./hinweisband.js";
+import { erstelleLader } from "./lader.js";
+import {
+  BEREICHE,
+  loese,
+  neueAdresse,
+  rolleVon,
+  sichtbareBereiche as bereicheFuer,
+} from "./navigation.js";
+import {
+  erstelleLeisten,
+  erstelleRueckmeldungen,
+  erstelleToasts,
+  bindeThema,
+  ladeOeffentlicheMarke,
+  logozeile,
+  seitenkopf,
+  setzeMarke,
+} from "./rahmen.js";
+import { mitRueckgaengig, steuerung, verdrahte } from "./rueckgaengig.js";
+import { merkeEintrag, stelleWiederHer } from "./verlauf.js";
+import {
+  nochmals,
+  rahmenzustand,
+  zeichen,
+  zustandsDaten,
+} from "./zustaende.js";
 
 const app = document.getElementById("app");
 let ich = null;
+// Antwort von GET /api/v1/redaktion/ich, mit darf(recht) für die Plattformrechte (Rolle Webmaster); nur für die Anzeige, jede Route prüft selbst
+let zugang = null;
+// «termine»: was die Person bei Terminen, Räumen und Anlässen darf (Signale aus GET /api/v1/redaktion/ich, #649); die Abteilungsleitung darf alles
+const ALLE_TERMINE = new Proxy({}, { get: () => true });
+const mitDarf = (daten, alle) => ({
+  ...daten,
+  termine: alle ? ALLE_TERMINE : (daten.termine ?? {}),
+  darf: (recht) =>
+    alle ||
+    daten.rechte.includes(recht) ||
+    (daten.katalogRechte ?? []).includes(recht),
+});
+// Hat die Person mit diesen Rechten etwas in der Verwaltung zu tun? Website, Belegung oder ein Recht bei Termine, Räumen und Anlässen
+const hatTerminRecht = (z) =>
+  Object.values(z.termine ?? {}).some((v) => v === true);
+const istAdmin = () => ich?.role === "admin";
+// Nur der Entwickler darf den Namen der Abteilung ändern: Dieses Signal («nameAenderbar», GET /api/v1/redaktion/website) steuert den Eintrag «Komponenten»
+let entwickler = false;
+// Die Abteilungsleitung sieht alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
+const sichtbareBereiche = () =>
+  bereicheFuer({ istAdmin: istAdmin(), zugang, entwickler });
+
+// Suche (Strg oder Cmd + K): Seiten, Personen, Gruppen, Termine, Anlässe, Website-Seiten und Lager, nur im Rahmen dessen, was die Navigation der Person zeigt
+const palette = erstellePalette({
+  bereiche: () => sichtbareBereiche(),
+  bereit: () => ich !== null && document.getElementById("bereich") !== null,
+  ich: () => ich?.id ?? null,
+});
+
+const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
 
 function zeichne(...knoten) {
   for (const dialog of document.querySelectorAll("dialog")) dialog.remove();
+  schliesseAlle();
   leere(app);
   app.append(...knoten);
+  // Der Umschalter Hell und Dunkel im Kopf (theme.js)
+  bindeThema();
 }
 
 function fehlerfeld() {
@@ -89,108 +96,6 @@ function zeigeFehler(knoten, text) {
   knoten.focus();
 }
 
-// Chip über dem Titel; Zustand nie nur über Farbe, daher immer mit Symbol und Text
-// def: [Text, Icon, Art]; ohne Art bleibt der Chip neutral
-function zeichen([text, symbol, art]) {
-  return el(
-    "span",
-    { class: art ? `chip chip--${art} chip--allein` : "chip chip--allein" },
-    icon(symbol),
-    text,
-  );
-}
-
-const SITZUNG_ENDE = ["401 · Sitzung abgelaufen", "uhr"];
-const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
-
-// Texte und Symbol der Fehler- und Zustandsseiten nach dem Status; ohne Status (kein ApiFehler) gilt der allgemeine Fehler
-function zustandsDaten(f) {
-  const status = f instanceof ApiFehler ? f.status : undefined;
-  const text = fehlertext(f);
-  if (f?.offline) {
-    return {
-      ueber: "Keine Verbindung",
-      titel: "Keine Verbindung.",
-      text,
-      symbol: "schliessen",
-      art: "warn",
-    };
-  }
-  if (status === 502 || status === 503) {
-    return {
-      ueber: `Fehler ${status}`,
-      titel: "Die Verwaltung ist gerade nicht erreichbar.",
-      text,
-      symbol: "uhr",
-      art: "warn",
-    };
-  }
-  if (status === 403) {
-    return {
-      ueber: "Fehler 403",
-      titel: "Kein Zugriff.",
-      text,
-      symbol: "sperre",
-      art: "fehler",
-    };
-  }
-  if (status === 404) {
-    return {
-      ueber: "Fehler 404",
-      titel: "Nicht gefunden.",
-      text: "Vielleicht wurde der Eintrag inzwischen geändert oder gelöscht.",
-      symbol: "lupe",
-    };
-  }
-  if (status === 429) {
-    return {
-      ueber: "Fehler 429",
-      titel: "Zu viele Versuche.",
-      text,
-      symbol: "uhr",
-      art: "warn",
-    };
-  }
-  return {
-    ueber: status ? `Fehler ${status}` : "Fehler",
-    titel: "Da ist etwas schiefgelaufen.",
-    text,
-    symbol: "warnung",
-    art: "fehler",
-    hilfe:
-      "Passiert es immer wieder, sag es mit Uhrzeit und Bereich der Person, die den Server betreut.",
-  };
-}
-
-// Zustandskarte im Inhaltsbereich; der Fokus liegt danach auf dem Titel, die Meldung wird als Alert angesagt
-// ebene: "h2" im Bereich unter dem Seitenkopf, "h1" wenn kein Seitenkopf davorsteht
-function zustandsKarte(d, aktionen, ebene = "h2") {
-  const titel = el(ebene, { tabindex: "-1" }, d.titel);
-  const wurzel = el(
-    "section",
-    { class: "zustand", role: "alert" },
-    el(
-      "span",
-      {
-        class: d.art
-          ? `zustand-kreis zustand-kreis--${d.art}`
-          : "zustand-kreis",
-      },
-      icon(d.symbol),
-    ),
-    el(
-      "div",
-      { class: "zustand-text" },
-      el("p", { class: "ueber" }, d.ueber),
-      titel,
-      el("p", { class: "leise" }, d.text),
-    ),
-    d.hilfe && el("p", { class: "hilfe" }, d.hilfe),
-    el("div", { class: "aktionen" }, aktionen),
-  );
-  return { wurzel, titel };
-}
-
 // Karte in der Mitte: Überzeile, Titel und Text zuerst; der Fokus liegt danach auf dem Hinweis oder dem Titel
 // kopfzeichen: Chip oder Symbol über der Überzeile
 function anmeldeSeite({
@@ -205,32 +110,40 @@ function anmeldeSeite({
   const meldung =
     hinweis &&
     el("p", { class: "hinweis", role: "status", tabindex: "-1" }, hinweis);
+  // Auch die Anmeldung trägt den Kopf der Website mit Marke und Umschalter Hell/Dunkel (#578); ohne Sitzung kennt sie weder Name noch Logo der Abteilung
   zeichne(
     el(
       "div",
-      { class: "mitte" },
+      { class: "app" },
+      el("header", {}, logozeile({ sichtbar: false })),
       el(
-        "main",
-        { class: "anmeldung karte", id: "inhalt", tabindex: "-1" },
+        "div",
+        { class: "mitte" },
         el(
-          "div",
-          { class: "anmeldung-kopf" },
-          kopfzeichen,
-          el("p", { class: "ueber" }, ueber),
-          ueberschrift,
-          el("p", { class: "leise" }, text),
+          "main",
+          { class: "anmeldung karte", id: "inhalt", tabindex: "-1" },
+          el(
+            "div",
+            { class: "anmeldung-kopf" },
+            kopfzeichen,
+            el("p", { class: "ueber" }, ueber),
+            ueberschrift,
+            el("p", { class: "leise" }, text),
+          ),
+          meldung,
+          ...inhalt,
         ),
-        meldung,
-        ...inhalt,
       ),
     ),
   );
   (meldung || ueberschrift).focus();
 }
 
-// kopfzeichen: Chip-Definition für zeichen(), z. B. SITZUNG_ENDE
+// kopfzeichen: Chip-Definition für zeichen(), z. B. ["429 · Zu viele Versuche", "uhr", "warn"]
 function zeigeLogin(hinweis, kopfzeichen) {
   ich = null;
+  // Die Suche behält nichts vom bisherigen Konto
+  palette.vergiss();
   // Der Chip für «zu viele Versuche» steht von Anfang an im Kopf und erscheint erst bei einer 429
   const zuViele = zeichen(ZU_VIELE);
   zuViele.hidden = true;
@@ -301,7 +214,7 @@ function zeigeLogin(hinweis, kopfzeichen) {
   });
   anmeldeSeite({
     titel: "Anmelden",
-    text: "Melde dich mit deinem Admin-Konto an.",
+    text: "Melde dich mit deinem Konto an.",
     hinweis,
     kopfzeichen: kopfzeichen ? zeichen(kopfzeichen) : zuViele,
     inhalt: [formular],
@@ -412,27 +325,48 @@ async function pruefeKonto(nachAnmeldung = true) {
     return;
   }
   ich = sitzung.user;
-  if (ich.role !== "admin") {
-    zeigeSperre("Dieses Konto hat keine Admin-Rechte.", [
-      "403 · Keine Admin-Rechte",
-      "sperre",
-      "fehler",
-    ]);
-  } else if (ich.mussPasswortAendern) {
+  zugang = null;
+  entwickler = false;
+  if (ich.mussPasswortAendern) {
     zeigeSperre(
       "Du musst zuerst dein Startpasswort ändern. Das geht in der App. Melde dich danach hier neu an.",
       ["Startpasswort offen", "schluessel", "warn"],
     );
-  } else if (!ich.twoFactorEnabled) {
-    zeigeSperre(
-      "Für die Verwaltung braucht es zuerst einen zweiten Faktor. Richte ihn ein und melde dich danach neu an.",
+  } else if (istAdmin()) {
+    if (!ich.twoFactorEnabled) {
+      zeigeSperre(
+        "Für die Verwaltung braucht es zuerst einen zweiten Faktor. Richte ihn ein und melde dich danach neu an.",
+      );
+      return;
+    }
+    zugang = mitDarf(
+      { redigieren: true, bereiche: ["website"], verwalten: true, rechte: [] },
+      true,
     );
+    await zeigeVerwaltung();
   } else {
-    zeigeVerwaltung();
+    // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Daten der Abteilungsleitung geladen
+    zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
+    // Leitende ohne Zugang zur Website sehen den Belegungsplan der Räume (#628)
+    if (
+      zugang.bereiche.length === 0 &&
+      zugang.belegung !== true &&
+      !hatTerminRecht(zugang)
+    ) {
+      zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
+        "403 · Kein Zugang",
+        "sperre",
+        "fehler",
+      ]);
+      return;
+    }
+    await zeigeVerwaltung();
   }
 }
 
 async function abmelden() {
+  // Offene Aktionen mit «Rückgängig» laufen jetzt: Nach dem Abmelden gäbe es keine Sitzung mehr dafür
+  await steuerung.alleAusfuehren();
   try {
     await anfrage("POST", "/api/auth/sign-out", {});
   } catch (f) {
@@ -443,117 +377,121 @@ async function abmelden() {
   zeigeLogin("Du bist abgemeldet.");
 }
 
-// Rückmeldungen stehen in einer Live-Region: Leeren und kurz danach setzen, damit auch ein gleicher Text wieder angesagt wird
-function melde(text, art = "ok") {
-  const bereich = document.getElementById("rueckmeldung");
-  if (!bereich) return;
-  bereich.textContent = "";
-  bereich.className = text
-    ? `rueckmeldung hinweis hinweis--${art}`
-    : "rueckmeldung";
-  bereich.setAttribute("role", art === "fehler" ? "alert" : "status");
-  setTimeout(() => {
-    bereich.textContent = text;
-  }, 50);
+// Rückmeldung in die Live-Region (nach dem Aufbau der Verwaltung gesetzt)
+let rueckmeldungen = null;
+function melde(text, art = "ok", aktion) {
+  rueckmeldungen?.melde(text, art, aktion);
 }
 
-function zurUebersicht(klasse = "") {
-  return el(
-    "a",
-    { class: `knopf ${klasse}`.trim(), href: "#uebersicht" },
-    icon("uebersicht"),
-    "Zur Übersicht",
-  );
-}
-
-// Lädt Daten in den Bereich und zeichnet sie; die zweite Funktion lädt dieselbe Ansicht nochmals, ohne den Bereich vorher zu leeren
-function erstelleLader(bereich) {
-  async function lade(laden, zeichnen) {
-    if (!bereich.firstChild) {
-      bereich.append(
-        el("p", { class: "meta", role: "status" }, "Wird geladen …"),
-      );
-    }
-    let daten;
-    try {
-      daten = await laden();
-    } catch (f) {
-      if (!bereich.isConnected) return;
-      leere(bereich);
-      const karte = zustandsKarte(zustandsDaten(f), [
-        knopf("Nochmals versuchen", {
-          art: "haupt",
-          symbol: "aktualisieren",
-          onclick: () => lade(laden, zeichnen),
-        }),
-        f.status === 404 && zurUebersicht(),
-      ]);
-      bereich.append(karte.wurzel);
-      karte.titel.focus();
-      return;
-    }
-    // Zwischen Anfrage und Antwort kann man den Bereich gewechselt haben
-    if (!bereich.isConnected) return;
-    leere(bereich);
-    zeichnen(daten, () => lade(laden, zeichnen));
-  }
-  return lade;
-}
-
-function zeigeVerwaltung() {
-  const bereiche = el(
-    "nav",
-    { class: "bereiche", "aria-label": "Bereiche" },
-    BEREICHE.map(([schluessel, name, , symbol]) =>
-      el(
-        "a",
-        { class: "punkt", href: `#${schluessel}`, "data-bereich": schluessel },
-        icon(symbol),
-        el("span", {}, name),
-      ),
-    ),
-  );
-  const rueckmeldung = el("div", {
-    id: "rueckmeldung",
-    class: "rueckmeldung",
-    role: "status",
-  });
-  const dock = el(
-    "aside",
-    { class: "dock" },
-    el(
-      "div",
-      { class: "marke" },
-      el("p", { class: "ueber" }, "Cevi Stäfa-Hombrechtikon"),
-      el("strong", {}, "Verwaltung"),
-    ),
-    bereiche,
-    el(
-      "div",
-      { class: "konto" },
-      el(
-        "div",
-        { class: "konto-zeile" },
-        avatar(ich.name),
-        el(
-          "div",
-          { class: "konto-text" },
-          el("p", { class: "kontoname" }, ich.name),
-          el(
-            "p",
-            { class: "mini leise" },
-            ich.twoFactorEnabled ? "Admin · zweiter Faktor aktiv" : "Admin",
-          ),
-        ),
-      ),
-      knopf("Abmelden", { klein: true, symbol: "abmelden", onclick: abmelden }),
-    ),
-  );
+// Schlichte Seite im Rahmen ohne Konto und ohne Bereichsleiste (A30: 401, 502 und 503 beim Start): Logozeile und der Zustand
+function zeigeRahmenSeite(daten, aktionen) {
+  ich = null;
+  rueckmeldungen = null;
+  const karte = rahmenzustand(daten, aktionen);
   zeichne(
     el(
       "div",
       { class: "app" },
-      dock,
+      el("header", {}, logozeile({ sichtbar: false })),
+      el(
+        "main",
+        { class: "inhalt", id: "inhalt", tabindex: "-1" },
+        el("div", { class: "rahmen" }, karte.wurzel),
+      ),
+    ),
+  );
+  karte.titel.focus();
+}
+
+// A30: Sitzung abgelaufen (401); die Eingaben bleiben im Browser, nur die Anmeldung fehlt
+function zeigeSitzungAbgelaufen() {
+  zeigeRahmenSeite(zustandsDaten(new ApiFehler(401)), [
+    knopf("Neu anmelden", { art: "haupt", onclick: () => zeigeLogin() }),
+  ]);
+}
+
+// Ist die API beim Start nicht erreichbar, hilft keine Anmeldung: eigene Seite mit «Nochmals versuchen»
+function zeigeStartFehler(f) {
+  zeigeRahmenSeite(zustandsDaten(f), [
+    nochmals(() => pruefeKonto(false).catch(zeigeStartFehler)),
+  ]);
+}
+
+// Zum ersten Bereich, den die Person sieht: für die Abteilungsleitung die Übersicht
+function zurUebersicht(klasse = "") {
+  const erster = sichtbareBereiche()[0];
+  return el(
+    "a",
+    { class: `knopf ${klasse}`.trim(), href: `#${erster.schluessel}` },
+    icon(erster.symbol),
+    erster.schluessel === "uebersicht"
+      ? "Zur Übersicht"
+      : `Zu «${erster.name}»`,
+  );
+}
+
+const leisten = erstelleLeisten();
+// Band bei Wartung oder Informationssperre (#593): nur für Personen, die die Plattform sehen; die Zustände liegen im Speicher der API
+const hinweisband = erstelleHinweisband();
+const darfPlattform = () =>
+  istAdmin() || zugang?.bereiche.includes("plattform") === true;
+// Toasts mit «Rückgängig» (#578): Die Region steht im Seitenaufbau gleich nach dem Kopf; sie bleibt bei jeder Navigation bestehen
+const toasts = erstelleToasts(steuerung);
+verdrahte({
+  beiAenderung: toasts.zeichne,
+  ansage: toasts.sage,
+  beimVerlassen: () => setzeVerlassen(true),
+});
+// Verlässt die Person die Seite vor Ablauf der Frist, läuft die Aktion sofort (keepalive), nie still verworfen
+window.addEventListener("pagehide", () => {
+  steuerung.alleAusfuehren({ verlassen: true });
+});
+// Stand der Zähler in der Unterleiste: «bereich/unterseite» -> Anzahl. Die Module melden sie, wenn sie die Zahl ohnehin geladen haben (keine eigene Abfrage).
+const zaehlerStand = new Map();
+let aktiv = null;
+let navigation = 0;
+
+async function zeigeVerwaltung() {
+  // Zwei Fragen vor dem ersten Bild, damit Kopf und Menü gleich stimmen: die Einstellungen der Website (Name, Logo, Signal «nameAenderbar»; nur wer «Seiten veröffentlichen» darf, sonst 403) und für alle ohne Abteilungsleitung das eigene Profil (Rolle im Kopf)
+  const darfEinstellungen =
+    istAdmin() || zugang.darf("seiten.veroeffentlichen");
+  const [einstellungen, profil] = await Promise.all([
+    darfEinstellungen
+      ? anfrage("GET", "/api/v1/redaktion/website").catch(() => null)
+      : null,
+    // Auch die Abteilungsleitung: Das Profilbild gehört in den Kopf (#621)
+    anfrage("GET", "/api/v1/ich").catch(() => null),
+  ]);
+  entwickler = einstellungen?.nameAenderbar === true;
+  const rolle = rolleVon({
+    istAdmin: istAdmin(),
+    entwickler,
+    zugang,
+    profil,
+  });
+  rueckmeldungen = erstelleRueckmeldungen();
+  // Name und Logo der Abteilung aus den Einstellungen der Website; ohne Recht darauf bleibt, was die öffentliche Website zeigt, sonst die Wortmarke «CEVI»
+  if (einstellungen) setzeMarke(einstellungen);
+  zaehlerStand.clear();
+  aktiv = null;
+  hinweisband.zeichne([]);
+  if (darfPlattform()) hinweisband.aktualisiere({ erzwingen: true });
+  zeichne(
+    el(
+      "div",
+      { class: "app" },
+      el(
+        "header",
+        { class: "kopfzeile" },
+        logozeile({
+          konto: { name: ich.name, rolle, bildUrl: profil?.bildUrl ?? null },
+          beiAbmelden: abmelden,
+          suche: palette.knopf,
+        }),
+        leisten.wurzel,
+      ),
+      hinweisband.wurzel,
+      toasts.wurzel,
       el(
         "main",
         { class: "inhalt", id: "inhalt", tabindex: "-1" },
@@ -561,7 +499,7 @@ function zeigeVerwaltung() {
           "div",
           { class: "rahmen" },
           el("div", { id: "seitenkopf" }),
-          rueckmeldung,
+          rueckmeldungen.wurzel,
           el("div", { id: "bereich" }),
         ),
       ),
@@ -570,30 +508,22 @@ function zeigeVerwaltung() {
   navigiere();
 }
 
-function markiereBereich(schluessel) {
-  for (const link of document.querySelectorAll("nav.bereiche a")) {
-    if (link.dataset.bereich === schluessel)
-      link.setAttribute("aria-current", "page");
-    else link.removeAttribute("aria-current");
-  }
-}
-
-function zeigeNichtGefunden() {
-  markiereBereich();
+// A30 «Kein Zugriff»: Die Leiste bleibt, der Bereich ist für diese Rolle gesperrt
+function zeigeKeinZugriff(bereichName) {
+  aktiv = null;
+  leisten.zeichne({ bereiche: sichtbareBereiche(), aktiv, zaehlerStand });
   document
     .getElementById("seitenkopf")
     .replaceWith(el("div", { id: "seitenkopf" }));
-  document.title = "Nicht gefunden – Verwaltung – Cevi OS";
+  document.title = "Kein Zugriff – Verwaltung – Cevi OS";
   melde("");
-  const karte = zustandsKarte(
+  const karte = rahmenzustand(
     {
-      ueber: "Fehler 404",
-      titel: "Diese Seite gibt es nicht.",
-      text: "Der Link ist vielleicht alt, oder der Bereich heisst inzwischen anders. Wähle links einen Bereich oder geh zur Übersicht.",
-      symbol: "lupe",
+      ueber: "Fehler 403",
+      titel: "Dieser Bereich ist für die Abteilungsleitung.",
+      text: `Den Bereich «${bereichName}» darfst du nicht öffnen. Wende dich an die Abteilungsleitung.`,
     },
     [zurUebersicht("knopf--haupt")],
-    "h1",
   );
   document
     .getElementById("bereich")
@@ -601,68 +531,134 @@ function zeigeNichtGefunden() {
   karte.titel.focus();
 }
 
-function navigiere() {
+function zeigeNichtGefunden() {
+  aktiv = null;
+  leisten.zeichne({ bereiche: sichtbareBereiche(), aktiv, zaehlerStand });
+  document
+    .getElementById("seitenkopf")
+    .replaceWith(el("div", { id: "seitenkopf" }));
+  document.title = "Nicht gefunden – Verwaltung – Cevi OS";
+  melde("");
+  const karte = rahmenzustand(
+    {
+      ueber: "Fehler 404",
+      titel: "Diese Seite gibt es nicht.",
+      text: "Vielleicht ist der Link alt oder hat einen Tippfehler.",
+    },
+    [zurUebersicht("knopf--haupt")],
+  );
+  document
+    .getElementById("bereich")
+    .replaceWith(el("div", { id: "bereich" }, karte.wurzel));
+  karte.titel.focus();
+}
+
+async function navigiere() {
   if (!ich || !document.getElementById("bereich")) return;
   // Der Sprunglink «Zum Inhalt» setzt #inhalt: nur den Fokus verschieben, den Bereich nicht neu laden
   if (location.hash === "#inhalt") {
     document.getElementById("inhalt").focus();
     return;
   }
-  const gesucht = location.hash.slice(1);
-  const treffer = BEREICHE.find(([s]) => s === gesucht);
-  // Ohne Hash gilt die Übersicht; ein unbekannter Hash ist ein toter Link
-  if (gesucht && !treffer) {
-    zeigeNichtGefunden();
+  // Alte Adressen (#tags, #termine/raeume …) gehören jetzt zu einer anderen Seite
+  const neu = neueAdresse(location.hash);
+  if (neu !== location.hash) {
+    window.history.replaceState(window.history.state, "", neu);
+  }
+  // Seiten im Fluss gehören zur Ansicht, die jetzt wechselt; der Eintrag im Verlauf (Position, Scroll) wird hier gemerkt (#578)
+  schliesseAlle();
+  merkeEintrag();
+  const bereiche = sichtbareBereiche();
+  const treffer = loese(location.hash, bereiche);
+  if (!treffer) {
+    // Ein Bereich, den es gibt, den diese Rolle aber nicht sieht, ist «Kein Zugriff» (403), kein toter Link
+    const bekannt = loese(location.hash, BEREICHE);
+    if (bekannt) zeigeKeinZugriff(bekannt.bereich.name);
+    else zeigeNichtGefunden();
     return;
   }
-  const [schluessel, name, ansicht, , untertitel] = treffer ?? BEREICHE[0];
-  markiereBereich(schluessel);
-  const seitenkopf = kopf({ ueber: "Verwaltung", titel: name, untertitel });
-  seitenkopf.id = "seitenkopf";
-  document.getElementById("seitenkopf").replaceWith(seitenkopf);
-  document.title = `${name} – Verwaltung – Cevi OS`;
+  const { bereich: gruppe, unter, pfad } = treffer;
+  if (darfPlattform()) hinweisband.aktualisiere();
+  const meine = ++navigation;
+  aktiv = { bereich: gruppe, unter };
+  leisten.zeichne({ bereiche, aktiv, zaehlerStand });
+  const kopf = seitenkopf({ titel: unter.name, untertitel: unter.untertitel });
+  document.getElementById("seitenkopf").replaceWith(kopf.wurzel);
+  document.title = `${unter.name} – Verwaltung – Cevi OS`;
   melde("");
   // Ein neuer Container je Navigation: Späte Antworten des alten landen in einem abgehängten Knoten
-  const bereich = el("div", { id: "bereich" });
-  document.getElementById("bereich").replaceWith(bereich);
-  ansicht.zeige(bereich, {
+  const container = el("div", { id: "bereich" });
+  document.getElementById("bereich").replaceWith(container);
+  // Ohne Scrollen: Die Stelle der Seite setzt stelleWiederHer() (oder der Bereich, der sie behält)
+  kopf.h1.focus({ preventScroll: true });
+  let modul;
+  try {
+    modul = await import(unter.modul ?? "./platzhalter.js");
+  } catch (f) {
+    if (meine !== navigation) return;
+    const karte = rahmenzustand(zustandsDaten(f), [
+      nochmals(() => navigiere()),
+    ]);
+    container.append(karte.wurzel);
+    karte.titel.focus();
+    return;
+  }
+  if (meine !== navigation) return;
+  modul.zeige(container, {
     ich,
+    zugang,
+    pfad,
+    // Wo die Person gerade ist (für Module, die mehrere Seiten bedienen, und für den Platzhalter)
+    seite: { bereich: gruppe, unter },
+    // Für «Mein Konto» (#621): ob die Person den Namen der Abteilung ändern darf (Rolle im Kopf) und der Weg zur Anmeldung, wenn alle Sitzungen beendet sind
+    entwickler,
+    zurAnmeldung: (text) => zeigeLogin(text),
     melde,
-    lade: erstelleLader(bereich),
+    // Aktion mit «Rückgängig» statt Rückfrage (rueckgaengig.js)
+    mitRueckgaengig,
+    lade: erstelleLader(container, { zurUebersicht }),
+    // Eine Adresse, die es nicht gibt (unbekannter Reiter, Kennung ohne UUID): «Diese Seite gibt es nicht» wie bei einem toten Link, ohne Anfrage an den Server
+    nichtGefunden: () => {
+      if (meine === navigation) zeigeNichtGefunden();
+    },
+    // Für Module mit eigenem Container (Website), damit das Laden nicht ihre Unternavigation leert
+    erstelleLader: (ziel) => erstelleLader(ziel, { zurUebersicht }),
     // Hauptaktion rechts im Seitenkopf, z. B. «Person anlegen»; der Kopf wird mit jeder Navigation neu gebaut
-    kopfAktion: (...knoten) =>
-      seitenkopf.querySelector(".kopf-aktion").replaceChildren(...knoten),
+    kopfAktion: (...knoten) => kopf.aktion.replaceChildren(...knoten),
+    // Titel und Untertitel ersetzen, z. B. mit dem Namen des geöffneten Eintrags; der Fokus bleibt, wo er ist
+    titel: (text, untertitel) => {
+      kopf.h1.textContent = text;
+      if (untertitel !== undefined) kopf.unter.textContent = untertitel;
+      document.title = `${text} – Verwaltung – Cevi OS`;
+    },
+    // Zähler der Unterleiste (z. B. offene Vorschläge), wenn das Modul die Zahl ohnehin kennt
+    // bereichSchluessel: für einen anderen Bereich als den eigenen (die Übersicht kennt die Zahlen der Termine und Räume)
+    zaehler: (
+      unterSchluessel,
+      anzahl,
+      bereichSchluessel = gruppe.schluessel,
+    ) => {
+      zaehlerStand.set(`${bereichSchluessel}/${unterSchluessel}`, anzahl);
+      if (meine === navigation) {
+        leisten.zeichne({ bereiche: sichtbareBereiche(), aktiv, zaehlerStand });
+      }
+    },
   });
-  seitenkopf.querySelector("h1").focus();
+  // Zurück an die gemerkte Stelle des Verlaufseintrags (der Inhalt lädt nach), sonst nach oben
+  stelleWiederHer();
 }
 
 window.addEventListener("hashchange", navigiere);
+// Der Sprunglink legt keinen Verlaufseintrag an: nur der Fokus geht zum Inhalt
+document.addEventListener("click", (ereignis) => {
+  if (!ereignis.target.closest?.("a.sprung")) return;
+  ereignis.preventDefault();
+  document.getElementById("inhalt")?.focus();
+});
 beiSitzungsende(() => {
-  if (ich) {
-    zeigeLogin(
-      "Die Sitzung ist abgelaufen. Bitte melde dich neu an.",
-      SITZUNG_ENDE,
-    );
-  }
+  if (ich) zeigeSitzungAbgelaufen();
 });
 
-// Ist die API beim Start nicht erreichbar, hilft keine Anmeldung: eigene Seite mit «Nochmals versuchen»
-function zeigeStartFehler(f) {
-  ich = null;
-  const d = zustandsDaten(f);
-  anmeldeSeite({
-    titel: d.titel,
-    text: d.text,
-    kopfzeichen: zeichen([d.ueber, d.symbol, d.art]),
-    inhalt: [
-      d.hilfe && el("p", { class: "hilfe" }, d.hilfe),
-      knopf("Nochmals versuchen", {
-        art: "haupt",
-        symbol: "aktualisieren",
-        onclick: () => pruefeKonto(false).catch(zeigeStartFehler),
-      }),
-    ],
-  });
-}
-
+// Marke der Abteilung schon für die Anmeldung (öffentliche Website); nach der Anmeldung gehen die Einstellungen vor
+ladeOeffentlicheMarke();
 pruefeKonto(false).catch(zeigeStartFehler);

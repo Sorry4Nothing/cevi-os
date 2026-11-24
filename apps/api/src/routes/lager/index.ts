@@ -1,0 +1,108 @@
+import { Hono } from "hono";
+import type { Db } from "../../db/client.js";
+import { openMeteo, type Wetterdienst } from "../../lager/wetter-openmeteo.js";
+import type { Fcm } from "../../push.js";
+import type { LagerEnv } from "../../lager/policy.js";
+import { erstelleAggregateRouten } from "./aggregate.js";
+import { erstelleAdressbuchRouten } from "./adressbuch.js";
+import { erstelleAenderungenRouten } from "./aenderungen.js";
+import { erstelleAnwesenheitRouten } from "./anwesenheit.js";
+import { erstelleAushaengeRouten } from "./aushaenge.js";
+import { erstelleAufgabenRouten } from "./aufgaben.js";
+import { erstelleAufgabenDetailsRouten } from "./aufgaben-details.js";
+import { erstelleCheckRouten } from "./check.js";
+import { erstelleAufgabenSchnellRouten } from "./aufgaben-schnell.js";
+import { erstelleLagerBenachrichtigungenRouten } from "./benachrichtigungen.js";
+import { erstelleLagerDateiRouten } from "./dateien.js";
+import { erstelleDokumentRouten } from "./dokumente.js";
+import { erstelleLagerKernRouten } from "./lager.js";
+import { erstelleEinkaufRouten } from "./einkauf.js";
+import { erstelleEingangRouten } from "./eingang.js";
+import { erstelleEreignisRouten } from "./ereignisse.js";
+import { erstelleErwaehnungenRouten } from "./erwaehnungen.js";
+import { erstelleHoeckRouten } from "./hoecks.js";
+import { erstelleMitgliederRouten } from "./mitglieder.js";
+import { erstelleLagerRechteRouten } from "./rechte.js";
+import { erstelleWarteschlangeRouten } from "./warteschlange.js";
+import { erstelleProtokollRouten } from "./protokolle.js";
+import { erstelleRessortRouten } from "./ressorts.js";
+import { erstelleInfosRouten } from "./infos.js";
+import { erstelleNotfallRouten } from "./notfall.js";
+import { erstellePacklisteRouten } from "./packliste.js";
+import { erstellePinnwandRouten } from "./pinnwand.js";
+import { erstelleReaktionenRouten } from "./reaktionen.js";
+import { erstelleUmfragenRouten } from "./umfragen.js";
+import { erstelleAbzaehlenRouten } from "./abzaehlen.js";
+import { erstelleGruppenRouten } from "./gruppen.js";
+import { erstelleTeilnehmerRouten } from "./teilnehmer.js";
+import { erstelleTodoRouten } from "./todos.js";
+import { erstelleVorlagenAnwendenRouten } from "./vorlagen.js";
+import { erstelleZimmerRouten } from "./zimmer.js";
+import { erstelleFahrtenRouten } from "./fahrten.js";
+import { erstelleDiensttauschRouten } from "./diensttausch.js";
+import { erstelleTagesseitenRouten } from "./tagesseiten.js";
+import { erstelleWetterRouten } from "./wetter.js";
+import { erstelleSchichtplanRouten } from "./schichtplan.js";
+import { erstelleSucheRouten } from "./suche.js";
+import { erstelleZeitplanRouten } from "./zeitplan.js";
+
+// Einstieg unter /api/v1/lager (app.ts hängt ihn einmal ein). Jedes Modul des Lager-Backends fügt hier genau eine .route()-Zeile an; seine Routen hängen lagerZugriff() vor jeden Handler (lager/policy.ts)
+// Die Aufgaben-Details stehen vor den Aufgaben: «/aufgaben/duplikate» wäre dort eine Aufgaben-ID
+// fcm brauchen die Module, die benachrichtigen (lager/benachrichtigung.ts): Sie lesen es hier aus der Fabrik wie die Chat-Routen
+// wetter holt die Vorhersage für die Tagesseiten (lager/wetter.ts); die Tests spritzen eine Attrappe ein, damit kein Abruf ins Netz geht
+export function erstelleLagerRouten({
+  db,
+  fcm,
+  wetter = openMeteo,
+  jetzt = () => new Date(),
+}: {
+  db: Db;
+  fcm?: Fcm;
+  wetter?: Wetterdienst;
+  // Die Uhr der Aggregate «Heute», «Meine Woche» und Start (#395) und der Lager-Check (#377); die Tests spritzen eine feste Zeit ein
+  jetzt?: () => Date;
+}) {
+  return new Hono<LagerEnv>()
+    .route("/", erstelleLagerKernRouten({ db }))
+    .route("/", erstelleAenderungenRouten({ db }))
+    .route("/", erstelleWarteschlangeRouten({ db }))
+    .route("/", erstelleEreignisRouten({ db }))
+    .route("/", erstelleLagerRechteRouten({ db }))
+    .route("/", erstelleMitgliederRouten({ db }))
+    .route("/", erstelleLagerBenachrichtigungenRouten({ db }))
+    .route("/", erstelleLagerDateiRouten({ db }))
+    .route("/", erstelleRessortRouten({ db }))
+    .route("/", erstelleAufgabenDetailsRouten({ db }))
+    .route("/", erstelleDokumentRouten({ db }))
+    .route("/", erstelleAdressbuchRouten({ db }))
+    .route("/", erstelleAufgabenRouten({ db, fcm }))
+    .route("/", erstelleAufgabenSchnellRouten({ db }))
+    .route("/", erstelleHoeckRouten({ db }))
+    .route("/", erstelleProtokollRouten({ db }))
+    .route("/", erstelleErwaehnungenRouten({ db, fcm }))
+    .route("/", erstelleAnwesenheitRouten({ db, fcm }))
+    .route("/", erstellePinnwandRouten({ db, fcm }))
+    .route("/", erstelleUmfragenRouten({ db }))
+    .route("/", erstelleReaktionenRouten({ db }))
+    .route("/", erstelleEingangRouten({ db, fcm }))
+    .route("/", erstelleTeilnehmerRouten({ db }))
+    .route("/", erstelleAbzaehlenRouten({ db }))
+    .route("/", erstelleZimmerRouten({ db }))
+    .route("/", erstelleFahrtenRouten({ db }))
+    .route("/", erstelleGruppenRouten({ db }))
+    .route("/", erstelleSchichtplanRouten({ db }))
+    .route("/", erstelleDiensttauschRouten({ db, fcm }))
+    .route("/", erstelleAushaengeRouten({ db }))
+    .route("/", erstellePacklisteRouten({ db }))
+    .route("/", erstelleNotfallRouten({ db }))
+    .route("/", erstelleInfosRouten({ db }))
+    .route("/", erstelleEinkaufRouten({ db }))
+    .route("/", erstelleTodoRouten({ db }))
+    .route("/", erstelleVorlagenAnwendenRouten({ db }))
+    .route("/", erstelleZeitplanRouten({ db, fcm }))
+    .route("/", erstelleTagesseitenRouten({ db, wetter }))
+    .route("/", erstelleWetterRouten({ db, wetter }))
+    .route("/", erstelleAggregateRouten({ db, wetter, jetzt }))
+    .route("/", erstelleCheckRouten({ db, jetzt }))
+    .route("/", erstelleSucheRouten({ db }));
+}

@@ -1,6 +1,6 @@
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb } from "../db/client.js";
-import { session } from "../db/schema.js";
+import { beendeSitzungen } from "../sitzungen-beenden.js";
 
 // Für den Ablauf bei einer Datenpanne: Jede Sitzung endet sofort; Konten, Passwörter und zweite Faktoren bleiben
 const url = process.env.DATABASE_URL;
@@ -9,10 +9,7 @@ if (!url) throw new Error("Fehlende Umgebungsvariable: DATABASE_URL");
 
 const sql = verbindeDatenbank(url);
 try {
-  const beendet = await erstelleDb(sql)
-    .delete(session)
-    .returning({ id: session.id });
-  console.log(`Beendete Sitzungen: ${beendet.length}`);
+  console.log(`Beendete Sitzungen: ${await beendeSitzungen(erstelleDb(sql))}`);
 } finally {
   await sql.end();
 }

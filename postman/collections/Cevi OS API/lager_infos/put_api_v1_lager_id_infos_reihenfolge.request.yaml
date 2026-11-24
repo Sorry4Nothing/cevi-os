@@ -1,0 +1,27 @@
+$kind: http-request
+name: "PUT /api/v1/lager/:id/infos/reihenfolge"
+order: 324000
+method: PUT
+url: "{{baseUrl}}{{pfad_L121}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "eintraege": [
+        {
+          "id": "4acc737a-721c-4ac6-906b-a0ceeae9ee28",
+          "version": 1
+        }
+      ]
+    }

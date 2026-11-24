@@ -12,11 +12,12 @@ export default defineConfig(
   },
   {
     // Skripte der Verwaltung laufen im Browser; ohne Abhängigkeit «globals» nur die benutzten Namen
-    files: ["public/admin/**/*.js"],
+    files: ["public/admin/**/*.js", "public/website/**/*.js"],
     languageOptions: {
       globals: {
         Blob: "readonly",
         Node: "readonly",
+        URLSearchParams: "readonly",
         TextDecoder: "readonly",
         document: "readonly",
         fetch: "readonly",
@@ -25,6 +26,13 @@ export default defineConfig(
         setTimeout: "readonly",
         setInterval: "readonly",
         clearInterval: "readonly",
+        clearTimeout: "readonly",
+        AbortController: "readonly",
+        Event: "readonly",
+        CSS: "readonly",
+        HTMLInputElement: "readonly",
+        queueMicrotask: "readonly",
+        MutationObserver: "readonly",
         window: "readonly",
       },
     },

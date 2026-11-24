@@ -3,10 +3,14 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { kind, kindEltern, profilbild, stufe, user } from "../db/schema.js";
+import { kind, kindZugang, profilbild, stufe, user } from "../db/schema.js";
 import { bildUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
+import { ladeKindKontoEinstellung } from "../kind-konto.js";
 import type { Person } from "../rechte.js";
+import { eintragVon, RECHT_IDS } from "../rechtemodell/katalog.js";
+import { ladeRechteSatz } from "../rechtemodell/satz.js";
+import { erstelleLagerBenachrichtigungEinstellungRouten } from "./lager/benachrichtigungen.js";
 import { telefonSchema } from "../telefon.js";
 
 // Mindestens ein Feld: Ein leeres set() wirft in Drizzle («No values to set»)
@@ -57,10 +61,10 @@ export function erstelleIchRouten({ db }: { db: Db }) {
             stufeId: kind.stufeId,
           })
           .from(kind)
-          .innerJoin(kindEltern, eq(kindEltern.kindId, kind.id))
+          .innerJoin(kindZugang, eq(kindZugang.kindId, kind.id))
           .where(
             and(
-              eq(kindEltern.userId, person.id),
+              eq(kindZugang.userId, person.id),
               eq(kind.abteilungId, person.abteilungId),
               isNull(kind.inaktivSeit),
             ),
@@ -68,6 +72,30 @@ export function erstelleIchRouten({ db }: { db: Db }) {
           .orderBy(asc(kind.id));
         // Die Sitzung löscht die Datenbank mit der Person (CASCADE); ohne Zeile ist sie nicht mehr gültig
         if (!profil) throw new HTTPException(401);
+        // Das eigene Konto eines Kindes (#644): nur dieses Kind, nie ein anderes. chat sagt, was das Konto im Gruppenchat darf («aus», «lesen», «schreiben»)
+        let teilnehmer: {
+          kindId: string;
+          stufeId: string;
+          aktiv: boolean;
+          chat: "aus" | "lesen" | "schreiben";
+        } | null = null;
+        if (person.kindId) {
+          const [eigenes, einstellung] = await Promise.all([
+            db
+              .select({ stufeId: kind.stufeId, inaktivSeit: kind.inaktivSeit })
+              .from(kind)
+              .where(eq(kind.id, person.kindId)),
+            ladeKindKontoEinstellung(db, person.abteilungId),
+          ]);
+          if (eigenes[0]) {
+            teilnehmer = {
+              kindId: person.kindId,
+              stufeId: eigenes[0].stufeId,
+              aktiv: eigenes[0].inaktivSeit === null,
+              chat: einstellung.erlaubt ? einstellung.chat : "aus",
+            };
+          }
+        }
         // Die Stufen der Rollen und der Kinder; inArray mit leerer Liste wird zu «false»
         const stufenIds = [
           ...new Set([
@@ -92,6 +120,22 @@ export function erstelleIchRouten({ db }: { db: Db }) {
                   ),
                 )
                 .orderBy(asc(stufe.name), asc(stufe.id));
+        // Die Rechte der Person (#650), damit die Verwaltung nur zeigt, was der Server erlaubt: je Recht des Katalogs, das sich vergeben lässt oder fest ist, die Geltung «alle» oder «eigene». Nur Kennungen; die Prüfung bleibt auf dem Server. Eine Abfrage
+        const satz = await ladeRechteSatz(db, person);
+        const rechte = RECHT_IDS.flatMap((recht) => {
+          if (eintragVon(recht).art === "struktur") return [];
+          const herkunft = satz.herkuenfte(recht);
+          return herkunft.length === 0
+            ? []
+            : [
+                {
+                  recht,
+                  geltung: herkunft.some((h) => h.geltung === "alle")
+                    ? ("alle" as const)
+                    : ("eigene" as const),
+                },
+              ];
+        });
         // Der Anmelde-Push gilt nur Leitenden: Allen anderen zeigt die API den Schalter nicht
         const { pushAnmeldungen, ...rest } = profil;
         return c.json({
@@ -100,8 +144,11 @@ export function erstelleIchRouten({ db }: { db: Db }) {
           admin: person.admin,
           zweiterFaktor: person.zweiterFaktor,
           rollen: person.rollen,
+          rechte,
           stufen,
           kinder,
+          // Nur beim eigenen Konto eines Kindes; für alle anderen bleibt die Antwort, wie sie war
+          ...(teilnehmer && { teilnehmer }),
         });
       })
       // Kenntnisnahme, keine Einwilligung: einmal pro Person, das erste Datum bleibt
@@ -129,5 +176,10 @@ export function erstelleIchRouten({ db }: { db: Db }) {
         await db.update(user).set(daten).where(eq(user.id, person.id));
         return c.body(null, 204);
       })
+      // Schalter der Lager-Benachrichtigungen je Art (#369)
+      .route(
+        "/lager-benachrichtigungen",
+        erstelleLagerBenachrichtigungEinstellungRouten({ db }),
+      )
   );
 }

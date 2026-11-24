@@ -13,6 +13,9 @@ COPY apps/api/package.json apps/api/
 RUN npm ci --omit=dev --omit=peer -w apps/api && npm cache clean --force
 COPY apps/api/ apps/api/
 
+# Ausgabeverzeichnis der Website (#705): Das Volume übernimmt beim Anlegen diesen Besitzer, sonst könnte die API nicht schreiben
+RUN mkdir -p /srv/website && chown node:node /srv/website
+
 USER node
 WORKDIR /app/apps/api
 # tsx als Loader statt eines Builds: Node bildet die Importe auf .js nicht auf .ts-Dateien ab. Nie die tsx-CLI, sie startet einen Kindprozess mit IPC-Pipe

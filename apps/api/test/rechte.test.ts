@@ -15,7 +15,7 @@ import {
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import { darfZuordnen, hatRolle, type Person } from "../src/rechte.js";
+import { hatRolle, type Person } from "../src/rechte.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -78,7 +78,7 @@ beforeEach(() => {
 });
 afterEach(() => ausgabe.mockRestore());
 
-// 200 nur für Leitung oder SL der Stufe; Admins haben keine Stufenrolle (403), Demo-Personas sehen fremde Objekte nicht (404)
+// 200 nur für Leitung oder SL der Stufe; die Abteilungsleitung haben keine Stufenrolle (403), Demo-Personas sehen fremde Objekte nicht (404)
 const ERWARTET: Record<Persona, { a: number; b: number }> = {
   admin: { a: 403, b: 403 },
   adminOhneZweitenFaktor: { a: 403, b: 403 },
@@ -200,106 +200,5 @@ describe("hatRolle", () => {
     ["c", "stufenleitung", false],
   ] as const)("Stufe %s, verlangt %s: %s", (stufeId, typ, erwartet) => {
     expect(hatRolle(person, stufeId, typ)).toBe(erwartet);
-  });
-});
-
-describe("darfZuordnen", () => {
-  const basis = {
-    id: "person-1",
-    abteilungId: "abteilung-1",
-    admin: false,
-    zweiterFaktor: false,
-  };
-  const admin: Person = { ...basis, admin: true, rollen: [] };
-  const slA: Person = {
-    ...basis,
-    rollen: [{ stufeId: "a", typ: "stufenleitung" }],
-  };
-  const leitungA: Person = {
-    ...basis,
-    rollen: [{ stufeId: "a", typ: "leitung" }],
-  };
-  const eltern: Person = { ...basis, rollen: [] };
-  test.each([
-    [
-      "Admin ändert Stufen und Sichtbarkeit beliebig",
-      admin,
-      { vorher: ["a", "b"], nachher: [], sichtbarkeitAendert: true },
-      true,
-    ],
-    [
-      "SL A macht ein Programm für alle Stufen nicht zu einem der eigenen Stufe",
-      slA,
-      { vorher: [], nachher: ["a"], sichtbarkeitAendert: false },
-      false,
-    ],
-    [
-      "SL A macht kein Programm zu einem für alle Stufen",
-      slA,
-      { vorher: ["a"], nachher: [], sichtbarkeitAendert: false },
-      false,
-    ],
-    [
-      "SL A fügt die eigene Stufe einem Programm der Stufe B hinzu",
-      slA,
-      { vorher: ["b"], nachher: ["a", "b"], sichtbarkeitAendert: false },
-      true,
-    ],
-    [
-      "SL A entfernt die eigene Stufe",
-      slA,
-      { vorher: ["a", "b"], nachher: ["b"], sichtbarkeitAendert: false },
-      true,
-    ],
-    [
-      "SL A entfernt die fremde Stufe nicht",
-      slA,
-      { vorher: ["a", "b"], nachher: ["a"], sichtbarkeitAendert: false },
-      false,
-    ],
-    [
-      "SL A fügt keine fremde Stufe hinzu",
-      slA,
-      { vorher: [], nachher: ["b"], sichtbarkeitAendert: false },
-      false,
-    ],
-    [
-      "SL A ändert die Sichtbarkeit, solange nur die eigene Stufe beteiligt ist",
-      slA,
-      { vorher: ["a"], nachher: ["a"], sichtbarkeitAendert: true },
-      true,
-    ],
-    [
-      "SL A blendet ein Programm für alle Stufen nicht aus",
-      slA,
-      { vorher: [], nachher: [], sichtbarkeitAendert: true },
-      false,
-    ],
-    [
-      "SL A ändert die Sichtbarkeit nicht, wenn auch Stufe B beteiligt ist",
-      slA,
-      { vorher: ["a", "b"], nachher: ["a", "b"], sichtbarkeitAendert: true },
-      false,
-    ],
-    [
-      "No-op einer SL",
-      slA,
-      { vorher: ["b"], nachher: ["b"], sichtbarkeitAendert: false },
-      true,
-    ],
-    [
-      "No-op einer Leitung: Leitende ordnen nie zu",
-      leitungA,
-      { vorher: ["a"], nachher: ["a"], sichtbarkeitAendert: false },
-      false,
-    ],
-    [
-      "No-op von Eltern: Eltern ordnen nie zu",
-      eltern,
-      { vorher: ["a"], nachher: ["a"], sichtbarkeitAendert: false },
-      false,
-    ],
-  ] as const)("%s", (_titel, person, eingabe, erwartet) => {
-    expect(darfZuordnen(person, eingabe)).toBe(erwartet);
   });
 });

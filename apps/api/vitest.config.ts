@@ -1,24 +1,27 @@
 import { configDefaults, defineConfig } from "vitest/config";
 
+// Tests, die die ganze Datenbank anfassen und darum nie neben anderen Dateien laufen:
+// - sitzungen-beenden: Die CLI «sitzungen:beenden» löscht jede Sitzung der Testdatenbank
+// - kalender/sync: Der Lauf geht über alle Abteilungen und Stufen; neben einer anderen Datei legt er dort Programme an oder loggt deren Kalenderadresse (zeigte sich, sobald eine zusätzliche Testdatei die Reihenfolge verschob)
+const ALLEIN = ["test/sitzungen-beenden.test.ts", "test/kalender/sync.test.ts"];
+
 export default defineConfig({
   test: {
     globalSetup: "./test/frische-datenbank.ts",
-    // Die CLI «sitzungen:beenden» löscht jede Sitzung der Testdatenbank, darum läuft ihr Test nach allen anderen Dateien
     projects: [
       {
         test: {
           name: "parallel",
-          exclude: [
-            ...configDefaults.exclude,
-            "test/sitzungen-beenden.test.ts",
-          ],
+          exclude: [...configDefaults.exclude, ...ALLEIN],
           sequence: { groupOrder: 0 },
         },
       },
       {
         test: {
           name: "allein",
-          include: ["test/sitzungen-beenden.test.ts"],
+          include: ALLEIN,
+          // Eine Datei nach der anderen: Die drei stören sich sonst gegenseitig
+          fileParallelism: false,
           sequence: { groupOrder: 1 },
         },
       },

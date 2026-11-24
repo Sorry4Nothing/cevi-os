@@ -1,4 +1,5 @@
 import { and, eq, isNull, ne, or, sql } from "drizzle-orm";
+import { alias } from "drizzle-orm/pg-core";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { HTTPException } from "hono/http-exception";
@@ -11,23 +12,25 @@ import {
 import type { Db } from "../db/client.js";
 import {
   chat,
+  lagerMitglied,
   leitungAnmeldung,
   programm,
-  programmStufeWirksam,
   profilbild,
   rolle,
   user,
 } from "../db/schema.js";
+import { programmStufen } from "../termine/stufen-sicht.js";
 import { eingabe } from "../eingabe.js";
 import { stufenMitKind } from "../kontakte.js";
+import { hatRechtMitFaktor } from "../rechtemodell/personenrechte.js";
 import {
   aktivesKonto,
   chatMitglieder,
   hatRolle,
-  programmSichtbar,
   sichtbareNachrichten,
   type Person,
 } from "../rechte.js";
+import { programmSichtbar } from "../programmsicht.js";
 
 const pfadSchema = z.strictObject({ id: z.uuid() });
 const BILD_FORMAT = {
@@ -38,18 +41,19 @@ const BILD_FORMAT = {
 const UPLOADS = 10;
 const FENSTER_MS = 10 * 60_000;
 
-// Wer die Person mit Namen sieht, sieht auch ihr Bild: dieselben Wege wie bei den Namen, keine neue Preisgabe. Die Wege sind der Chat (Autorin einer sichtbaren Nachricht, Gegenüber im Einzelchat), die Kontakte der Stufe und die Kontakte eines Programms
+// Wer die Person mit Namen sieht, sieht auch ihr Bild: dieselben Wege wie bei den Namen, keine neue Preisgabe. Die Wege sind der Chat (Autorin einer sichtbaren Nachricht, Gegenüber im Einzelchat), die Kontakte der Stufe, die Kontakte eines Programms und die Mitglieder eines gemeinsamen Lagers (die Lager-Antworten nennen sie mit Namen und bildUrl, #697; dort gilt dieselbe Bedingung in bildUrlImLager)
 async function darfBildSehen(db: Db, person: Person, zielId: string) {
   if (zielId === person.id) return true;
   // Die Verwaltung sieht alle Personen der Abteilung, also auch ihre Bilder
-  if (person.admin) {
+  const inAbteilung = async () => {
     const [ziel] = await db
       .select({ id: user.id })
       .from(user)
       .where(and(eq(user.id, zielId), eq(user.abteilungId, person.abteilungId)))
       .limit(1);
     return !!ziel;
-  }
+  };
+  if (person.admin) return inAbteilung();
   // Die Stufe der Person: Leitende und SL sehen alle Leitenden ihrer Stufe (wie in den Anmeldungen), Eltern mit aktivem Kind nur die SL
   const zielRollen = await db
     .select({ stufeId: rolle.stufeId, typ: rolle.typ })
@@ -69,6 +73,25 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
   ) {
     return true;
   }
+  // Gemeinsames Lager: beide sind Mitglieder, die Zielperson mit aktivem Konto der Abteilung
+  const zielMitglied = alias(lagerMitglied, "ziel_mitglied");
+  const [gemeinsam] = await db
+    .select({ id: lagerMitglied.lagerId })
+    .from(lagerMitglied)
+    .innerJoin(
+      zielMitglied,
+      and(
+        eq(zielMitglied.lagerId, lagerMitglied.lagerId),
+        eq(zielMitglied.personId, zielId),
+      ),
+    )
+    .innerJoin(
+      user,
+      and(eq(user.id, zielMitglied.personId), aktivesKonto(person.abteilungId)),
+    )
+    .where(eq(lagerMitglied.personId, person.id))
+    .limit(1);
+  if (gemeinsam) return true;
   const n = sichtbareNachrichten(db, person);
   const [nachricht] = await db
     .select({ id: n.id })
@@ -95,14 +118,11 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
   const [kontakt] = await db
     .select({ id: programm.id })
     .from(programm)
-    .innerJoin(
-      programmStufeWirksam,
-      eq(programmStufeWirksam.programmId, programm.id),
-    )
+    .innerJoin(programmStufen, eq(programmStufen.programmId, programm.id))
     .innerJoin(
       rolle,
       and(
-        eq(rolle.stufeId, programmStufeWirksam.stufeId),
+        eq(rolle.stufeId, programmStufen.stufeId),
         eq(rolle.userId, zielId),
         eq(rolle.typ, "stufenleitung"),
       ),
@@ -128,7 +148,13 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
       ),
     )
     .limit(1);
-  return kontakt !== undefined;
+  if (kontakt !== undefined) return true;
+  // Zuletzt, weil es die seltene Frage ist: Wer die Personenliste der Verwaltung sehen darf (Personen sehen oder verwalten), sieht auch die Bilder (#650)
+  return (
+    ((await hatRechtMitFaktor(db, person, "personen.sehen")) ||
+      (await hatRechtMitFaktor(db, person, "personen.verwalten"))) &&
+    (await inAbteilung())
+  );
 }
 
 // Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType; sharp kommt darum als Parameter
@@ -156,6 +182,8 @@ export function erstelleProfilbildRouten({
       // Der Body ist das Bild selbst (JPEG, PNG oder WebP); die Grösse begrenzt bodyLimit, bevor die Route einliest, der Typ ergibt sich aus den Bytes und nie aus Header oder Endung. Das Ergebnis ersetzt ein vorhandenes Bild
       .put("/ich/bild", bodyLimit({ maxSize: BILD_MAX_BYTES }), async (c) => {
         const person = c.get("person");
+        // Von Kindern gibt es nie ein Bild (Datenschutzerklärung)
+        if (person.kindId) throw new HTTPException(403);
         if (!kodiereBild) throw new HTTPException(501);
         if (zuViele(person.id)) throw new HTTPException(429);
         const daten = new Uint8Array(await c.req.arrayBuffer());

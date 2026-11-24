@@ -92,7 +92,7 @@ type Nachricht = {
 };
 
 describe("GET /api/v1/chats", () => {
-  test("Eltern und SL sehen den Gruppenchat ihrer Stufe, andere Stufen und Admins keinen", async () => {
+  test("Eltern und SL sehen den Gruppenchat ihrer Stufe, andere Stufen und die Abteilungsleitung keinen", async () => {
     const [eltern, sl, elternB, admin] = await Promise.all([
       person("elternA"),
       person("slA"),
@@ -452,7 +452,7 @@ describe("Bezug auf ein Programm", () => {
     expect(nachrichten).toEqual([]);
   });
 
-  test("ein Programm ohne Stufe gilt für alle Stufen und ist als Bezug erlaubt", async () => {
+  test("ein Programm ohne Stufen-Tag gilt für keine Stufe und ist kein Bezug (#449)", async () => {
     const eltern = await person("elternA");
     const p = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
@@ -462,7 +462,7 @@ describe("Bezug auf ein Programm", () => {
       text: "Hallo",
       programmId: p.id,
     });
-    expect(antwort.status).toBe(201);
+    expect(antwort.status).toBe(400);
   });
 });
 
@@ -749,7 +749,7 @@ describe("Einzelchat", () => {
     ]);
   });
 
-  test("fremde Eltern, andere Stufen, Leitende, Admins und andere Abteilungen kommen nie an den Chat", async () => {
+  test("fremde Eltern, andere Stufen, Leitende, die Abteilungsleitung und andere Abteilungen kommen nie an den Chat", async () => {
     const [eltern, anderes, elternB, leitende, slB, admin, demo] =
       await Promise.all([
         person("elternA"),
@@ -803,7 +803,7 @@ describe("Einzelchat", () => {
     expect(await einzelchats(welt.stufeBId)).toHaveLength(0);
   });
 
-  test("Leitende, Admins und andere Abteilungen können keinen Einzelchat beginnen", async () => {
+  test("Leitende, die Abteilungsleitung und andere Abteilungen können keinen Einzelchat beginnen", async () => {
     const [leitende, admin, demo, eltern] = await Promise.all([
       person("leitendeA"),
       person("admin"),

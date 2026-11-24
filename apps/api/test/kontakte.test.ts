@@ -171,18 +171,17 @@ const frischeStufe = async (
   return { stufeId: stufe.id, sl };
 };
 
-// IDs der Kontakte, wie sie der Admin sieht, in Antwortreihenfolge
+// IDs der Kontakte, wie sie die Abteilungsleitung sieht, in Antwortreihenfolge
 const ids = async (programmId: string) =>
   (await programmKontakte(programmId, konten.admin)).kontakte.map((k) => k.id);
 
 describe("GET /api/v1/programme/:id/kontakte", () => {
-  test("ohne zugeordnete Stufe: die Kontakte aller Stufen, 200", async () => {
-    const alle = await frisch([welt.stufeAId, welt.stufeBId]);
+  test("ohne Stufen-Tag gilt das Programm für keine Stufe: keine Kontakte, 200 (#449)", async () => {
+    await frisch([welt.stufeAId, welt.stufeBId]);
     const p = await frisch([]);
     const r = await programmKontakte(p.id, konten.admin);
     expect(r.status).toBe(200);
-    expect(await ids(p.id)).toEqual(await ids(alle.id));
-    expect((await ids(p.id)).length).toBeGreaterThan(0);
+    expect(await ids(p.id)).toEqual([]);
   });
 
   test("ein Kontakt je Stufe: die erste SL nach Priorität; «offen» zählt als Zusage", async () => {
@@ -281,7 +280,7 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
     expect((await ids(p.id)).filter((id) => id === doppelt.id)).toHaveLength(1);
   });
 
-  test("Eltern der Stufe sehen die Nummer, alle anderen nie, auch Admins nicht", async () => {
+  test("Eltern der Stufe sehen die Nummer, alle anderen nie, auch die Abteilungsleitung nicht", async () => {
     const p = await frisch([welt.stufeAId, welt.stufeBId]);
     await anmelden(p.id, konten.slA, "ja");
     await anmelden(p.id, konten.slB, "ja");
@@ -319,7 +318,7 @@ describe("GET /api/v1/programme/:id/kontakte", () => {
       ["leitendeA", { "SL A": NUMMER_A, "SL B": null }],
       ["slB", { "SL A": null, "SL B": NUMMER_B }],
       ["leitendeB", { "SL A": null, "SL B": NUMMER_B }],
-      // Admin ohne Rolle in den Stufen: Namen, keine Nummer
+      // Abteilungsleitung ohne Rolle in den Stufen: Namen, keine Nummer
       ["admin", { "SL A": null, "SL B": null }],
     ] as const) {
       expect(nummernNachName((await sicht(rolle)).kontakte)).toEqual(erwartet);

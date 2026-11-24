@@ -119,7 +119,7 @@ async function neuerElternteil(persona: Persona = "elternA") {
 const VOR_EINEM_JAHR = new Date(Date.now() - 365 * 86_400_000);
 
 describe("POST /api/v1/admin/kinder", () => {
-  test("legt das Kind in der Abteilung des Admins an, getrimmt, aktiv, ohne Eltern", async () => {
+  test("legt das Kind in der Abteilung der Abteilungsleitung an, getrimmt, aktiv, ohne Eltern", async () => {
     const id = await legeKindAn(admin, {
       vorname: "  Lena ",
       nachname: " Beispiel  ",
@@ -135,7 +135,7 @@ describe("POST /api/v1/admin/kinder", () => {
     expect(await links(id)).toEqual([]);
   });
 
-  test("der Demo-Admin legt in der Demo-Abteilung an; die Stufe der Testabteilung gibt 400", async () => {
+  test("der Demo-Abteilungsleitung legt in der Demo-Abteilung an; die Stufe der Testabteilung gibt 400", async () => {
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
     const id = await legeKindAn(demoAdmin, { stufeId: welt.demoStufeId });
     expect((await kindZeile(id)).abteilungId).toBe(welt.demoAbteilungId);
@@ -144,7 +144,7 @@ describe("POST /api/v1/admin/kinder", () => {
     );
   });
 
-  test("ein Admin der Testabteilung mit der Demo-Stufe gibt 400 und schreibt nichts", async () => {
+  test("eine Person der Abteilungsleitung der Testabteilung mit der Demo-Stufe gibt 400 und schreibt nichts", async () => {
     const nachname = `Fremd ${randomUUID()}`;
     const antwort = await anfrage(
       admin,
@@ -215,9 +215,11 @@ describe("GET /api/v1/admin/kinder", () => {
       "ceviName",
       "eltern",
       "id",
+      "konto",
       "nachname",
       "stufeId",
       "vorname",
+      "zugang",
     ]);
     expect(eintrag(aktiv)).toEqual({
       id: aktiv,
@@ -227,6 +229,8 @@ describe("GET /api/v1/admin/kinder", () => {
       stufeId: welt.stufeAId,
       aktiv: true,
       eltern: [eltern.id],
+      zugang: "eltern",
+      konto: null,
     });
     expect(eintrag(inaktiv)).toMatchObject({ aktiv: false, eltern: [] });
     expect(kinder.map((k) => k.id)).not.toContain(welt.demoKindId);
@@ -265,7 +269,7 @@ describe("GET /api/v1/admin/kinder", () => {
     expect(kinder.find((k) => k.id === kind)!.eltern).toEqual([]);
   });
 
-  test("der Demo-Admin sieht nur das Demo-Kind", async () => {
+  test("der Demo-Abteilungsleitung sieht nur das Demo-Kind", async () => {
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
     const { kinder } = (await (
       await anfrage(demoAdmin, "GET", BASIS)
@@ -506,7 +510,7 @@ describe("PATCH /api/v1/admin/kinder/:id", () => {
     expect(antwort.status).toBe(404);
   });
 
-  test("der Demo-Admin ändert kein Kind der Testabteilung (404) und umgekehrt", async () => {
+  test("der Demo-Abteilungsleitung ändert kein Kind der Testabteilung (404) und umgekehrt", async () => {
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
     const id = await legeKindAn();
     expect((await aendere(id, { vorname: "Fremd" }, demoAdmin)).status).toBe(
@@ -518,7 +522,7 @@ describe("PATCH /api/v1/admin/kinder/:id", () => {
     expect((await kindZeile(id)).vorname).toBe("Neues");
   });
 
-  test("keine Admin: 403 ohne Änderung", async () => {
+  test("keine Person der Abteilungsleitung: 403 ohne Änderung", async () => {
     const sl = await legePersonaAn(welt, "slA");
     const id = await legeKindAn();
     expect((await aendere(id, { vorname: "Nie" }, sl)).status).toBe(403);
@@ -565,7 +569,7 @@ describe("DELETE /api/v1/admin/kinder/:id", () => {
     ).toHaveLength(0);
   });
 
-  test("unbekannt oder fremd 404, kein Admin 403; das Kind bleibt", async () => {
+  test("unbekannt oder fremd 404, keine Abteilungsleitung 403; das Kind bleibt", async () => {
     const sl = await legePersonaAn(welt, "slA");
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
     const id = await legeKindAn();

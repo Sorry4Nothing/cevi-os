@@ -1,0 +1,14 @@
+$kind: http-request
+name: "GET /api/v1/lager/:id/protokolle"
+order: 360000
+method: GET
+url: "{{baseUrl}}{{pfad_L157}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"

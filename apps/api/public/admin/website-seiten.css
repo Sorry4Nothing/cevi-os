@@ -1,0 +1,372 @@
+/* Seitenbaum und «Neue Seite» (E1, #595). Klassen mit dem Vorsatz «ws-»; Farben, Radien und Bewegung nur aus tokens.css */
+
+/* ===== Seitenbaum (role="tree") ===== */
+.ws-baumhuelle {
+  min-width: 0;
+}
+
+.ws-baum {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--karte);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+}
+
+.ws-zeile {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 0.25rem 1rem;
+  align-items: center;
+  min-height: 4rem;
+  padding: 0 0.75rem 0 0.25rem;
+  border-top: 1px solid var(--outline-variant);
+  outline-offset: -3px;
+}
+
+.ws-zeile:first-child {
+  border-top: 0;
+}
+
+.ws-zeile:hover {
+  background: var(--surface-container-low);
+}
+
+.ws-zeile:focus-visible {
+  outline: 3px solid var(--focus);
+}
+
+.ws-zeile--kontext .ws-baumfeld {
+  opacity: 0.7;
+}
+
+.ws-zeile.ist-aufgenommen {
+  background: var(--surface-container-high);
+  outline: 2px solid var(--focus);
+}
+
+/* Gezogen: angehoben (Schatten und Rahmen kommen aus werkzeuge.css), die Nachbarn weichen aus, ein gestrichelter Platzhalter zeigt den Zielplatz */
+.ws-zeile.wird-gezogen {
+  background: var(--surface-container-high);
+  border-radius: var(--r-sm);
+  border-top-color: transparent;
+}
+
+.ws-baum.sortier-zieht {
+  overflow: visible;
+}
+
+.ws-baum .sortier-platzhalter {
+  border-radius: var(--r-sm);
+}
+
+/* Die Spalte mit Griff, Führungslinien, Faltknopf und Name */
+.ws-baumfeld {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+  min-width: 0;
+}
+
+.ws-griff {
+  flex: none;
+}
+
+.ws-griff--leer {
+  display: block;
+  width: 0.5rem;
+  height: 2.75rem;
+}
+
+/* Eine Führungslinie je Ebene; die Ebene steht zusätzlich in aria-level (nie nur das Auge) */
+.ws-fuehrung {
+  flex: none;
+  align-self: stretch;
+  width: 1.5rem;
+  border-left: 1px solid var(--outline);
+}
+
+.ws-falten {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  color: var(--on-surface-variant);
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.ws-falten--leer {
+  cursor: default;
+}
+
+.ws-falten:not(.ws-falten--leer):hover {
+  color: var(--on-surface);
+  background: var(--surface-container);
+}
+
+.ws-falten .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.ws-falten[aria-expanded="false"] .i {
+  transform: rotate(-90deg);
+}
+
+.ws-name {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  min-width: 0;
+  min-height: 2.75rem;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.ws-name:hover .ws-titel {
+  text-decoration: underline;
+}
+
+.ws-name:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ws-titel {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.ws-pfad {
+  display: block;
+  font-size: 0.8125rem;
+  overflow-wrap: anywhere;
+}
+
+.ws-umbenennen {
+  flex: 1;
+  min-width: 0;
+  min-height: 2.75rem;
+}
+
+.ws-werte {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.ws-zeit {
+  white-space: nowrap;
+}
+
+.ws-aktionen {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Ziel beim Ziehen: Der Platzhalter (eingerückt, wenn die Seite Unterseite wird) zeigt den Platz; ein Rahmen um die Elternseite zeigt «darunter»; gesperrt gestrichelt (der Grund steht danach in der Meldung, nie nur Farbe) */
+.ws-zeile.ws-ziel-in {
+  background: var(--surface-container-high);
+  outline: 2px solid var(--focus);
+}
+
+.ws-zeile.ws-ziel-nein {
+  outline: 2px dashed var(--error);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ws-falten .i {
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .ws-zeile {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+}
+
+@media (max-width: 62rem) {
+  .ws-zeile {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ws-baumfeld {
+    grid-row: 1;
+  }
+
+  .ws-aktionen {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .ws-werte {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    justify-content: flex-start;
+    padding: 0 0 0.5rem 3.25rem;
+  }
+
+  .ws-bearbeiten {
+    display: none;
+  }
+}
+
+/* ===== Neue Seite ===== */
+.ws-neu {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 2rem;
+  align-items: start;
+}
+
+.ws-neu-felder {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+/* Vorlagen als Skizzen */
+.ws-vorlagen {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ws-vorlagen > legend {
+  grid-column: 1 / -1;
+}
+
+.ws-vorlage {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.ws-skizze {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  background: var(--surface-container-low);
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+}
+
+.sk-f {
+  fill: var(--surface-container-high);
+  stroke: var(--outline-variant);
+  stroke-width: 0.5;
+}
+
+.sk-l {
+  fill: var(--outline-variant);
+}
+
+.sk-a {
+  fill: var(--secondary);
+  opacity: 0.85;
+}
+
+.sk-rahmen {
+  fill: none;
+  stroke: var(--outline);
+  stroke-dasharray: 3 2;
+}
+
+.sk-plus {
+  fill: none;
+  stroke: var(--on-surface-variant);
+  stroke-width: 2;
+  stroke-linecap: round;
+}
+
+/* Adresse mit festem Anfang (Adresse der Elternseite) und eigenem Teil */
+.ws-handle-zeile {
+  display: flex;
+  align-items: stretch;
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--outline);
+  border-radius: var(--r-sm);
+}
+
+.ws-handle-zeile:focus-within {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.ws-handle-praefix {
+  display: inline-flex;
+  align-items: center;
+  max-width: 55%;
+  padding: 0 0.5rem 0 0.75rem;
+  overflow: hidden;
+  color: var(--on-surface-variant);
+  background: var(--surface-container-low);
+  border-radius: var(--r-sm) 0 0 var(--r-sm);
+  font-size: 0.875rem;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.feld .ws-handle-zeile input,
+.ws-handle-zeile .eingabe {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  outline: 0;
+}
+
+.ws-adressstand {
+  display: flex;
+  gap: 0.375rem;
+  align-items: flex-start;
+}
+
+.ws-adressstand[data-art="fehler"],
+.ws-adressstand[data-art="warn"] {
+  font-weight: 700;
+}
+
+.ws-adressstand .i {
+  flex: none;
+  width: 1.125rem;
+  height: 1.125rem;
+  margin-top: 1px;
+}
+
+.sk-seitenliste {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+@media (max-width: 62rem) {
+  .ws-neu {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 30rem) {
+  .ws-vorlagen {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

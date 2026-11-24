@@ -25,13 +25,14 @@ import {
   chatStatus,
   nachricht,
   programm,
-  programmStufeWirksam,
   profilbild,
   rolle,
   stufe,
   user,
 } from "../db/schema.js";
+import { programmStufen } from "../termine/stufen-sicht.js";
 import { eingabe } from "../eingabe.js";
+import { ladeKindKontoEinstellung } from "../kind-konto.js";
 import {
   chatFuerPerson,
   chatMitglieder,
@@ -76,11 +77,11 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       exists(
         db
           .select({ eins: sql`1` })
-          .from(programmStufeWirksam)
+          .from(programmStufen)
           .where(
             and(
-              eq(programmStufeWirksam.programmId, programm.id),
-              eq(programmStufeWirksam.stufeId, stufeId),
+              eq(programmStufen.programmId, programm.id),
+              eq(programmStufen.stufeId, stufeId),
             ),
           ),
       ),
@@ -353,6 +354,22 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           const { text, programmId } = c.req.valid("json");
           const eigener = await chatFuerPerson(db, person, id);
           if (!eigener) throw new HTTPException(404);
+          // Das Konto eines Kindes schreibt nur, wenn die Abteilung es erlaubt hat (#644); Mitglied ist es auch beim Lesen
+          if (person.kindId) {
+            const einstellung = await ladeKindKontoEinstellung(
+              db,
+              person.abteilungId,
+            );
+            if (!einstellung.erlaubt || einstellung.chat !== "schreiben") {
+              return c.json(
+                {
+                  code: "KIND_CHAT_NUR_LESEN",
+                  message: "Dein Konto darf im Chat nur lesen.",
+                },
+                403,
+              );
+            }
+          }
           if (programmId) {
             const [zeile] = await db
               .select({ id: programm.id })

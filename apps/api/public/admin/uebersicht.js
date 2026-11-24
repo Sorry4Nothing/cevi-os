@@ -1,137 +1,210 @@
-import { el, zeit } from "./dom.js";
+// Übersicht (#583, neu gebaut in #620 als Dashboard der Abteilung): oben die Begrüssung mit Datum und einem Satz zum Stand, dann «Jetzt zu tun» als Liste neben dem Hauptdiagramm, das Kennzahlenband, Kommendes und Aktivität, die Teilnahme (Kinder je Stufe, Anmeldungen je Anlass) und am Ende ein schmaler Streifen für den Zustand. Ein einziger Abruf, GET /api/v1/admin/uebersicht; der Server gibt jeder Person nur die Teile, die sie sehen darf (docs/rechte.md). Die Oberfläche blendet nur aus, was fehlt, und verlässt sich auf nichts.
+//
+// Datenbanklast: ein Abruf beim Öffnen und auf «Aktualisieren», kein Polling. Der Server hält die Antwort 45 Sekunden je Person im Speicher.
+// Aufbau: Karten im Zwölfspaltenraster in der Breite der Website (4/8, Band, 7/5, 5/7, Streifen), auf schmalem Schirm eine Spalte. Fehlt das Hauptdiagramm (Stufenleitung, Webmaster), stehen die vorhandenen Karten in einer Reihe. Bausteine: uebersicht-kacheln.js (Aufgaben, Kennzahlen, Zustand), uebersicht-verlauf.js (Hauptdiagramm), uebersicht-kommend.js (Kommendes, Aktivität, Teilnahme), uebersicht-diagramme.js (Zeichenhilfen), Stile in uebersicht.css.
+// Fehlt ein Teil (kein Recht), fehlt seine Karte. Scheitert ein Teil auf dem Server, zeigt nur diese Karte «Nochmals versuchen».
+import { anfrage } from "./api.js";
+import { el, knopf } from "./dom.js";
+import { sk } from "./lader.js";
 import {
-  diagramm,
-  fehlerTabelle,
-  hinweisSeitStart,
-  kachel,
-  ladeBetrieb,
-  laufend,
-  ms,
-  panel,
-  stundenName,
-  zahl,
-  vor,
-} from "./system.js";
+  aufgabenKarte,
+  kennzahlenBand,
+  offeneAufgaben,
+  zustandStreifen,
+} from "./uebersicht-kacheln.js";
+import {
+  aktivitaetKarte,
+  anlaesseKarte,
+  kommendKarte,
+  stufenKarte,
+} from "./uebersicht-kommend.js";
+import { verlaufKarte } from "./uebersicht-verlauf.js";
+import { leerKarte } from "./zustaende.js";
 
-// Wie /health: Nach 30 Minuten ohne Erfolg gilt der Sync als veraltet
-const SYNC_VERALTET_MS = 30 * 60 * 1000;
+const ZONE = "Europe/Zurich";
+const de = (optionen) =>
+  new Intl.DateTimeFormat("de-CH", { timeZone: ZONE, ...optionen });
+const uhr = de({ hour: "2-digit", minute: "2-digit" });
+const stunde = de({ hour: "numeric", hourCycle: "h23" });
+const datumLang = de({
+  weekday: "long",
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+});
+const kurz = de({ weekday: "short", day: "numeric", month: "short" });
 
-export function zeige(bereich, ctx) {
-  ctx.lade(ladeBetrieb, (daten) => zeichneSeite(bereich, daten));
-}
-
-const syncVeraltet = (k) =>
-  !k.letzterErfolgAm ||
-  Date.now() - new Date(k.letzterErfolgAm).getTime() > SYNC_VERALTET_MS;
-
-// Eine Zeile zur Lage; der Zustand steht im Wort, die Farbe und das Symbol (aus dem CSS) verstärken nur
-function lage(s) {
-  const probleme = [];
-  if (!s.datenbank.erreichbar) {
-    probleme.push(["fehler", "Die Datenbank ist nicht erreichbar."]);
-  }
-  if (s.kalender.eingerichtet && s.kalender.fehler) {
-    probleme.push(["fehler", "Der Kalender-Sync meldet einen Fehler."]);
-  } else if (s.kalender.eingerichtet && syncVeraltet(s.kalender)) {
-    probleme.push(["warn", "Der Kalender-Sync ist veraltet."]);
-  }
-  if (probleme.length === 0) return ["ok", "Alles in Ordnung."];
-  const art = probleme.some(([a]) => a === "fehler") ? "fehler" : "warn";
-  return [art, probleme.map(([, text]) => text).join(" ")];
-}
-
-function kalenderKachel(k) {
-  const hinweisErfolg = k.letzterErfolgAm
-    ? `Letzter Erfolg ${vor(k.letzterErfolgAm)} (${zeit(k.letzterErfolgAm)})`
-    : "Noch nie erfolgreich";
-  if (!k.eingerichtet) {
-    return kachel({
-      titel: "Kalender-Sync",
-      wert: "Nicht eingerichtet",
-      text: true,
-      hinweis: "Keine Kalenderadresse hinterlegt.",
-    });
-  }
-  if (k.fehler) {
-    return kachel({
-      titel: "Kalender-Sync",
-      wert: "Fehler",
-      text: true,
-      status: "fehler",
-      hinweis: `${k.fehler}. ${hinweisErfolg}`,
-    });
-  }
-  const veraltet = syncVeraltet(k);
-  return kachel({
-    titel: "Kalender-Sync",
-    wert: veraltet ? "Veraltet" : "In Ordnung",
-    text: true,
-    status: veraltet ? "warn" : "ok",
-    hinweis: hinweisErfolg,
-  });
-}
-
-function zeichneSeite(bereich, daten) {
-  const offen = { wert: false };
-  const fehlerFeld = el("p", { class: "meta fehlerzeile", role: "status" });
-  const stand = el("p", { class: "meta stand" });
-  const hinweis = el("p", { class: "hinweis" });
-  const kacheln = el("div", { class: "kacheln" });
-  const verlauf = el("div", {});
-  const fehler = el("div", {});
-  const summe = el("p", { class: "meta" });
-
-  function zeichne({ system: s, anfragen: a }) {
-    stand.textContent = `Stand ${new Date().toLocaleTimeString("de-CH")}, wird alle 15 Sekunden aktualisiert.`;
-    const b = s.bestand;
-    const [art, text] = lage(s);
-    hinweis.className = `hinweis hinweis--${art}`;
-    hinweis.textContent = text;
-    kacheln.replaceChildren(
-      kachel({ titel: "Aktive Personen", wert: zahl(b.aktivePersonen) }),
-      kachel({ titel: "Aktive Kinder", wert: zahl(b.aktiveKinder) }),
-      kachel({ titel: "Push-Tokens", wert: zahl(b.pushTokens) }),
-      kalenderKachel(s.kalender),
-      kachel({
-        titel: "Datenbank",
-        wert: s.datenbank.erreichbar ? "Erreichbar" : "Nicht erreichbar",
-        text: true,
-        status: s.datenbank.erreichbar ? "ok" : "fehler",
-        hinweis:
-          s.datenbank.pingMs === null
-            ? undefined
-            : `Antwortzeit ${ms(s.datenbank.pingMs)}`,
-      }),
-    );
-    verlauf.replaceChildren(
-      diagramm({
-        titel: "Anfragen pro Stunde, letzte 24 Stunden",
-        punkte: a.stunden,
-        beschriftung: stundenName,
-        einheit: "Stunde",
-        offen,
-      }),
-    );
-    summe.textContent = [
-      `${zahl(a.gesamt)} Anfragen`,
-      `Fehlerquote 5xx ${(a.quote5xx * 100).toFixed(1)} %`,
-      `Dauer p95 ${ms(a.p95Ms)}`,
-    ].join(" · ");
-    fehler.replaceChildren(fehlerTabelle(a.letzteFehler, 8));
-  }
-
-  zeichne(daten);
-  bereich.append(
-    hinweis,
-    el("div", { class: "stand-zeile" }, stand, fehlerFeld),
-    kacheln,
+// Skelett in der Form des echten Inhalts: zwei Karten, das Band, zwei Karten
+function skelett() {
+  const karte = (zeilen, klasse) =>
     el(
       "div",
-      { class: "raster raster--3" },
-      panel("Anfragen der letzten 24 Stunden", summe, verlauf),
-      panel("Letzte Fehler", fehler),
-    ),
-    el("p", { class: "hilfe" }, hinweisSeitStart(daten.anfragen)),
+      { class: `ud-karte ${klasse}`, "aria-hidden": "true" },
+      sk("t", 120),
+      ...Array.from({ length: zeilen }, () => sk("t", 260)),
+    );
+  return el(
+    "div",
+    { class: "ud-seite" },
+    el("div", { class: "ud-zeile" }, karte(5, "ud-s4"), karte(8, "ud-s8")),
+    el("div", { class: "ud-zeile" }, karte(2, "ud-s12")),
+    el("div", { class: "ud-zeile" }, karte(6, "ud-s7"), karte(6, "ud-s5")),
   );
-  laufend(bereich, ladeBetrieb, zeichne, fehlerFeld);
+}
+
+// Zähler der Unterleiste aus denselben Zahlen, ohne eigene Abfrage
+function melde(ctx, a) {
+  if (!a) return;
+  const z = (bereich, unter, n) =>
+    n !== undefined && ctx.zaehler(unter, n, bereich);
+  z("termine", "vorschlaege", a.terminVorschlaege);
+  z("termine", "warnliste", a.termineOhneKategorie);
+  z("raeume", "anfragen", a.raumanfragen);
+}
+
+// «Guten Morgen, Anna»: Tageszeit in Schweizer Zeit, Vorname aus dem eigenen Konto
+function gruss(ctx) {
+  const std = Number(stunde.format(new Date()));
+  const teil =
+    std < 11 ? "Guten Morgen" : std < 17 ? "Guten Tag" : "Guten Abend";
+  const vorname = String(ctx.ich.name ?? "")
+    .trim()
+    .split(/\s+/)[0];
+  return vorname ? `${teil}, ${vorname}` : teil;
+}
+
+// Ein Satz zum Stand: was offen ist und was als Nächstes ansteht (nur Titel und Zeit, nie Personen)
+function stand(daten) {
+  const teile = [`${datumLang.format(new Date())}.`];
+  if (daten.aufgaben) {
+    const n = offeneAufgaben(daten);
+    teile.push(
+      n === 0
+        ? "Nichts ist offen."
+        : n === 1
+          ? "Ein Punkt ist offen."
+          : `${n} Punkte sind offen.`,
+    );
+  }
+  const k = daten.kommend;
+  const naechster = k
+    ? [
+        ...k.termine.map((t) => ({
+          titel: t.titel,
+          von: t.beginn
+            ? new Date(t.beginn)
+            : new Date(`${t.tagVon}T12:00:00Z`),
+        })),
+        ...k.lager.map((l) => ({
+          titel: l.titel,
+          von: new Date(`${l.von}T12:00:00Z`),
+        })),
+      ].sort((a, b) => a.von - b.von)[0]
+    : null;
+  if (naechster) {
+    teile.push(
+      `Als Nächstes: ${naechster.titel}, ${kurz.format(naechster.von).replace(/.$/, "")}.`,
+    );
+  }
+  return teile.join(" ");
+}
+
+// Eine Reihe im Zwölfspaltenraster; [Knoten, Spalten]. Ohne zweite Karte füllt die erste die Reihe.
+function reihe(...teile) {
+  const da = teile.filter(([k]) => k);
+  if (da.length === 0) return null;
+  const wurzel = el("div", { class: "ud-zeile" });
+  for (const [knoten, spalten] of da) {
+    knoten.classList.add(`ud-s${da.length === 1 ? 12 : spalten}`);
+    wurzel.append(knoten);
+  }
+  return wurzel;
+}
+
+function zeichne(bereich, ctx, daten, neuLaden) {
+  melde(ctx, daten.aufgaben);
+  const aufgaben = aufgabenKarte(daten, ctx, neuLaden);
+  const kommend = kommendKarte(daten, ctx, neuLaden);
+  const aktivitaet = aktivitaetKarte(daten);
+  const stufen = stufenKarte(daten, ctx, neuLaden);
+  const anlaesse = anlaesseKarte(daten, ctx, neuLaden);
+  const band = kennzahlenBand(daten, ctx, neuLaden);
+  const verlauf = daten.kennzahlen ? verlaufKarte(daten) : null;
+  const streifen = zustandStreifen(daten, ctx, neuLaden);
+
+  // Mit Hauptdiagramm (Abteilungsleitung): feste Reihen. Ohne: alles, was da ist, in einer Reihe nebeneinander.
+  const reihen = verlauf
+    ? [
+        reihe([aufgaben, 4], [verlauf, 8]),
+        reihe([band, 12]),
+        reihe([kommend, 7], [aktivitaet, 5]),
+        reihe([stufen, 5], [anlaesse, 7]),
+        reihe([streifen, 12]),
+      ]
+    : [
+        reihe(
+          [aufgaben, 4],
+          [kommend, 4],
+          [aktivitaet, 4],
+          [stufen, 4],
+          [anlaesse, 4],
+        ),
+        reihe([band, 12]),
+        reihe([streifen, 12]),
+      ];
+  reihen[0]?.classList.toggle("ud-zeile--auto", !verlauf);
+  const wurzel = el("div", { class: "ud-seite" }, reihen.filter(Boolean));
+  if (wurzel.childElementCount === 0) {
+    bereich.append(
+      leerKarte("Für deine Rolle gibt es hier gerade nichts zu zeigen."),
+    );
+    return;
+  }
+  // Gestaffelter Auftritt: jede Karte ein Stück später
+  wurzel.querySelectorAll(".ud-karte").forEach((k, i) => {
+    k.style.setProperty("--k", String(i));
+  });
+  wurzel.append(
+    el(
+      "p",
+      { class: "ud-stand klein leise", role: "status" },
+      `Stand ${uhr.format(new Date(daten.erzeugtAm))} Uhr. Die Zahlen sind höchstens eine Minute alt.`,
+    ),
+  );
+  bereich.append(wurzel);
+}
+
+export function zeige(bereich, ctx) {
+  let frisch = false;
+  let neu = null;
+  const laden = () =>
+    anfrage("GET", `/api/v1/admin/uebersicht${frisch ? "?frisch=1" : ""}`);
+  ctx.kopfAktion(
+    knopf("Aktualisieren", {
+      art: "still",
+      symbol: "aktualisieren",
+      onclick: () => {
+        frisch = true;
+        neu?.();
+      },
+    }),
+  );
+  ctx.lade(
+    laden,
+    (daten, neuLaden) => {
+      neu = neuLaden;
+      // Begrüssung und Satz im Seitenkopf; der Fenstertitel bleibt «Übersicht»
+      ctx.titel(gruss(ctx), stand(daten));
+      document.title = "Übersicht – Verwaltung – Cevi OS";
+      zeichne(bereich, ctx, daten, () => {
+        frisch = true;
+        neuLaden();
+      });
+    },
+    {
+      skeleton: skelett,
+      fehlerTitel: "Die Übersicht konnte nicht geladen werden.",
+      fehlerText: "Prüfe die Verbindung und versuche es nochmals.",
+    },
+  );
 }

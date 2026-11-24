@@ -1,0 +1,20 @@
+$kind: http-request
+name: "PUT /api/v1/admin/plattform/rollen/:id/personen/:userId"
+order: 164000
+method: PUT
+url: "{{baseUrl}}/api/v1/admin/plattform/rollen/01a20640-4b24-7a0b-bba7-65f01df2a4f2/personen/{{tagPersonId}}"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {}

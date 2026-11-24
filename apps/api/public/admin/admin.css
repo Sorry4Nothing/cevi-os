@@ -1,46 +1,51 @@
-/* Verwaltung: immer dunkel, Nacht-Werte der Designvorlage (tokens.json, Name im Kommentar). Textpaare erreichen mindestens 4.5:1, Ränder von Bedienelementen 3:1. Keine externen Schriften (CSP): Es gilt die Systemschrift. Keine style-Attribute: alles läuft über Klassen. */
+/* Verwaltung (#578: ein Designsystem mit der Website). Farben, Radien, Bewegung, Schrift und Scrollleisten kommen aus tokens.css, das index.html davor lädt; Tag und Nacht folgen dem Gerät oder der Wahl im Kopf (data-theme). Hier stehen die Bausteine der Verwaltung. Textpaare erreichen mindestens 4.5:1, Ränder von Bedienelementen 3:1. Keine style-Attribute: alles läuft über Klassen. */
 
 :root {
-  color-scheme: dark;
+  /* Die Werte kommen aus tokens.css (eine Datei für Website und Verwaltung, #578). Hier stehen nur die Namen, die die Stilvorlagen der Bereiche seit dem Gerüst verwenden, als Verweise auf die Tokens des Designs: Farben ändern sich nie hier, sondern dort. */
+  --leiste: var(--surface-container); /* Leisten, Filter */
+  --erhoben: var(--surface-container-high); /* Dialoge */
+  --text: var(--on-surface);
+  --leise: var(--on-surface-variant);
+  --rand: var(--outline); /* Felder und Knöpfe */
+  --rand-leise: var(--outline-variant); /* nur Karten und Trennlinien */
 
-  --surface: #161620; /* surface */
-  --karte: #17172a; /* surface-container-low */
-  --leiste: #1e1f38; /* surface-container */
-  --erhoben: #23244a; /* surface-container-high */
-  --text: #ededeb; /* on-surface */
-  --leise: #ababa6; /* on-surface-variant */
-  --rand: #8a8a90; /* outline: Felder und Knöpfe */
-  --rand-leise: #2c2c44; /* outline-variant: nur Karten und Trennlinien */
+  /* Breite und Seitenrand wie die Website (.wrap, --rand dort; hier anders benannt, weil --rand in der Verwaltung die Randfarbe ist) */
+  --seitenbreite: 105rem;
+  --seitenrand: clamp(1rem, 4vw, 4.5rem);
 
-  --rot: #c41333; /* primary */
-  --rot-text: #ff7a8a; /* primary-text */
-  --blau: #323394; /* secondary */
-  --blau-f: #23244a; /* secondary-container */
-  --auf-blau-f: #dcddf9; /* on-secondary-container */
-  --akzent: #a9abf2; /* accent */
-  --fokus: #a9abf2; /* focus */
+  --rot: var(--primary); /* genau eine Hauptaktion je Ansicht, Zähler */
+  --auf-rot: var(--on-primary);
+  --rot-text: var(--primary-text);
+  --blau: var(--secondary);
+  --auf-blau: var(--on-secondary);
+  --auf-blau-leise: var(--on-secondary-muted);
+  --blau-f: var(--secondary-container);
+  --auf-blau-f: var(--on-secondary-container);
+  --akzent: var(--accent); /* «hier bist du», gewählte Pille */
+  --auf-akzent: var(--on-accent);
+  --fokus: var(--focus);
 
-  --ok-f: #16271d; /* success-container */
-  --ok: #6fd39a; /* on-success-container */
-  --fe-f: #2e1519; /* error-container */
-  --fe: #ff8e9a; /* on-error-container */
-  --wa-f: #2a2312; /* warning-container */
-  --wa: #f2c063; /* on-warning-container */
-  --st-f: #0f2a31; /* stufe-container */
-  --st: #7fd0e3; /* on-stufe-container */
+  --ok-f: var(--success-container);
+  --ok: var(--on-success-container);
+  --fe-f: var(--error-container);
+  --fe: var(--on-error-container);
+  --wa-f: var(--warning-container);
+  --wa: var(--on-warning-container);
+  --st-f: var(--stufe-container);
+  --st: var(--on-stufe-container);
 
-  --schleier: rgba(0, 0, 0, 0.6); /* scrim */
-  --schatten: 0 8px 24px rgba(0, 0, 0, 0.5); /* elevation-float */
+  --umkehr: var(--inverse-surface); /* Snackbar */
+  --auf-umkehr: var(--inverse-on-surface);
+  --skeleton-hell: var(--skeleton-highlight);
+  --schleier: var(--scrim);
 
-  --schrift:
-    system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", sans-serif;
   --mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
 
   /* Symbole für Hinweise und Kacheln: Maske, damit sie die Textfarbe tragen und auch in Text eingesetzter Inhalt eines Hinweises sie nicht verliert */
-  --ic-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v5M12 8h.01'/%3E%3C/svg%3E");
-  --ic-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
-  --ic-warn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 3.5 2.5 20h19z'/%3E%3Cpath d='M12 10v4M12 17h.01'/%3E%3C/svg%3E");
-  --ic-sperre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M5.6 5.6l12.8 12.8'/%3E%3C/svg%3E");
+  --ic-info: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M12 11v6'/%3E%3Cpath fill='%23000' stroke='none' d='M11 6.5h2v2h-2z'/%3E%3C/svg%3E");
+  --ic-ok: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Cpath d='m5 12.5 4.5 4.5L19 7.5'/%3E%3C/svg%3E");
+  --ic-warn: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Cpath d='M12 3.5 21.5 20h-19z'/%3E%3Cpath d='M12 9.5v5'/%3E%3Cpath fill='%23000' stroke='none' d='M11 15.5h2v2h-2z'/%3E%3C/svg%3E");
+  --ic-sperre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='butt' stroke-linejoin='miter'%3E%3Ccircle cx='12' cy='12' r='9'/%3E%3Cpath d='M5.6 5.6l12.8 12.8'/%3E%3C/svg%3E");
 }
 
 *,
@@ -51,15 +56,12 @@
 
 html {
   font-size: 100%;
-  scrollbar-width: thin;
-  scrollbar-color: var(--rand) var(--surface);
+  scrollbar-gutter: stable;
 }
 
 body {
   margin: 0;
-  /* Blasses Cevi-Logo mittig hinter allen Flächen; bleibt beim Scrollen stehen */
-  background: var(--surface) url("hintergrund.svg") no-repeat center /
-    min(70vmin, 720px) fixed;
+  background: var(--surface);
   color: var(--text);
   font-family: var(--schrift);
   font-size: 1rem;
@@ -74,16 +76,17 @@ p {
 }
 
 h1 {
-  font-size: 2rem;
-  line-height: 2.375rem;
-  font-weight: 800;
-  letter-spacing: -0.01em;
+  color: var(--titel);
+  font-size: 2.25rem;
+  line-height: 2.625rem;
+  font-weight: 700;
 }
 
 h2 {
+  color: var(--titel);
   font-size: 1.375rem;
   line-height: 1.75rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 
 h3 {
@@ -226,111 +229,22 @@ main:focus {
   width: 100%;
 }
 
-/* Rahmen: Dock links, Inhalt rechts */
+/* Rahmen: Kopf mit Bereichsleiste und Unterleiste (geruest.css), darunter der Inhalt */
 
 .app {
   display: flex;
-  align-items: flex-start;
+  flex-direction: column;
   min-height: 100vh;
 }
 
-.dock {
-  position: sticky;
-  top: 16px;
-  flex: none;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  width: 272px;
-  height: calc(100vh - 32px);
-  margin: 16px 0 16px 16px;
-  padding: 20px 12px 12px;
-  overflow-y: auto;
-  background: var(--leiste);
-  border-radius: 24px;
-}
-
-.marke {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px 12px 20px;
-}
-
-.marke strong {
-  font-size: 1.375rem;
-  line-height: 1.75rem;
-  font-weight: 800;
-}
-
-.bereiche {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-a.punkt {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 48px;
-  padding: 0 16px;
-  border-radius: 9999px;
-  color: var(--leise);
-  font-size: 0.9375rem;
-  font-weight: 700;
-  text-decoration: none;
-}
-
-a.punkt:hover {
-  background: var(--erhoben);
-  color: var(--text);
-}
-
-/* Aktiv: Cevi-Blau, dazu ein kräftigerer Strich am Symbol */
-a.punkt[aria-current="page"] {
-  background: var(--blau);
-  color: #ffffff;
-}
-
-a.punkt[aria-current="page"] .i {
-  stroke-width: 2.6;
-}
-
-.konto {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: auto;
-  padding: 12px;
-  background: var(--karte);
-  border: 1px solid var(--rand-leise);
-  border-radius: 16px;
-}
-
-.konto-zeile {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.konto-text {
-  min-width: 0;
-}
-
-.kontoname {
-  font-weight: 700;
-  overflow-wrap: anywhere;
-}
-
-.konto .knopf {
-  width: 100%;
-}
-
+/* Inhalt und Kopf haben dieselbe Breite und denselben Seitenrand (#578, wie --rand der Website) */
 .inhalt {
-  flex: 1 1 0;
+  flex: 1 1 auto;
+  width: 100%;
+  max-width: var(--seitenbreite);
   min-width: 0;
-  padding: 40px 48px 64px;
+  margin: 0 auto;
+  padding: 2.5rem var(--seitenrand) 4rem;
 }
 
 .rahmen {
@@ -345,14 +259,11 @@ a.punkt[aria-current="page"] .i {
   align-items: flex-end;
   justify-content: space-between;
   gap: 16px;
-}
-
-.kopf h1 {
-  margin-top: 4px;
+  padding-bottom: 8px;
 }
 
 .kopf .leise {
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .kopf-aktion {
@@ -379,47 +290,14 @@ a.punkt[aria-current="page"] .i {
   gap: 20px;
 }
 
-/* Schmal: Das Dock steht oben, die Bereiche laufen in Zeilen um */
 @media (max-width: 760px) {
-  .app {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .dock {
-    position: static;
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
-    width: auto;
-    height: auto;
-    margin: 12px 12px 0;
-    padding: 16px 12px 12px;
-    overflow: visible;
-  }
-
-  .marke {
-    flex: 1 1 100%;
-    padding-bottom: 8px;
-  }
-
-  .bereiche {
-    flex: 1 1 100%;
-    flex-flow: row wrap;
-  }
-
-  .konto {
-    flex: 1 1 100%;
-    margin-top: 8px;
-  }
-
   .inhalt {
-    padding: 24px 16px 48px;
+    padding-block: 1.5rem 3rem;
   }
 
   h1 {
-    font-size: 1.625rem;
-    line-height: 2rem;
+    font-size: 1.75rem;
+    line-height: 2.125rem;
   }
 }
 
@@ -434,10 +312,10 @@ a.punkt[aria-current="page"] .i {
   padding: 0 20px;
   background: transparent;
   color: var(--text);
-  border: 2px solid var(--rand);
+  border: 1px solid var(--rand);
   border-radius: 9999px;
   font: inherit;
-  font-size: 0.9375rem;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 1.25rem;
   text-decoration: none;
@@ -459,24 +337,24 @@ a.punkt[aria-current="page"] .i {
 .knopf--haupt {
   background: var(--rot);
   border-color: var(--rot);
-  color: #ffffff;
+  color: var(--auf-rot);
 }
 
 .knopf--haupt:hover {
   background: var(--rot);
-  color: #ffffff;
+  color: var(--auf-rot);
   filter: brightness(1.12);
 }
 
 .knopf--blau {
   background: var(--blau);
   border-color: var(--blau);
-  color: #ffffff;
+  color: var(--auf-blau);
 }
 
 .knopf--blau:hover {
   background: var(--blau);
-  color: #ffffff;
+  color: var(--auf-blau);
   filter: brightness(1.25);
 }
 
@@ -652,7 +530,7 @@ a.punkt[aria-current="page"] .i {
   width: 40px;
   height: 40px;
   background: var(--blau);
-  color: #ffffff;
+  color: var(--auf-blau);
   border-radius: 9999px;
   font-size: 0.875rem;
   font-weight: 700;
@@ -700,7 +578,7 @@ a.punkt[aria-current="page"] .i {
   height: 24px;
   padding: 0 7px;
   background: var(--rot);
-  color: #ffffff;
+  color: var(--auf-rot);
   border-radius: 9999px;
   font-size: 0.75rem;
   font-weight: 700;
@@ -783,9 +661,8 @@ th.zahl {
 }
 
 .filter button[aria-pressed="true"] {
-  background: var(--karte);
+  background: var(--erhoben);
   color: var(--text);
-  box-shadow: 0 0 0 1px var(--rand-leise);
 }
 
 .filter .n {
@@ -834,7 +711,7 @@ th.zahl {
 
 .seg input:checked + label {
   background: var(--blau);
-  color: #ffffff;
+  color: var(--auf-blau);
 }
 
 .seg input:checked + label .i {
@@ -852,12 +729,17 @@ th.zahl {
 .box {
   background: var(--karte);
   border: 1px solid var(--rand-leise);
-  border-radius: 16px;
+  border-radius: 12px;
   overflow-x: auto;
 }
 
 .tabellenrahmen:focus-visible {
   outline-offset: -3px;
+}
+
+/* Die nur für Screenreader sichtbare Beschriftung der Tabelle ist absolut gesetzt: Ohne diesen Bezug lag sie ausserhalb des Rahmens und verbreiterte die ganze Seite */
+.tabellenrahmen {
+  position: relative;
 }
 
 .tabelle,
@@ -869,15 +751,13 @@ th.zahl {
 
 .tabelle th,
 .box th {
-  padding: 14px 16px 12px;
+  padding: 12px 16px;
   color: var(--leise);
   border-bottom: 1px solid var(--rand-leise);
-  font-size: 0.75rem;
-  line-height: 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.125rem;
   font-weight: 700;
-  letter-spacing: 0.06em;
   text-align: left;
-  text-transform: uppercase;
   white-space: nowrap;
 }
 
@@ -1029,8 +909,7 @@ a.tab[aria-current="page"] {
 .hinweis::before,
 .kachel--ok::after,
 .kachel--warn::after,
-.kachel--fehler::after,
-.auswahl-eintrag[aria-selected="true"]::after {
+.kachel--fehler::after {
   content: "";
   flex: none;
   width: 22px;
@@ -1081,7 +960,7 @@ a.tab[aria-current="page"] {
   padding: 20px;
   background: var(--karte);
   border: 1px solid var(--rand-leise);
-  border-radius: 16px;
+  border-radius: 12px;
 }
 
 .panel > h2 {
@@ -1411,7 +1290,7 @@ legend,
   padding: 0 16px;
   background: var(--karte);
   color: var(--text);
-  border: 2px solid var(--rand);
+  border: 1px solid var(--rand);
   border-radius: 12px;
   font: inherit;
 }
@@ -1425,8 +1304,7 @@ legend,
 
 .eingabe:focus-visible,
 .feld input:focus-visible,
-.feld textarea:focus-visible,
-.auswahl-knopf:focus-visible {
+.feld textarea:focus-visible {
   border-color: var(--fokus);
   outline-offset: 0;
 }
@@ -1531,9 +1409,14 @@ fieldset .feld > label {
   font-weight: 400;
 }
 
-fieldset .feld .auswahl {
+fieldset .feld .aw {
   flex: none;
   width: 11rem;
+}
+
+/* Der Pfeil der Auswahlfelder steht wie bei den Terminen der Website in der leisen Textfarbe (website/termine.css), nicht im Akzent (#607) */
+.aw .aw-dreieck {
+  color: var(--on-surface-variant);
 }
 
 .scrollfeld {
@@ -1541,7 +1424,7 @@ fieldset .feld .auswahl {
   overflow-y: auto;
 }
 
-/* Ankreuzfeld: Haken statt nur Farbe */
+/* Ankreuzfeld: Haken statt nur Farbe. Gilt für jedes Kästchen der Verwaltung, auch in Zeilen, die als Ganzes ein label sind (#668); ein rohes Browser-Kästchen gibt es nicht */
 .wahl {
   display: flex;
   align-items: center;
@@ -1549,7 +1432,8 @@ fieldset .feld .auswahl {
   min-height: 48px;
 }
 
-.wahl input {
+.wahl input,
+input[type="checkbox"] {
   appearance: none;
   -webkit-appearance: none;
   display: inline-grid;
@@ -1564,27 +1448,38 @@ fieldset .feld .auswahl {
   cursor: pointer;
 }
 
-.wahl input::after {
+.wahl input::after,
+input[type="checkbox"]::after {
   content: "";
   width: 12px;
   height: 7px;
   margin-top: -3px;
-  border-bottom: 2.6px solid #ffffff;
-  border-left: 2.6px solid #ffffff;
+  border-bottom: 2.6px solid var(--auf-blau);
+  border-left: 2.6px solid var(--auf-blau);
   opacity: 0;
   transform: rotate(-45deg);
 }
 
-.wahl input:checked {
+.wahl input:checked,
+input[type="checkbox"]:checked {
   background: var(--blau);
   border-color: var(--blau);
 }
 
-.wahl input:checked::after {
+.wahl input:checked::after,
+input[type="checkbox"]:checked::after {
   opacity: 1;
 }
 
-.wahl input:disabled {
+/* Hover: Der Rand wird kräftig, auch wenn die ganze Zeile das label ist */
+.wahl:hover input:not(:checked, :disabled),
+label:hover > input[type="checkbox"]:not(:checked, :disabled),
+input[type="checkbox"]:not(:checked, :disabled):hover {
+  border-color: var(--blau);
+}
+
+.wahl input:disabled,
+input[type="checkbox"]:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
@@ -1593,59 +1488,49 @@ fieldset .feld .auswahl {
   cursor: pointer;
 }
 
-/* Eigene Auswahl (Combobox mit Liste) */
+@media (prefers-reduced-motion: no-preference) {
+  .wahl input,
+  input[type="checkbox"] {
+    transition:
+      background-color var(--dauer, 0.2s) ease,
+      border-color var(--dauer, 0.2s) ease;
+  }
 
-.auswahl {
-  position: relative;
+  .wahl input::after,
+  input[type="checkbox"]::after {
+    transition:
+      opacity var(--dauer, 0.2s) ease,
+      transform var(--dauer, 0.2s) ease;
+  }
+
+  .wahl input:not(:checked)::after,
+  input[type="checkbox"]:not(:checked)::after {
+    transform: rotate(-45deg) scale(0.6);
+  }
 }
 
-.auswahl-knopf {
-  position: relative;
-  display: flex;
-  align-items: center;
-  width: 100%;
-  min-height: 52px;
-  padding: 0 44px 0 16px;
-  background: var(--karte);
-  color: var(--text);
-  border: 2px solid var(--rand);
-  border-radius: 12px;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
+@media (forced-colors: active) {
+  .wahl input,
+  input[type="checkbox"] {
+    border-color: ButtonText;
+  }
 
-.auswahl-knopf::after {
-  content: "";
-  position: absolute;
-  top: 50%;
-  right: 18px;
-  width: 8px;
-  height: 8px;
-  margin-top: -6px;
-  border: solid currentcolor;
-  border-width: 0 2px 2px 0;
-  transform: rotate(45deg);
-}
+  .wahl input:checked,
+  input[type="checkbox"]:checked {
+    forced-color-adjust: none;
+    background: Highlight;
+    border-color: Highlight;
+  }
 
-.auswahl-knopf[aria-expanded="true"]::after {
-  margin-top: -2px;
-  transform: rotate(-135deg);
-}
+  .wahl input:checked::after,
+  input[type="checkbox"]:checked::after {
+    border-color: HighlightText;
+  }
 
-.auswahl-liste {
-  /* Popover im Top-Layer: Lage und Breite setzt dom.js, damit die Liste nicht im Dialog gefangen ist */
-  position: fixed;
-  inset: auto;
-  max-height: 15rem;
-  margin: 0;
-  padding: 4px;
-  overflow-y: auto;
-  background: var(--karte);
-  border: 2px solid var(--rand);
-  border-radius: 12px;
-  box-shadow: var(--schatten);
-  list-style: none;
+  .wahl input:disabled,
+  input[type="checkbox"]:disabled {
+    border-color: GrayText;
+  }
 }
 
 .seitenwahl {
@@ -1654,52 +1539,6 @@ fieldset .feld .auswahl {
   justify-content: center;
   gap: 16px;
   margin-top: 16px;
-}
-
-.auswahl-wert {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-}
-
-.auswahl-bild {
-  flex: none;
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-}
-
-.auswahl-eintrag {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-height: 48px;
-  padding: 0 12px;
-  border-radius: 8px;
-  cursor: pointer;
-}
-
-.auswahl-eintrag:hover {
-  background: var(--erhoben);
-}
-
-.auswahl-eintrag.ist-aktiv {
-  background: var(--erhoben);
-  outline: 2px solid var(--fokus);
-  outline-offset: -2px;
-}
-
-.auswahl-eintrag[aria-selected="true"] {
-  font-weight: 700;
-}
-
-.auswahl-eintrag[aria-selected="true"]::after {
-  width: 18px;
-  height: 18px;
-  -webkit-mask-image: var(--ic-ok);
-  mask-image: var(--ic-ok);
 }
 
 /* Code-Feld: sechs Zellen, darüber die unsichtbare echte Eingabe */
@@ -1773,8 +1612,9 @@ fieldset .feld .auswahl {
 
 .mitte {
   display: grid;
+  flex: 1 1 auto;
   place-items: center;
-  min-height: 100vh;
+  min-height: 24rem;
   padding: 48px 24px;
 }
 
@@ -1817,9 +1657,15 @@ fieldset .feld .auswahl {
   height: 24px;
   fill: none;
   stroke: currentcolor;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  /* Symbolsatz der Website (#578): Linie 2 px, gerade Enden, spitze Ecken; Dreiecke und Punkte sind gefüllt (Klasse «f») */
+  stroke-width: 2;
+  stroke-linecap: butt;
+  stroke-linejoin: miter;
+}
+
+.i .f {
+  fill: currentcolor;
+  stroke: none;
 }
 
 dialog,
@@ -1829,8 +1675,14 @@ dialog,
   background: var(--erhoben);
   color: var(--text);
   border: 0;
-  border-radius: 24px;
+  border-radius: 16px;
   box-shadow: var(--schatten);
+}
+
+dialog h2,
+.dialog h2,
+.blatt h2 {
+  color: var(--text);
 }
 
 dialog {
@@ -1879,10 +1731,6 @@ dialog .wahl input:checked {
   background: var(--blau);
 }
 
-dialog .auswahl-knopf {
-  background: var(--surface);
-}
-
 .dialog-knoepfe {
   display: flex;
   flex-wrap: wrap;
@@ -1914,7 +1762,7 @@ dialog.blatt {
   margin: 0 0 0 auto;
   padding: 0;
   overflow: hidden;
-  border-radius: 24px 0 0 24px;
+  border-radius: 0;
 }
 
 dialog.blatt[open] {
@@ -1974,39 +1822,13 @@ dialog.blatt[open] {
     flex-wrap: wrap;
   }
 
-  fieldset .feld .auswahl {
+  fieldset .feld .aw {
     flex: 1 1 100%;
     width: auto;
   }
 }
 
-/* Scrollleisten: dünn, Daumen in der Randfarbe (3:1) */
-
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--rand) transparent;
-}
-
-::-webkit-scrollbar {
-  width: 12px;
-  height: 12px;
-}
-
-::-webkit-scrollbar-track,
-::-webkit-scrollbar-corner {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background-color: var(--rand);
-  background-clip: padding-box;
-  border: 3px solid transparent;
-  border-radius: 9999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background-color: var(--leise);
-}
+/* Scrollleisten: gemeinsame Regeln in tokens.css (#578, vorher #572) */
 
 @media (forced-colors: active) {
   .knopf,
@@ -2024,49 +1846,6 @@ dialog.blatt[open] {
 }
 
 /* Stufen und Kinder */
-
-.stufenliste {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 340px), 1fr));
-  gap: 12px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.stufe-karte {
-  flex-direction: column;
-  align-items: stretch;
-  gap: 16px;
-}
-
-.stufe-kopf {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  min-width: 0;
-}
-
-.stufe-aktionen {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.stufe-logo {
-  flex: none;
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-}
-
-.stufe-text {
-  display: flex;
-  flex: 1 1 auto;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
 
 .eltern-zeile {
   display: flex;
@@ -2121,78 +1900,6 @@ dialog.blatt[open] {
 .personen-benutzername {
   min-height: 28px;
   overflow-wrap: anywhere;
-}
-
-/* Zustandsseiten */
-
-.zustand {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 20px;
-  max-width: 600px;
-  padding: 48px 0;
-}
-
-.zustand-kreis {
-  display: inline-flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  width: 72px;
-  height: 72px;
-  background: var(--blau-f);
-  color: var(--auf-blau-f);
-  border-radius: 9999px;
-}
-
-.zustand-kreis--warn {
-  background: var(--wa-f);
-  color: var(--wa);
-}
-
-.zustand-kreis--fehler {
-  background: var(--fe-f);
-  color: var(--fe);
-}
-
-.zustand-text {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.zustand-text h1,
-.zustand-text h2 {
-  font-size: 2.5rem;
-  line-height: 2.75rem;
-}
-
-.zustand-text .leise {
-  font-size: 1.125rem;
-  line-height: 1.6875rem;
-}
-
-.zustand .aktionen {
-  justify-content: flex-start;
-}
-
-@media (max-width: 760px) {
-  .zustand {
-    padding: 24px 0;
-  }
-
-  .zustand-text h1,
-  .zustand-text h2 {
-    font-size: 1.75rem;
-    line-height: 2.125rem;
-  }
-}
-
-@media (forced-colors: active) {
-  .zustand-kreis {
-    border: 1px solid CanvasText;
-  }
 }
 
 /* System */
@@ -2270,6 +1977,16 @@ button.tab[aria-selected="true"] {
 
 .bal--muster {
   pointer-events: none;
+}
+
+/* Tags und Gruppen */
+
+.tag-liste {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 
 /* Reihenfolge der Stufenleitung */

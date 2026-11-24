@@ -1,4 +1,6 @@
-# Seite der API für den Edge-Caddy; sie gehört in dessen Ordner sites/ (docs/betrieb.md, «Edge-Caddy»). Die Domain muss auf die IP des Servers zeigen, Caddy holt das Zertifikat selbst
+# Seite von Cevi OS für den Edge-Caddy; sie gehört in dessen Ordner sites/ (docs/betrieb.md, «Edge-Caddy»). Die Domain muss auf die IP des Servers zeigen, Caddy holt das Zertifikat selbst.
+# Eine Domain für alles: erzeugte Website, Schnittstelle, Verwaltung und Store-Seiten. Sie ist dieselbe wie BETTER_AUTH_URL und WEBSITE_BASIS_URL in deploy/.env (die Anmeldung der Website geht über diese Herkunft).
+# Voraussetzung für die Website: Der Caddy bindet das Volume cevi-os_website lesend als /srv/website ein (docs/betrieb.md, «Edge-Caddy»). Ohne das Volume bleibt es bei der Schnittstelle: /api, /admin und die Seiten der API gehen weiter an die API.
 api.example.org {
 	# HSTS ein Jahr, auch für Subdomains; -Server nimmt die Kennung von Caddy aus den Antworten
 	header {
@@ -7,6 +9,58 @@ api.example.org {
 		Referrer-Policy no-referrer
 		-Server
 	}
-	# Der Alias steht im Netz edge-cevi-os (deploy/docker-compose.prod.yml)
-	reverse_proxy cevi-os-api:3000
+	# Zugriffslog ohne den geheimen Token des Kalender-Feeds (/ical/<Token>.ics, #438); Vorschlag, nicht gegen einen laufenden Caddy geprüft (docs/betrieb.md, «Logs»)
+	log {
+		format filter {
+			wrap json
+			fields {
+				request>uri regexp ^/ical/[^?]* /ical/<verborgen>
+			}
+		}
+	}
+
+	# Was die API besitzt: Schnittstelle, Verwaltung, Gesundheitsprüfung, Store-Seiten, Kalender-Feed. Gleiche Liste wie RESERVIERTE_ADRESSEN in apps/api/src/website/seiten.ts, soweit die API sie ausliefert; kommt dort eine Adresse der API dazu, muss sie hier mit
+	@api path /api/* /admin /admin/* /health /datenschutz /konto-loeschen /support /ical /ical/* /.well-known/*
+	handle @api {
+		# Alias im Netz edge-cevi-os (deploy/docker-compose.prod.yml). Ohne encode und ohne Zeitlimit für Antworten, wegen der Server-Sent Events des Lagers (docs/betrieb.md)
+		reverse_proxy cevi-os-api:3000
+	}
+
+	# Alles andere sind erzeugte Dateien der Website (docs/website-auslieferung.md)
+	handle {
+		root * /srv/website
+		# Nie Dateien mit Punkt am Anfang (zum Beispiel liegen gebliebene .tmp-…)
+		@versteckt path_regexp \/\.
+		respond @versteckt 404
+		header {
+			Content-Security-Policy "default-src 'none'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+			# Vor jeder Verwendung nachfragen (Antwort 304): Eine neu veröffentlichte Seite erscheint sofort
+			Cache-Control "no-cache"
+		}
+		header /website/* Cache-Control "public, max-age=3600"
+		try_files {path} {path}/index.html
+		file_server
+	}
+
+	handle_errors {
+		@nichtGefunden expression {err.status_code} == 404
+		handle @nichtGefunden {
+			root * /srv/website
+			rewrite * /404.html
+			file_server
+		}
+		# Wartung der API (503) und andere Fehler der Website: eigene Seiten
+		@wartung expression {err.status_code} == 503
+		handle @wartung {
+			root * /srv/website
+			rewrite * /wartung.html
+			file_server
+		}
+		@fehler expression {err.status_code} >= 500
+		handle @fehler {
+			root * /srv/website
+			rewrite * /500.html
+			file_server
+		}
+	}
 }

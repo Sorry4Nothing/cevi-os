@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /.well-known/apple-app-site-association"
-order: 16000
+order: 82000
 method: GET
 url: "{{baseUrl}}/.well-known/apple-app-site-association"
 headers:

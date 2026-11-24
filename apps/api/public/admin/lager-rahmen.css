@@ -1,0 +1,750 @@
+/* Arbeitsbereich eines Lagers (#672): Leiste oben, links die Navigation der Module, rechts das Modul. Klassen mit dem Vorsatz «lg-»; Farben nur aus den Tokens, Masse in rem, Bewegung nur bei erlaubter Bewegung. */
+
+.lg-leiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+}
+
+.lg-leiste-luecke {
+  flex: 1 1 0;
+}
+
+.lg-kopfsuche {
+  flex: 0 1 280px;
+}
+
+.lg-arbeit {
+  scroll-margin-top: calc(var(--leiste-hoehe, 0px) + 16px);
+  display: grid;
+  grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+
+.lg-haupt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.lg-modulkopf {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.lg-modultitel {
+  margin: 0;
+  font-size: 1.5rem;
+  line-height: 2rem;
+}
+
+.lg-moduluntertitel {
+  margin: 0;
+}
+
+.lg-moduluntertitel:empty {
+  display: none;
+}
+
+.lg-modul {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+/* Navigation: Gruppen mit Überschrift, die Seite, auf der du bist, ist gefüllt und trägt aria-current */
+.lg-nav {
+  position: sticky;
+  top: calc(var(--leiste-hoehe, 0px) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: calc(100vh - var(--leiste-hoehe, 0px) - 2rem);
+  padding: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: var(--surface-container-low);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--r-md);
+}
+
+.lg-nav-knopf {
+  display: none;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--text);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.lg-nav-knopf .i {
+  width: 20px;
+  height: 20px;
+}
+
+.lg-nav-liste {
+  position: relative;
+}
+
+.lg-nav-innen {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* Marke hinter dem aktiven Eintrag: gleitet beim Wechsel an den neuen Platz (lager-rahmen.js, setzeMarke) */
+.lg-nav-marke {
+  display: none;
+}
+
+.lg-nav--marke .lg-nav-marke {
+  position: absolute;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: block;
+  height: 44px;
+  background: var(--secondary-container);
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  pointer-events: none;
+}
+
+.lg-nav--marke .lg-nav-marke[hidden] {
+  display: none;
+}
+
+.lg-nav--marke a[aria-current="page"],
+.lg-nav--marke a[aria-current="page"]:hover {
+  background: transparent;
+}
+
+.lg-nav-gruppe {
+  display: flex;
+  flex-direction: column;
+}
+
+.lg-nav-titel {
+  margin: 0;
+}
+
+/* Überschrift der Gruppe: ein Knopf, der die Gruppe auf- und zuklappt (44 px hoch) */
+.lg-nav-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--leise);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-align: left;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.lg-nav-kopf:hover {
+  color: var(--text);
+  background: var(--surface-container);
+}
+
+.lg-nav-kopf .i {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+}
+
+.lg-nav-kopf[aria-expanded="true"] .i {
+  transform: rotate(180deg);
+}
+
+/* Auf- und Zuklappen: die Zeile des Gitters wächst von 0 auf die Höhe des Inhalts; zu ist die Gruppe für Tastatur und Screenreader nicht erreichbar */
+.lg-nav-auf {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+}
+
+.lg-nav-auf[data-offen] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+}
+
+.lg-nav-auf-innen {
+  min-height: 0;
+  overflow: clip;
+  overflow-clip-margin: 4px;
+}
+
+.lg-nav ul {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-nav a {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+  color: var(--text);
+  border-radius: var(--r-sm);
+  font-weight: 500;
+  text-decoration: none;
+}
+
+.lg-nav a:hover {
+  background: var(--surface-container);
+}
+
+.lg-nav a[aria-current="page"] {
+  color: var(--on-secondary-container);
+  background: var(--secondary-container);
+  font-weight: 800;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-nav a {
+    transition: background-color var(--dauer) var(--kurve);
+  }
+}
+
+/* Breit: Der Arbeitsbereich ist mindestens so hoch wie das Fenster. Wechselt man das Modul, kann die Seite an der Stelle bleiben, auch wenn das neue Modul noch lädt (kein Springen nach oben) */
+@media (min-width: 901px) {
+  .lg-arbeit {
+    min-height: calc(100vh - var(--leiste-hoehe, 0px) - 2rem);
+  }
+}
+
+@media (max-width: 900px) {
+  .lg-arbeit {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+
+  .lg-nav {
+    position: static;
+    gap: 0;
+    max-height: none;
+    overflow: visible;
+  }
+
+  .lg-nav-knopf {
+    display: flex;
+  }
+
+  .lg-nav-knopf .i {
+    margin-left: auto;
+  }
+
+  .lg-nav-knopf[aria-expanded="true"] .i {
+    transform: rotate(180deg);
+  }
+
+  /* Auf- und Zuklappen: die Zeile des Gitters wächst von 0 auf die Höhe des Inhalts */
+  .lg-nav-liste {
+    display: grid;
+    grid-template-rows: 0fr;
+    visibility: hidden;
+  }
+
+  .lg-nav-liste[data-offen] {
+    grid-template-rows: 1fr;
+    visibility: visible;
+  }
+
+  .lg-nav-innen {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .lg-nav-liste[data-offen] .lg-nav-innen {
+    padding-top: 8px;
+  }
+
+  /* Ohne Marke trägt der aktive Eintrag selbst den Grund */
+  .lg-nav--marke .lg-nav-marke {
+    display: none;
+  }
+
+  .lg-nav--marke a[aria-current="page"] {
+    background: var(--secondary-container);
+  }
+}
+
+/* Standardkarten der Module: Kopfzeile mit Titel und Aktion, darunter der Inhalt */
+.lg-kopfzeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+}
+
+.lg-kopfzeile h2,
+.lg-kopfzeile h3 {
+  margin: 0;
+}
+
+.lg-kacheln {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: 16px;
+}
+
+.lg-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.lg-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  min-height: 44px;
+}
+
+.lg-zeile-text {
+  flex: 1 1 12rem;
+  min-width: 0;
+}
+
+.lg-zeile a {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.lg-datum {
+  min-width: 5.5rem;
+  color: var(--leise);
+  font-variant-numeric: tabular-nums;
+}
+
+.lg-kartentitel {
+  margin: 0;
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.lg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+}
+
+.lg-zeile-meta {
+  display: block;
+}
+
+.lg-zeile--aufgabe .chip,
+.lg-zeile--hinweis .chip {
+  flex: none;
+}
+
+.lg-konflikt {
+  flex: 1 1 100%;
+}
+
+.lg-beispiele {
+  margin: 4px 0 0;
+  padding-left: 1.25rem;
+}
+
+/* Lager-Check: Gesamtstand oben */
+.lg-gesamt {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.lg-gesamt p {
+  margin: 0;
+}
+
+.lg-gesamt-text {
+  font-weight: 700;
+}
+
+.lg-anlegen {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+/* Suche */
+.lg-suchformular {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 16px;
+}
+
+.lg-treffer {
+  padding: 0;
+}
+
+@media (max-width: 700px) {
+  .lg-suchformular {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Ressorts */
+.lg-ressort {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.lg-ressort-name {
+  color: var(--text);
+  font-weight: 700;
+}
+
+.lg-notiz {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.lg-suchformular .suche .eingabe {
+  padding-left: 48px;
+}
+
+/* ===== Bewegung (#686) ===== */
+/* Alles Bewegte nur bei erlaubter Bewegung; ohne sie erscheint der Inhalt sofort an seinem Platz. «backwards»: Nach dem Ende bleibt kein Transform stehen. */
+@keyframes lg-ein {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+}
+
+@keyframes lg-zeile-ein {
+  from {
+    opacity: 0;
+    transform: translateY(-0.25rem);
+  }
+}
+
+@keyframes lg-zeile-aus {
+  to {
+    opacity: 0;
+    transform: translateX(0.5rem);
+  }
+}
+
+@keyframes lg-blende {
+  from {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Erster Besuch im Lager: Leiste und Arbeitsbereich blenden ein; beim Wechsel zwischen Modulen nur das Modul */
+  .lg-rahmen-ein {
+    animation: lg-ein var(--dauer-lang) var(--kurve) backwards;
+  }
+
+  .lg-modulkopf {
+    animation: lg-ein var(--dauer) var(--kurve) backwards;
+  }
+
+  .lg-modul--neu > * {
+    animation: lg-ein var(--dauer-lang) var(--kurve) backwards;
+  }
+
+  .lg-modul--neu > :nth-child(2) {
+    animation-delay: 40ms;
+  }
+
+  .lg-modul--neu > :nth-child(3) {
+    animation-delay: 80ms;
+  }
+
+  .lg-modul--neu > :nth-child(4) {
+    animation-delay: 120ms;
+  }
+
+  .lg-modul--neu > :nth-child(5) {
+    animation-delay: 160ms;
+  }
+
+  .lg-modul--neu > :nth-child(n + 6) {
+    animation-delay: 200ms;
+  }
+
+  /* Zeilen: neue blenden ein, entfernte aus, die übrigen gleiten (lager-bewegung.js) */
+  .lg-ein {
+    animation: lg-zeile-ein var(--dauer) var(--kurve) backwards;
+  }
+
+  .lg-aus {
+    animation: lg-zeile-aus var(--dauer) var(--kurve) forwards;
+  }
+
+  .lg-neues:not([hidden]) {
+    animation: lg-ein var(--dauer) var(--kurve) backwards;
+  }
+
+  .lg-nav-knopf .i,
+  .lg-nav-kopf .i {
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .lg-nav-auf {
+    transition:
+      grid-template-rows var(--dauer-lang) var(--kurve),
+      visibility 0s linear var(--dauer-lang);
+  }
+
+  .lg-nav-auf[data-offen] {
+    transition-delay: 0s;
+  }
+
+  /* Das Skeleton kommt erst nach einer Verzögerung (lader.js): sanft statt plötzlich */
+  .lg-modul .sk-huelle,
+  .lg-rahmen-sk {
+    animation: lg-blende var(--dauer) var(--kurve) backwards;
+  }
+
+  .lg-modul progress::-webkit-progress-value {
+    transition: width var(--dauer-lang) var(--kurve);
+  }
+}
+
+@keyframes lg-leiste-ein {
+  from {
+    opacity: 0;
+    transform: translateY(1rem);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  /* Was erscheint, wenn «hidden» fällt: Fehler an Feldern, Hinweise, die Leiste mit ungespeicherten Änderungen, die Personenwahl */
+  .lg-modul .feld-fehler:not([hidden]),
+  .lg-modul .hinweis:not([hidden]),
+  .lg-modul .lg-wahlort:not([hidden]),
+  .lg-modul .lg-dl-balken:not([hidden]) {
+    animation: lg-zeile-ein var(--dauer) var(--kurve) backwards;
+  }
+
+  .lg-modul .lg-speicherleiste:not([hidden]) {
+    animation: lg-leiste-ein var(--dauer) var(--kurve) backwards;
+  }
+
+  /* Aufklappen und Zuklappen von details: wo der Browser es kann (::details-content), gleitet die Höhe */
+  @supports selector(::details-content) {
+    .lg-modul details {
+      interpolate-size: allow-keywords;
+    }
+
+    .lg-modul details::details-content {
+      block-size: 0;
+      overflow: clip;
+      transition:
+        block-size var(--dauer-lang) var(--kurve),
+        content-visibility var(--dauer-lang) var(--kurve) allow-discrete;
+    }
+
+    .lg-modul details[open]::details-content {
+      block-size: auto;
+    }
+  }
+}
+
+@media (max-width: 900px) and (prefers-reduced-motion: no-preference) {
+  .lg-nav-liste {
+    transition:
+      grid-template-rows var(--dauer-lang) var(--kurve),
+      visibility 0s linear var(--dauer-lang);
+  }
+
+  .lg-nav-liste[data-offen] {
+    transition-delay: 0s;
+  }
+}
+
+@media (forced-colors: active) {
+  .lg-nav--marke .lg-nav-marke {
+    border-color: Highlight;
+  }
+
+  .lg-nav a[aria-current="page"] {
+    text-decoration: underline;
+    text-decoration-thickness: 3px;
+  }
+
+  .lg-modul .sk,
+  .lg-rahmen-sk .sk {
+    border: 1px solid GrayText;
+  }
+}
+
+/* ===== Skeletons des Lagers (lager-skeleton.js) ===== */
+.lg-sk {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lg-sk-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 16px;
+}
+
+.lg-sk-reiter {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 3.25rem;
+  padding: 0 16px;
+  background: var(--surface-container-low);
+  border-radius: var(--r-md);
+}
+
+.sk.lg-sk-knopf {
+  height: 44px;
+}
+
+.sk.lg-sk-feld,
+.sk.lg-sk-suche {
+  height: 44px;
+  border-radius: 12px;
+}
+
+.sk.lg-sk-titel {
+  height: 28px;
+  margin: 2px 0;
+}
+
+.lg-sk-stapel {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lg-sk-zwei {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.lg-sk-navzeile {
+  display: flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.lg-sk-navkopf {
+  padding: 4px 12px;
+}
+
+.lg-sk-navknopf {
+  display: none;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 12px;
+}
+
+.lg-rahmen-sk .lg-nav {
+  position: static;
+}
+
+@media (max-width: 900px) {
+  .lg-rahmen-sk .lg-sk-navknopf {
+    display: flex;
+  }
+
+  .lg-sk-zwei {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ===== Status im Kopf (#693, lager-status.js) ===== */
+.lg-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--r-md);
+}
+
+.lg-status-text {
+  flex: 1 1 16rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.lg-status-aktion {
+  flex: none;
+}
+
+.lg-status-frage {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 100%;
+  gap: 8px;
+}
+
+.lg-status-frage p {
+  margin: 0;
+}
+
+.lg-status-frage[hidden],
+.lg-status-aktion[hidden] {
+  display: none;
+}
+
+.lg-status-hinweis {
+  flex: 1 1 100%;
+}
+
+.lg-status-hinweis:empty {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-status-frage:not([hidden]) {
+    animation: lg-zeile-ein var(--dauer) var(--kurve) backwards;
+  }
+}

@@ -1,23 +1,25 @@
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { bildUrl } from "./bild.js";
 import type { Db } from "./db/client.js";
-import { kind, kindEltern, profilbild, user } from "./db/schema.js";
+import { kind, kindZugang, profilbild, user } from "./db/schema.js";
 import { hatRolle, type Person } from "./rechte.js";
 
-// Die Stufen unter den gefragten, in denen die Person ein aktives Kind hat
+// Die Stufen unter den gefragten, in denen die Person ein aktives Kind hat. Mit nurEltern zählt das eigene Konto eines Kindes nicht (Telefonnummern, #644)
 export async function stufenMitKind(
   db: Db,
   person: Pick<Person, "id" | "abteilungId">,
   stufeIds: string[],
+  { nurEltern = false }: { nurEltern?: boolean } = {},
 ) {
   if (stufeIds.length === 0) return new Set<string>();
   const zeilen = await db
     .selectDistinct({ stufeId: kind.stufeId })
     .from(kind)
-    .innerJoin(kindEltern, eq(kindEltern.kindId, kind.id))
+    .innerJoin(kindZugang, eq(kindZugang.kindId, kind.id))
     .where(
       and(
-        eq(kindEltern.userId, person.id),
+        eq(kindZugang.userId, person.id),
+        ...(nurEltern ? [eq(kindZugang.eigen, false)] : []),
         eq(kind.abteilungId, person.abteilungId),
         isNull(kind.inaktivSeit),
         inArray(kind.stufeId, stufeIds),
@@ -26,7 +28,7 @@ export async function stufenMitKind(
   return new Set(zeilen.map((z) => z.stufeId));
 }
 
-// Eine Zeile pro SL; die Nummer liest die Datenbank nur, wenn die Person in einer Stufe dieser SL ein aktives Kind hat oder dort Leitung oder SL ist. Admins ohne Rolle in der Stufe und Eltern anderer Stufen bekommen sie nie: telefon bleibt für sie null
+// Eine Zeile pro SL; die Nummer liest die Datenbank nur, wenn die Person in einer Stufe dieser SL ein aktives Kind hat oder dort Leitung oder SL ist. Die Abteilungsleitung ohne Rolle in der Stufe und Eltern anderer Stufen bekommen sie nie: telefon bleibt für sie null
 export async function kontakteMitTelefon(
   db: Db,
   person: Person,
@@ -50,9 +52,13 @@ export async function kontakteMitTelefon(
     eintrag.stufen.add(z.stufeId);
     stufenJeSl.set(z.id, eintrag);
   }
-  const meine = await stufenMitKind(db, person, [
-    ...new Set(sl.map((z) => z.stufeId)),
-  ]);
+  // Die Nummer sehen nur Eltern, nie das Konto eines Kindes
+  const meine = await stufenMitKind(
+    db,
+    person,
+    [...new Set(sl.map((z) => z.stufeId))],
+    { nurEltern: true },
+  );
   const sichtbar = [...stufenJeSl].filter(([, e]) =>
     [...e.stufen].some((s) => meine.has(s) || hatRolle(person, s, "leitung")),
   );

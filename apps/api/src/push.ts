@@ -7,7 +7,13 @@ import { log } from "./log.js";
 
 // Der Text steht unter dem Titel. Er trägt nie Chat-Inhalt oder Namen von Kindern: Der Push steht je nach Handy auf dem gesperrten Bildschirm
 export type Push = {
-  typ: "chat" | "programm" | "mitteilung";
+  typ:
+    | "chat"
+    | "programm"
+    | "mitteilung"
+    | "plattform"
+    | LagerPushTyp
+    | TerminePushTyp;
   id: string;
   titel: string;
   text?: string;
@@ -29,11 +35,43 @@ const ABGEMELDET = [
   "messaging/invalid-registration-token",
 ];
 
-const KANAL = {
+// Pushes des Lagers (#369): data.id ist die ID des Objekts; die App löst Lager und Ziel über GET /api/v1/lager/aufloesen/{typ}/{id} auf. Der Text trägt höchstens den Lagertitel (lager/benachrichtigung.ts)
+export const LAGER_PUSH_TYPEN = [
+  "lager_aufgabe",
+  "lager_erwaehnung",
+  "lager_pinnwand",
+  "lager_eingang",
+  "lager_einteilung",
+  "lager_anwesenheit",
+] as const;
+export type LagerPushTyp = (typeof LAGER_PUSH_TYPEN)[number];
+
+// Pushes der Termine (Epic #430, Gerüst #431): data.id ist die ID des Vorschlags oder der Raumanfrage. Der Text trägt höchstens den Vorschlagstitel; feste Titel stehen in termine/push-arten.ts. Die Kanäle «termine» und «raeume» legt die App an (Vorschlag, vom Nutzer zu bestätigen)
+export const TERMINE_PUSH_TYPEN = [
+  "termin_vorschlag",
+  "termin_entscheid",
+  "raum_anfrage",
+  "raum_entscheid",
+] as const;
+export type TerminePushTyp = (typeof TERMINE_PUSH_TYPEN)[number];
+
+export const PUSH_KANAL: Record<Push["typ"], string> = {
   chat: "chat",
   programm: "programme",
   // Mitteilung aus der Verwaltung: eigener Kanal, die App legt ihn an (data.id ist leer)
   mitteilung: "mitteilungen",
+  // Informationssperre (#425) an die Entwickler: data.id ist die ID des Schalters; der Text nennt nur den Bereich
+  plattform: "mitteilungen",
+  lager_aufgabe: "lager_aufgaben",
+  lager_erwaehnung: "lager_mitteilungen",
+  lager_pinnwand: "lager_mitteilungen",
+  lager_eingang: "lager_mitteilungen",
+  lager_einteilung: "lager_einteilung",
+  lager_anwesenheit: "lager_einteilung",
+  termin_vorschlag: "termine",
+  termin_entscheid: "termine",
+  raum_anfrage: "raeume",
+  raum_entscheid: "raeume",
 };
 
 type Fehler = { code?: unknown; cause?: { code?: unknown } };
@@ -56,7 +94,7 @@ export async function sendePush(
   { typ, id, titel, text }: Push,
 ): Promise<void> {
   if (!fcm) return;
-  const kanal = KANAL[typ];
+  const kanal = PUSH_KANAL[typ];
   let tokens: string[];
   try {
     const zeilen = await db
@@ -70,6 +108,7 @@ export async function sendePush(
   }
 
   const abgemeldet: string[] = [];
+  let gesendet = 0;
   for (let i = 0; i < tokens.length; i += BLOCK) {
     const block = tokens.slice(i, i + BLOCK);
     try {
@@ -89,7 +128,10 @@ export async function sendePush(
         })),
       );
       responses.forEach((antwort, j) => {
-        if (antwort.success) return;
+        if (antwort.success) {
+          gesendet++;
+          return;
+        }
         meldeFehler(c, antwort.error);
         if (ABGEMELDET.includes(antwort.error?.code ?? ""))
           abgemeldet.push(block[j]!);
@@ -99,6 +141,9 @@ export async function sendePush(
     }
   }
 
+  // Für das Aktivitätsprotokoll (#637): nur die Art und die Zahl, nie Empfänger, Titel oder Text
+  if (tokens.length > 0)
+    log(undefined, { ereignis: "push_versand", typ, gesendet });
   if (abgemeldet.length === 0) return;
   try {
     await db.delete(pushToken).where(inArray(pushToken.token, abgemeldet));

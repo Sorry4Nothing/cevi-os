@@ -1,0 +1,10 @@
+/* Unterseite «Kategorien» (A12). Klassen mit dem Vorsatz «tm-» */
+
+/* Die Auswahl der Gruppe braucht Platz, damit der Name nicht abgeschnitten wird */
+.tm-gruppenzelle {
+  min-width: 16rem;
+}
+
+.tm-gruppenzelle .feld {
+  margin: 0;
+}

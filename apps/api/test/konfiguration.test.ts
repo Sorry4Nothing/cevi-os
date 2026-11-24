@@ -29,14 +29,21 @@ function meldung(env: Record<string, string | undefined>) {
 }
 
 test("liest die Werte samt festen Vorgaben und übergeht andere Variablen", () => {
-  expect(ladeKonfiguration({ ...GUELTIG, HOME: "/home/cevi" })).toEqual({
+  expect(
+    ladeKonfiguration({
+      ...GUELTIG,
+      HOME: "/home/cevi",
+      // Eine übrig gebliebene Variable des entfernten Auslesens (#361) stört den Start nicht
+      ECKDATEN_BASIS_URL: "https://alt.example.org",
+    }),
+  ).toEqual({
     DATABASE_URL: GUELTIG.DATABASE_URL,
     APP_MIN_VERSION: "0.1.0",
     PORT: 3000,
     BETTER_AUTH_SECRET: GUELTIG.BETTER_AUTH_SECRET,
     BETTER_AUTH_URL: "http://localhost:3000",
-    ECKDATEN_BASIS_URL: "https://www.cevi-staefa-hombi.ch",
     VERANTWORTLICHE_STELLE: "Abteilungsleitung Cevi Stäfa-Hombi",
+    VERANTWORTLICHE_ADRESSE: "Oetwilerstrasse 35, 8634 Hombrechtikon",
     KONTAKT_EMAIL: "cevi-al@cevi-staefa-hombi.ch",
   });
 });
@@ -118,18 +125,28 @@ test("FCM_SCHLUESSEL_DATEI ist freiwillig und wird durchgereicht", () => {
   );
 });
 
-test("VERANTWORTLICHE_STELLE und KONTAKT_EMAIL haben feste Vorgaben, die die Umgebung überschreibt und gültig sein muss", () => {
+test("VERANTWORTLICHE_STELLE, VERANTWORTLICHE_ADRESSE und KONTAKT_EMAIL haben feste Vorgaben, die die Umgebung überschreibt und gültig sein muss", () => {
   const leer = ladeKonfiguration(GUELTIG);
   expect(leer.VERANTWORTLICHE_STELLE).toBe(
     "Abteilungsleitung Cevi Stäfa-Hombi",
   );
+  expect(leer.VERANTWORTLICHE_ADRESSE).toBe(
+    "Oetwilerstrasse 35, 8634 Hombrechtikon",
+  );
   expect(leer.KONTAKT_EMAIL).toBe("cevi-al@cevi-staefa-hombi.ch");
+  // Compose gibt eine leere Variable als leere Zeichenkette weiter: Sie gilt als nicht gesetzt
+  expect(
+    ladeKonfiguration({ ...GUELTIG, VERANTWORTLICHE_ADRESSE: "" })
+      .VERANTWORTLICHE_ADRESSE,
+  ).toBe("Oetwilerstrasse 35, 8634 Hombrechtikon");
   const mit = ladeKonfiguration({
     ...GUELTIG,
     VERANTWORTLICHE_STELLE: "Cevi Beispiel",
+    VERANTWORTLICHE_ADRESSE: "Beispielweg 1, 8000 Beispielort",
     KONTAKT_EMAIL: "kontakt@example.org",
   });
   expect(mit.VERANTWORTLICHE_STELLE).toBe("Cevi Beispiel");
+  expect(mit.VERANTWORTLICHE_ADRESSE).toBe("Beispielweg 1, 8000 Beispielort");
   expect(mit.KONTAKT_EMAIL).toBe("kontakt@example.org");
   expect(meldung({ ...GUELTIG, KONTAKT_EMAIL: "keine-adresse" })).toBe(
     "Fehlende oder ungültige Umgebungsvariablen: KONTAKT_EMAIL",
@@ -137,4 +154,212 @@ test("VERANTWORTLICHE_STELLE und KONTAKT_EMAIL haben feste Vorgaben, die die Umg
   expect(meldung({ ...GUELTIG, VERANTWORTLICHE_STELLE: "  " })).toBe(
     "Fehlende oder ungültige Umgebungsvariablen: VERANTWORTLICHE_STELLE",
   );
+  expect(meldung({ ...GUELTIG, VERANTWORTLICHE_ADRESSE: "  " })).toBe(
+    "Fehlende oder ungültige Umgebungsvariablen: VERANTWORTLICHE_ADRESSE",
+  );
+});
+
+test("KONTAKT_TELEFON (#549) ist freiwillig: ohne Wert und mit leerer Zeile nicht gesetzt, sonst eine Nummer", () => {
+  expect(ladeKonfiguration(GUELTIG).KONTAKT_TELEFON).toBeUndefined();
+  expect(
+    ladeKonfiguration({ ...GUELTIG, KONTAKT_TELEFON: "" }).KONTAKT_TELEFON,
+  ).toBeUndefined();
+  expect(
+    ladeKonfiguration({ ...GUELTIG, KONTAKT_TELEFON: "043 543 96 82" })
+      .KONTAKT_TELEFON,
+  ).toBe("043 543 96 82");
+  expect(
+    ladeKonfiguration({ ...GUELTIG, KONTAKT_TELEFON: "+41 00 000 00 00" })
+      .KONTAKT_TELEFON,
+  ).toBe("+41 00 000 00 00");
+  for (const falsch of ["abc", "12", "<b>1</b>", "043-543-96-82"]) {
+    expect(meldung({ ...GUELTIG, KONTAKT_TELEFON: falsch })).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: KONTAKT_TELEFON",
+    );
+  }
+});
+
+describe("MEDIEN_S3_* (#335)", () => {
+  // Erfundene Werte, nie ein echter Anbieter oder Schlüssel
+  const MEDIEN = {
+    MEDIEN_S3_ENDPOINT: "https://s3.example.org",
+    MEDIEN_S3_REGION: "region-1",
+    MEDIEN_S3_BUCKET: "bucket-beispiel",
+    MEDIEN_S3_ZUGANGSSCHLUESSEL: "zugang-geheim-1",
+    MEDIEN_S3_GEHEIMSCHLUESSEL: "geheim-geheim-2",
+  };
+
+  test("ohne alle fünf ist der Medienspeicher aus, auch mit leeren Zeilen aus deploy/.env", () => {
+    expect(ladeKonfiguration(GUELTIG).MEDIEN_S3_BUCKET).toBeUndefined();
+    const leer = Object.fromEntries(Object.keys(MEDIEN).map((n) => [n, ""]));
+    expect(ladeKonfiguration({ ...GUELTIG, ...leer }).MEDIEN_S3_BUCKET).toBe(
+      undefined,
+    );
+  });
+
+  test("mit allen fünf werden sie durchgereicht", () => {
+    expect(ladeKonfiguration({ ...GUELTIG, ...MEDIEN })).toMatchObject(MEDIEN);
+  });
+
+  test("mit einigen nennt die Meldung die fehlenden Namen und nie einen Wert", () => {
+    const text = meldung({
+      ...GUELTIG,
+      MEDIEN_S3_ENDPOINT: MEDIEN.MEDIEN_S3_ENDPOINT,
+      MEDIEN_S3_ZUGANGSSCHLUESSEL: MEDIEN.MEDIEN_S3_ZUGANGSSCHLUESSEL,
+    });
+    expect(text).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: MEDIEN_S3_REGION, MEDIEN_S3_BUCKET, MEDIEN_S3_GEHEIMSCHLUESSEL",
+    );
+    expect(text).not.toContain("geheim");
+  });
+
+  test("der Endpunkt braucht https", () => {
+    expect(
+      meldung({
+        ...GUELTIG,
+        ...MEDIEN,
+        MEDIEN_S3_ENDPOINT: "http://s3.example.org",
+      }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: MEDIEN_S3_ENDPOINT");
+  });
+});
+
+describe("WEBSITE_* (#351)", () => {
+  const WEBSITE = {
+    WEBSITE_AUSGABE_PFAD: "/srv/website",
+    WEBSITE_ABTEILUNG_ID: "0190a0b0-0000-7000-8000-000000000001",
+    WEBSITE_BASIS_URL: "https://www.example.org/",
+  };
+
+  test("ohne alle drei ist die Erzeugung aus, auch mit leeren Zeilen aus deploy/.env", () => {
+    expect(ladeKonfiguration(GUELTIG).WEBSITE_AUSGABE_PFAD).toBeUndefined();
+    const leer = Object.fromEntries(Object.keys(WEBSITE).map((n) => [n, ""]));
+    expect(ladeKonfiguration({ ...GUELTIG, ...leer }).WEBSITE_BASIS_URL).toBe(
+      undefined,
+    );
+  });
+
+  test("mit allen dreien gilt die Herkunft ohne Pfad und Schrägstrich am Ende", () => {
+    expect(
+      ladeKonfiguration({
+        ...GUELTIG,
+        ...WEBSITE,
+        WEBSITE_BASIS_URL: "https://www.example.org/seite/",
+      }),
+    ).toMatchObject({
+      ...WEBSITE,
+      WEBSITE_BASIS_URL: "https://www.example.org",
+    });
+  });
+
+  test("mit einigen nennt die Meldung die fehlenden Namen und nie einen Wert", () => {
+    const text = meldung({ ...GUELTIG, WEBSITE_AUSGABE_PFAD: "/srv/website" });
+    expect(text).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: WEBSITE_ABTEILUNG_ID, WEBSITE_BASIS_URL",
+    );
+    expect(text).not.toContain("/srv");
+  });
+
+  test("die Abteilung ist eine UUID, die Adresse braucht in Produktion https", () => {
+    expect(
+      meldung({ ...GUELTIG, ...WEBSITE, WEBSITE_ABTEILUNG_ID: "keine-id" }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: WEBSITE_ABTEILUNG_ID");
+    const http = { ...WEBSITE, WEBSITE_BASIS_URL: "http://localhost:8080" };
+    expect(ladeKonfiguration({ ...GUELTIG, ...http }).WEBSITE_BASIS_URL).toBe(
+      "http://localhost:8080",
+    );
+    expect(
+      meldung({
+        ...GUELTIG,
+        ...http,
+        NODE_ENV: "production",
+        BETTER_AUTH_URL: "https://api.example.org",
+      }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: WEBSITE_BASIS_URL");
+  });
+});
+
+// Fotos aus Flickr (#690): Geheimnisse nur aus der Umgebung; Schlüssel und Secret, Token und Token-Secret gehören zusammen
+describe("Flickr", () => {
+  const SCHLUESSEL = {
+    FLICKR_API_KEY: "TestSchluesselNurFuerTests",
+    FLICKR_API_SECRET: "ffeeddccbbaa9988",
+  };
+  const TOKEN = {
+    FLICKR_OAUTH_TOKEN: "72157600000000000-0123456789abcdef",
+    FLICKR_OAUTH_TOKEN_SECRET: "fedcba9876543210",
+  };
+
+  test("ohne alle vier Werte gibt es keine Fotos, und das ist erlaubt", () => {
+    const k = ladeKonfiguration(GUELTIG);
+    expect(k.FLICKR_API_KEY).toBeUndefined();
+    expect(k.FLICKR_OAUTH_TOKEN).toBeUndefined();
+    // Eine leere Zeile in deploy/.env gilt als nicht gesetzt
+    expect(
+      ladeKonfiguration({
+        ...GUELTIG,
+        FLICKR_API_KEY: "",
+        FLICKR_API_SECRET: "",
+      }).FLICKR_API_KEY,
+    ).toBeUndefined();
+  });
+
+  test("Schlüssel mit Secret genügt (nur öffentliche Fotos); mit Token auch die privaten", () => {
+    expect(
+      ladeKonfiguration({ ...GUELTIG, ...SCHLUESSEL }).FLICKR_API_KEY,
+    ).toBe(SCHLUESSEL.FLICKR_API_KEY);
+    expect(
+      ladeKonfiguration({ ...GUELTIG, ...SCHLUESSEL, ...TOKEN })
+        .FLICKR_OAUTH_TOKEN,
+    ).toBe(TOKEN.FLICKR_OAUTH_TOKEN);
+  });
+
+  test("einzelne Werte eines Paares scheitern, und die Meldung nennt nur Namen, nie Werte", () => {
+    expect(
+      meldung({ ...GUELTIG, FLICKR_API_KEY: SCHLUESSEL.FLICKR_API_KEY }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: FLICKR_API_SECRET");
+    expect(
+      meldung({
+        ...GUELTIG,
+        ...SCHLUESSEL,
+        FLICKR_OAUTH_TOKEN: TOKEN.FLICKR_OAUTH_TOKEN,
+      }),
+    ).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: FLICKR_OAUTH_TOKEN_SECRET",
+    );
+    // Ein Token ohne Schlüssel kann nichts signieren
+    const ohneSchluessel = meldung({ ...GUELTIG, ...TOKEN });
+    expect(ohneSchluessel).toContain("FLICKR_API_KEY");
+    expect(ohneSchluessel).toContain("FLICKR_API_SECRET");
+    expect(ohneSchluessel).not.toContain(TOKEN.FLICKR_OAUTH_TOKEN);
+    // Ein ungültiger Wert: nur der Name
+    const falsch = meldung({
+      ...GUELTIG,
+      ...SCHLUESSEL,
+      FLICKR_API_KEY: "geheim-mit-Leerzeichen und /",
+    });
+    expect(falsch).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: FLICKR_API_KEY",
+    );
+    expect(falsch).not.toContain("geheim");
+  });
+
+  test("eigene Adressen für Tests: lokal erlaubt, in Produktion verboten", () => {
+    const basis = {
+      ...GUELTIG,
+      ...SCHLUESSEL,
+      FLICKR_API_BASIS: "http://127.0.0.1:4999/rest/",
+      FLICKR_BILD_BASIS: "http://127.0.0.1:4999",
+    };
+    expect(ladeKonfiguration(basis).FLICKR_API_BASIS).toBe(
+      "http://127.0.0.1:4999/rest/",
+    );
+    const produktion = meldung({
+      ...basis,
+      NODE_ENV: "production",
+      BETTER_AUTH_URL: "https://api.example.org",
+    });
+    expect(produktion).toContain("FLICKR_API_BASIS");
+    expect(produktion).toContain("FLICKR_BILD_BASIS");
+  });
 });

@@ -144,7 +144,7 @@ describe("GET /api/v1/programme/:id/teilnahmen: Status je Person", () => {
     );
   });
 
-  test("intern: nur Admin und SL sehen es, SL einer fremden Stufe hat kein Recht", async () => {
+  test("intern: nur Abteilungsleitung und SL sehen es, SL einer fremden Stufe hat kein Recht", async () => {
     const p = await frisch([welt.stufeAId], "intern");
     const status = async (r: Rolle) =>
       (await uebersicht(konten[r], p.id)).status;
@@ -263,7 +263,7 @@ describe("GET /api/v1/programme/:id/teilnahmen: Inhalt", () => {
     expect(JSON.stringify(body)).not.toContain(kindA2);
   });
 
-  test("Abteilungsanlass: Leitung sieht nur die eigene Stufe, Admin beide, Doppelrolle beides getrennt", async () => {
+  test("Abteilungsanlass: Leitung sieht nur die eigene Stufe, Abteilungsleitung beide, Doppelrolle beides getrennt", async () => {
     const p = await frisch([welt.stufeAId, welt.stufeBId]);
     const stufenVon = (b: { kinder: { stufeId: string }[] }) => [
       ...new Set(b.kinder.map((k) => k.stufeId)),
@@ -289,14 +289,12 @@ describe("GET /api/v1/programme/:id/teilnahmen: Inhalt", () => {
     ).toBe(true);
   });
 
-  test("Admin: ein Programm ohne Stufe liefert die Übersicht aller Stufen", async () => {
+  test("Abteilungsleitung: ein Programm ohne Stufen-Tag liefert eine leere Übersicht (#449)", async () => {
     const p = await frisch([], "intern");
-    const alle = await frisch([welt.stufeAId, welt.stufeBId], "intern");
     const { status, body } = await uebersicht(konten.admin, p.id);
-    const { body: erwartet } = await uebersicht(konten.admin, alle.id);
     expect(status).toBe(200);
-    expect(body.kinder.length).toBeGreaterThan(0);
-    expect(body).toEqual(erwartet);
+    expect(body.kinder).toEqual([]);
+    expect(body.leitende).toEqual([]);
   });
 
   test("ein Kind, das die Stufe wechselt, verschwindet aus der alten Übersicht", async () => {

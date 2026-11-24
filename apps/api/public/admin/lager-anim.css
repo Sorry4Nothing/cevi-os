@@ -1,0 +1,83 @@
+/* Bewegung im Lager-Arbeitsbereich (#685): Antippen, Hover, Balken, Reiter, Tabellenzeilen. Die Ein- und Ausblendungen laufen als Web Animations in lager-anim.js; beide gelten nur bei erlaubter Bewegung. Farben nur aus den Tokens, ohne Verläufe und Glows. */
+
+/* Ausblendende Kopie eines entfernten Eintrags: liegt am alten Platz, nimmt keinen Platz weg und reagiert auf nichts */
+.lg-bezug {
+  position: relative;
+}
+
+.lg-geht {
+  position: absolute;
+  z-index: 1;
+  margin: 0;
+  pointer-events: none;
+}
+
+/* Antippen: Knöpfe und tippbare Zellen geben sofort Rückmeldung */
+@media (prefers-reduced-motion: no-preference) {
+  .la-tick,
+  .la-spalte,
+  .la-auswahlleiste {
+    transition:
+      background-color var(--dauer) var(--kurve),
+      border-color var(--dauer) var(--kurve),
+      box-shadow var(--dauer) var(--kurve),
+      transform var(--dauer) var(--kurve);
+  }
+
+  .la-tick:active {
+    transform: scale(0.92);
+  }
+
+  /* Die Auswahlleiste steigt von unten auf, wenn sie erscheint */
+  .la-auswahlleiste:not([hidden]) {
+    animation: lg-hoch 0.24s var(--kurve) both;
+  }
+
+  /* Das Formular der Sammelaktion steigt auf */
+  .la-bulkform {
+    animation: lg-hoch 0.24s var(--kurve) both;
+  }
+
+  /* Fortschrittsbalken: wächst weich auf den neuen Wert */
+  .mn-fuell::-webkit-progress-value {
+    transition: width 0.4s var(--kurve);
+  }
+
+  .mn-fuell::-moz-progress-bar {
+    transition: width 0.4s var(--kurve);
+  }
+
+  /* Wird eine Fläche neu geladen, bleibt sie sichtbar, wird aber ruhiger */
+  [aria-busy="true"].lg-teil > :not(.sk-huelle):not(.aktualisiert) {
+    opacity: 0.55;
+    transition: opacity var(--dauer) var(--kurve);
+  }
+
+  @keyframes lg-hoch {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+}
+
+/* Ohne Bewegung steht alles sofort da; Erzwungene Farben: die ausblendende Kopie bekommt wie alles andere Systemfarben */
+@media (prefers-reduced-motion: reduce) {
+  .lg-geht {
+    display: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .lg-geht {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+}
+
+/* Balken in .fortschritt: wächst weich auf den neuen Wert (#685) */
+@media (prefers-reduced-motion: no-preference) {
+  .fortschritt > span {
+    transition: width 0.45s var(--kurve);
+  }
+}

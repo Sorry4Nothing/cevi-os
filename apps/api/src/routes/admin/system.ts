@@ -1,27 +1,21 @@
 import { monitorEventLoopDelay } from "node:perf_hooks";
-import { asc, count, eq } from "drizzle-orm";
+import { count, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import type { Sql } from "postgres";
 import type { Db } from "../../db/client.js";
-import {
-  abteilung,
-  auditLog,
-  programm,
-  programmEckdaten,
-  stufe,
-} from "../../db/schema.js";
-import { eckdatenLauf } from "../../kalender/laufstand.js";
+import { abteilung, auditLog, programm } from "../../db/schema.js";
 import type { Metriken } from "../../metriken.js";
 import type { Person } from "../../rechte.js";
+import { verlange } from "../../rechtemodell/darf.js";
 
-// Ein Abruf von Hand: dieselbe Funktion wie der Takt im Hintergrund; «gesperrt» heisst, ein anderer Lauf arbeitet gerade
+// Ein Abgleich von Hand: dieselbe Funktion wie der Takt im Hintergrund; «gesperrt» heisst, ein anderer Lauf arbeitet gerade
 export type SyncStarter = () => Promise<"fertig" | "gesperrt">;
 const MIN_ABSTAND_MS = 30_000;
 
 const mb = (bytes: number) => Math.round((bytes / 1024 / 1024) * 10) / 10;
 
-// Nur Admins (die Middleware für /api/v1/admin/* verlangt zusätzlich den zweiten Faktor). Die Antworten enthalten nur Zahlen, Flags und feste Texte: keine Umgebungswerte, Hosts, Adressen, Namen oder IDs
+// Nur mit dem Recht «system.lesen» (Abteilungsleitung, oder eine Rolle mit dem Recht, mit zweitem Faktor; die Middleware für /api/v1/admin/* verlangt ihn für die Abteilungsleitung ohnehin). Die Antworten enthalten nur Zahlen, Flags und feste Texte: keine Umgebungswerte, Hosts, Adressen, Namen oder IDs
 export function erstelleSystemRouten({
   db,
   sql,
@@ -32,12 +26,12 @@ export function erstelleSystemRouten({
   sql: Sql;
   metriken: Metriken;
   // Fehlt ein Starter (Tests, Betrieb ohne Sync), antwortet der Knopf mit 501
-  syncs?: { eckdaten?: SyncStarter; kalender?: SyncStarter };
+  syncs?: { kalender?: SyncStarter };
 }) {
-  // Pro Job und Abteilung; verhindert, dass ein Klick-Sturm die Webseite oder Google belastet
+  // Pro Job und Abteilung; verhindert, dass ein Klick-Sturm Google belastet
   const letzterStart = new Map<string, number>();
   async function anstossen(
-    job: "eckdaten" | "kalender",
+    job: "kalender",
     person: Person,
   ): Promise<"fertig" | "gesperrt"> {
     const starter = syncs[job];
@@ -67,7 +61,7 @@ export function erstelleSystemRouten({
     new Hono<{ Variables: { person: Person } }>()
       .get("/", async (c) => {
         const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(db, person, "system.lesen");
 
         const start = performance.now();
         let erreichbar = true;
@@ -147,26 +141,11 @@ export function erstelleSystemRouten({
         schleife.reset();
         return antwort;
       })
-      // Was die Hintergrund-Abrufe zuletzt geliefert haben (#267): nur feste Ausgänge, Codes und gelesene Eckdaten, nie HTML oder Fehlertexte
+      // Was der Kalender-Abgleich im Hintergrund zuletzt geliefert hat (#267): nur feste Texte, nie Fehlertexte
       .get("/syncs", async (c) => {
         const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(db, person, "system.lesen");
 
-        const stufen = await db
-          .select({
-            id: stufe.id,
-            name: stufe.name,
-            tag: programmEckdaten.tag,
-            treffpunkt: programmEckdaten.treffpunkt,
-            schlussOrt: programmEckdaten.schlussOrt,
-            schlussZeit: programmEckdaten.schlussZeit,
-            mitnehmen: programmEckdaten.mitnehmen,
-            abgerufenAm: programmEckdaten.abgerufenAm,
-          })
-          .from(stufe)
-          .leftJoin(programmEckdaten, eq(programmEckdaten.stufeId, stufe.id))
-          .where(eq(stufe.abteilungId, person.abteilungId))
-          .orderBy(asc(stufe.name), asc(stufe.id));
         const [abt] = await db
           .select({
             eingerichtet: abteilung.googleKalenderId,
@@ -181,29 +160,6 @@ export function erstelleSystemRouten({
           .where(eq(programm.abteilungId, person.abteilungId));
 
         return c.json({
-          eckdaten: {
-            letzterLaufAm: eckdatenLauf.am,
-            stufen: stufen.map((z) => {
-              const lauf = eckdatenLauf.stufen.get(z.id);
-              return {
-                id: z.id,
-                name: z.name,
-                adresse: lauf?.adresse ?? null,
-                ausgang: lauf?.ausgang ?? null,
-                fehlercode: lauf?.fehlercode ?? null,
-                eckdaten: z.tag
-                  ? {
-                      tag: z.tag,
-                      treffpunkt: z.treffpunkt,
-                      schlussOrt: z.schlussOrt,
-                      schlussZeit: z.schlussZeit,
-                      mitnehmen: z.mitnehmen,
-                      abgerufenAm: z.abgerufenAm,
-                    }
-                  : null,
-              };
-            }),
-          },
           kalender: {
             eingerichtet: Boolean(abt?.eingerichtet),
             letzterErfolgAm: abt?.okAm ?? null,
@@ -212,18 +168,13 @@ export function erstelleSystemRouten({
           },
         });
       })
-      .post("/syncs/eckdaten", async (c) => {
-        const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
-        return c.json({ ergebnis: await anstossen("eckdaten", person) });
-      })
       .post("/syncs/kalender", async (c) => {
         const person = c.get("person");
-        if (!person.admin) throw new HTTPException(403);
+        await verlange(db, person, "system.lesen");
         return c.json({ ergebnis: await anstossen("kalender", person) });
       })
-      .get("/requests", (c) => {
-        if (!c.get("person").admin) throw new HTTPException(403);
+      .get("/requests", async (c) => {
+        await verlange(db, c.get("person"), "system.lesen");
         return c.json(metriken.momentaufnahme());
       })
   );

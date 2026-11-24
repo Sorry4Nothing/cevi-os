@@ -185,7 +185,7 @@ describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () =
     },
   );
 
-  test("POST two-factor/enable erreicht auth.handler nur mit Admin-Sitzung, sonst 404", async () => {
+  test("POST two-factor/enable erreicht auth.handler nur mit Sitzung der Abteilungsleitung, sonst 404", async () => {
     const normal = await anmelden((await legeAn()).benutzername);
     const admin = await anmelden((await legeAn("admin")).benutzername);
     const weitergereicht = vi.spyOn(auth, "handler");
@@ -355,7 +355,7 @@ describe("Zusatzfelder mit input: false", () => {
   });
 });
 
-describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impersonate", () => {
+describe("Funktionen der Abteilungsleitung über auth.api mit eigenen Zugriffsrollen ohne impersonate", () => {
   const aufrufe = {
     createUser: (headers: Headers | undefined) =>
       auth.api.createUser({
@@ -396,7 +396,7 @@ describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impers
     },
   );
 
-  test("impersonateUser liefert auch mit den Headern des Admins 403", async () => {
+  test("impersonateUser liefert auch mit den Headern der Abteilungsleitung 403", async () => {
     const admin = await legeAn("admin");
     const ziel = await legeAn();
     const headers = new Headers({ cookie: await anmelden(admin.benutzername) });
@@ -425,7 +425,7 @@ describe("Admin-Funktionen über auth.api mit eigenen Zugriffsrollen ohne impers
     }
   });
 
-  test("mit den Headern des Admins: createUser, setUserPassword gefolgt von revokeUserSessions, banUser, unbanUser, removeUser", async () => {
+  test("mit den Headern der Abteilungsleitung: createUser, setUserPassword gefolgt von revokeUserSessions, banUser, unbanUser, removeUser", async () => {
     const admin = await legeAn("admin");
     const ziel = await legeAn();
     const headers = new Headers({ cookie: await anmelden(admin.benutzername) });
@@ -493,7 +493,7 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
     expect(await richtig.json()).toMatchObject({
       code: "STARTPASSWORT_ABGELAUFEN",
       message:
-        "Das Startpasswort ist abgelaufen. Ein Admin kann ein neues setzen.",
+        "Das Startpasswort ist abgelaufen. Eine Person der Abteilungsleitung kann ein neues setzen.",
     });
     expect(cookiesAus(richtig)).toBe("");
     expect(sitzungenVon(id)).toEqual([]);
@@ -595,7 +595,7 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
     },
   );
 
-  test("läuft das Startpasswort während einer Admin-Sitzung ab, schaltet verify-totp in dieser Sitzung den zweiten Faktor trotzdem ein", async () => {
+  test("läuft das Startpasswort während einer Sitzung der Abteilungsleitung ab, schaltet verify-totp in dieser Sitzung den zweiten Faktor trotzdem ein", async () => {
     const admin = await legeAn(
       "admin",
       {
@@ -805,7 +805,7 @@ describe("Abmelden", () => {
 });
 
 describe("Zweiter Faktor (TOTP) im Login des Expo-Clients", () => {
-  test("ein Admin richtet TOTP über die Positivliste ein; ein verify-totp in derselben Sitzung schaltet ihn ein und ersetzt das Cookie", async () => {
+  test("eine Person der Abteilungsleitung richtet TOTP über die Positivliste ein; ein verify-totp in derselben Sitzung schaltet ihn ein und ersetzt das Cookie", async () => {
     const admin = await adminMitTotp();
     // Der otpauth-Link nennt den Benutzernamen als Konto, nie die E-Mail-Adresse
     expect(decodeURIComponent(admin.totpURI)).toContain(
@@ -960,7 +960,7 @@ describe("haveIBeenPwned", () => {
     expect((await antwort.json()).message).toBe(meldung);
   });
 
-  test("createUser mit einem Passwort aus einem Datenleck liefert 400, legt die Person aber ohne Konto an; ein zweiter Versuch scheitert an der E-Mail-Adresse", async () => {
+  test("createUser mit einem Passwort aus einem Datenleck liefert 400 und legt nichts an; ein zweiter Versuch mit der gleichen E-Mail-Adresse klappt", async () => {
     const email = `${randomUUID()}@example.org`;
     const anlegen = (password: string) =>
       auth.api.createUser({
@@ -975,12 +975,12 @@ describe("haveIBeenPwned", () => {
       statusCode: 400,
       body: { code: "PASSWORD_COMPROMISED" },
     });
-    expect(db.user).toEqual([expect.objectContaining({ email })]);
+    // Seit better-auth 1.7.19 bleibt keine Person ohne Konto zurück
+    expect(db.user).toEqual([]);
     expect(db.account).toEqual([]);
-    await expect(anlegen(PASSWORT)).rejects.toMatchObject({
-      statusCode: 400,
-      body: { code: "USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL" },
-    });
+    await anlegen(PASSWORT);
+    expect(db.user).toEqual([expect.objectContaining({ email })]);
+    expect(db.account).toHaveLength(1);
   });
 });
 

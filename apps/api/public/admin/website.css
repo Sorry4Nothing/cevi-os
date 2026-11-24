@@ -1,0 +1,402 @@
+/* Bereich «Website»: gemeinsame Bausteine (Fenster, Feldfehler, Auswahl, Seitenblatt). Klassen mit dem Vorsatz «ws-». Farben nur aus den Tokens in admin.css. */
+
+/* Auswahl aus einer Liste: das native Feld, im Stil der Felder */
+.ws-select {
+  width: 100%;
+  min-height: 52px;
+  padding: 0 16px;
+  color: var(--text);
+  background: var(--karte);
+  border: 1px solid var(--rand);
+  border-radius: 12px;
+  font: inherit;
+}
+
+dialog .ws-select {
+  background: var(--surface);
+}
+
+.ws-select:focus-visible {
+  outline: 3px solid var(--fokus);
+  outline-offset: 2px;
+}
+
+.ws-kurzfeld {
+  max-width: 140px;
+}
+
+fieldset.feld,
+fieldset.ws-wahl {
+  padding: 0;
+  border: 0;
+}
+
+/* Fehler beim Feld: Rand, Symbol und Text (nie nur Farbe) */
+.feld.fehler input:not([type="checkbox"], [type="radio"]),
+.feld.fehler textarea,
+.feld.fehler .ws-select {
+  border-color: var(--fe);
+  border-width: 2px;
+}
+
+.feld.fehler .pille {
+  border-color: var(--fe);
+}
+
+.fehlertext {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  color: var(--fe);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1.25rem;
+}
+
+.fehlertext .i {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+}
+
+/* Fenster (Dialog) nach dem Design: Titel und Schliessen, Inhalt, Fuss mit den Knöpfen rechts */
+dialog.ws-fenster {
+  width: min(640px, calc(100vw - 32px));
+  padding: 24px;
+  border-radius: 16px;
+}
+
+dialog.ws-fenster--breit {
+  width: min(880px, calc(100vw - 32px));
+}
+
+.ws-fenster-kopf {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ws-fenster-titel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.ws-fenster-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.ws-fenster-fehler:empty {
+  display: none;
+}
+
+.ws-fenster-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ws-fenster-fuss > .ws-links {
+  margin-right: auto;
+}
+
+.ws-fussspalte {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+/* Löschen und Zurückziehen: nie rot-primär, sondern helles Rot mit Rand; im Fenster nach der Rückfrage */
+.ws-gefahr-voll {
+  color: var(--fe);
+  background: var(--fe-f);
+  border-color: var(--fe);
+}
+
+.ws-gefahr-voll:hover {
+  color: var(--fe);
+  background: var(--fe-f);
+  filter: brightness(0.96);
+}
+
+.ws-reihe {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ws-abstand {
+  margin-left: 8px;
+}
+
+/* Seitenblatt: Inhalt in Abschnitten */
+.ws-blattinhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ws-teil {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 24px 0 0;
+  border-top: 1px solid var(--rand-leise);
+}
+
+.ws-teil > h3 {
+  font-size: 1.0625rem;
+}
+
+.ws-wahl {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ws-wer {
+  flex: 1;
+}
+
+.ws-fehlerplatz:empty {
+  display: none;
+}
+
+.ws-fehlerplatz {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.blatt .liste-zeilen > li {
+  min-height: 44px;
+}
+
+/* Skeleton einer Zeile in Dialogen (Versionen) */
+.ws-sk-version {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+}
+
+/* Karte «Baustein hinzufügen» (E3): Wahlkarten als Knöpfe in drei Spalten */
+.ws-katalog {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-katalog .wahlkarte,
+.ws-wahlbild {
+  width: 100%;
+  height: 100%;
+  color: var(--text);
+  background: transparent;
+  font: inherit;
+  text-align: left;
+}
+
+.ws-katalog .wahlkarte:hover,
+.ws-wahlbild:hover {
+  background: var(--leiste);
+}
+
+.ws-katalogkopf {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.ws-katalogkopf .suche {
+  flex: 1 1 280px;
+  max-width: none;
+}
+
+.ws-ort {
+  flex: 1 1 240px;
+  max-width: 320px;
+}
+
+/* Formular im Seitenblatt «Baustein bearbeiten» (E4) */
+.ws-blattform {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ws-bildvorschau {
+  position: relative;
+  overflow: hidden;
+  background: var(--surface);
+  border-radius: 12px;
+}
+
+.ws-bildvorschau-bild {
+  display: block;
+  width: 100%;
+  max-height: 260px;
+  object-fit: contain;
+}
+
+.ws-bildvorschau:not(.geladen) .ws-bildvorschau-bild {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+}
+
+.ws-bildvorschau .sk {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  height: auto;
+}
+
+/* Bild eines Eintrags einer Liste (Station, Bildkarte, Porträt): halbe Höhe, damit die Liste überschaubar bleibt */
+.ws-bildwahl--klein .ws-bildvorschau-bild {
+  max-height: 140px;
+}
+
+.ws-bildwahl--klein .ws-bildvorschau .sk {
+  aspect-ratio: auto;
+  height: 140px;
+}
+
+.ws-bildangaben {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Teile einer Liste (Galerie, Karten) im Formular */
+.ws-liste {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.ws-teile {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-teil-karte {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: var(--leiste);
+  border-radius: 12px;
+}
+
+.ws-teil-karte h4 {
+  font-size: 0.9375rem;
+}
+
+.ws-teilaktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Bilder in «Bild wählen» */
+.ws-wahlbilder {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 12px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ws-wahlbild {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--rand);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.ws-wahlbild img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  background: var(--surface);
+  border-radius: 8px;
+}
+
+@media (max-width: 760px) {
+  .ws-katalog {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  dialog.ws-fenster {
+    padding: 16px;
+  }
+}
+
+@media (min-width: 761px) and (max-width: 1000px) {
+  .ws-katalog {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.ws-bildwahl > .knopf {
+  align-self: flex-start;
+}
+
+.ws-blattform .feld textarea {
+  min-height: 6rem;
+}
+
+/* Logo in den Einstellungen der Website (#550): auf hellem Grund, wie es im Kopf der Website steht */
+.ws-logovorschau {
+  display: block;
+  max-width: 100%;
+  max-height: 6rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+  background: #fff;
+}
+
+/* Fassung für den dunklen Modus (#558): auf dem dunklen Grund der Website */
+.ws-logovorschau--dunkel {
+  background: #141412;
+}
+
+/* Bild der Fehlerseiten (#567): breit, aber nicht höher als ein Logo-Feld */
+.ws-logovorschau--breit {
+  width: 100%;
+  max-width: 24rem;
+  max-height: 10rem;
+  padding: 0;
+  object-fit: cover;
+}
+
+/* Zeichen für den Browser-Tab (#558): quadratisch und klein, wie es später erscheint */
+.ws-logovorschau--zeichen {
+  width: 4rem;
+  height: 4rem;
+  object-fit: contain;
+}

@@ -96,7 +96,7 @@ let abteilungA: { name: string; id: string };
 
 const TAG = 86_400_000;
 
-test("die CLI legt Abteilung und Admin an, und die Anmeldung mit dem Startpasswort gelingt", async () => {
+test("die CLI legt Abteilung und Abteilungsleitung an, und die Anmeldung mit dem Startpasswort gelingt", async () => {
   const benutzername = neuerBenutzername();
   const abteilungsname = neuerAbteilungsname();
   const vorher = Date.now();
@@ -114,7 +114,7 @@ test("die CLI legt Abteilung und Admin an, und die Anmeldung mit dem Startpasswo
   expect(ergebnis.status).toBe(0);
   const zeilen = ergebnis.stdout.split("\n");
   expect(zeilen).toContain(`Abteilung «${abteilungsname}» angelegt.`);
-  expect(zeilen).toContain(`Admin «${benutzername}» angelegt.`);
+  expect(zeilen).toContain(`Abteilungsleitung «${benutzername}» angelegt.`);
   expect(zeilen).toContain(
     "Nicht weiterleiten. Gilt 7 Tage und nur für die erste Anmeldung.",
   );
@@ -162,7 +162,7 @@ test("die CLI legt Abteilung und Admin an, und die Anmeldung mit dem Startpasswo
   expect(await meldeAn(benutzername, startpasswort)).toBe(benutzer.id);
 });
 
-test("die CLI legt in einer bestehenden Abteilung einen weiteren Admin an, auch wenn es schon welche gibt", async () => {
+test("die CLI legt in einer bestehenden Abteilung einen weiteren Abteilungsleitung an, auch wenn es schon welche gibt", async () => {
   const benutzername = neuerBenutzername();
   const ergebnis = starte([
     "--benutzername",
@@ -220,7 +220,7 @@ test("eine unbekannte Abteilung bricht ab, ohne etwas anzulegen", async () => {
   ]);
   expect(ergebnis.status).toBe(1);
   expect(ergebnis.stderr).toContain(
-    `Admin nicht angelegt: Keine eindeutige Abteilung «${abteilungsname}».`,
+    `Abteilungsleitung nicht angelegt: Keine eindeutige Abteilung «${abteilungsname}».`,
   );
   expect(await benutzerMitNamen(benutzername)).toHaveLength(0);
 });
@@ -237,7 +237,7 @@ test("eine schon vorhandene Abteilung bricht «--neue-abteilung» ab", async () 
   ]);
   expect(ergebnis.status).toBe(1);
   expect(ergebnis.stderr).toContain(
-    `Admin nicht angelegt: Abteilung «${abteilungA.name}» gibt es schon.`,
+    `Abteilungsleitung nicht angelegt: Abteilung «${abteilungA.name}» gibt es schon.`,
   );
   expect(await benutzerMitNamen(benutzername)).toHaveLength(0);
   // Die Abteilung aus dem ersten Test bleibt die einzige mit diesem Namen
@@ -267,7 +267,7 @@ test("ist HIBP nicht erreichbar, bleibt kein halber Benutzer und kein Audit-Eint
     { HIBP_ATTRAPPE: "fehler" },
   );
   expect(ergebnis.status).toBe(1);
-  expect(ergebnis.stderr).toContain("Admin nicht angelegt:");
+  expect(ergebnis.stderr).toContain("Abteilungsleitung nicht angelegt:");
   expect(ergebnis.stdout + ergebnis.stderr).not.toContain("Startpasswort:");
   // createUser legt den User vor der HIBP-Prüfung an (#14); die Transaktion nimmt ihn samt Audit-Eintrag zurück
   expect(await benutzerMitNamen(benutzername)).toHaveLength(0);

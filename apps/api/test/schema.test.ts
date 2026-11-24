@@ -121,18 +121,18 @@ test("die Datenbank lehnt eine Sitzung mit IP-Adresse oder User-Agent ab", async
   });
 });
 
-test("Löschen eines Programms entfernt die Stufen-Zuordnung", async () => {
+test("Löschen eines Programms entfernt seine Tag-Zuordnung", async () => {
   await zurueckgerollt(sql, async (tx) => {
     const { abteilung, stufe } = await grunddaten(tx);
     const [programm] = await tx`
       insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis)
       values (${abteilung}, 'event00000000001', 'Testlager', true, '2027-07-30', '2027-08-02')
       returning id`;
-    await tx`insert into programm_stufe (programm_id, stufe_id) values (${programm.id}, ${stufe})`;
+    await tx`insert into programm_tag (programm_id, tag_id) values (${programm.id}, ${stufe})`;
 
     await tx`delete from programm where id = ${programm.id}`;
     expect(
-      await tx`select * from programm_stufe where programm_id = ${programm.id}`,
+      await tx`select * from programm_tag where programm_id = ${programm.id}`,
     ).toEqual([]);
   });
 });
@@ -195,7 +195,8 @@ test("rolle.typ nimmt nur leitung und stufenleitung an", async () => {
     const { stufe, person } = await grunddaten(tx);
     await scheitert(
       tx,
-      { code: "23514", constraint_name: "rolle_typ_check" },
+      // Seit 0035 ist «rolle» eine Sicht mit CHECK OPTION: Postgres meldet 44000 statt des Check-Fehlers der alten Tabelle
+      { code: "44000" },
       (sp) =>
         sp`insert into rolle (user_id, stufe_id, typ) values (${person}, ${stufe}, 'admin')`,
     );

@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/chats/:id/nachrichten"
-order: 65000
+order: 202000
 method: POST
 url: "{{baseUrl}}/api/v1/chats/{{gruppenchatAId}}/nachrichten"
 headers:
