@@ -90,7 +90,6 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
         zeichen = Promise.resolve(dateien);
       },
     },
-    datenschutz: seite("datenschutz.html"),
     kontoLoeschen: seite("konto-loeschen.html"),
     support: seite("support.html"),
   };

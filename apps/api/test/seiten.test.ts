@@ -41,7 +41,6 @@ const geladen = ladeSeiten();
 
 // Ohne Cookie («ohne Login»); seite === null heisst: Der genaue Inhalt kommt erst mit #24, hier zählt nur gültiges JSON
 test.each<[string, string, string | null]>([
-  ["/datenschutz", "text/html; charset=UTF-8", geladen.datenschutz],
   ["/konto-loeschen", "text/html; charset=UTF-8", geladen.kontoLoeschen],
   ["/support", "text/html; charset=UTF-8", geladen.support],
   ["/.well-known/apple-app-site-association", "application/json", null],
@@ -62,6 +61,13 @@ test.each<[string, string, string | null]>([
     }
   },
 );
+
+// Alte Adresse der Erklärung: die Erklärung der Abteilung ist die Seite «datenschutz-website» des Seiteneditors
+test("GET /datenschutz leitet ohne Login mit 308 auf /datenschutz-website weiter", async () => {
+  const antwort = await app.request("/datenschutz");
+  expect(antwort.status).toBe(308);
+  expect(antwort.headers.get("location")).toBe("/datenschutz-website");
+});
 
 // Verwaltung im Browser (#141)
 const admin = ladeSeiten().admin;
@@ -229,7 +235,6 @@ describe("Seiten für die Stores", () => {
   };
   const seiten = ladeSeiten(kontakt);
   const alle = Object.entries({
-    datenschutz: seiten.datenschutz,
     kontoLoeschen: seiten.kontoLoeschen,
     support: seiten.support,
   });
@@ -246,24 +251,23 @@ describe("Seiten für die Stores", () => {
   );
 
   test("die Stelle wird maskiert", () => {
-    expect(seiten.datenschutz).toContain("Cevi &lt;Beispiel&gt; &amp; Co");
-    expect(seiten.datenschutz).not.toContain("<Beispiel>");
+    const html = setzeKontakt("{{STELLE}}", kontakt);
+    expect(html).toContain("Cevi &lt;Beispiel&gt; &amp; Co");
+    expect(html).not.toContain("<Beispiel>");
   });
 
   test("die Anschrift wird eingesetzt und maskiert", () => {
-    expect(seiten.datenschutz).toContain(
+    expect(setzeKontakt("{{ADRESSE}}", kontakt)).toContain(
       "Beispielweg 1 &amp; 2, 8000 Beispielort",
     );
   });
 
   test("ohne Angaben nennen die Seiten weder Stelle noch Adresse, sagen es aber", () => {
-    expect(geladen.datenschutz).toContain("noch nicht eingetragen");
-    expect(geladen.datenschutz).toContain(
+    expect(setzeKontakt("{{ADRESSE}}", {})).toBe(
       "die Anschrift der Abteilung (noch nicht eingetragen)",
     );
-    expect(setzeKontakt("{{ADRESSE}}", {})).toContain("noch nicht eingetragen");
-    expect(geladen.datenschutz).not.toContain("mailto:");
     expect(setzeKontakt("{{STELLE}}", {})).toBe("die Abteilung");
+    expect(geladen.kontoLoeschen).not.toContain("mailto:");
   });
 
   test.each(alle)(
@@ -276,27 +280,16 @@ describe("Seiten für die Stores", () => {
       expect(html).not.toMatch(
         /<script|<img|<iframe|<link(?![^>]*href="\/(favicon\.ico|apple-touch-icon\.png)")|\ssrc\s*=|@import|url\(/i,
       );
-      // Verweise nach aussen: nur die Aufsichtsbehörde und die Standardvertragsklauseln der EU-Kommission
-      const aussen = [...html.matchAll(/href="(https?:[^"]+)"/g)].map(
-        (m) => m[1],
-      );
-      expect(
-        aussen.every((u) =>
-          [
-            "https://www.edoeb.admin.ch",
-            "https://commission.europa.eu/",
-          ].includes(u!),
-        ),
-      ).toBe(true);
+      // Keine Verweise nach aussen
+      expect(html).not.toMatch(/href="https?:/);
       expect(html).not.toContain("ß");
     },
   );
 
-  test("jede Seite verlinkt die beiden anderen", () => {
+  test("jede Seite verlinkt die Datenschutzerklärung und die andere Seite", () => {
     for (const [html, pfade] of [
-      [seiten.datenschutz, ["/konto-loeschen", "/support"]],
-      [seiten.kontoLoeschen, ["/datenschutz", "/support"]],
-      [seiten.support, ["/datenschutz", "/konto-loeschen"]],
+      [seiten.kontoLoeschen, ["/datenschutz-website", "/support"]],
+      [seiten.support, ["/datenschutz-website", "/konto-loeschen"]],
     ] as const) {
       for (const pfad of pfade) expect(html).toContain(`href="${pfad}"`);
     }
@@ -313,7 +306,6 @@ describe("Seiten für die Stores", () => {
 // Favicon überall (#581): Plattformseiten und Verwaltung zeigen dasselbe Zeichen wie die Website
 describe("Favicon der Plattformseiten und der Verwaltung", () => {
   const SEITEN = [
-    ["/datenschutz", geladen.datenschutz],
     ["/konto-loeschen", geladen.kontoLoeschen],
     ["/support", geladen.support],
     ["/admin", String(admin["index.html"])],

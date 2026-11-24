@@ -41,22 +41,21 @@ paths:
   /datenschutz:
     get:
       operationId: getDatenschutzSeite
-      summary: Datenschutzerklärung als HTML-Seite
+      summary: Alte Adresse der Datenschutzerklärung, leitet weiter
       tags:
         - Allgemein
       security: []
       description: |
-        Öffentliche Seite für die App-Stores, ohne Anmeldung und ausserhalb der Versionsprüfung.
-        Alle Personen (auch deaktivierte und nicht angemeldete) erhalten 200.
-        Die Seite ist die Datenschutzerklärung der Abteilung (Abschnitte 1 bis 10) und nennt in Abschnitt 11
-        die Datenkategorien, Empfänger, Fristen und Rechte von Cevi OS; die verantwortliche Stelle, ihre
-        Anschrift und ihre E-Mail-Adresse setzt der Server aus `VERANTWORTLICHE_STELLE`,
-        `VERANTWORTLICHE_ADRESSE` und `KONTAKT_EMAIL` ein.
+        Ohne Anmeldung und ausserhalb der Versionsprüfung. Alle Personen (auch deaktivierte und nicht angemeldete)
+        erhalten 308 auf `/datenschutz-website`. Das ist die Seite `datenschutz-website` des Seiteneditors und
+        damit die Datenschutzerklärung der Abteilung. Die alte Adresse bleibt, damit Einträge in den App-Stores,
+        Apps und Mails gültig bleiben; `datenschutz` selbst ist eine reservierte Adresse der obersten Ebene.
       responses:
-        "200":
-          description: HTML-Seite (`text/html; charset=UTF-8`).
-          content:
-            text/html:
+        "308":
+          description: Weiterleitung auf `/datenschutz-website`.
+          headers:
+            Location:
+              description: Immer `/datenschutz-website`.
               schema:
                 type: string
   /favicon.ico:
@@ -68,7 +67,7 @@ paths:
       security: []
       description: |
         Das Zeichen der Abteilung (Website, Einstellungen), sonst das Cevi-Zeichen der Plattform, als 32-px-Symbol für
-        die Verwaltung und die Seiten der Plattform (`/datenschutz`, `/support`, `/konto-loeschen`). Dieselben Dateien
+        die Verwaltung und die Seiten der Plattform (`/support`, `/konto-loeschen`). Dieselben Dateien
         schreibt der Abgleich neben die Seiten der Website. Ohne Anmeldung, ohne Datenbankabfrage je Aufruf (die Dateien
         liegen im Speicher), mit `ETag`. Liegt die Website am selben Host, liefert der Edge die Datei statisch aus.
       responses:

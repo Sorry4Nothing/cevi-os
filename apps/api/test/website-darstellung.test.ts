@@ -615,10 +615,10 @@ describe("Fuss (#580)", () => {
     );
   });
 
-  test("ohne Angaben: kein erfundenes Impressum, Datenschutz führt auf die Erklärung der Plattform, keine leeren Angaben", () => {
+  test("ohne Angaben: kein erfundenes Impressum, Datenschutz führt auf die Seite «datenschutz-website», keine leeren Angaben", () => {
     const html = fuss(keineDaten());
     expect(html).not.toContain("Impressum");
-    expect(html).toContain('<a href="/datenschutz">Datenschutz</a>');
+    expect(html).toContain('<a href="/datenschutz-website">Datenschutz</a>');
     expect(html).not.toContain("<address>");
     expect(html).not.toContain("fuss-kontakt");
   });

@@ -11,7 +11,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | Route                                         | Zweck                                                                                | Status je Persona |
 | --------------------------------------------- | ------------------------------------------------------------------------------------ | ----------------- |
 | `GET /health`                                 | Gesundheitsprüfung                                                                   | **200** alle      |
-| `GET /datenschutz`                            | Datenschutzerklärung als HTML-Seite                                                  | **200** alle      |
+| `GET /datenschutz`                            | Alte Adresse der Datenschutzerklärung, leitet auf `/datenschutz-website` weiter      | **308** alle      |
 | `GET /konto-loeschen`                         | Hinweis zum Löschen des Kontos als HTML-Seite                                        | **200** alle      |
 | `GET /support`                                | Support-Seite als HTML-Seite                                                         | **200** alle      |
 | `GET /favicon.ico`                            | Favicon der Abteilung (32 px) für Verwaltung und Plattformseiten                     | **200** alle      |

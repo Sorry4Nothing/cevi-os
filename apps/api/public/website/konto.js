@@ -406,7 +406,7 @@ export function datenschutzKarte(s) {
         "a",
         {
           class: "btn s",
-          href: "/datenschutz",
+          href: "/datenschutz-website",
           target: "_blank",
           rel: "noopener",
         },
@@ -579,7 +579,7 @@ export function hilfeKarte(s) {
       "ul",
       { class: "linkliste" },
       [
-        ["/datenschutz", "Datenschutzerklärung"],
+        ["/datenschutz-website", "Datenschutzerklärung"],
         ["/termine/", "Kalender abonnieren"],
         ["/support", "Hilfe und Kontakt"],
         ["/konto-loeschen", "Konto löschen"],

@@ -101,7 +101,7 @@ describe("Sicherheits-Kopfzeilen (#220)", () => {
     });
   });
 
-  test.each(["/datenschutz", "/health"])(
+  test.each(["/support", "/health"])(
     "%s: die Kopfzeilen, aber kein no-store, weil kein JSON",
     async (pfad) => {
       const antwort = await app.request(pfad);

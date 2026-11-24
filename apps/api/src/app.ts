@@ -185,7 +185,6 @@ export function erstelleApp({
     admin: AdminDateien;
     // Favicon der Abteilung für /favicon.ico und /apple-touch-icon.png (#581)
     zeichen: { holen: () => Promise<ZeichenDateien> };
-    datenschutz: string;
     kontoLoeschen: string;
     support: string;
   };
@@ -420,7 +419,8 @@ export function erstelleApp({
         }
       })
       // Seiten für die Stores, ohne Login und ausserhalb der Versionsprüfung; die Texte folgen in #63
-      .get("/datenschutz", (c) => c.html(seiten.datenschutz))
+      // Alte Adresse der Erklärung (Stores, Apps, Mails): die Erklärung ist die Seite «datenschutz-website» des Seiteneditors
+      .get("/datenschutz", (c) => c.redirect("/datenschutz-website", 308))
       .get("/konto-loeschen", (c) => c.html(seiten.kontoLoeschen))
       .get("/support", (c) => c.html(seiten.support))
       // Favicon für Verwaltung und Plattformseiten (#581): dieselben Dateien, die der Abgleich neben die Website schreibt; im Speicher, ohne Datenbank. Mit der Website am selben Host liefert der Edge sie statisch aus

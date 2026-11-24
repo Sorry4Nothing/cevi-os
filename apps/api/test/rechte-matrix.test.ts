@@ -126,7 +126,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /health": { erwartet: alle(200) },
   // Wurzeladresse (#531): leitet auf /admin
   // Statische Seiten und .well-known: offen für alle, auch deaktiviert und ohne Login
-  "GET /datenschutz": { erwartet: alle(200) },
+  "GET /datenschutz": { erwartet: alle(308) },
   "GET /konto-loeschen": { erwartet: alle(200) },
   "GET /support": { erwartet: alle(200) },
   "GET /favicon.ico": { erwartet: alle(200) },
