@@ -66,6 +66,25 @@ describe("Leisten der Verwaltung", () => {
     );
   });
 
+  test("das Profil im Kopf hat Rand, Pillenform, Höhe und Zeigen wie «Suchen» und der Umschalter", () => {
+    const konto = /\n\.konto \{([^}]*)\}/.exec(css)![1]!;
+    expect(konto).toContain("border: 1px solid var(--outline)");
+    expect(konto).toContain("border-radius: var(--r-full)");
+    expect(konto).toContain("min-height: 2.75rem");
+    expect(konto).toContain("box-sizing: border-box");
+    // Zeigen und geöffnet: blau gefüllt wie «Suchen»
+    expect(css).toMatch(
+      /\.konto:hover,\s*\.konto-menue\[open\] > \.konto \{[^}]*border-color: var\(--secondary\);[^}]*background: var\(--secondary\);[^}]*color: var\(--on-secondary\)/,
+    );
+    expect(css).toMatch(
+      /\.logozeile \.knopf:hover \{[^}]*border-color: var\(--secondary\);[^}]*background: var\(--secondary\)/,
+    );
+    // Erzwungene Farben: geöffnet mit kräftigem Rand wie der gedrückte Umschalter
+    expect(css).toMatch(
+      /@media \(forced-colors: active\) \{[^@]*\.konto-menue\[open\] > \.konto \{\s*border: 3px solid Highlight/,
+    );
+  });
+
   test("schmal bleibt die Logozeile eine Zeile: nur Symbole; das Konto-Menü bleibt als Bild erreichbar", () => {
     expect(css).toMatch(/\.palette-knopf-text,\s+\.palette-kuerzel/);
     expect(css).not.toMatch(/\.logozeile \.breite \{[^}]*flex-wrap: wrap/);

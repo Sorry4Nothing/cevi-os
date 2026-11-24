@@ -177,14 +177,26 @@ a.bereichname:hover {
   cursor: pointer;
   list-style: none;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
+  box-sizing: border-box;
   min-width: 0;
   min-height: 2.75rem;
-  padding: 0.125rem 1rem 0.125rem 0.125rem;
+  padding: 0.25rem 0.75rem 0.25rem 0.25rem;
+  /* Rand, Pillenform, Höhe und Zeigen wie «Suchen» und der Umschalter (.logozeile .knopf, .thema) */
+  border: 1px solid var(--outline);
   color: var(--text);
   border-radius: var(--r-full);
   text-decoration: none;
-  transition: background var(--dauer) var(--kurve);
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve),
+    border-color var(--dauer) var(--kurve);
+}
+
+.konto .ava {
+  width: 2.125rem;
+  height: 2.125rem;
+  font-size: 0.8125rem;
 }
 
 .konto::-webkit-details-marker {
@@ -201,12 +213,26 @@ a.bereichname:hover {
   transform: rotate(180deg);
 }
 
+/* Zeigen und geöffnet: blau gefüllt wie «Suchen» beim Zeigen; Rolle und Bild bleiben lesbar */
 .konto:hover,
 .konto-menue[open] > .konto {
-  color: var(--text);
-  background: var(--erhoben);
+  border-color: var(--secondary);
+  background: var(--secondary);
+  color: var(--on-secondary);
 }
 
+.konto:hover .leise,
+.konto-menue[open] > .konto .leise {
+  color: var(--on-secondary-muted);
+}
+
+.konto:hover .ava,
+.konto-menue[open] > .konto .ava {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+/* Die Seite «Mein Konto» ist offen */
 .konto--hier {
   box-shadow: inset 0 0 0 2px var(--blau);
 }
@@ -316,6 +342,10 @@ a.bereichname:hover {
 @media (forced-colors: active) {
   .konto-tafel {
     border: 1px solid CanvasText;
+  }
+
+  .konto-menue[open] > .konto {
+    border: 3px solid Highlight;
   }
 }
 
@@ -534,7 +564,7 @@ a.bereichname:hover {
 @media (max-width: 1100px) {
   /* Name und Rolle bleiben für Screenreader, weichen aber dem Platz (A2) */
   .konto {
-    padding-right: 0.125rem;
+    padding-right: 0.25rem;
   }
 
   .konto .i {
