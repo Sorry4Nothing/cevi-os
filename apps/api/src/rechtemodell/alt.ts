@@ -18,11 +18,12 @@ export type Altweg = (
   objekt: Objekt,
 ) => Promise<boolean>;
 
-const nurAbteilungsleitung: Altweg = async (_db, person) => person.admin;
+const nurAbteilungsleitung: Altweg = async (_db, person) =>
+  person.abteilungsleitung;
 
 // Anwesenheit, Teilnahmen und Kontakte einer Stufe (#650): die Abteilungsleitung und die Leitung der Stufe (die Stufenleitung erfüllt jede Prüfung auf Leitung, hatRolle). Ohne Stufe: irgendeine Stufenrolle
 const abteilungsleitungOderLeitung: Altweg = async (_db, person, objekt) => {
-  if (person.admin) return true;
+  if (person.abteilungsleitung) return true;
   // Die Frage gilt der ganzen Abteilung: Eine Stufenrolle gibt das nie
   if (objekt.abteilungsweit) return false;
   const stufeId = objekt.stufeId ?? objekt.tagId;
@@ -64,29 +65,34 @@ export const ALTWEG: Partial<Record<RechtId, Altweg>> = {
   "raum.anfrage_entscheiden": (db, person, objekt) =>
     darfEntscheiden(
       db as Db,
-      { id: person.id, admin: person.admin, zweiterFaktor: true },
+      {
+        id: person.id,
+        abteilungsleitung: person.abteilungsleitung,
+        zweiterFaktor: true,
+      },
       objekt.raumTeamTagId ?? null,
     ),
-  // Jedes Programm der Abteilung sieht die Abteilungsleitung und, wer irgendwo Stufenleitung ist (rechte.ts, adminOderSl)
+  // Jedes Programm der Abteilung sieht die Abteilungsleitung und, wer irgendwo Stufenleitung ist (programmsicht.ts, siehtAlles)
   "programm.alle_sehen": async (_db, person) =>
-    person.admin || person.rollen.some((r) => r.typ === "stufenleitung"),
+    person.abteilungsleitung ||
+    person.rollen.some((r) => r.typ === "stufenleitung"),
   "anwesenheit.fuehren": abteilungsleitungOderLeitung,
   "stufe.einblick": abteilungsleitungOderLeitung,
   "plattform.sperren": async (db, person) =>
-    person.admin || (await istEntwickler(db, person)),
+    person.abteilungsleitung || (await istEntwickler(db, person)),
   // Wartung eines Bereichs (#648): wie die Sperre bisher, Abteilungsleitung und Entwickler; neu zusätzlich über Rollen
   "wartung.bereiche": async (db, person) =>
-    person.admin || (await istEntwickler(db, person)),
+    person.abteilungsleitung || (await istEntwickler(db, person)),
   "protokoll.lesen": (db, person) => istEntwickler(db, person),
   // Rechte der Abteilungsleitung ändern (#663): nur der Entwickler
   "rechte.abteilungsleitung": (db, person) => istEntwickler(db, person),
   // Profilbild einer Person entfernen (#642): Abteilungsleitung oder Entwickler
   "profilbild.entfernen": async (db, person) =>
-    person.admin || (await istEntwickler(db, person)),
+    person.abteilungsleitung || (await istEntwickler(db, person)),
   "entwickler.vergeben": async () => false,
 };
 
-// Alles ohne eigene Hülle hing bisher an «person.admin» (die rund 100 Stellen aus docs/rechte-umstellung.md); strukturelle Rechte hängen an der Beziehung, die die Route prüft
+// Alles ohne eigene Hülle hing bisher an «person.admin» (heute person.abteilungsleitung) (die rund 100 Stellen aus docs/rechte-umstellung.md); strukturelle Rechte hängen an der Beziehung, die die Route prüft
 export async function altweg(
   db: Pick<Db, "select">,
   person: Person,

@@ -148,7 +148,7 @@ export function erstellePersonenRouten({
 }) {
   // Konten mit Rechten betreut nur, wer selbst jedes Recht hat: die Abteilungsleitung und der Entwickler (#722)
   const betreutKontenMitRechten = async (person: Person) =>
-    person.admin || (await istEntwickler(db, person));
+    person.abteilungsleitung || (await istEntwickler(db, person));
 
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
   async function ladeZiel(person: Person, id: string) {

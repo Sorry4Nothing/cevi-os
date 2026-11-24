@@ -7,7 +7,7 @@ import {
   SCHALTER_BEREICHE,
 } from "./db/schema.js";
 import { istEntwickler } from "./plattform.js";
-import type { Person } from "./rechte.js";
+import { siehtAlles, type Person } from "./rechte.js";
 
 // Bereichsschalter (#424 Wartungsmodus, #425 Informationssperre).
 // Der Zustand wird beim Start aus der Tabelle bereichsschalter geladen und im Speicher gehalten; jede Schaltung aktualisiert ihn. Eine Anfrage fragt die Datenbank nie danach, nur nach dem Entwickler, und nur, wenn ein Schalter den Bereich trifft und die Anfrage sonst blockiert würde (einmal je Anfrage, rechte.ts lädt es je Person-Objekt).
@@ -140,10 +140,8 @@ export const IN_WARTUNG = {
 
 // Hinter personAusSitzung. Ohne aktiven Schalter kostet sie nichts
 export function erstelleSchalterPruefung({
-  db,
   zustand,
 }: {
-  db: Db;
   zustand: SchalterZustand;
 }) {
   return createMiddleware<{ Variables: { person: Person } }>(
@@ -160,7 +158,7 @@ export function erstelleSchalterPruefung({
         wartung &&
         (!LESEND.has(c.req.method) || BEARBEITUNG.test(c.req.path)) &&
         // Abteilungsleitung und Entwickler arbeiten weiter (die Verwaltung bleibt erreichbar)
-        !(person.admin || (await istEntwickler(db, person)))
+        !siehtAlles(person)
       ) {
         return c.json(
           {

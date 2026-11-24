@@ -388,14 +388,14 @@ export function erstelleMedienRouten({
   handler: MedienHandler;
 }) {
   // Vor jeder Prüfung des Inhalts: Wer kein Recht hat, erfährt nichts über Eingabe oder Speicher. Das Recht «Medien verwalten» (#648): Abteilungsleitung oder eine Rolle wie «Webmaster», mit zweitem Faktor
-  const nurAdmin = createMiddleware<{ Variables: { person: Person } }>(
+  const nurMedienRecht = createMiddleware<{ Variables: { person: Person } }>(
     async (c, next) => {
       await verlange(db, c.get("person"), "medien.verwalten");
       await next();
     },
   );
   // Auch ohne die Middleware (DELETE): fehlt das Recht, 403; fehlt der zweite Faktor, 403 ZWEITER_FAKTOR_FEHLT
-  const istAdmin: Darf = async (person) => {
+  const hatMedienRecht: Darf = async (person) => {
     await verlange(db, person, "medien.verwalten");
     return true;
   };
@@ -404,16 +404,19 @@ export function erstelleMedienRouten({
     new Hono<{ Variables: { person: Person } }>()
       .post(
         "/admin/medien",
-        nurAdmin,
+        nurMedienRecht,
         eingabe("query", hochladenSchema),
         medienUploadLimit,
         (c) => handler.hochladen(c, c.req.valid("query")),
       )
-      .get("/admin/medien", nurAdmin, eingabe("query", listeSchema), (c) =>
-        handler.liste(c, c.req.valid("query")),
+      .get(
+        "/admin/medien",
+        nurMedienRecht,
+        eingabe("query", listeSchema),
+        (c) => handler.liste(c, c.req.valid("query")),
       )
       .delete("/admin/medien/:id", eingabe("param", pfadSchema), (c) =>
-        handler.loeschen(c, c.req.valid("param").id, istAdmin),
+        handler.loeschen(c, c.req.valid("param").id, hatMedienRecht),
       )
       // Nicht öffentliche Medien: Sitzung (die Middleware davor) und gleiche Abteilung; fremde und unbekannte IDs sind gleich 404. Öffentliche liefert schon erstelleOeffentlicheMedienRoute
       .get("/medien/:id", eingabe("param", pfadSchema), async (c) => {

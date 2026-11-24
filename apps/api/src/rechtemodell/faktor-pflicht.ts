@@ -16,7 +16,7 @@ export async function brauchtFaktorFuerVerwaltung(
   db: Pick<Db, "execute">,
   person: Person,
 ): Promise<boolean> {
-  if (person.admin) return true;
+  if (person.abteilungsleitung) return true;
   const satz = await ladeRechteSatz(db, person);
   return RECHT_IDS.some((r) => satz.hat(r) && satz.braucht2Faktor(r));
 }

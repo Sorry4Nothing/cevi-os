@@ -88,7 +88,8 @@ const rollen = async (konto: PersonaKonto) =>
 const person = (konto: PersonaKonto, admin: boolean): Person => ({
   id: konto.id!,
   abteilungId: konto.abteilungId!,
-  admin,
+  abteilungsleitung: admin,
+  entwickler: false,
   zweiterFaktor: true,
   rollen: [],
 });

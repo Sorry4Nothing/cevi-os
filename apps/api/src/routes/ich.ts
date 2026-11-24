@@ -3,14 +3,7 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import {
-  kind,
-  kindZugang,
-  plattformEntwickler,
-  profilbild,
-  stufe,
-  user,
-} from "../db/schema.js";
+import { kind, kindZugang, profilbild, stufe, user } from "../db/schema.js";
 import { bildUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import { ladeKindKontoEinstellung } from "../kind-konto.js";
@@ -143,18 +136,14 @@ export function erstelleIchRouten({ db }: { db: Db }) {
                 },
               ];
         });
-        const entwickler = await db
-          .select({ userId: plattformEntwickler.userId })
-          .from(plattformEntwickler)
-          .where(eq(plattformEntwickler.userId, person.id));
         // Der Anmelde-Push gilt nur Leitenden: Allen anderen zeigt die API den Schalter nicht
         const { pushAnmeldungen, ...rest } = profil;
         return c.json({
           ...rest,
           ...(person.rollen.length > 0 && { pushAnmeldungen }),
           // Die Rollen kommen von hier, nie aus role von better-auth: Abteilungsleitung = das Konto steht in abteilungsleitung_person, Entwickler = es steht in plattform_entwickler (#736)
-          abteilungsleitung: person.admin,
-          entwickler: entwickler.length > 0,
+          abteilungsleitung: person.abteilungsleitung,
+          entwickler: person.entwickler,
           // Das Konto hat ihn eingerichtet; ob diese Sitzung den Code geprüft hat, steht nicht hier (App-Sitzungen nie, #721)
           zweiterFaktor: person.zweiterFaktorKonto ?? person.zweiterFaktor,
           rollen: person.rollen,

@@ -25,6 +25,7 @@ import {
   kindKontoEinstellung,
   kindZugang,
   nachricht,
+  plattformEntwickler,
   rolle,
   stufe,
   user,
@@ -34,7 +35,10 @@ import {
 export type Person = {
   id: string;
   abteilungId: string;
-  admin: boolean;
+  // Das Konto steht in abteilungsleitung_person (#720)
+  abteilungsleitung: boolean;
+  // Das Konto steht in plattform_entwickler: hat jedes Recht (#722) und, über siehtAlles, jede Sicht
+  entwickler: boolean;
   // Gilt für diese Anfrage: Das Konto hat den zweiten Faktor UND diese Sitzung hat den Code geprüft (#721). Alle Prüfungen «braucht den zweiten Faktor» lesen dieses Feld. Eine App-Sitzung ohne Code ist hier falsch, auch bei einem Konto mit Faktor. Bei ladePerson (ohne Sitzung) gilt das Konto
   zweiterFaktor: boolean;
   // Das Konto hat den zweiten Faktor eingerichtet, unabhängig von der Sitzung: für die Anzeige (/api/v1/ich) und den Code der Antwort (ZWEITER_FAKTOR_SITZUNG statt ZWEITER_FAKTOR_FEHLT). Fehlt das Feld, gilt zweiterFaktor
@@ -43,6 +47,11 @@ export type Person = {
   // Gesetzt, wenn das Konto das eigene Konto eines Kindes ist (#644): die ID dieses Kindes. Solche Konten haben nie eine Rolle und nie die Abteilungsleitung
   kindId?: string;
 };
+
+// Sicht, kein Recht: Wer die Abteilungsleitung oder der Entwickler ist, sieht jedes Objekt der eigenen Abteilung (alle Programme, Seiten, Termine, jedes Lager als Lagerleitung, alle Kacheln der Übersicht). Der Katalog der Rechte kennt das nicht; wer nur ein Recht hat, sieht damit nichts Fremdes
+export const siehtAlles = (
+  person: Pick<Person, "abteilungsleitung" | "entwickler">,
+) => person.abteilungsleitung || person.entwickler;
 
 // Jede Route unter /api/v1 lädt ihr Objekt in SQL auf person.abteilungId gefiltert, sonst HTTPException(404); erst dann prüft sie das Recht, sonst HTTPException(403)
 export function personAusSitzung(
@@ -77,6 +86,7 @@ export function personAusSitzung(
           typ: sql<string | null>`${rolle.typ}`.as("typ"),
           kindId: sql<string | null>`null::uuid`.as("kind_id"),
           abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`false`.as("entwickler"),
         })
         .from(rolle)
         .innerJoin(
@@ -93,6 +103,7 @@ export function personAusSitzung(
           typ: sql<string | null>`null::text`.as("typ"),
           kindId: sql<string | null>`${kind.id}`.as("kind_id"),
           abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`false`.as("entwickler"),
         })
         .from(kind)
         .where(
@@ -108,9 +119,21 @@ export function personAusSitzung(
           typ: sql<string | null>`null::text`.as("typ"),
           kindId: sql<string | null>`null::uuid`.as("kind_id"),
           abteilungsleitung: sql<boolean>`true`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`false`.as("entwickler"),
         })
         .from(abteilungsleitungPerson)
         .where(eq(abteilungsleitungPerson.userId, sitzung.user.id)),
+      // Der Entwickler steht ebenfalls in einer eigenen Tabelle (nur per CLI vergeben); derselbe Zweig der Union, keine zusätzliche Abfrage
+      db
+        .select({
+          stufeId: sql<string | null>`null::uuid`.as("stufe_id"),
+          typ: sql<string | null>`null::text`.as("typ"),
+          kindId: sql<string | null>`null::uuid`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`true`.as("entwickler"),
+        })
+        .from(plattformEntwickler)
+        .where(eq(plattformEntwickler.userId, sitzung.user.id)),
     );
     const rollen = zeilen.flatMap((z) =>
       z.stufeId && z.typ
@@ -121,7 +144,8 @@ export function personAusSitzung(
     c.set("person", {
       id: sitzung.user.id,
       abteilungId: sitzung.user.abteilungId,
-      admin: zeilen.some((z) => z.abteilungsleitung),
+      abteilungsleitung: zeilen.some((z) => z.abteilungsleitung),
+      entwickler: zeilen.some((z) => z.entwickler),
       zweiterFaktor:
         sitzung.user.twoFactorEnabled === true &&
         (sitzung.session as { zweiterFaktorGeprueft?: boolean })
@@ -141,7 +165,7 @@ export const zweiterFaktorPflicht = createMiddleware<{
   Variables: { person: Person };
 }>(async (c, next) => {
   const person = c.get("person");
-  if (person.admin && !person.zweiterFaktor) {
+  if (person.abteilungsleitung && !person.zweiterFaktor) {
     return c.json(
       zweiterFaktorFehlt(
         "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
