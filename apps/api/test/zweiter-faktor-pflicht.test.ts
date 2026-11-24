@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { count, eq } from "drizzle-orm";
+import { and, count, eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { erstelleApp } from "../src/app.js";
@@ -50,7 +50,12 @@ beforeAll(async () => {
   const [rolle] = await db
     .select({ id: schema.plattformRolle.id })
     .from(schema.plattformRolle)
-    .where(eq(schema.plattformRolle.schluessel, "webmaster"));
+    .where(
+      and(
+        eq(schema.plattformRolle.schluessel, "webmaster"),
+        eq(schema.plattformRolle.abteilungId, welt.testabteilungId),
+      ),
+    );
   webmasterRolle = rolle.id;
 });
 
