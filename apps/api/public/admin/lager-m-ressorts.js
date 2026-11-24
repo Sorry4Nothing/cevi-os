@@ -5,6 +5,7 @@ import { ADRESSE, haenge, ID, nichtGefunden } from "./lager-gemeinsam.js";
 import { istVersionKonflikt, schreibFehlertext } from "./lager-konflikt.js";
 import { ansichtVon } from "./rueckgaengig.js";
 import { sortierListe } from "./sortieren.js";
+import { personZeile } from "./lager-aufgaben-gemeinsam.js";
 import { personName } from "./lager-start-teile.js";
 import { leerKarte } from "./zustaende.js";
 
@@ -471,8 +472,8 @@ function detail(bereich, ctx, lager, ressortId) {
             { class: "werte" },
             [
               ["Kürzel", ressort.kuerzel],
-              ["Leitung", personName(ressort.leitung) ?? "–"],
-              ["Stellvertretung", personName(ressort.stv) ?? "–"],
+              ["Leitung", personZeile(ressort.leitung, { leer: "–" })],
+              ["Stellvertretung", personZeile(ressort.stv, { leer: "–" })],
               ["Zustand", ressort.ruhig ? "Ruhend" : "Aktiv"],
               ["Notiz", ressort.notiz ?? "–"],
             ].map(([k, v]) => el("div", {}, el("dt", {}, k), el("dd", {}, v))),

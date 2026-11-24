@@ -1,5 +1,14 @@
 import { anfrage } from "./api.js";
-import { ankreuzen, auswahl, el, icon, knopf, menue, neueId } from "./dom.js";
+import {
+  ankreuzen,
+  auswahl,
+  avatar,
+  el,
+  icon,
+  knopf,
+  menue,
+  neueId,
+} from "./dom.js";
 import { fehlertext } from "./api.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { ersetzeMitBewegung } from "./lager-anim.js";
@@ -241,7 +250,7 @@ export function erstelleAuswahl(beiAenderung = () => {}) {
   };
 }
 
-// Eine Person in einer Liste. person: { typ, id, schluessel, name, neben? }
+// Eine Person in einer Liste. person: { typ, id, schluessel, name, neben?, bildUrl? } (bildUrl nur bei Konten mit Bild; Teilnehmende und Personen ohne Bild zeigen die Initialen)
 // optionen: auswahl (erstelleAuswahl), ziehen (true, wenn der Griff erscheint), eintraege: Einträge des Menüs «Verschieben» ([{ text, onclick, gefaehrlich }]), badge: Knoten
 export function personZeile(
   person,
@@ -280,6 +289,7 @@ export function personZeile(
       kasten?.wurzel,
       griff,
       vorn,
+      avatar(person.name, { hell: true, bildUrl: person.bildUrl }),
       el(
         "div",
         { class: "mn-person-text" },
