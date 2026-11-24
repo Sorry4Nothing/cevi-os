@@ -1404,7 +1404,7 @@ Bisher hatte die Abteilungsleitung (technisch das Konto mit der Rolle `admin`) f
 
 **OWASP:** ASVS V4 Access Control, V8 Data Protection, V16 Logging; Top 10 A01 Broken Access Control; API1, API3, API5.
 
-### 62. Profilbilder in den Antworten der Lager-Routen (#697)
+### 63. Profilbilder in den Antworten der Lager-Routen (#697)
 
 Die Lager-Antworten (Mitglieder, Aufgaben, Höcks, Pinnwand, Fahrten, Gruppen, Schichtplan, Anwesenheit, Diensttausch, Ressorts, Notfallkontakte, Tagesseiten, Umfragen) nennen neben dem Namen einer Person das Feld `bildUrl` (Pfad `/api/v1/personen/{id}/bild?v=…` oder `null`), damit die Verwaltung das Bild statt der Initialen zeigt. Das Bild selbst liefert weiterhin nur `GET /api/v1/personen/{id}/bild`; neu gilt dort der Weg «gemeinsames Lager»: Wer Mitglied desselben Lagers ist wie die Person (aktives Konto der Abteilung), darf ihr Bild abrufen.
 
