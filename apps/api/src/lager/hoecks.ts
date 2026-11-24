@@ -13,6 +13,7 @@ import {
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   aufgabe,
@@ -245,7 +246,13 @@ export const traktandenUebernehmen = z.strictObject({
   traktandumIds: z.array(z.uuid()).min(1).max(200).optional(),
 });
 
-type PersonKurz = { id: string; name: string | null; ceviName: string | null };
+type PersonKurz = {
+  id: string;
+  name: string | null;
+  ceviName: string | null;
+  // Pfad des Profilbilds (Mitglied des Lagers mit Bild), sonst null
+  bildUrl: string | null;
+};
 
 // Ein JSON-Wert aus einer Unterabfrage: Der Treiber liefert ihn als Text, die Abfrage dekodiert ihn selbst
 const jsonListe = <T>(abfrage: SQL) =>
@@ -256,11 +263,11 @@ const jsonListe = <T>(abfrage: SQL) =>
 // Die Unterabfragen laufen als Teil der Hauptabfrage: keine Abfrage je Zeile
 const anwesende = () =>
   jsonListe<PersonKurz>(
-    sql`select json_agg(json_build_object('id', ${user.id}, 'name', ${user.name}, 'ceviName', ${user.ceviName}) order by ${user.name}, ${user.id}) from ${hoeckAnwesenheit} inner join ${user} on ${user.id} = ${hoeckAnwesenheit.personId} where ${hoeckAnwesenheit.hoeckId} = ${hoeck.id}`,
+    sql`select json_agg(json_build_object('id', ${user.id}, 'name', ${user.name}, 'ceviName', ${user.ceviName}, 'bildUrl', ${bildUrlImLager(sql`${user.id}`, sql`${hoeck.lagerId}`)}) order by ${user.name}, ${user.id}) from ${hoeckAnwesenheit} inner join ${user} on ${user.id} = ${hoeckAnwesenheit.personId} where ${hoeckAnwesenheit.hoeckId} = ${hoeck.id}`,
   );
 const verantwortliche = () =>
   jsonListe<PersonKurz>(
-    sql`select json_agg(json_build_object('id', ${user.id}, 'name', ${user.name}, 'ceviName', ${user.ceviName}) order by ${user.name}, ${user.id}) from ${traktandumVerantwortlich} inner join ${user} on ${user.id} = ${traktandumVerantwortlich.personId} where ${traktandumVerantwortlich.traktandumId} = ${traktandum.id}`,
+    sql`select json_agg(json_build_object('id', ${user.id}, 'name', ${user.name}, 'ceviName', ${user.ceviName}, 'bildUrl', ${bildUrlImLager(sql`${user.id}`, sql`${traktandum.lagerId}`)}) order by ${user.name}, ${user.id}) from ${traktandumVerantwortlich} inner join ${user} on ${user.id} = ${traktandumVerantwortlich.personId} where ${traktandumVerantwortlich.traktandumId} = ${traktandum.id}`,
   );
 
 const zaehle = (abfrage: SQL) => sql<number>`(${abfrage})`.mapWith(Number);
@@ -815,6 +822,7 @@ export async function ladeHoeckModus(
       id: user.id,
       name: user.name,
       ceviName: user.ceviName,
+      bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
       rolle: lagerMitglied.rolle,
     })
     .from(lagerMitglied)
@@ -862,6 +870,10 @@ async function ladeOffeneAufgaben(
       >`coalesce(${aufgabe.verantwortlichPersonId}, ${ressort.leitungPersonId})`.as(
         "person_id",
       ),
+      bild: bildUrlImLager(
+        sql`coalesce(${aufgabe.verantwortlichPersonId}, ${ressort.leitungPersonId})`,
+        lagerId,
+      ).as("bild"),
       rang: sql<number>`row_number() over (partition by ${aufgabe.ressortId} order by ${aufgabe.frist} asc nulls last, ${aufgabe.reihenfolge}, ${aufgabe.id})`.as(
         "rang",
       ),
@@ -895,7 +907,11 @@ async function ladeOffeneAufgaben(
       id: string;
       titel: string;
       status: string;
-      verantwortlich: { id: string; name: string } | null;
+      verantwortlich: {
+        id: string;
+        name: string;
+        bildUrl: string | null;
+      } | null;
     }[]
   >();
   for (const z of zeilen) {
@@ -905,7 +921,8 @@ async function ladeOffeneAufgaben(
       id: z.id,
       titel: z.titel,
       status: z.status,
-      verantwortlich: z.personId && name ? { id: z.personId, name } : null,
+      verantwortlich:
+        z.personId && name ? { id: z.personId, name, bildUrl: z.bild } : null,
     });
     je.set(z.ressortId!, liste);
   }
@@ -931,6 +948,7 @@ async function ladeRessortRunde(
       leitungId: leitung.id,
       leitungName: leitung.name,
       leitungCeviName: leitung.ceviName,
+      leitungBild: bildUrlImLager(sql`${leitung.id}`, lagerId),
       gesamt: zahl(sql`true`),
       erledigt: zahl(sql`${aufgabe.status} = 'erledigt'`),
       offen: zahl(sql`${aufgabe.status} <> 'erledigt'`),
@@ -956,7 +974,12 @@ async function ladeRessortRunde(
     kuerzel: z.kuerzel,
     name: z.name,
     leitung: z.leitungId
-      ? { id: z.leitungId, name: z.leitungName, ceviName: z.leitungCeviName }
+      ? {
+          id: z.leitungId,
+          name: z.leitungName,
+          ceviName: z.leitungCeviName,
+          bildUrl: z.leitungBild,
+        }
       : null,
     aufgaben: mitZahlen
       ? {

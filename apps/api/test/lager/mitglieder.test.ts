@@ -146,6 +146,7 @@ describe("GET /api/v1/lager/{id}/mitglieder", () => {
     expect(rollen[konten.lagerleitung.id!]).toBe("lagerleitung");
     for (const m of antwort.mitglieder) {
       expect(Object.keys(m).sort()).toEqual([
+        "bildUrl",
         "name",
         "personId",
         "ressorts",

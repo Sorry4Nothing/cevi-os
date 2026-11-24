@@ -1155,3 +1155,17 @@ Gilt für `lager-rahmen.js`, `lager-status.js`, `lager-detail.js`, `lager-rahmen
 ### Stand der Prüfung (#693)
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank) bei 1440 und 390 px gemessen: Wechsel des Moduls von weit unten (Seite bleibt, der Anfang des Moduls steht oben), Reiter bei Protokollen (Stelle bleibt), Haken in Packliste und Einkauf (Stelle bleibt), Navigation ohne Scrollleiste (Höhe 472 px, keine Überlänge) bei 900 und 640 px Fensterhöhe. Status: Entwurf, Frage, Starten, Meldung, Menü, «Rückgängig». Per Test: Schritte je Status, Folgesätze, kein «Aktivieren» auf einem Knopf, Verdrahtung des Behaltens der Stelle. **Nicht geprüft:** Screenreader, 200 % Zoom per Browser-Einstellung, Firefox und Safari, das Verhalten ohne Recht «Lager verwalten» im Browser (nur nach dem Quelltext), mehrere Wechsel in schneller Folge auf langsamer Leitung.
+
+## 70. Verwaltung: Profilbilder in den Lager-Modulen (#697)
+
+Gilt für alle Stellen in `lager-*.js`, an denen eine Person mit Namen steht (Mitglieder, Personenwahl, Aufgaben, Höcks, Pinnwand, Fahrten, Gruppen, Zimmer, Schichtplan, Anwesenheit, Diensttausch, Ressorts, Notfallkontakte, Umfragen). Die Schnittstelle liefert dafür neu das optionale Feld `bildUrl` (`LagerBildUrl` in `docs/api/openapi.yaml`); die Anzeige selbst ist `avatar()` aus `dom.js`. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4, 6, 9, 55 und 64 gelten sinngemäss.
+
+- [ ] **70.1** Wo die Antwort `bildUrl` nennt, zeigt der Kreis der Person das Bild, sonst die Initialen. Fehlt das Feld (ältere Antwort) oder lädt das Bild nicht (403, 404, Netz), bleiben die Initialen; es gibt keinen kaputten Bildrahmen und keine Fehlermeldung.
+- [ ] **70.2** Das Bild ist dekorativ (`alt=""`), der Name steht als Text daneben und ist die einzige Beschriftung. Ein Bild ersetzt nie den Namen; der Zustand einer Zeile (zum Beispiel «anwesend») steht weiter in Wort und Symbol, nie nur im Bild.
+- [ ] **70.3** Teilnehmende ohne Konto (Kinder) zeigen immer Initialen: Die Antwort nennt für sie kein `bildUrl` oder `null`. Ein Test hält es fest (`test/lager/profilbild.test.ts`).
+- [ ] **70.4** Das Bild lädt erst, wenn die Zeile sichtbar wird (`loading="lazy"`), mit fester Grösse im Kreis (kein Springen des Layouts, auch nicht in langen Listen wie der Personenwahl oder dem Schichtplan).
+- [ ] **70.5** Ein Konto, das nicht (mehr) Mitglied des Lagers ist, und die Abteilungsleitung ohne Mitgliedschaft zeigen Initialen (die Antwort nennt kein `bildUrl`). Das ist gewollt: Es erscheint nie ein Bild, das die Route der Person nicht herausgäbe.
+
+### Stand der Prüfung (#697)
+
+Per Test (Schnittstelle): `bildUrl` bei Mitgliedern, Aufgaben (Verantwortliche, Unterstützung), Ressorts, Pinnwand, Fahrten, Personen ohne Fahrt, Gruppen, Schichtplan, Statistik, Anwesenheit; Teilnehmende `null` oder ohne Feld; Nicht-Mitglieder und deaktivierte Konten `null`; Weg «gemeinsames Lager» in `GET /personen/{id}/bild` (Mitglied 200, Aussenstehende 404). **Nicht geprüft:** die Anzeige im Browser je Modul (Kreise, Lazy-Laden, Nachtmodus, 390 px), Screenreader, 200 % Zoom.

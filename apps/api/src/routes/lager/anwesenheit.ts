@@ -27,7 +27,7 @@ import {
   setzeAlsLeitung,
 } from "../../lager/anwesenheit.js";
 import { darf, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
-import { anzeigeNamenLager } from "../../lager/zimmer.js";
+import { anzeigeNamenUndBilder } from "../../lager/zimmer.js";
 import type { Fcm } from "../../push.js";
 
 const lagerPfad = z.strictObject({ id: z.uuid() });
@@ -73,21 +73,28 @@ export function erstelleAnwesenheitRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
                 : []),
             ]),
           );
-          const alle =
+          const anzeige =
             ids.size > 0
-              ? await anzeigeNamenLager(
+              ? await anzeigeNamenUndBilder(
                   db,
                   zugriff.lager.id,
                   darf(zugriff, "teilnehmer.bearbeiten"),
                 )
-              : new Map<string, string>();
+              : {
+                  namen: new Map<string, string>(),
+                  bilder: new Map<string, string>(),
+                };
+          // Zu jedem Namen höchstens ein Profilbild; Teilnehmende und Personen ohne Bild fehlen
+          const je = (karte: Map<string, string>) =>
+            Object.fromEntries(
+              [...ids].flatMap((id) =>
+                karte.has(id) ? [[id, karte.get(id)!]] : [],
+              ),
+            );
           return c.json({
             ...matrix,
-            namen: Object.fromEntries(
-              [...ids].flatMap((id) =>
-                alle.has(id) ? [[id, alle.get(id)!]] : [],
-              ),
-            ),
+            namen: je(anzeige.namen),
+            bilder: je(anzeige.bilder),
             frist: frist(c),
           });
         },

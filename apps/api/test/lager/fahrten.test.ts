@@ -761,12 +761,21 @@ describe("Mitfahrende", () => {
         teilnehmerId: t,
         name: "Anna Muster",
         stufe: "Wolf",
+        bildUrl: null,
       },
       expect.objectContaining({ personId: konten.team.id, stufe: null }),
     ]);
-    // Der Name kommt aus dem Konto, die Antwort trägt keine weiteren Felder der Person
+    // Der Name kommt aus dem Konto, die Antwort trägt ausser dem Profilbild keine weiteren Felder der Person
     expect(Object.keys(g.body.mitfahrer[1]).sort()).toEqual(
-      ["id", "name", "personId", "stufe", "teilnehmerId", "version"].sort(),
+      [
+        "bildUrl",
+        "id",
+        "name",
+        "personId",
+        "stufe",
+        "teilnehmerId",
+        "version",
+      ].sort(),
     );
   });
 
@@ -1099,6 +1108,7 @@ describe("Personen ohne Fahrt", () => {
       personId: null,
       name: "Berta Muster",
       stufe: "Pfadi",
+      bildUrl: null,
     });
     expect(
       h.personen.find(

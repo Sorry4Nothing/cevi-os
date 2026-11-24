@@ -29286,6 +29286,8 @@ components:
               name:
                 type: string
                 description: Anzeigename des Lagers.
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
               rolle:
                 $ref: "#/components/schemas/LagerRolle"
               ressorts:
@@ -30002,6 +30004,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerRessort:
       description: "Ein Ressort des Lagers."
       type: object
@@ -30338,6 +30342,10 @@ components:
     LagerAufgabeStatus:
       type: string
       enum: [offen, laeuft, wartet, erledigt, naechster_hoeck]
+    LagerBildUrl:
+      description: "Pfad des Profilbilds der Person mit Version (`/api/v1/personen/{id}/bild?v=…`), `null` ohne Bild. Es gibt nur ein Bild für ein Konto, das Mitglied dieses Lagers ist; Teilnehmende ohne Konto haben nie eins (`null`). Das Bild selbst liefert `GET /api/v1/personen/{id}/bild`: Wer die Person im Lager sieht, darf es abrufen. Optional und additiv: Ein Client, der das Feld nicht kennt, zeigt die Initialen."
+      type: [string, "null"]
+      pattern: "^/api/v1/personen/[0-9a-f-]{36}/bild\\?v=\\d+$"
     LagerAufgabePerson:
       description: "Eine Person, mit dem Namen beim Lesen aufgelöst; die ID bleibt gleich, auch wenn die Person umbenannt wird."
       type: object
@@ -30354,6 +30362,8 @@ components:
           type: [string, "null"]
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerAufgabe:
       description: "Eine Aufgabe des Lagers. Personen als ID, die Namen kommen aufgelöst unter `verantwortlich` und `unterstuetzung`."
       type: object
@@ -30463,6 +30473,8 @@ components:
                   type: [string, "null"]
                 ceviName:
                   type: [string, "null"]
+                bildUrl:
+                  $ref: "#/components/schemas/LagerBildUrl"
                 automatisch:
                   type: boolean
             - type: "null"
@@ -30608,6 +30620,8 @@ components:
                 type: string
               ceviName:
                 type: [string, "null"]
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
     LagerAufgabeSchnellRessort:
       type: object
       additionalProperties: false
@@ -32450,6 +32464,8 @@ components:
                 type:
                   - string
                   - "null"
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
               rolle:
                 type: string
                 enum:
@@ -32512,6 +32528,8 @@ components:
                             id: *a2
                             name:
                               type: string
+                            bildUrl:
+                              $ref: "#/components/schemas/LagerBildUrl"
                         - type: "null"
               name:
                 type: string
@@ -32873,6 +32891,8 @@ components:
                 format: uuid
               name:
                 type: string
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
     LagerPinnwandGesehenSammel:
       type: object
       additionalProperties: false
@@ -33487,6 +33507,8 @@ components:
             ceviName:
               type: string
               nullable: true
+            bildUrl:
+              $ref: "#/components/schemas/LagerBildUrl"
     LagerEingangSeite:
       type: object
       required: [eintraege, naechster]
@@ -33812,6 +33834,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         geprueft:
           type: boolean
         geprueftAm:
@@ -34117,6 +34141,8 @@ components:
                 type: [string, "null"]
               ceviName:
                 type: [string, "null"]
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
         naechster:
           description: "Cursor für die nächste Seite, sonst null."
           type: [string, "null"]
@@ -34354,6 +34380,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         stufe:
           description: "Stufe des Teilnehmenden, bei einer Person leer."
           type: [string, "null"]
@@ -34472,6 +34500,8 @@ components:
               format: uuid
             name:
               type: [string, "null"]
+            bildUrl:
+              $ref: "#/components/schemas/LagerBildUrl"
         mitfahrer:
           description: "Die Mitfahrenden in der Reihenfolge des Eintragens."
           type: array
@@ -34568,6 +34598,8 @@ components:
                 format: uuid
               name:
                 type: string
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
               stufe:
                 type: [string, "null"]
         gesamt:
@@ -34653,6 +34685,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         rolle:
           type: string
           enum:
@@ -35023,6 +35057,8 @@ components:
         ceviName:
           description: "Cevi-Name des Kontos; bei Teilnehmenden immer `null`."
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         stufe:
           description: "Stufe der teilnehmenden Person; bei Konten `null`."
           type: [string, "null"]
@@ -35045,6 +35081,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         anzahl:
           type: integer
           minimum: 1
@@ -35171,6 +35209,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerSchichtUnbesetzt:
       description: "Ein Dienst an einem Tag, für den sich nicht genug Leute finden liessen."
       type: object
@@ -35210,6 +35250,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         vorher:
           type: integer
           minimum: 0
@@ -35306,6 +35348,12 @@ components:
         mitName:
           description: "Anzeigename von `mitPersonId`; `null` ohne Person."
           type: [string, "null"]
+        vonBildUrl:
+          description: "Profilbild der anfragenden Person (`LagerBildUrl`); `null` ohne Bild oder wenn sie nicht mehr Mitglied ist."
+          $ref: "#/components/schemas/LagerBildUrl"
+        mitBildUrl:
+          description: "Profilbild von `mitPersonId`; `null` ohne Person oder Bild."
+          $ref: "#/components/schemas/LagerBildUrl"
         schicht:
           $ref: "#/components/schemas/LagerDiensttauschSchicht"
         mitSchicht:
@@ -35538,6 +35586,11 @@ components:
           type: object
           additionalProperties:
             type: string
+        bilder:
+          description: "Profilbilder der Personen der Seite: ID der Person -> Pfad (`LagerBildUrl`). Nur Konten, die Mitglied des Lagers sind und ein Bild haben; Teilnehmende und Personen ohne Bild fehlen."
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/LagerBildUrl"
         eintraege:
           type: array
           items:
@@ -36196,6 +36249,8 @@ components:
           type: [string, "null"]
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerEinkaufWarengruppe:
       description: "Warengruppe eines Artikels. Die Apps zeigen sie als: `obst_gemuese` Obst und Gemüse, `brot` Brot, `milch_kaese` Milch und Käse, `fleisch_fisch` Fleisch und Fisch, `vorrat` Vorrat, `getraenke` Getränke, `haushalt` Haushalt, `diverses` Diverses."
       type: string
@@ -36632,6 +36687,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         telefon:
           type: [string, "null"]
           description: Die eigene Nummer des Eintrags, sonst die Nummer aus dem Konto; null, wenn keine da ist.
@@ -37066,6 +37123,8 @@ components:
                     type: string
                   ceviName:
                     type: [string, "null"]
+                  bildUrl:
+                    $ref: "#/components/schemas/LagerBildUrl"
                   stufe:
                     type: [string, "null"]
                   dienst:
