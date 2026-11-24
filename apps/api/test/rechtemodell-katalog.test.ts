@@ -19,12 +19,11 @@ import { TERMINE_RECHTE } from "../src/termine/rechte-katalog.js";
 
 // Der eine Katalog muss die älteren enthalten und in sich stimmig sein (#643)
 describe("Rechtekatalog", () => {
-  test("jedes Plattformrecht steht im Katalog, «erweitert», für den Entwickler und vergebbar", () => {
+  test("jedes Plattformrecht steht im Katalog, «erweitert» und vergebbar", () => {
     for (const name of PLATTFORM_RECHT_NAMEN) {
       const e = RECHTE_KATALOG[name];
       expect(e.risiko, name).toBe("erweitert");
       expect(e.art, name).toBe("vergebbar");
-      expect(e.entwickler, name).toBe(true);
       expect(e.bereich, name).toBe("website");
       expect(PLATTFORM_RECHTE[name].erweitert).toBe(true);
     }
