@@ -131,7 +131,7 @@ describe("GET /api/v1/test/stufen/:id für Stufe A und B", () => {
 });
 
 describe("person aus der Sitzung", () => {
-  test("slA: id, Abteilung, admin und Rollen wie angelegt", async () => {
+  test("slA: id, Abteilung, Abteilungsleitung, Entwickler und Rollen wie angelegt", async () => {
     const konto = konten.slA;
     const res = await app.request("/api/v1/test/person", {
       headers: konto.headers,
@@ -140,7 +140,8 @@ describe("person aus der Sitzung", () => {
     expect(await res.json()).toEqual({
       id: konto.id,
       abteilungId: welt.testabteilungId,
-      admin: false,
+      abteilungsleitung: false,
+      entwickler: false,
       zweiterFaktor: false,
       zweiterFaktorKonto: false,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
