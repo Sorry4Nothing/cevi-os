@@ -1927,6 +1927,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-bewegung.js:
+    get:
+      operationId: getAdminLagerBewegungSkript
+      summary: Skript der Verwaltung – Bereich Lager, Bewegung
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/lager-skeleton.js:
+    get:
+      operationId: getAdminLagerSkeletonSkript
+      summary: Skript der Verwaltung – Bereich Lager, Ladezustände
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kalenderhilfen.js:
     get:
       operationId: getAdminKalenderhilfenSkript

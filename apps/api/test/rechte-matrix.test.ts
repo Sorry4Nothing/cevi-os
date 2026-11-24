@@ -273,6 +273,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/lager-rahmen.css": { erwartet: alle(200) },
   "GET /admin/lager-rahmen.js": { erwartet: alle(200) },
   "GET /admin/lager-start-teile.js": { erwartet: alle(200) },
+  "GET /admin/lager-bewegung.js": { erwartet: alle(200) },
+  "GET /admin/lager-skeleton.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-detail.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-gemeinsam.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-logik.js": { erwartet: alle(200) },
