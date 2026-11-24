@@ -52,7 +52,7 @@ import {
   type Zuteilung,
 } from "../../rechtemodell/standard.js";
 
-// Matrix-API (#643): die Rechte der Abteilung lesen und einstellen, je Gruppe und global. Die Abteilungsleitung mit zweitem Faktor (Pfad /admin, dazu verlange «rechte.verwalten»: ein festes Recht) und seit #663 der Entwickler mit zweitem Faktor («rechte.abteilungsleitung»): Er liest alles ohne Namen von Personen, ändert die Rechte der Abteilungsleitung und, in den Grenzen seiner eigenen Rechte, die der anderen Rollen. Personen zuordnen und «Was darf wer?» bleiben bei der Abteilungsleitung. Die Rechte der Abteilungsleitung ändert nur der Entwickler, nie sie selbst. Der Server prüft alles: Abteilung (fremd = 404, vor dem 403), Katalog (ein Name oder eine Geltung ausserhalb ist 400), Eskalation (wer vergibt, hat), Version (409 bei gleichzeitiger Änderung).
+// Matrix-API (#643): die Rechte der Abteilung lesen und einstellen, je Gruppe und global. Die Abteilungsleitung mit zweitem Faktor (Pfad /admin, dazu verlange «rechte.verwalten»: ein festes Recht) und seit #663 der Entwickler mit zweitem Faktor («rechte.abteilungsleitung»): Seit #722 hat er jedes Recht, auch «Rechte und Rollen vergeben»: Er sieht Namen, ordnet Personen zu und liest «Was darf wer?» wie die Abteilungsleitung. Die Rechte der Abteilungsleitung ändert nur der Entwickler, nie sie selbst. Der Server prüft alles: Abteilung (fremd = 404, vor dem 403), Katalog (ein Name oder eine Geltung ausserhalb ist 400), Eskalation (wer vergibt, hat), Version (409 bei gleichzeitiger Änderung).
 // Die Seite «Rollen und Rechte» zeigt weiter /zuordnungen (rechte.ts) und die Plattformrollen (plattform-rollen.ts); beide bleiben, wie sie sind.
 // Nie in einer Antwort oder im Audit: Kontaktdaten. Die Namen von Personen stehen nur dort, wo die Abteilungsleitung sie ohnehin sieht (Mitglieder einer Rolle, Herkunft der Rechte einer Person).
 
@@ -167,10 +167,10 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
   // Tür der Routen: das feste Recht «Rechte und Rollen vergeben» (Abteilungsleitung) oder «Rechte der Abteilungsleitung ändern» (Entwickler); erst nach dem Laden des Objekts
   const tuer = (person: Person) =>
     verlangeEines(db, person, ["rechte.verwalten", "rechte.abteilungsleitung"]);
-  // Tür für alles mit Personen (Zuordnen, «Was darf wer?»): nur die Abteilungsleitung. Der Entwickler sieht keine Personendaten
+  // Tür für alles mit Personen (Zuordnen, «Was darf wer?»): wer «Rechte und Rollen vergeben» hat, also die Abteilungsleitung und der Entwickler (er hat jedes Recht, #722)
   const nurAbteilungsleitung = (person: Person) =>
     verlange(db, person, "rechte.verwalten");
-  // Sieht die Person Namen von Personen? Nur die Abteilungsleitung (SR-41)
+  // Sieht die Person Namen von Personen? Wer «Rechte und Rollen vergeben» hat: Abteilungsleitung und Entwickler (SR-41, Abweichung #722)
   const sieheNamen = (person: Person) => darf(db, person, "rechte.verwalten");
 
   async function ladeGruppe(person: Person, tagId: string) {
@@ -262,7 +262,6 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
               geltungen: e.geltungen,
               bezug: e.bezug ?? null,
               zweiterFaktor: e.risiko !== "normal",
-              entwickler: e.entwickler,
               nurEntwickler: e.nurEntwickler === true,
               // Rechte, die eine Gruppenrolle tragen darf (alles Vergebbare ausser dem Wartungsmodus)
               gruppenrolle:

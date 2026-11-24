@@ -49,7 +49,7 @@ const REITER = [
   ["rollen", "Rollen"],
   ["uebersicht", "Was darf wer?"],
 ];
-// Der Entwickler (ohne das Recht «rechte.verwalten») sieht nur «Rollen»: Dort stellt er die Rechte der Abteilungsleitung ein. Gruppen, Personen und «Was darf wer?» bleiben bei der Abteilungsleitung (#663)
+// Wer «rechte.verwalten» nicht hat, aber «rechte.abteilungsleitung», sieht nur «Rollen» (#663). Seit #722 hat der Entwickler jedes Recht und sieht alle Reiter; dieser Fall tritt heute nicht mehr ein
 const REITER_ENTWICKLER = [["rollen", "Rollen"]];
 
 export function zeige(bereich, ctx) {

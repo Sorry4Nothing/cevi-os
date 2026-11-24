@@ -54,7 +54,11 @@ function zeigeUebersicht(inhalt, z) {
       "p",
       { class: "leise rr-erklaerung" },
       verwaltet
-        ? "Eine globale Rolle bündelt Rechte für die ganze Abteilung, zum Beispiel «Webmaster». Du weist sie einzelnen Personen zu. Die Rechte der Abteilungsleitung stellt der Entwickler ein: Du siehst sie in der Liste, kannst sie aber nicht ändern."
+        ? `Eine globale Rolle bündelt Rechte für die ganze Abteilung, zum Beispiel «Webmaster». Du weist sie einzelnen Personen zu. ${
+            z.ich.abteilungsleitungAendern
+              ? "Auch die Rechte der Abteilungsleitung stellst du ein."
+              : "Die Rechte der Abteilungsleitung stellt der Entwickler ein: Du siehst sie in der Liste, kannst sie aber nicht ändern."
+          }`
         : "Hier stellst du die Rechte der Abteilungsleitung ein. Die übrigen Rollen siehst du nur zum Lesen, ohne Namen von Personen.",
     ),
     al?.gesperrt &&
@@ -134,7 +138,7 @@ function zeigeRolle(inhalt, z, id) {
   z.ctx.kopfAktion();
   const verwaltet = z.ich.rechteVerwalten;
   const fragenOrt = el("div", { class: "rr-fragen" });
-  // Die Abteilungsleitung lässt sich weder umbenennen noch löschen; der Entwickler benennt keine Rollen um
+  // Die Abteilungsleitung lässt sich weder umbenennen noch löschen
   const bearbeiten =
     verwaltet && !rolle.abteilungsleitung
       ? knopf("Umbenennen", {

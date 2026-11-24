@@ -58,7 +58,7 @@ Ein Bereich je Pull Request. Nach jedem Bereich laufen die Matrizen unverändert
 
 - `schatten`: Der alte Weg und was Plattform- und Gruppenrollen zusätzlich geben, setzen durch. Jede Abweichung des neuen Wegs steht im Log und im Aktivitätsprotokoll als `rechte_schatten` (Recht, Richtung `alt_ja_neu_nein` oder `alt_nein_neu_ja`, Art der Objekt-Felder; nie Personen).
 - Umschalten auf `neu`, wenn die Abweichungen des Betriebs über zwei Wochen erklärt oder behoben sind und die Matrizen grün sind. Zurück per Variable, ohne Code.
-- Gewollte Abweichungen heute: Die Abteilungsleitung entscheidet im neuen Weg Raumanfragen aller Teams (alt: nur Mitglieder des Teams); der Entwickler darf Profilbilder entfernen (alt: nur die Abteilungsleitung). Beide stehen in `docs/rechte.md` 8.4.
+- Gewollte Abweichungen heute: Die Abteilungsleitung entscheidet im neuen Weg Raumanfragen aller Teams (alt: nur Mitglieder des Teams); der Entwickler hat jedes Recht des Katalogs (alt: nur 12 von 57; #722), auch Personen-, Kinder- und Lagerdaten, und besteht die Prüfung im Schattenbetrieb über `ausRollen`. Die Abweichungen stehen in `docs/rechte.md` 8.4.
 - Ein Team-Verantwortlicher, dessen Freitext «verantwortlich» ohne die Systemrolle gesetzt wurde (zum Beispiel durch direktes Schreiben in die Datenbank), fällt im neuen Weg aus der Funktion: Der Trigger `person_tag_rolle_abgleich` verhindert das für alle Wege über die Datenbank; ein Abweichungsprotokoll `alt_ja_neu_nein` zeigt den Rest.
 
 ## 5. Stellen mit `person.admin` und Vorschlag je Stelle

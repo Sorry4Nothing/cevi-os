@@ -18,7 +18,6 @@ const katalog = {
       geltungen: ["alle", "eigene"],
       gruppenrolle: true,
       nurEntwickler: false,
-      entwickler: true,
     },
     {
       id: "wartungsmodus.website",
@@ -28,7 +27,6 @@ const katalog = {
       geltungen: ["alle"],
       gruppenrolle: false,
       nurEntwickler: false,
-      entwickler: true,
     },
     {
       id: "anlass.anmeldungen_sehen",
@@ -38,7 +36,6 @@ const katalog = {
       geltungen: ["alle", "eigene"],
       gruppenrolle: true,
       nurEntwickler: false,
-      entwickler: false,
     },
     {
       id: "anlass.anmelden",
@@ -48,7 +45,6 @@ const katalog = {
       geltungen: [],
       gruppenrolle: false,
       nurEntwickler: false,
-      entwickler: false,
     },
   ],
 };
@@ -229,6 +225,16 @@ describe("Wer darf dieses Recht?", () => {
     ]);
     expect(zeilen[3].titel).toBe("«k» in «OK Kirmes»");
     expect(zeilen[3].geltung).toBe("eigene");
+  });
+
+  test("der Entwickler steht bei jedem vergebbaren Recht, auch bei Anmeldungen (#722)", () => {
+    const zeilen = m.werDarf({
+      eintrag: katalog.rechte[2],
+      admin: [],
+      globale: [],
+      gruppen: [],
+    });
+    expect(zeilen.map((z: { art: string }) => z.art)).toContain("entwickler");
   });
 
   test("ein Recht, das nur aus der Beziehung folgt, gilt für alle und nennt keine Personen", () => {

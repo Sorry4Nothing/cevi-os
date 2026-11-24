@@ -215,7 +215,8 @@ export class RechteSatz {
     if (p.admin && !e.nurEntwickler && !this.alVerzichtet(recht)) {
       treffer.push({ art: "abteilungsleitung", geltung: "alle" });
     }
-    if (this.entwickler && e.entwickler) {
+    // Der Entwickler hat jedes Recht des Katalogs, abteilungsweit (Entscheid vom 24.11.2026, #722); was jede Person ohnehin hat (struktur), bekommt er nicht doppelt
+    if (this.entwickler && e.art !== "struktur") {
       treffer.push({ art: "entwickler", geltung: "alle" });
     }
     if (e.art === "struktur") {
@@ -303,10 +304,13 @@ export class RechteSatz {
     return this.herkuenfte(recht, objekt).length > 0;
   }
 
-  // Nur das, was die Rollen geben (Plattformrollen und Gruppenrollen): die Quellen, die es vor dem Rechtemodell nicht gab. Der Schattenbetrieb setzt sie neben dem alten Weg durch (darf.ts)
+  // Nur das, was die Rollen und der Entwickler geben (Plattformrollen, Gruppenrollen, Entwickler): die Quellen, die der alte Weg nicht kannte. Der Schattenbetrieb setzt sie neben dem alten Weg durch (darf.ts)
   ausRollen(recht: string, objekt?: Objekt) {
     return this.herkuenfte(recht, objekt).some(
-      (h) => h.art === "plattformrolle" || h.art === "gruppenrolle",
+      (h) =>
+        h.art === "plattformrolle" ||
+        h.art === "gruppenrolle" ||
+        h.art === "entwickler",
     );
   }
 

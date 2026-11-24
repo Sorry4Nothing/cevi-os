@@ -251,7 +251,7 @@ function personDetail(z, daten, person) {
       el(
         "p",
         { class: "hinweis" },
-        "Entwickler: hat die Rechte für Website und Plattform.",
+        "Entwickler: hat jedes Recht. Das lässt sich nicht einschränken.",
       ),
     braucht &&
       !person.zweiterFaktor &&
