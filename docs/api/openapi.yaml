@@ -8506,7 +8506,7 @@ paths:
 
         Das Dokument besteht aus Bausteinen des Katalogs (strenge Schemas, kein HTML). Ein ungültiges Dokument antwortet 400 `DOKUMENT_UNGUELTIG` mit `fehler` (je Eintrag der Pfad, zum Beispiel `bausteine.2.daten.ziel`, und der Code der Prüfung, nie Werte der Eingabe, höchstens 20).
 
-        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild, Galerie und Karussell brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `MEDIUM_ALT_FEHLT`: im Baustein Karussell (3 bis 8 Bilder) ist ein dekoratives Bild ohne Alt-Text nicht erlaubt. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
+        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild, Galerie und Karussell brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `MEDIUM_ALT_FEHLT`: im Baustein Karussell (3 bis 8 Bilder) ist ein dekoratives Bild ohne Alt-Text nicht erlaubt. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `PERSON_NICHT_AUF_WEBSITE`: im Baustein `personen` steht eine Person ohne Rolle mit Aussenwirkung oder mit deaktiviertem Konto; sie würde nie erscheinen. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
 
         Je Person höchstens 120 Speicherungen in der Minute (429). Das Speichern steht nicht im Audit-Log. Die Anfrage darf höchstens 512 KiB gross sein (413 `ZU_GROSS`); das Schema begrenzt Mengen und Längen, nicht die Bytes.
 
@@ -9893,9 +9893,11 @@ paths:
   /api/v1/redaktion/personen:
     get:
       operationId: listeRedaktionPersonen
-      summary: Personen mit einem Tag für die Auswahl im Editor
+      summary: Leitende für die Auswahl im Editor
       description: |
-        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: die aktiven Konten, die den Tag tragen. Nur Id, Anzeigename (Cevi-Name, sonst der Name des Kontos) und Funktion (die Rolle am Tag). Nie Telefon, E-Mail, Benutzername oder die Rollen des Kontos. Sortiert nach der Reihenfolge im Tag, dann nach Name.
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: nur Personen, die auf der Website erscheinen dürfen (aktives Konto und eine Rolle mit Aussenwirkung, `aufWebsite` ist immer `true`). Kinder und Personen ohne solche Rolle stehen nie in der Antwort. Je Person Id, Anzeigename (Cevi-Name, sonst der Vorname), Funktion (die Rolle am Tag), Gruppenname und Gruppen-ID. Nie Telefon, E-Mail, Benutzername oder die Rollen des Kontos.
+
+        Ohne `tag`: alle Leitenden der Abteilung (Leitung oder Stufenleitung in einer Stufe, eine Zeile je Rolle), nach Gruppe und Anzeigename sortiert. Mit `tag`: die Personen dieser Gruppe, nach der Reihenfolge in der Gruppe, dann nach Name.
 
         Reihenfolge der Prüfungen: Zugang (403), Query (400), Tag in der eigenen Abteilung (404, auch für Tags anderer Abteilungen).
 
@@ -9906,8 +9908,8 @@ paths:
         - $ref: "#/components/parameters/AppVersion"
         - name: tag
           in: query
-          required: true
-          description: Der Tag, dessen Personen gesucht sind (UUID).
+          required: false
+          description: Nur die Personen dieses Tags (UUID). Ohne Angabe sind es alle Leitenden der Abteilung.
           schema:
             type: string
             format: uuid
@@ -40321,6 +40323,7 @@ components:
             - MEDIUM_ALT_FEHLT
             - TAG_UNBEKANNT
             - PERSON_UNBEKANNT
+            - PERSON_NICHT_AUF_WEBSITE
             - SEITE_UNBEKANNT
         message:
           type: string
@@ -40731,13 +40734,15 @@ components:
         - anzeigename
         - funktion
         - aufWebsite
+        - gruppe
+        - tagId
       properties:
         id:
           type: string
           format: uuid
         anzeigename:
           type: string
-          description: Der Cevi-Name, sonst der Name des Kontos.
+          description: Der Cevi-Name, sonst der Vorname (wie auf der Website).
         funktion:
           type:
             - string
@@ -40745,7 +40750,14 @@ components:
           description: Die Rolle der Person an diesem Tag (freier Text); `null` ohne Rolle.
         aufWebsite:
           type: boolean
-          description: Ob die Person eine Rolle mit Aussenwirkung hat (Leitung oder Stufenleitung einer Stufe). Der Baustein `personen` zeigt nur solche Personen mit Name und Profilbild; für alle anderen entfällt der Eintrag samt Namen. Es gibt keine Freigabe der Person.
+          description: Immer `true`, denn die Liste enthält nur Personen mit einer Rolle mit Aussenwirkung (Leitung oder Stufenleitung einer Stufe). Der Baustein `personen` zeigt nur solche Personen mit Name und Profilbild. Es gibt keine Freigabe der Person.
+        gruppe:
+          type: string
+          description: Name der Gruppe, zu der diese Zeile gehört.
+        tagId:
+          type: string
+          format: uuid
+          description: Die Gruppe (Tag), zu der diese Zeile gehört. Eine Person mit Rollen in mehreren Gruppen steht mehrfach.
     RedaktionPersonenListe:
       type: object
       required:

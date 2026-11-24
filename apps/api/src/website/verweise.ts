@@ -11,6 +11,7 @@ import {
 } from "./dokument.js";
 import { ALT_PFLICHT } from "./medien-schema.js";
 import { ANMELDEN_PFAD, TERMINE_PFAD } from "./rendern.js";
+import { aufWebsite } from "./personen.js";
 import { adressenVon, type Knoten } from "./seiten.js";
 
 type Lesen = Pick<Db, "select">;
@@ -51,7 +52,7 @@ export async function pruefeVerweise(
   );
   const personen = await lade(klein(alle.personen), (ids) =>
     d
-      .select({ id: user.id })
+      .select({ id: user.id, aufWebsite })
       .from(user)
       .where(and(eq(user.abteilungId, abteilungId), inArray(user.id, ids))),
   );
@@ -112,7 +113,12 @@ export async function pruefeVerweise(
       if (!tags.has(id)) fehler.push({ pfad, code: "TAG_UNBEKANNT" });
     }
     for (const id of klein(v.personen)) {
-      if (!personen.has(id)) fehler.push({ pfad, code: "PERSON_UNBEKANNT" });
+      const p = personen.get(id);
+      if (!p) fehler.push({ pfad, code: "PERSON_UNBEKANNT" });
+      // Im Baustein «personen» erscheinen nur Leitende (#610): jemand ohne Rolle mit Aussenwirkung stünde nie auf der Seite
+      else if (b.typ === "personen" && !p.aufWebsite) {
+        fehler.push({ pfad, code: "PERSON_NICHT_AUF_WEBSITE" });
+      }
     }
     const vd = sammleDynamischeVerweise([b]);
     for (const id of vd.anlaesse) {

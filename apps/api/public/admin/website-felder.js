@@ -132,6 +132,8 @@ export const VERWEIS_TEXTE = {
     "Im Karussell, im Bildvergleich und in der Logo-Reihe braucht jedes Bild einen Alt-Text. Wähle ein Bild mit Alt-Text oder ergänze ihn in der Medienbibliothek.",
   TAG_UNBEKANNT: "Die gewählte Gruppe gibt es nicht mehr.",
   PERSON_UNBEKANNT: "Die gewählte Person gibt es nicht mehr.",
+  PERSON_NICHT_AUF_WEBSITE:
+    "Die gewählte Person ist keine Leitung und erscheint nicht auf der Website. Wähle eine andere Person oder entferne den Eintrag.",
   SEITE_UNBEKANNT:
     "Ein Link zeigt auf eine Seite, die es nicht gibt. Prüfe die Adresse.",
 };
@@ -843,70 +845,93 @@ function gruppenPillen(k, b, reg, schluessel, label, optional) {
   return wurzel;
 }
 
-// Erst die Gruppe, dann die Person der Gruppe (die Liste kommt vom Server, nur für die gewählte Gruppe)
-function personWahl(k, b, reg) {
+// Person direkt wählen (#755): eine Auswahl mit allen Leitenden der Abteilung, nach Gruppe geordnet. Die Liste kommt vom Server und enthält nur, wer auf der Website erscheinen darf (Rolle mit Aussenwirkung); sie wird je Editor einmal geladen (k.personen).
+// ziel: das Objekt mit der personId (der Baustein oder ein Eintrag der Liste); optional: «Keine Person» ist möglich
+const PERSON_HILFE =
+  "Nur Leitende erscheinen auf der Website. Kinder und andere Personen stehen hier nicht zur Auswahl.";
+const FUNKTIONEN = { stufenleitung: "Stufenleitung", leitung: "Leitung" };
+
+function ladePersonen(k) {
+  k.personen.laden ??= anfrage("GET", `${API}/personen`).then(
+    (antwort) => {
+      for (const p of antwort.personen) k.personNamen.set(p.id, p.anzeigename);
+      k.personen.liste = antwort.personen;
+      return antwort.personen;
+    },
+    (f) => {
+      k.personen.laden = null;
+      throw f;
+    },
+  );
+  return k.personen.laden;
+}
+
+function personWahl(k, b, reg, ziel, pfad, { optional = false } = {}) {
   const wurzel = el("div", { class: "feld" });
-  const personen = el("div");
-  const gewaehlt = el("p", { class: "hilfe" });
-  const zeigeGewaehlt = () => {
-    const name = k.personNamen.get(b.daten.personId);
-    gewaehlt.textContent = b.daten.personId
-      ? name
-        ? `Gewählt: ${name}`
-        : "Eine Person ist gewählt. Ihr Name erscheint in der Vorschau."
-      : "Noch keine Person gewählt.";
+  const hilfeId = neueId("person-hilfe");
+  const hilfe = el("p", { class: "hilfe", id: hilfeId }, PERSON_HILFE);
+  const platz = el("div");
+  const zeichne = (liste) => {
+    const aktuell = ziel.personId;
+    // Die gewählte Person steht nicht (mehr) zur Auswahl, zum Beispiel weil ihr die Rolle entzogen wurde: sie bleibt sichtbar, bis jemand anderes gewählt ist
+    const veraltet = Boolean(aktuell) && !liste.some((p) => p.id === aktuell);
+    const f = waehler({
+      label: "Person",
+      optionen: [
+        [
+          "",
+          optional
+            ? "Keine Person"
+            : liste.length > 0
+              ? "Person wählen"
+              : "Niemand zur Auswahl",
+        ],
+        ...(veraltet
+          ? [[aktuell, "Bisherige Person (nicht mehr wählbar)"]]
+          : []),
+        ...liste.map((p) => [
+          p.id,
+          `${p.anzeigename} (${FUNKTIONEN[p.funktion] ?? p.funktion}, ${p.gruppe})`,
+        ]),
+      ],
+      wert: aktuell ?? "",
+    });
+    f.eingabe.setAttribute("aria-describedby", hilfeId);
+    const warnung = veraltet
+      ? el(
+          "p",
+          { class: "fehlertext", role: "status" },
+          "Diese Person ist keine Leitung mehr und erscheint nicht auf der Website. Wähle eine andere Person.",
+        )
+      : null;
+    f.eingabe.addEventListener("change", () => {
+      if (f.eingabe.value) ziel.personId = f.eingabe.value;
+      else delete ziel.personId;
+      warnung?.remove();
+      k.aendere(b);
+      loescheFeldFehler(wurzel);
+    });
+    platz.replaceChildren(...[f.wurzel, warnung].filter(Boolean));
+    reg(pfad, wurzel, f.eingabe);
   };
-  const gruppeWahl = waehler({
-    label: "Gruppe der Person",
-    optionen: [["", "Gruppe wählen"], ...k.tags.map((t) => [t.id, t.name])],
-    wert: "",
-  });
-  const lade = async (tagId) => {
-    personen.replaceChildren(
+  const lade = async () => {
+    platz.replaceChildren(
       el("p", { class: "hilfe", role: "status" }, "Personen werden geladen …"),
     );
     try {
-      const antwort = await anfrage("GET", `${API}/personen?tag=${tagId}`);
-      for (const p of antwort.personen) k.personNamen.set(p.id, p.anzeigename);
-      const liste = waehler({
-        label: "Person",
-        optionen: [
-          [
-            "",
-            antwort.personen.length > 0
-              ? "Person wählen"
-              : "Niemand in dieser Gruppe",
-          ],
-          ...antwort.personen.map((p) => [
-            p.id,
-            p.funktion ? `${p.anzeigename} (${p.funktion})` : p.anzeigename,
-          ]),
-        ],
-        wert: antwort.personen.some((p) => p.id === b.daten.personId)
-          ? b.daten.personId
-          : "",
-      });
-      liste.eingabe.addEventListener("change", () => {
-        if (liste.eingabe.value) b.daten.personId = liste.eingabe.value;
-        else delete b.daten.personId;
-        zeigeGewaehlt();
-        k.aendere(b);
-        loescheFeldFehler(wurzel);
-      });
-      personen.replaceChildren(liste.wurzel);
+      zeichne(await ladePersonen(k));
     } catch (f) {
-      personen.replaceChildren(
+      platz.replaceChildren(
         el("p", { class: "fehlertext", role: "alert" }, fehlertext(f)),
+        knopf("Erneut laden", { klein: true, onclick: lade }),
       );
     }
   };
-  gruppeWahl.eingabe.addEventListener("change", () => {
-    if (gruppeWahl.eingabe.value) lade(gruppeWahl.eingabe.value);
-    else personen.replaceChildren();
-  });
-  zeigeGewaehlt();
-  wurzel.append(gewaehlt, gruppeWahl.wurzel, personen);
-  reg("daten.personId", wurzel, gruppeWahl.eingabe);
+  wurzel.append(platz, hilfe);
+  reg(pfad, wurzel, wurzel);
+  // Schon geladen: sofort zeichnen, damit der Fokus nach «Person hinzufügen» auf der Auswahl landet
+  if (k.personen.liste) zeichne(k.personen.liste);
+  else lade();
   return wurzel;
 }
 
@@ -1120,41 +1145,48 @@ export const TYPEN = {
       groesseFeld(k, b, reg),
     ],
   },
+  // Personen (#560, #610, #755): echte Personen der Plattform; Name und Bild kommen von der Person, Funktion und Adresse der Funktion sind Angaben der Seite
   personen: {
     name: "Personen",
     kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Person", "Personen"),
-    pruefe: (d) => pflicht(d, "name"),
+    pruefe: (d) => pflicht(d, "personId"),
     form: (k, b, reg) => [
       el(
         "p",
         { class: "hilfe" },
-        "Ansprechpersonen mit Foto, Anzeigename, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
+        "Ansprechpersonen mit Foto, Cevi-Name, Funktion und E-Mail-Adresse. Name und Foto kommen aus dem Profil der Person. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
       ),
-      eintraegeForm(k, b, reg, {
+      listenForm(k, b, {
         name: "Person",
+        listeName: "Personen",
+        pfadName: "daten.eintraege",
+        liste: () => b.daten.eintraege,
         max: MAX_PERSONEN,
-        bild: {
-          name: "Porträt",
-          alt: "Das Porträt braucht keinen Alt-Text: Der Name steht daneben. Ohne Porträt stehen die Anfangsbuchstaben.",
+        hinzuText: "Person hinzufügen",
+        hinzu: (liste, fertig) => {
+          liste.push({});
+          fertig(liste.length - 1);
         },
-        felder: [
-          [
-            "name",
-            "Anzeigename",
-            {
-              maxlength: 100,
-              hilfe:
-                "Steht gross unter dem Bild, zum Beispiel der Cevi-Name, sonst der Vorname.",
-            },
-          ],
-          [
+        zeile: (eintrag, pfad) => [
+          personWahl(k, b, reg, eintrag, `${pfad}.personId`),
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
             "funktion",
             "Funktion (optional)",
+            `${pfad}.funktion`,
             { optional: true, maxlength: 100 },
-          ],
-          [
+          ),
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
             "email",
             "E-Mail-Adresse der Funktion (optional)",
+            `${pfad}.email`,
             {
               optional: true,
               maxlength: 254,
@@ -1162,7 +1194,7 @@ export const TYPEN = {
               spellcheck: "false",
               autocapitalize: "off",
             },
-          ],
+          ),
         ],
       }),
     ],
@@ -1202,7 +1234,7 @@ export const TYPEN = {
     kurz: (d, k) => k.personNamen.get(d.personId) ?? "",
     pruefe: (d) => (d.personId ? [] : [["daten.personId", "fehlt."]]),
     form: (k, b, reg) => [
-      personWahl(k, b, reg),
+      personWahl(k, b, reg, b.daten, "daten.personId"),
       el(
         "p",
         { class: "hilfe" },
@@ -1458,7 +1490,7 @@ export const TYPEN = {
         optional: true,
         hilfe: "Ohne Eingabe steht dort: Fragen? Melde dich bei uns.",
       }),
-      personWahl(k, b, reg),
+      personWahl(k, b, reg, b.daten, "daten.personId", { optional: true }),
       el(
         "p",
         { class: "hilfe" },

@@ -1458,3 +1458,18 @@ Gilt für die Bausteine `hinweisbox`, `zitat`, `fragen`, `spalten`, `bildneben`,
 ### Stand der Prüfung (#741)
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank, erfundene Texte, Bilder aus der Demo-Medienbibliothek) bei 1280, 1920 und 390 px, hell und dunkel: Eine Seite mit allen acht Bausteinen (in jeder Art der Hinweisbox, beide Darstellungen der Checkliste, Bild links und rechts, Tabelle mit Zeilenkopf und Zahlenspalten) wurde im Editor Baustein für Baustein angelegt, gespeichert und veröffentlicht; die erzeugte Seite wurde angesehen. Tastatur: Enter und Leertaste öffnen und schliessen die Fragen, der Fokusring der Fragen und der Tabellenfläche ist sichtbar (3 px), die Tabellenfläche ist nach vier Tabs erreichbar. Überschriftenfolge: H1, H2, H3 ohne Sprung. Kein seitliches Scrollen der Seite bei 390 px. Der Server lehnte einen Link auf eine Seite ab, die es nicht gibt (Meldung am Baustein). Per Test: Schema mit allen Grenzen und Ablehnungen, Verweise, Maskierung (kein Markup aus Daten), kein Skript und kein `style`, jedes Element und Attribut der Renderer passiert `knoten.js`. **Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), 200 % und 400 % Zoom, echtes Touch-Gerät, Firefox und Safari (das Verhalten von `details` bei einem Anker in der Adresse ist dort unbestätigt), hoher Kontrast des Systems (nur die Regel ist gesetzt).
+
+## 80. Verwaltung: Person direkt wählen im Seiten-Editor (#755)
+
+Gilt für die Auswahl «Person» in den Bausteinen «Personen», «Kontaktperson» und «Kontaktkarte» (`personWahl` in `website-felder.js`). Massstab WCAG 2.2 AA.
+
+- [ ] **80.1** Die Auswahl ist ein beschriftetes Feld «Person» (sichtbares Label über dem Feld, `select` mit der Auswahlliste der Verwaltung); sie hat keinen Gruppenschritt mehr. Jeder Eintrag nennt Cevi-Name, Funktion und Gruppe («Sancho (Stufenleitung, Imperius)»), damit zwei gleiche Namen unterscheidbar sind; die Gruppe steht im Text, weil die Auswahlliste keine Gruppenköpfe kennt.
+- [ ] **80.2** Der Hilfetext («Nur Leitende erscheinen auf der Website. Kinder und andere Personen stehen hier nicht zur Auswahl.») hängt per `aria-describedby` am Feld.
+- [ ] **80.3** Zustände: «Personen werden geladen …» (`role="status"`), Fehler mit `role="alert"` und Knopf «Erneut laden», leere Liste («Niemand zur Auswahl»). Eine Person, die nicht mehr zur Auswahl steht, bleibt als «Bisherige Person (nicht mehr wählbar)» gewählt und trägt einen Hinweis in Worten (`role="status"`, nicht nur Farbe).
+- [ ] **80.4** Tastatur: Tab erreicht das Feld, Enter öffnet die Liste, Pfeiltasten und Enter wählen, Escape schliesst. Nach «Person hinzufügen» liegt der Fokus auf der Auswahl der neuen Person (die Liste ist dann schon geladen).
+- [ ] **80.5** Ein Fehler des Servers (`PERSON_NICHT_AUF_WEBSITE`, `PERSON_UNBEKANNT`) steht in Worten am Baustein, mit Sprungmarke zum Feld.
+- [ ] **80.6** 390 px: kein seitliches Scrollen. Bekannte Schwäche: In den Karten der Listen im Blatt (Person 1, Person 2 …) ist die Auswahl schmal (rund 100 px), der gewählte Name wird im Feld gekürzt; die geöffnete Liste umbricht ganze Einträge. Gilt für alle Listenformulare, nicht nur hier.
+
+### Stand der Prüfung (#755)
+
+Im Browser (Chromium, headless, Kopie der Vorschau-Datenbank, Konto der Abteilungsleitung mit zweitem Faktor) bei 1280 und 390 px: Baustein «Personen» angelegt, Person per Tastatur gewählt, gespeichert; Eltern ohne Rolle erscheinen nicht in der Liste; nach Entzug der Rolle zeigt das Blatt den Hinweis und der Server lehnt das Speichern am Baustein ab. **Nicht geprüft:** Screenreader, Dunkel und hoher Kontrast, 200 % und 400 % Zoom, Touch, Firefox und Safari, Veröffentlichen mit einer entzogenen Rolle (nur Speichern geprüft; dieselbe Verweisprüfung).

@@ -39,6 +39,9 @@ export const anzeigename = (ceviName: string | null, name: string) =>
 
 const AKTIV = and(isNull(user.deaktiviertAm), sql`${user.banned} is not true`);
 
+// Darf die Person (in der Abfrage auf «user») auf der Website erscheinen? Rolle mit Aussenwirkung und aktives Konto, wie ladeWebsitePersonen
+export const aufWebsite = sql<boolean>`(${hatAussenrolle} and ${user.deaktiviertAm} is null and ${user.banned} is not true)`;
+
 // Eine Abfrage je Art für alle Seiten des Laufs. ids: Personen der Bausteine «personen»; stufenIds: Stufen-Tags der Bausteine «leitungsteam».
 // dateien: [Pfad in der Ausgabe, Bytes] je Bild
 export async function ladeWebsitePersonen(

@@ -535,6 +535,15 @@ describe("Verweisprüfung", () => {
         baustein("kontaktperson", { personId: demoAdmin.id }),
         "PERSON_UNBEKANNT",
       ],
+      // Im Baustein «personen» erscheinen nur Leitende (#755): Eltern ohne Rolle mit Aussenwirkung sind ein Fehler am Baustein
+      [
+        baustein("personen", { eintraege: [{ personId: eltern.id }] }),
+        "PERSON_NICHT_AUF_WEBSITE",
+      ],
+      [
+        baustein("personen", { eintraege: [{ personId: demoAdmin.id }] }),
+        "PERSON_UNBEKANNT",
+      ],
       [
         baustein("schaltflaeche", {
           darstellung: "link",
@@ -569,6 +578,7 @@ describe("Verweisprüfung", () => {
       dokument(
         baustein("leitungsteam", { tagId: eigenerTag.id }),
         baustein("kontaktperson", { personId: slA.id }),
+        baustein("personen", { eintraege: [{ personId: slA.id }] }),
         baustein("schaltflaeche", {
           darstellung: "link",
           beschriftung: "Hin",
