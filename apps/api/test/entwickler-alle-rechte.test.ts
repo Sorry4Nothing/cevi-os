@@ -82,7 +82,7 @@ const neuePerson = () => ({
   vorname: "Vreni",
   nachname: "Muster",
   benutzername: `person.${randomUUID().slice(0, 8)}`,
-  admin: false,
+  abteilungsleitung: false,
   rollen: [],
   elternteilVon: [],
 });
