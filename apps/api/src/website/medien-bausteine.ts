@@ -293,12 +293,13 @@ export function rendereVideolink(
     );
   }
   // Der Name des Ziels sagt, wohin der Link führt; die Adresse hat das Schema schon als https mit Host geprüft
-  let host = "";
-  try {
-    host = new URL(b.daten.url).hostname.replace(/^www\./, "");
-  } catch {
-    host = "";
-  }
+  const host = (() => {
+    try {
+      return new URL(b.daten.url).hostname.replace(/^www\./, "");
+    } catch {
+      return "";
+    }
+  })();
   const quelle = `${b.daten.art === "video" ? "Video" : "Beitrag"}${host ? ` auf ${host}` : ""}`;
   const alt =
     (m.altText ?? "").trim().toLowerCase() ===

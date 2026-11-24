@@ -773,7 +773,7 @@ describe("Stil und Skript", () => {
 
   test("nirgends ein style-Attribut, nie eine Farbe als Hex ausser Weiss und Schwarz auf Bildern", () => {
     const ohneKommentare = css.replace(/\/\*[\s\S]*?\*\//g, "");
-    for (const hex of ohneKommentare.match(/#[0-9a-fA-F]{3,8}/g) ?? []) {
+    for (const hex of ohneKommentare.match(/#[0-9a-fA-F]{3,8}\b/g) ?? []) {
       expect(["#fff", "#ffffff"], hex).toContain(hex.toLowerCase());
     }
     // Gar kein Aufruf, der ein style-Attribut setzt
