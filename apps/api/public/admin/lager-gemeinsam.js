@@ -2,6 +2,7 @@ import { ApiFehler, fehlertext } from "./api.js";
 import { zurueckKlick } from "./verlauf.js";
 import { datumsfeld } from "./datumsfeld.js";
 import { el, feld, icon, knopf } from "./dom.js";
+import { adressSuche } from "./ort-suche.js";
 
 // Gemeinsames des Bereichs «Lager» (#527): Texte, Symbole, Statuschip, Datum und die Meldung, die eine Navigation überlebt. Klassen mit dem Vorsatz «lg-».
 
@@ -203,13 +204,14 @@ export function grunddaten(start = {}) {
   });
   const von = datumsfeld({ label: "Beginn", wert: start.von ?? "" });
   const bis = datumsfeld({ label: "Ende", wert: start.bis ?? "" });
-  const ort = feld({
+  // Mit Vorschlägen aus der Adresssuche; der Text bleibt frei, auch ohne Wahl
+  const ort = adressSuche({
     label: "Ort",
-    hilfe: "Freiwillig. Das Wetter wird für diesen Ort geholt.",
-    wert: start.ort ?? "",
-    maxlength: 200,
-    autocomplete: "off",
+    hilfe:
+      "Freiwillig. Tippe Ort oder Adresse und wähle einen Vorschlag. Das Wetter wird für diesen Ort geholt.",
+    beiWahl: () => {},
   });
+  ort.eingabe.value = start.ort ?? "";
   const wert = (f) => f.eingabe.value.trim();
   return {
     felder: { name, von, bis, ort },

@@ -338,7 +338,7 @@ describe("Material und Infos: Notfall, Infos, Wetter, Tagesseiten", () => {
     expect(gemeinsam.wetterOrtProblem!({ status: "gefunden" })).toBe(false);
     // Unter dem Feld «Ort» steht, dass das Wetter für diesen Ort geholt wird
     expect(quelle("lager-gemeinsam.js")).toContain(
-      "Freiwillig. Das Wetter wird für diesen Ort geholt.",
+      "Freiwillig. Tippe Ort oder Adresse und wähle einen Vorschlag. Das Wetter wird für diesen Ort geholt.",
     );
   });
 

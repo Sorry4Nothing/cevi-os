@@ -29,6 +29,7 @@ import {
   type OrtssucheHolen,
 } from "../../ortssuche/index.js";
 import { hatPlattformRecht } from "../../plattform.js";
+import { verlange } from "../../rechtemodell/darf.js";
 import type { Person } from "../../rechte.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import {
@@ -206,6 +207,11 @@ export function erstelleOrteRouten({
     }
     return true;
   };
+  // Die Adresssuche steht auch denen offen, die Lager verwalten (Ortsfeld im Lager); sie liefert nur öffentliche Adressen und ist je Konto begrenzt
+  const pruefeSucheRecht = async (person: Person) => {
+    if (await darfOrteVerwalten(db, person)) return;
+    await verlange(db, person, "lager.verwalten");
+  };
   const pruefeRecht = async (person: Person) => {
     if (!(await darfOrteVerwalten(db, person))) throw new HTTPException(403);
   };
@@ -326,7 +332,7 @@ export function erstelleOrteRouten({
       // Adresssuche mit Vorschlägen (#695): Der Browser fragt nur den eigenen Server; dieser fragt die Ortssuche des Bundes und gibt nur Bezeichnung, Strasse, PLZ, Ort und Koordinaten weiter. Der Suchtext steht in keinem Protokoll
       .get("/suche", eingabe("query", sucheSchema), async (c) => {
         const person = c.get("person");
-        await pruefeRecht(person);
+        await pruefeSucheRecht(person);
         if (!darfSuchen(person.id)) throw new HTTPException(429);
         c.header("Cache-Control", "no-store");
         try {
