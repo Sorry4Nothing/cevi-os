@@ -7,6 +7,8 @@ import {
   systemzeileAus,
 } from "./aktivitaet.js";
 import { erstelleApp } from "./app.js";
+import { sucheBeiGeoAdmin } from "./ortssuche/geoadmin.js";
+import { erstelleOrtssuche } from "./ortssuche/index.js";
 import { erstelleAuth } from "./auth.js";
 import {
   erstelleAnmeldungGesperrt,
@@ -158,6 +160,8 @@ const app = erstelleApp({
   db,
   auth,
   fcm,
+  // Adresssuche der Orte (#695): Suche des Bundes, mit Zwischenspeicher und Obergrenze
+  ortssuche: erstelleOrtssuche(sucheBeiGeoAdmin),
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
   kodiereMedienbild,

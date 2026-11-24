@@ -11,7 +11,6 @@ import {
   frischerRahmen,
   haenge,
   merkeRahmen,
-  statusChip,
   symbol,
   zeitraum,
 } from "./lager-gemeinsam.js";
@@ -22,6 +21,8 @@ import {
   darfBewegen,
 } from "./lager-bewegung.js";
 import { verfolge } from "./lager-ereignisse.js";
+import { statusZeile } from "./lager-status.js";
+import { behalteStelle, haltStelle, nimmBehaltene } from "./verlauf.js";
 import { skeletonRahmen, skeletonVon } from "./lager-skeleton.js";
 import { GRUPPEN, MODULE, suchbegriff } from "./lager-module.js";
 
@@ -90,10 +91,18 @@ const adresse = (id, schluessel) => `${ADRESSE}/${id}/${schluessel}`;
 let letzteMarke = null;
 // Beim nächsten Zeichnen kein Eintritt: Aktualisieren und Neuladen sollen nicht aufblitzen
 let ruhigNaechstes = false;
+// Welche Gruppen der Navigation offen sind (je Lager, nur solange die Seite offen ist); die Gruppe des aktiven Moduls ist immer offen
+let offeneGruppen = { lagerId: null, namen: new Set() };
 
 function navigation(lager, gruppen, aktiv) {
   const listeId = "lg-nav-liste";
   const aktuell = alle().find((e) => e.schluessel === aktiv);
+  if (offeneGruppen.lagerId !== lager.id)
+    offeneGruppen = { lagerId: lager.id, namen: new Set() };
+  const gruppeAktiv = gruppen.find((g) =>
+    g.eintraege.some((e) => e.schluessel === aktiv),
+  );
+  if (gruppeAktiv) offeneGruppen.namen.add(gruppeAktiv.name);
   const knopf = el(
     "button",
     {
@@ -112,41 +121,66 @@ function navigation(lager, gruppen, aktiv) {
   );
   // Die Marke gleitet hinter dem aktiven Eintrag; ohne sie (schmal, ohne Bewegung) trägt der Eintrag selbst den Grund
   const marke = el("span", { class: "lg-nav-marke", "aria-hidden": "true" });
-  const liste = el(
-    "div",
-    { class: "lg-nav-liste", id: listeId },
-    marke,
-    el(
+  // Jede Gruppe klappt auf und zu (Überschrift ist ein Knopf): so bleibt die Navigation kurz und scrollt selten
+  const gruppe = (g, i) => {
+    const id = `lg-nav-gruppe-${i}`;
+    const offen = offeneGruppen.namen.has(g.name);
+    const auf = el(
       "div",
-      { class: "lg-nav-innen" },
-      gruppen.map((g) =>
+      { class: "lg-nav-auf", id, ...(offen ? { "data-offen": "" } : {}) },
+      el(
+        "div",
+        { class: "lg-nav-auf-innen" },
         el(
-          "section",
-          { class: "lg-nav-gruppe" },
-          el("h2", { class: "lg-nav-kopf" }, g.name),
-          el(
-            "ul",
-            {},
-            g.eintraege.map((e) =>
+          "ul",
+          {},
+          g.eintraege.map((e) =>
+            el(
+              "li",
+              {},
               el(
-                "li",
-                {},
-                el(
-                  "a",
-                  {
-                    href: adresse(lager.id, e.schluessel),
-                    ...(e.schluessel === aktiv
-                      ? { "aria-current": "page" }
-                      : {}),
-                  },
-                  e.titel,
-                ),
+                "a",
+                {
+                  href: adresse(lager.id, e.schluessel),
+                  ...(e.schluessel === aktiv ? { "aria-current": "page" } : {}),
+                },
+                e.titel,
               ),
             ),
           ),
         ),
       ),
-    ),
+    );
+    const kopf = el(
+      "button",
+      {
+        type: "button",
+        class: "lg-nav-kopf",
+        "aria-expanded": String(offen),
+        "aria-controls": id,
+        onclick: () => {
+          const jetzt = kopf.getAttribute("aria-expanded") !== "true";
+          kopf.setAttribute("aria-expanded", String(jetzt));
+          auf.toggleAttribute("data-offen", jetzt);
+          if (jetzt) offeneGruppen.namen.add(g.name);
+          else offeneGruppen.namen.delete(g.name);
+        },
+      },
+      el("span", {}, g.name),
+      icon("runter"),
+    );
+    return el(
+      "section",
+      { class: "lg-nav-gruppe" },
+      el("h2", { class: "lg-nav-titel" }, kopf),
+      auf,
+    );
+  };
+  const liste = el(
+    "div",
+    { class: "lg-nav-liste", id: listeId },
+    marke,
+    el("div", { class: "lg-nav-innen" }, gruppen.map(gruppe)),
   );
   return el(
     "nav",
@@ -156,32 +190,48 @@ function navigation(lager, gruppen, aktiv) {
   );
 }
 
-// Setzt die Marke hinter den aktiven Eintrag; gleitet vom letzten Platz dorthin, wenn es ein Wechsel im selben Lager ist. Erst aufrufen, wenn die Navigation im Dokument steht (offsetTop).
+// Setzt die Marke hinter den aktiven Eintrag. Beim ersten Mal gleitet sie vom letzten Platz (Wechsel im selben Lager), danach folgt sie dem Eintrag, wenn Gruppen auf- oder zuklappen. Erst aufrufen, wenn die Navigation im Dokument steht (offsetTop).
 function setzeMarke(nav, lagerId) {
   const marke = nav.querySelector(".lg-nav-marke");
   const aktiv = nav.querySelector('a[aria-current="page"]');
+  const liste = nav.querySelector(".lg-nav-liste");
   if (!marke || !aktiv) return;
-  const oben = aktiv.offsetTop;
   const vorher = letzteMarke?.lagerId === lagerId ? letzteMarke.oben : null;
-  // Die Navigation scrollt für sich (sie ist höher als mancher Bildschirm): gleicher Stand wie vorher, und der aktive Eintrag bleibt im Bild
+  // Die Navigation scrollt für sich, wenn sie höher ist als das Fenster: gleicher Stand wie vorher, und der aktive Eintrag bleibt im Bild
   nav.addEventListener("scroll", () => {
     if (letzteMarke) letzteMarke.scroll = nav.scrollTop;
   });
   if (vorher !== null) nav.scrollTop = letzteMarke.scroll ?? 0;
-  const lage = nav.querySelector(".lg-nav-liste").offsetTop + oben;
+  const lage = liste.offsetTop + aktiv.offsetTop;
   if (lage < nav.scrollTop || lage + 44 > nav.scrollTop + nav.clientHeight)
     nav.scrollTop = Math.max(0, lage - nav.clientHeight / 2 + 22);
   nav.classList.add("lg-nav--marke");
-  // Die Marke steht per Web Animation am Ziel («forwards»); sie gleitet vom letzten Platz dorthin, wenn Bewegung erlaubt ist
+  const setze = (von, nach, dauer) => {
+    for (const a of marke.getAnimations()) a.cancel();
+    marke.animate(
+      [
+        { transform: `translateY(${von}px)` },
+        { transform: `translateY(${nach}px)` },
+      ],
+      { duration: dauer, easing: KURVE, fill: "forwards" },
+    );
+  };
+  const oben = aktiv.offsetTop;
   const gleitet = vorher !== null && vorher !== oben && darfBewegen();
-  marke.animate(
-    [
-      { transform: `translateY(${gleitet ? vorher : oben}px)` },
-      { transform: `translateY(${oben}px)` },
-    ],
-    { duration: gleitet ? DAUER_LANG_MS : 0, easing: KURVE, fill: "forwards" },
-  );
+  setze(gleitet ? vorher : oben, oben, gleitet ? DAUER_LANG_MS : 0);
   letzteMarke = { lagerId, oben, scroll: nav.scrollTop };
+  // Klappt eine Gruppe über dem aktiven Eintrag auf oder zu, wandert er mit; ist seine Gruppe zu, verschwindet die Marke
+  if (!window.ResizeObserver) return;
+  new window.ResizeObserver(() => {
+    if (!nav.isConnected) return;
+    const sichtbar = aktiv.offsetParent !== null && aktiv.offsetHeight > 0;
+    marke.hidden = !sichtbar;
+    if (!sichtbar) return;
+    const jetzt = aktiv.offsetTop;
+    if (jetzt === letzteMarke.oben) return;
+    setze(jetzt, jetzt, 0);
+    letzteMarke.oben = jetzt;
+  }).observe(liste);
 }
 
 // Suchfeld im Kopf: Enter öffnet die Suche; der Begriff bleibt aus der Adresse
@@ -247,6 +297,30 @@ export function zeigeRahmen(bereich, ctx, id, schluessel, weiter = []) {
   else laden();
 }
 
+// Wechsel im Arbeitsbereich ohne Sprung (#693): Wer in der Navigation ein anderes Modul oder einen Reiter wählt, bleibt an der Stelle der Seite. Der Klick meldet das vor dem Wechsel (die Stelle kennt danach niemand mehr: Der neue Inhalt ist erst leer, die Seite kurz). Ein Reiter behält die Stelle genau; ein anderes Modul oder eine Detailseite richtet den Anfang des Moduls oben aus, wenn die Seite weiter unten stand, und lässt sie sonst, wo sie war. Zurück und Vor im Browser gehen ihren eigenen Weg (verlauf.js).
+document.addEventListener(
+  "click",
+  (e) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey) return;
+    const a = e.target.closest?.('a[href^="#lager/lager/"]');
+    if (!a?.closest(".lg-arbeit")) return;
+    behalteStelle(
+      a.classList.contains("tab") ? "genau" : "ausrichten",
+      a.getAttribute("href"),
+    );
+  },
+  true,
+);
+
+function haltePosition(arbeit) {
+  const b = nimmBehaltene();
+  if (!b) return;
+  if (b.art === "genau") return haltStelle(b.y, { versuche: 120 });
+  const oben = arbeit.getBoundingClientRect().top + window.scrollY;
+  const rand = parseFloat(window.getComputedStyle(arbeit).scrollMarginTop) || 0;
+  haltStelle(Math.min(b.y, Math.max(0, oben - rand)), { versuche: 120 });
+}
+
 async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
   const rechte = new Set(lager.rechte);
   const sichtbare = alle().filter((e) => sichtbar(e, { rechte, ctx }));
@@ -295,9 +369,6 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
       symbol("zurueck"),
       "Alle Lager",
     ),
-    statusChip(lager.status),
-    lager.schreibgeschuetzt &&
-      el("span", { class: "leise" }, "Schreibgeschützt"),
     el("span", { class: "lg-leiste-luecke" }),
     suchfeld(lager),
     neuLaden,
@@ -373,20 +444,11 @@ async function zeichne(bereich, ctx, lager, schluessel, weiter, neu) {
     leiste.classList.add("lg-rahmen-ein");
     arbeit.classList.add("lg-rahmen-ein");
   }
-  haenge(
-    bereich,
-    leiste,
-    neues,
-    lager.schreibgeschuetzt &&
-      el(
-        "div",
-        { class: "hinweis hinweis--info", role: "status" },
-        "Das Lager ist abgeschlossen oder archiviert und nur zum Lesen. Ändern geht erst, wenn du es unter «Angaben» wieder öffnest.",
-      ),
-    arbeit,
-  );
+  const status = statusZeile(lager, modulCtx, () => modulCtx.neuRahmen());
+  haenge(bereich, leiste, status.wurzel, neues, status.wurzel, arbeit);
   setzeMarke(nav, lager.id);
   eintritt();
+  haltePosition(arbeit);
   // Wer in der Navigation ein anderes Modul wählt, landet auf dessen Titel (der Rahmen baut sich neu, der Fokus wäre sonst weg)
   if (!neuImLager && !ruhig) modulTitel.focus({ preventScroll: true });
   beobachteListen(inhalt);

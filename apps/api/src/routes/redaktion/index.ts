@@ -8,6 +8,7 @@ import {
 import { hatErweitertesRecht } from "../../website/seiten.js";
 import type { Kontakt } from "../../website/rendern.js";
 import type { MedienHandler } from "../medien.js";
+import type { OrtssucheHolen } from "../../ortssuche/index.js";
 import { erstelleAuswahlRouten } from "./auswahl.js";
 import { erstelleEckdatenRouten } from "./eckdaten.js";
 import { erstelleWebsiteEinstellungsRouten } from "./einstellungen.js";
@@ -26,9 +27,12 @@ export function erstelleEditorRouten({
   db,
   medien,
   kontakt,
+  ortssuche,
 }: {
   db: Db;
   medien: MedienHandler;
+  // Adresssuche der Orte (#695)
+  ortssuche?: OrtssucheHolen;
   // Angaben der Abteilung für die Vorschau im Editor (Kontaktkarte, Fuss)
   kontakt?: Kontakt;
 }) {
@@ -51,7 +55,7 @@ export function erstelleEditorRouten({
     .route("/seiten", erstelleSeitenRouten({ db }))
     .route("/seiten", erstelleSeitenInhaltRouten({ db, kontakt }))
     .route("/stufen", erstelleEckdatenRouten({ db }))
-    .route("/orte", erstelleOrteRouten({ db }))
+    .route("/orte", erstelleOrteRouten({ db, ortssuche }))
     .route("/medien", erstelleEditorMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }))
     .route("/", erstelleVorlagenRouten({ db }))
