@@ -26,6 +26,7 @@ export {
   type LinkArt,
   type TextBlock,
 } from "./bausteine-basis.js";
+import { dynamischeBausteine } from "./bausteine-dynamisch.js";
 
 // Bausteinkatalog Version 1 der Website (#349): ein strenges Schema je Typ, kein HTML.
 // Reine Schemas ohne Datenbank und ohne Route; die Verweisprüfung (Medium, Tag, Person, Seite existiert) macht #350. Der Baustein «datei» verweist auf einen Link, nicht auf ein Medium (#428).
@@ -265,6 +266,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein("fotoalben", z.strictObject({})),
   // Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, Spalten, Bild und Text, Tabelle, Schritte, Checkliste
   ...textBausteine,
+  // Bausteine mit Daten aus Cevi OS (#740): bausteine-dynamisch.ts
+  ...dynamischeBausteine,
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

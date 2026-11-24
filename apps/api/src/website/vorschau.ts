@@ -2,6 +2,11 @@ import type { Db } from "../db/client.js";
 import { ladeLadenDaten } from "../laden/laden.js";
 import type { Person } from "../rechte.js";
 import { ladeDaten } from "./abgleich.js";
+import {
+  ladeDynamischeBausteine,
+  type AnlassInfo,
+  type DynamischErgebnis,
+} from "./dynamisch-daten.js";
 import type { Baustein } from "./bausteine.js";
 import { sammleVerweise, type Seitendokument } from "./dokument.js";
 import {
@@ -122,6 +127,67 @@ function beispielTermine(anzahl: number, vorne: string): TerminEintrag[] {
   });
 }
 
+// Platzhalter für die Bausteine aus Cevi OS (#740): erfundene Anlässe, Orte und Zahlen, nichts aus der Datenbank
+function beispielAnlass(nr: number, art: "anlass" | "lager"): AnlassInfo {
+  const tag = beispielTermine(nr + 1, "anlass")[nr]!;
+  return {
+    id: `${beispielId(30 + nr)}`,
+    titel: art === "lager" ? "Beispiel: Sommerlager" : "Beispiel: Anlass",
+    art,
+    von: tag.von,
+    bis: tag.bis,
+    zeitVon: "14:00",
+    zeitBis: "17:00",
+    ort: "Beispielort",
+    anmeldungOffen: true,
+    fristTag: tag.von,
+    fristZeit: "23:59",
+    seiteId: null,
+  };
+}
+function beispielDynamisch(b: Baustein): DynamischErgebnis | null {
+  switch (b.typ) {
+    case "naechsterAnlass":
+      return { typ: "anlaesse", anlaesse: [beispielAnlass(0, "anlass")] };
+    case "lagerkarte":
+      return { typ: "anlaesse", anlaesse: [beispielAnlass(1, "lager")] };
+    case "anlaesse":
+      return {
+        typ: "anlaesse",
+        anlaesse: [0, 1, 2].map((i) => beispielAnlass(i, "anlass")),
+      };
+    case "countdown":
+      return {
+        typ: "countdown",
+        anlass: beispielAnlass(2, "lager"),
+        tage: 21,
+        zielTag: beispielAnlass(2, "lager").von,
+      };
+    case "treffpunkte":
+      return {
+        typ: "orte",
+        orte: [
+          {
+            name: "Beispielort",
+            beschreibung: "Vor dem Gemeindehaus",
+            karte: null,
+          },
+        ],
+      };
+    case "kennzahlen":
+      return {
+        typ: "kennzahlen",
+        zahlen: [
+          { art: "stufen", zahl: 6 },
+          { art: "leitende", zahl: 24 },
+          { art: "anlaesse", zahl: 8 },
+        ],
+      };
+    default:
+      return null;
+  }
+}
+
 const BEISPIEL_FAKTEN: Fakt[] = [
   { bezeichnung: "Datum", wert: "Samstag, 14.00 bis 17.00 Uhr" },
   { bezeichnung: "Treffpunkt", wert: "Beispielort, vor dem Gemeindehaus" },
@@ -146,6 +212,7 @@ export function beispielDaten(dokumente: Seitendokument[]): Daten {
   >();
   const stufenteams = new Map<string, StufenMitglied[]>();
   const termine = new Map<string, TerminEintrag[]>();
+  const dynamisch = new Map<string, DynamischErgebnis>();
   for (const dok of dokumente) {
     const v = sammleVerweise(dok);
     v.medien.forEach((id) => medien.set(id, mediumPlatzhalter));
@@ -163,6 +230,8 @@ export function beispielDaten(dokumente: Seitendokument[]): Daten {
       if (b.typ === "terminliste") {
         termine.set(b.id, beispielTermine(b.daten.anzahl, b.id));
       }
+      const d = beispielDynamisch(b);
+      if (d) dynamisch.set(b.id, d);
     }
   }
   const mitLaden = dokumente.some((d) =>
@@ -192,6 +261,7 @@ export function beispielDaten(dokumente: Seitendokument[]): Daten {
     teams,
     stufenteams,
     termine,
+    dynamisch,
     stufenfakten: new Map([[BEISPIEL_SEITE_ID, BEISPIEL_FAKTEN]]),
     kontakt,
     ...(mitLaden && {
@@ -228,26 +298,34 @@ export async function ladeVorschauDaten(
   kontakt?: Kontakt,
 ): Promise<Daten> {
   // Termin-Liste und «Zur Anmeldung» (#570) aus denselben Quellen wie der Abgleich; die Termine nur, wenn die Seite eine Liste hat (dann drei Abfragen mehr, sonst eine)
-  const [daten, laden, fakten, termine, anlaesse] = await Promise.all([
-    ladeDaten(db, person.abteilungId, [dokument], false),
-    // Lädeli (#566): Die Vorschau zeigt die Artikel wie die Website; die Abfragen laufen nur, wenn die Seite den Baustein hat
-    ladeLadenDaten(
-      db,
-      person.abteilungId,
-      [seiteId],
-      new Map([[seiteId, dokument]]),
-    ),
-    ladeStufenfaktenGemerkt(db, person.abteilungId, seiteId),
-    dokument.bausteine.some((b) => b.typ === "terminliste")
-      ? ladeTerminlisten(
-          db,
-          person.abteilungId,
-          [seiteId],
-          new Map([[seiteId, dokument]]),
-        )
-      : {},
-    ladeAnlassSeiten(db, person.abteilungId, [seiteId]),
-  ]);
+  const [daten, laden, fakten, termine, anlaesse, dynamisch] =
+    await Promise.all([
+      ladeDaten(db, person.abteilungId, [dokument], false),
+      // Lädeli (#566): Die Vorschau zeigt die Artikel wie die Website; die Abfragen laufen nur, wenn die Seite den Baustein hat
+      ladeLadenDaten(
+        db,
+        person.abteilungId,
+        [seiteId],
+        new Map([[seiteId, dokument]]),
+      ),
+      ladeStufenfaktenGemerkt(db, person.abteilungId, seiteId),
+      dokument.bausteine.some((b) => b.typ === "terminliste")
+        ? ladeTerminlisten(
+            db,
+            person.abteilungId,
+            [seiteId],
+            new Map([[seiteId, dokument]]),
+          )
+        : {},
+      ladeAnlassSeiten(db, person.abteilungId, [seiteId]),
+      // Bausteine mit Daten aus Cevi OS (#740): öffentliche Anlässe, gewählte Orte, Zahlen; dieselben Regeln wie auf der Website
+      ladeDynamischeBausteine(
+        db,
+        person.abteilungId,
+        [seiteId],
+        new Map([[seiteId, dokument]]),
+      ),
+    ]);
   if (fakten) daten.stufenfakten = new Map([[seiteId, fakten]]);
   if (laden.laden) {
     daten.laden = laden.laden;
@@ -255,7 +333,7 @@ export async function ladeVorschauDaten(
     if (laden.ladenEinstellung) daten.ladenEinstellung = laden.ladenEinstellung;
     daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
   }
-  Object.assign(daten, termine, anlaesse, kontakt && { kontakt });
+  Object.assign(daten, termine, anlaesse, dynamisch, kontakt && { kontakt });
   return daten;
 }
 

@@ -25,6 +25,33 @@ dialog .ws-select {
   max-width: 140px;
 }
 
+/* Ankreuzliste der Bausteine aus Cevi OS (Orte, Zahlen, #740): jede Zeile mindestens 44 px hoch, das Label ist das Ziel */
+.ws-orte {
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-ortzeile {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  min-height: 44px;
+  padding: 10px 0;
+}
+
+.ws-ortzeile input {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  margin: 0;
+}
+
+.ws-ortzeile label {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 fieldset.feld,
 fieldset.ws-wahl {
   padding: 0;

@@ -2496,6 +2496,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/website-felder-dynamisch.js:
+    get:
+      operationId: getAdminWebsiteFelderDynamischSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder der Bausteine aus Cevi OS
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/website-sichtbarkeit.js:
     get:
       operationId: getAdminWebsiteSichtbarkeitSkript
@@ -9731,6 +9746,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RedaktionTagListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/baustein-auswahl:
+    get:
+      operationId: listeRedaktionBausteinAuswahl
+      summary: Anlässe und Orte für die Bausteine aus Cevi OS im Editor
+      description: |
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten (#740): die öffentlichen Anlässe der eigenen Abteilung mit aktivem Termin für Eltern (ab 90 Tage zurück, höchstens 200, nach Beginn sortiert) und die aktiven Orte der Bibliothek (höchstens 200). Nur Id, Titel, Tage und Art, bei Orten Name und Beschreibung. Nie Anmeldungen, Personen, Notizen oder Anlässe anderer Abteilungen.
+
+        Statuscodes: 200, 401, 403, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Anlässe und Orte.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionBausteinAuswahl"
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
@@ -40503,6 +40543,57 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/RedaktionTag"
+    RedaktionBausteinAuswahl:
+      type: object
+      required:
+        - anlaesse
+        - orte
+      properties:
+        anlaesse:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - titel
+              - art
+              - von
+              - bis
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
+              art:
+                type: string
+                enum:
+                  - anlass
+                  - lager
+              von:
+                type: string
+                format: date
+                description: Erster Tag in Zürcher Zeit.
+              bis:
+                type: string
+                format: date
+                description: Letzter Tag in Zürcher Zeit.
+        orte:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - beschreibung
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              beschreibung:
+                type: [string, "null"]
     RedaktionPerson:
       type: object
       required:
