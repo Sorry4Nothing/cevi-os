@@ -219,7 +219,7 @@ const profil = (extra: Record<string, unknown> = {}) => ({
   telefon: null,
   pushChat: true,
   pushProgramme: false,
-  admin: false,
+  abteilungsleitung: false,
   rollen: [],
   stufen: [{ id: "s1", name: "Artemis", kuerzel: "A" }],
   kinder: [],
@@ -329,7 +329,7 @@ describe("Mein Konto (#671)", () => {
     expect(
       konto.rollenText(
         profil({
-          admin: true,
+          abteilungsleitung: true,
           rollen: [{ stufeId: "s1", typ: "stufenleitung" }],
           kinder: [{ id: "k", vorname: "Nils", nachname: "M", stufeId: "s1" }],
         }),

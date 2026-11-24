@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { bildUrl } from "../../bild.js";
 import type { Db } from "../../db/client.js";
 import { profilbild, user } from "../../db/schema.js";
-import type { Person } from "../../rechte.js";
+import { siehtAlles, type Person } from "../../rechte.js";
 import { anzeigename } from "../../website/personen.js";
 import { ladeVerwaltungZugang } from "../redaktion/ich.js";
 
@@ -25,7 +25,8 @@ export function erstelleKontoRoute({ db }: { db: Db }) {
         );
       // Die Sitzung löscht die Datenbank mit der Person (CASCADE); ohne Zeile ist sie nicht mehr gültig
       if (!profil) throw new HTTPException(401);
-      const verwaltung = person.admin || (await hatVerwaltung(db, person));
+      const verwaltung =
+        siehtAlles(person) || (await hatVerwaltung(db, person));
       c.header("Cache-Control", "private, no-store");
       c.header("Vary", "Cookie");
       return c.json({

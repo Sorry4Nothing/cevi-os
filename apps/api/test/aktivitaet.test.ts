@@ -524,7 +524,7 @@ describe("Änderungsprotokoll mit Datenbank", () => {
       vorname: "Geheimvorname",
       nachname: "Geheimnachname",
       benutzername,
-      admin: false,
+      abteilungsleitung: false,
       rollen: [],
       elternteilVon: [],
     });
@@ -542,7 +542,7 @@ describe("Änderungsprotokoll mit Datenbank", () => {
       abteilungId: welt.testabteilungId,
       beschreibung: "Person angelegt",
       felder: [
-        "admin",
+        "abteilungsleitung",
         "benutzername",
         "elternteilVon",
         "nachname",
@@ -600,7 +600,7 @@ describe("Änderungsprotokoll mit Datenbank", () => {
     expect(
       (
         await anfrage(admin, "PATCH", `/api/v1/admin/personen/${id}`, {
-          admin: true,
+          abteilungsleitung: true,
         })
       ).status,
     ).toBe(404);

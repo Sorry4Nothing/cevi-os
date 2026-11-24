@@ -30,7 +30,8 @@ const profil = (extra = {}) => ({
   benutzername: "linn.demo",
   telefon: null,
   bildUrl: null,
-  admin: false,
+  abteilungsleitung: false,
+  entwickler: false,
   zweiterFaktor: false,
   rollen: [
     { stufeId: "s1", typ: "stufenleitung" },
@@ -68,9 +69,13 @@ describe("Mein Konto: Adresse und Navigation", () => {
 describe("Mein Konto: Rollen und Website", () => {
   test("rollenChips: Abteilungsleitung, Entwickler, Stufenrollen im Klartext", () => {
     const chips = konto.rollenChips!({
-      profil: profil({ admin: true, rollen: [], stufen: [] }),
+      profil: profil({
+        abteilungsleitung: true,
+        entwickler: true,
+        rollen: [],
+        stufen: [],
+      }),
       zugang: { rechte: [] },
-      entwickler: true,
     });
     expect(chips.map((c: { text: string }) => c.text)).toEqual([
       "Abteilungsleitung",

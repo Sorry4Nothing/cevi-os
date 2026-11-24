@@ -2,7 +2,7 @@ import { and, eq, inArray, sql, type AnyColumn, type SQL } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "./db/client.js";
 import { personTag, tag } from "./db/schema.js";
-import type { Person } from "./rechte.js";
+import { siehtAlles, type Person } from "./rechte.js";
 
 // Gemeinsame Sichtbarkeit (#333) für Seiten, Bausteine, Termine, Räume, Dokumente und Medien.
 //
@@ -73,9 +73,12 @@ export async function tagsGehoerenZurAbteilung(
   return gefunden.length === new Set(tagIds).size;
 }
 
-export type SichtPerson = Pick<Person, "id" | "abteilungId" | "admin">;
+export type SichtPerson = Pick<
+  Person,
+  "id" | "abteilungId" | "abteilungsleitung" | "entwickler"
+>;
 
-// (a) Einzelnes Objekt, reine Funktion. person null = ohne Sitzung. Wer eine Sitzung hat, sieht nur Objekte der eigenen Abteilung, auch öffentliche; die Abteilungsleitung sieht dort alles, auch Tag-Mengen ohne eigenen Tag und leere
+// (a) Einzelnes Objekt, reine Funktion. person null = ohne Sitzung. Wer eine Sitzung hat, sieht nur Objekte der eigenen Abteilung, auch öffentliche; die Abteilungsleitung und der Entwickler sehen dort alles, auch Tag-Mengen ohne eigenen Tag und leere
 export function sichtbarFuer(
   person: (SichtPerson & { tagIds: readonly string[] }) | null,
   objekt: { abteilungId: string; sichtbarkeit: Sichtbarkeit },
@@ -83,7 +86,7 @@ export function sichtbarFuer(
   const wert = objekt.sichtbarkeit;
   if (!person) return wert.art === "oeffentlich";
   if (person.abteilungId !== objekt.abteilungId) return false;
-  if (person.admin || wert.art !== "tags") return true;
+  if (siehtAlles(person) || wert.art !== "tags") return true;
   return wert.tagIds.some((id) => person.tagIds.includes(id));
 }
 
@@ -103,6 +106,6 @@ export function sichtbarkeitFilter(
   const { abteilungId, sichtbarkeit, sichtbarkeitTags } = spalten;
   if (!person) return sql`${sichtbarkeit} = 'oeffentlich'`;
   const eigeneAbteilung = sql`${abteilungId} = ${person.abteilungId}`;
-  if (person.admin) return eigeneAbteilung;
+  if (siehtAlles(person)) return eigeneAbteilung;
   return sql`(${eigeneAbteilung} and (${sichtbarkeit} in ('oeffentlich', 'angemeldet') or (${sichtbarkeit} = 'tags' and exists (select 1 from person_tag as sicht_pt inner join tag as sicht_tag on sicht_tag.id = sicht_pt.tag_id where sicht_pt.user_id = ${person.id} and sicht_tag.abteilung_id = ${abteilungId} and sicht_tag.id = any(${sichtbarkeitTags})))))`;
 }

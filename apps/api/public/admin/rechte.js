@@ -9,6 +9,7 @@ import {
   vorschau as ladeVorschau,
 } from "./rechte-api.js";
 import { ADRESSE, adresse } from "./rechte-gemeinsam.js";
+import { siehtAlles } from "./sicht.js";
 import {
   adresseGueltig,
   aenderungenJeRolle,
@@ -49,7 +50,7 @@ const REITER = [
   ["rollen", "Rollen"],
   ["uebersicht", "Was darf wer?"],
 ];
-// Der Entwickler (ohne das Recht «rechte.verwalten») sieht nur «Rollen»: Dort stellt er die Rechte der Abteilungsleitung ein. Gruppen, Personen und «Was darf wer?» bleiben bei der Abteilungsleitung (#663)
+// Wer «rechte.verwalten» nicht hat, aber «rechte.abteilungsleitung», sieht nur «Rollen» (#663). Seit #722 hat der Entwickler jedes Recht und sieht alle Reiter; dieser Fall tritt heute nicht mehr ein
 const REITER_ENTWICKLER = [["rollen", "Rollen"]];
 
 export function zeige(bereich, ctx) {
@@ -103,7 +104,10 @@ function zeichne(bereich, ctx, daten, neu, reiterWunsch, restWunsch) {
     stufen: daten.stufen,
     entwurf,
     neu,
-    adminIds: new Set(daten.personen.filter((p) => p.admin).map((p) => p.id)),
+    // Wer ohnehin alles darf und darum bei einer Rollenänderung nicht zählt: Abteilungsleitung und Entwickler
+    ohnehinAlle: new Set(
+      daten.personen.filter((p) => siehtAlles(p)).map((p) => p.id),
+    ),
     klartext: (recht) => klartextVon.get(recht) ?? recht,
     reihenfolge: katalog.rechte.map((r) => r.id),
     merke,
@@ -221,7 +225,7 @@ function baueLeiste(z) {
     if (rollen.some((r) => r.abteilungsleitung)) {
       frage = `Wirklich speichern? Das ändert, was die Abteilungsleitung darf.${frage ? frage.replace("Wirklich speichern?", "") : ""}`;
     }
-    const b = betroffene(rollen, entwurf, z.adminIds);
+    const b = betroffene(rollen, entwurf, z.ohnehinAlle);
     const offen = vorschauBlock.open;
     vorschauBlock.replaceChildren(
       el(

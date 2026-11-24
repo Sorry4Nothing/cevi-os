@@ -151,7 +151,7 @@ export const istStufenleitung = (p) =>
 export function rollenText(p) {
   const stufe = (id) => p.stufen.find((s) => s.id === id)?.name ?? "";
   const aus = [
-    ...(p.admin ? ["Abteilungsleitung"] : []),
+    ...(p.abteilungsleitung ? ["Abteilungsleitung"] : []),
     ...p.rollen.map((r) =>
       `${r.typ === "stufenleitung" ? "Stufenleitung" : "Leitung"} ${stufe(r.stufeId)}`.trim(),
     ),

@@ -1078,7 +1078,8 @@ describe("Schreiben und Sync", () => {
         {
           id: konten[p].id!,
           abteilungId: welt.testabteilungId,
-          admin: p === "abteilungsleitung",
+          abteilungsleitung: p === "abteilungsleitung",
+          entwickler: false,
         },
         lagerId,
       ))!;

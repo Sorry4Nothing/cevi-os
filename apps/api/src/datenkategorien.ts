@@ -831,6 +831,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "user_agent",
       "user_id",
       "impersonated_by",
+      "zweiter_faktor_geprueft",
     ],
   },
   stufe: {
@@ -1497,6 +1498,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     rollen: ["user_id", "rolle_id", "erstellt_am"],
   },
   plattform_entwickler: {
+    rollen: ["user_id", "erstellt_am"],
+  },
+  abteilungsleitung_person: {
     rollen: ["user_id", "erstellt_am"],
   },
   abteilungsleitung_recht: {

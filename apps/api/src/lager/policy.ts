@@ -4,7 +4,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { lager, lagerMitglied } from "../db/schema.js";
-import { zweiterFaktorFehlt, type Person } from "../rechte.js";
+import { siehtAlles, zweiterFaktorFehlt, type Person } from "../rechte.js";
 import { ladeRollenRechte } from "./rechte.js";
 import type { LagerTabellenEintrag } from "./tabellen.js";
 import {
@@ -29,7 +29,7 @@ export type LagerZugriff = {
   // Die Person der Anfrage (für Zeilenfilter wie «nur eigene Aufgaben» und die Empfänger einer Pinnwand-Mitteilung, auch dort, wo nur der Zugriff vorliegt: Feed, Dateiverweise)
   personId: string;
   lager: LagerZeile;
-  // Wirksame Rolle: die Abteilungsleitung (person.admin) ist in der eigenen Abteilung immer Lagerleitung, auch mit einer anderen Zeile in lager_mitglied
+  // Wirksame Rolle: die Abteilungsleitung und der Entwickler (siehtAlles) sind in der eigenen Abteilung immer Lagerleitung, auch mit einer anderen Zeile in lager_mitglied
   rolle: LagerRolle;
   // Gibt es eine Zeile in lager_mitglied? Die Abteilungsleitung braucht keine
   mitglied: boolean;
@@ -68,7 +68,10 @@ export const darfTabelleLesen = (
 // undefined: Das Lager gibt es für diese Person nicht (fremde Abteilung, unbekannt oder Nicht-Mitglied); die Route antwortet 404
 export async function ladeLagerZugriff(
   db: Db,
-  person: Pick<Person, "id" | "abteilungId" | "admin">,
+  person: Pick<
+    Person,
+    "id" | "abteilungId" | "abteilungsleitung" | "entwickler"
+  >,
   lagerId: string,
 ): Promise<LagerZugriff | undefined> {
   const [zeile] = await db
@@ -85,7 +88,7 @@ export async function ladeLagerZugriff(
       and(eq(lager.id, lagerId), eq(lager.abteilungId, person.abteilungId)),
     );
   if (!zeile) return undefined;
-  const rolle = person.admin ? "lagerleitung" : zeile.rolle;
+  const rolle = siehtAlles(person) ? "lagerleitung" : zeile.rolle;
   if (!rolle) return undefined;
   return {
     personId: person.id,
@@ -132,6 +135,7 @@ export function lagerZugriff(db: Db, optionen: LagerZugriffOptionen = {}) {
       return c.json(
         zweiterFaktorFehlt(
           "Für die Lagerleitung braucht es zuerst einen zweiten Faktor.",
+          c.get("person"),
         ),
         403,
       );
