@@ -9,7 +9,7 @@ import { QuellFehler, type QuellBild } from "../src/fotos/quelle.js";
 
 // Der Flickr-Client ohne Netz: fetch ist eine Attrappe mit erfundenen Antworten. Keine echten Konten, Schlüssel oder Fotos.
 const KONTO = "12345678@N00";
-const SCHLUESSEL = "abcdef0123456789abcdef0123456789";
+const SCHLUESSEL = "TestSchluesselNurFuerTests";
 const GEHEIM = "ffeeddccbbaa9988";
 const TOKEN = "72157600000000000-0123456789abcdef";
 const TOKEN_GEHEIM = "fedcba9876543210";

@@ -111,7 +111,7 @@ const BEREICH_NACH_PFAD: [RegExp, SchalterBereich][] = [
     "programme",
   ],
   [
-    /^\/api\/v1\/(ich\/kalender-link|stufen\/[^/]+\/anwesenheit)(\/|$)/,
+    /^\/api\/v1\/(ich\/kalender-link|stufen\/[^/]+\/anwesenheit|cevi-db)(\/|$)/,
     "programme",
   ],
   [/^\/api\/v1\/admin(\/|$)/, "verwaltung"],
