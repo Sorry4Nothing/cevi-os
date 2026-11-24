@@ -13,6 +13,7 @@ import { blendeAus, skeletonBrett } from "./lager-einteilung-laden.js";
 import { blitze, staffle, wachseBis, wechsle } from "./lager-anim.js";
 import { leerKarte } from "./zustaende.js";
 import { haenge } from "./lager-gemeinsam.js";
+import { adressSuche } from "./ort-suche.js";
 import {
   belegung,
   fahrtTitel,
@@ -536,6 +537,13 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
   zeichneBrett();
 }
 
+// Ortsfeld mit Vorschlägen aus der Adresssuche; der Text bleibt frei, auch ohne Wahl
+function ortFeld(label, wert, hilfe) {
+  const f = adressSuche({ label, hilfe, beiWahl: () => {} });
+  f.eingabe.value = wert ?? "";
+  return f;
+}
+
 // Fahrt anlegen oder ändern. Art und Richtung lassen sich später nicht mehr ändern (die Mitfahrenden führen die Richtung mit).
 function formular(ctx, k, f, richtung, mitglieder, neu) {
   const art = auswahl({
@@ -574,24 +582,9 @@ function formular(ctx, k, f, richtung, mitglieder, neu) {
   });
   const datum = datumsfeld({ label: "Datum", wert: f?.datum ?? "" });
   const zeit = zeitfeld({ label: "Abfahrt", wert: f?.zeit ?? "" });
-  const von = feld({
-    label: "Von",
-    wert: f?.von ?? "",
-    maxlength: 200,
-    autocomplete: "off",
-  });
-  const nach = feld({
-    label: "Nach",
-    wert: f?.nach ?? "",
-    maxlength: 200,
-    autocomplete: "off",
-  });
-  const treffpunkt = feld({
-    label: "Treffpunkt",
-    wert: f?.treffpunkt ?? "",
-    maxlength: 200,
-    autocomplete: "off",
-  });
+  const von = ortFeld("Von", f?.von);
+  const nach = ortFeld("Nach", f?.nach);
+  const treffpunkt = ortFeld("Treffpunkt", f?.treffpunkt);
   const link = feld({
     label: "Link zum Fahrplan",
     hilfe: "Nur https. Der Server ruft ihn nie selbst ab.",
@@ -608,13 +601,11 @@ function formular(ctx, k, f, richtung, mitglieder, neu) {
     maxlength: 100,
     autocomplete: "off",
   });
-  const zielA = feld({
-    label: "Ziel, Adresse",
-    hilfe: "Eine Adresse oder ein Link zur Karte gehört zur Bezeichnung.",
-    wert: f?.zielAdresse ?? "",
-    maxlength: 200,
-    autocomplete: "off",
-  });
+  const zielA = ortFeld(
+    "Ziel, Adresse",
+    f?.zielAdresse,
+    "Eine Adresse oder ein Link zur Karte gehört zur Bezeichnung.",
+  );
   const zielL = feld({
     label: "Ziel, Link zur Karte",
     typ: "url",

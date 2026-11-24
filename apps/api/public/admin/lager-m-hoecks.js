@@ -12,6 +12,7 @@ import {
   tabelle,
 } from "./dom.js";
 import { datumsfeld, zeitfeld } from "./datumsfeld.js";
+import { adressSuche } from "./ort-suche.js";
 import { skeletonVon } from "./lager-skeleton.js";
 import { gehe } from "./verlauf.js";
 import { leerKarte } from "./zustaende.js";
@@ -90,13 +91,13 @@ function hoeckFormular({ ctx, lagerId, start, danach }) {
     wert: start?.zeit ?? "",
     hilfe: "Freiwillig, zum Beispiel 19:30.",
   });
-  const ort = feld({
+  // Mit Vorschlägen aus der Adresssuche; der Text bleibt frei, auch ohne Wahl
+  const ort = adressSuche({
     label: "Ort",
-    hilfe: "Freiwillig.",
-    wert: start?.ort ?? "",
-    maxlength: 200,
-    autocomplete: "off",
+    hilfe: "Freiwillig. Tippe Ort oder Adresse und wähle einen Vorschlag.",
+    beiWahl: () => {},
   });
+  ort.eingabe.value = start?.ort ?? "";
   const gaeste = feld({
     label: "Gäste",
     hilfe:
