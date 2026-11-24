@@ -429,11 +429,19 @@ describe("Vorschlag", () => {
 });
 
 describe("Nummer merken", () => {
+  // Die gemerkte Nummer bleibt nie liegen, auch wenn eine Prüfung davor fehlschlägt: sonst scheitert der nächste Test an fremdem Zustand
+  afterEach(async () => {
+    await db
+      .update(schema.kind)
+      .set({ ceviDbId: null })
+      .where(eq(schema.kind.id, welt.kindAId));
+  });
+
   test("nach dem Absenden einer Anmeldung mit einem Feld aus der Cevi-Datenbank merkt der Server die Nummer des eindeutigen Treffers", async () => {
     const id = await neuerAnlass([
       { schluessel: "geb", quelle: "geburtsdatum" },
     ]);
-    personenListe = [cevi(42)];
+    personenListe = [cevi(7340291)];
     // Der Vorschlag allein speichert nichts
     await vorschlag("elternA", id, welt.kindAId);
     const vorher = await db
@@ -455,9 +463,9 @@ describe("Nummer merken", () => {
       .select({ nr: schema.kind.ceviDbId })
       .from(schema.kind)
       .where(eq(schema.kind.id, welt.kindAId));
-    expect(nachher[0]!.nr).toBe("42");
-    // die Nummer steht nie in einer Antwort
-    expect(JSON.stringify(await r.json())).not.toContain("42");
+    expect(nachher[0]!.nr).toBe("7340291");
+    // die Nummer steht nie in einer Antwort (eine siebenstellige Zahl, damit keine zufällige UUID oder Zeit sie enthält)
+    expect(JSON.stringify(await r.json())).not.toContain("7340291");
     await db
       .update(schema.kind)
       .set({ ceviDbId: null })
