@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import { gruppe, gruppeZuordnung } from "../db/schema.js";
 import {
@@ -91,7 +92,13 @@ export const mischen = z.strictObject({
   seed: z.number().int().min(0).max(SEED_MAX).optional(),
 });
 
-type Person = { personId: string; name: string; ceviName: string | null };
+type Person = {
+  personId: string;
+  name: string;
+  ceviName: string | null;
+  // Pfad des Profilbilds (Mitglied mit Bild), sonst null; Teilnehmende sind keine Konten und haben kein Bild
+  bildUrl: string | null;
+};
 type Kind = {
   id: string;
   vorname: string;
@@ -117,7 +124,7 @@ export async function ladeGruppen(
       teilnehmer: Kind[];
     }>(sql`
       select g.id, g.version, g.name, g.reihenfolge,
-        coalesce(jsonb_agg(jsonb_build_object('personId', u.id, 'name', u.name, 'ceviName', u.cevi_name, 'rolle', z.rolle)
+        coalesce(jsonb_agg(jsonb_build_object('personId', u.id, 'name', u.name, 'ceviName', u.cevi_name, 'bildUrl', ${bildUrlImLager(sql`u.id`, lagerId)}, 'rolle', z.rolle)
           order by u.name, u.id) filter (where u.id is not null), '[]'::jsonb) as personen,
         coalesce(jsonb_agg(jsonb_build_object('id', t.id, 'vorname', t.vorname, 'nachname', t.nachname, 'stufe', t.stufe, 'ceviName', t.cevi_name)
           order by t.nachname, t.vorname, t.id) filter (where t.id is not null), '[]'::jsonb) as teilnehmer

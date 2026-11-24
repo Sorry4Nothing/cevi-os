@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../../bild.js";
 import type { Db } from "../../db/client.js";
 import {
   lagerMitglied,
@@ -256,6 +257,7 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
               id: lagerMitglied.personId,
               name: user.name,
               ceviName: user.ceviName,
+              bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
             })
             .from(lagerMitglied)
             .innerJoin(user, eq(user.id, lagerMitglied.personId))

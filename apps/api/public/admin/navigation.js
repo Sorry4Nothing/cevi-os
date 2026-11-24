@@ -106,6 +106,14 @@ export const BEREICHE = [
         untertitel: "Treffzeit, Treffpunkt und Mitnehmen je Stufe und Samstag.",
         zugang: "website",
       },
+      // Fotos aus Flickr (#690): Konto wählen und Alben zeigen; die Route verlangt «fotos.verwalten»
+      {
+        schluessel: "fotos",
+        name: "Fotos",
+        modul: "./website-fotos.js",
+        untertitel: "Welche Fotoalben aus Flickr die Website zeigt.",
+        zugang: "recht:fotos.verwalten",
+      },
       {
         schluessel: "einstellungen",
         name: "Einstellungen",

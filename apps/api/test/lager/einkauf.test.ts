@@ -570,6 +570,7 @@ describe("Wer kauft ein", () => {
       id: leitungId,
       name: "Neuer Name",
       ceviName: "Biber",
+      bildUrl: null,
     });
     // Kein Mitglied: weder anlegen noch ändern; auch eine Person der fremden Abteilung oder eine unbekannte nicht
     for (const person of [

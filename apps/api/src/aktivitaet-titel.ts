@@ -839,6 +839,13 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "vergeben",
     gruppe: "zugeordnet",
   },
+  "POST /api/v1/admin/fotos/verbindung": {
+    titel: "Verbindung zu Flickr testen",
+    objekt: "Verbindung zu Flickr",
+    aktion: "geprüft",
+    gruppe: "status",
+    nicht: "pruefung",
+  },
   "POST /api/v1/admin/import": {
     titel: "Kinder und Leitende importieren",
     objekt: "Kinder und Leitende",
@@ -1490,6 +1497,24 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     titel: "Zusatzfelder eines Anlasses ersetzen",
     objekt: "Zusatzfelder eines Anlasses",
     aktion: "ersetzt",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/fotos/alben/:p": {
+    titel: "Fotoalbum speichern",
+    objekt: "Fotoalbum",
+    aktion: "gespeichert",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/fotos/alben/reihenfolge": {
+    titel: "Reihenfolge der Fotoalben setzen",
+    objekt: "Reihenfolge der Fotoalben",
+    aktion: "gesetzt",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/fotos/einstellung": {
+    titel: "Fotoeinstellungen speichern",
+    objekt: "Fotoeinstellungen",
+    aktion: "gespeichert",
     gruppe: "geaendert",
   },
   "PUT /api/v1/admin/kategorie-zuordnungen": {

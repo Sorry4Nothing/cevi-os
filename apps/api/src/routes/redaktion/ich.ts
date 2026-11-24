@@ -18,6 +18,8 @@ const BEREICH_NACH_RECHT: Record<string, readonly string[]> = {
   ],
   lager: ["lager.verwalten", "lager.vorlagen_pflegen"],
   system: ["system.lesen", "zeitregeln.verwalten"],
+  // Fotos aus Flickr (#690): gehören zur Website, öffnen aber nur ihre eigene Seite («recht:fotos.verwalten»)
+  fotos: ["fotos.verwalten"],
 };
 
 // Was die Verwaltung im Browser wissen muss (GET /api/v1/redaktion/ich); auch der Kopf der Website (GET /api/v1/website/konto) leitet daraus ab, ob die Person die Verwaltung öffnen darf

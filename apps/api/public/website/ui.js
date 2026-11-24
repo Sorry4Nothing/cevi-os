@@ -19,6 +19,17 @@ const SYMBOLE = {
     ["path", { d: "M5 11h14v10H5z" }],
     ["path", { d: "M8 11V7.5a4 4 0 0 1 8 0V11" }],
   ],
+  // Pfeil nach rechts wie im Renderer; die Stile drehen ihn für «zurück»
+  pfeil: [
+    ["path", { d: "M3 12h12" }],
+    ["path", { class: "f", d: "M14 6l7.5 6-7.5 6z" }],
+  ],
+  // Ersatz für ein Album ohne Titelbild
+  bild: [
+    ["path", { d: "M3.5 5.5h17v13h-17z" }],
+    ["circle", { cx: 9, cy: 10.5, r: 1.75 }],
+    ["path", { d: "M3.5 17l5.5-5 4 3.5 3-2.5 4.5 4" }],
+  ],
   nochmals: [
     ["path", { d: "M19.5 13.5A7.5 7.5 0 1 1 16 7" }],
     ["path", { class: "f", d: "M14 3.5h7v7z" }],

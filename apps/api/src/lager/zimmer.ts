@@ -1,5 +1,6 @@
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import { zimmer, zimmerZuordnung } from "../db/schema.js";
 import { darf, type LagerZugriff } from "./policy.js";
@@ -194,6 +195,16 @@ export function berechneAnzeigenamen(personen: Anzeigeperson[]) {
 export async function anzeigeNamenLager(
   db: Pick<Db, "execute">,
   lagerId: string,
+  mitCeviNameTeilnehmer = true,
+) {
+  return (await anzeigeNamenUndBilder(db, lagerId, mitCeviNameTeilnehmer))
+    .namen;
+}
+
+// Wie anzeigeNamenLager, dazu die Profilbild-Pfade der Konten (ID -> Pfad; nur Mitglieder dieses Lagers mit Bild, Regel von bildUrlImLager, nie Teilnehmende) aus derselben Abfrage: Antworten, die Personen nur als ID und Namen führen, brauchen so keine zweite Abfrage
+export async function anzeigeNamenUndBilder(
+  db: Pick<Db, "execute">,
+  lagerId: string,
   // false: Der Cevi-Name der Teilnehmenden zählt nicht (wer teilnehmer.bearbeiten nicht hat, sieht ihn nirgends, #384); der Name fällt auf den Vornamen zurück. Die Cevi-Namen der Konten (Leitende) bleiben
   mitCeviNameTeilnehmer = true,
 ) {
@@ -203,17 +214,18 @@ export async function anzeigeNamenLager(
     nachname: string;
     ceviName: string | null;
     konto: boolean;
+    bildUrl: string | null;
   }>(sql`
-    select t.id, t.vorname, t.nachname, ${mitCeviNameTeilnehmer ? sql`t.cevi_name` : sql`null::text`} as "ceviName", false as konto
+    select t.id, t.vorname, t.nachname, ${mitCeviNameTeilnehmer ? sql`t.cevi_name` : sql`null::text`} as "ceviName", false as konto, null::text as "bildUrl"
     from teilnehmer t
     where t.lager_id = ${lagerId}
     union all
-    select u.id, u.name, '', u.cevi_name, true
+    select u.id, u.name, '', u.cevi_name, true, ${bildUrlImLager(sql`u.id`, lagerId)}
     from lager_mitglied m
     join lager l on l.id = m.lager_id
     join "user" u on u.id = m.person_id and u.abteilung_id = l.abteilung_id
     where m.lager_id = ${lagerId} and u.deaktiviert_am is null and coalesce(u.banned, false) = false`);
-  return berechneAnzeigenamen(
+  const namen = berechneAnzeigenamen(
     zeilen.map((z) => {
       if (!z.konto) return z;
       const [vorname = "", ...rest] = z.vorname.trim().split(/\s+/);
@@ -224,6 +236,10 @@ export async function anzeigeNamenLager(
       };
     }),
   );
+  const bilder = new Map(
+    zeilen.flatMap((z) => (z.bildUrl ? [[z.id, z.bildUrl] as const] : [])),
+  );
+  return { namen, bilder };
 }
 
 export type Mitglied = { typ: "teilnehmer" | "person"; id: string };

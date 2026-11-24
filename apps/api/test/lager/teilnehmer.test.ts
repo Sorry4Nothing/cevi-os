@@ -1097,7 +1097,15 @@ describe("Abzählen", () => {
     expect(team.gesamt).toBe(4);
     expect(team.da).toBe(0);
     expect(Object.keys(team.eintraege[0]!).sort()).toEqual(
-      ["ceviName", "geprueft", "geprueftAm", "id", "name", "personId"].sort(),
+      [
+        "bildUrl",
+        "ceviName",
+        "geprueft",
+        "geprueftAm",
+        "id",
+        "name",
+        "personId",
+      ].sort(),
     );
     const a = await anfrage(konten.team, "PUT", `${L(id)}/abzaehlen`, {
       geprueft: true,

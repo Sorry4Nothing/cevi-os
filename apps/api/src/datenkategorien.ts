@@ -170,7 +170,7 @@ export const KATEGORIEN = {
   abteilung: {
     titel: "Angaben der Abteilung",
     zweck:
-      "Die Abteilung, ihre Stufen (mit freiwilligem Logo) und die Anbindung an den Kalender.",
+      "Die Abteilung, ihre Stufen (mit freiwilligem Logo), die Anbindung an den Kalender und die Auswahl der Fotoalben, die auf der Website erscheinen.",
     frist: "Bis die Leitung die Angaben ändert oder löscht.",
     apple: [],
     google: [],
@@ -693,6 +693,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "variante",
       "menge",
       "einzelpreis_rappen",
+    ],
+  },
+  // Fotos aus Flickr (#690): nur die Auswahl der Abteilung (Konto, Albumkennungen, Titel); die Bilder liegen bei Flickr, Zugangsdaten nur in der Umgebung des Servers
+  foto_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "flickr_konto",
+      "flickr_link_zeigen",
+      "version",
+      "geaendert_am",
+    ],
+  },
+  foto_album: {
+    abteilung: [
+      "id",
+      "abteilung_id",
+      "flickr_album_id",
+      "sichtbar",
+      "reihenfolge",
+      "titel",
+      "version",
+      "geaendert_am",
     ],
   },
   // Raumanfragen (#447): wer angefragt hat (user_id), Zeit und Zweck (Freitext, höchstens 200 Zeichen), Stand und Entscheid

@@ -338,6 +338,7 @@ describe("Ressort anlegen und lesen", () => {
       id: leit,
       name: "Neuer Name",
       ceviName: "Biber",
+      bildUrl: null,
     });
   });
 

@@ -26,9 +26,17 @@ const WEBSITE_PFLICHT = [
   "WEBSITE_ABTEILUNG_ID",
   "WEBSITE_BASIS_URL",
 ] as const;
+// Fotos aus Flickr (#690): Schlüssel und Secret gehören zusammen, ebenso Token und Token-Secret; ein Token ohne Schlüssel gibt es nicht (geprüft unten). Alle vier sind Geheimnisse und stehen nur in deploy/.env
+const FLICKR_SCHLUESSEL = ["FLICKR_API_KEY", "FLICKR_API_SECRET"] as const;
+const FLICKR_TOKEN = [
+  "FLICKR_OAUTH_TOKEN",
+  "FLICKR_OAUTH_TOKEN_SECRET",
+] as const;
 const GRUPPEN: readonly (readonly (keyof z.infer<typeof schema>)[])[] = [
   MEDIEN_PFLICHT,
   WEBSITE_PFLICHT,
+  FLICKR_SCHLUESSEL,
+  FLICKR_TOKEN,
 ];
 // Nur die Herkunft, ohne Pfad und Schrägstrich am Ende: Daraus entstehen canonical und Sitemap
 const basisUrl = (protokoll: RegExp) =>
@@ -75,6 +83,16 @@ const schema = z.object({
   PROTOKOLL_MAX_ZEILEN: freiwillig(
     z.coerce.number().int().min(10000).max(5_000_000),
   ),
+  // Fotos aus Flickr (#690): Schlüssel und Secret der App bei Flickr, dazu das Token des Kontos (nur Lesen, OAuth 1.0a; apps/api/scripts/flickr-token.mjs holt es). Ohne Schlüssel gibt es keine Fotos; ohne Token sieht der Server nur die öffentlichen Fotos. Welches Konto und welche Alben, stellt die Abteilung in der Verwaltung ein
+  FLICKR_API_KEY: freiwillig(z.string().regex(/^[0-9a-zA-Z]{8,64}$/)),
+  FLICKR_API_SECRET: freiwillig(z.string().regex(/^[0-9a-zA-Z]{8,64}$/)),
+  FLICKR_OAUTH_TOKEN: freiwillig(z.string().regex(/^[0-9a-zA-Z-]{8,128}$/)),
+  FLICKR_OAUTH_TOKEN_SECRET: freiwillig(
+    z.string().regex(/^[0-9a-zA-Z]{8,64}$/),
+  ),
+  // Nur für Tests und lokale Läufe mit einer Attrappe von Flickr; in Produktion verboten (unten): Dort sind die Adressen von Flickr fest im Code
+  FLICKR_API_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
+  FLICKR_BILD_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
   // Telefon der Abteilung für Fuss und Kontaktkarte der Website (#549); öffentlich, steht nur in der Umgebung, nie im Repo. Ohne Angabe fehlt es dort. Anschrift und E-Mail sind die der verantwortlichen Stelle
   KONTAKT_TELEFON: freiwillig(
     z
@@ -88,6 +106,9 @@ const schema = z.object({
 const produktion = schema.extend({
   BETTER_AUTH_URL: z.url({ protocol: /^https$/ }),
   WEBSITE_BASIS_URL: basisUrl(/^https$/),
+  // Keine fremde Adresse für Flickr: Der Server holt nur dort, wo der Code es festlegt
+  FLICKR_API_BASIS: freiwillig(z.never()),
+  FLICKR_BILD_BASIS: freiwillig(z.never()),
 });
 
 export function ladeKonfiguration(env: Record<string, string | undefined>) {
@@ -106,6 +127,13 @@ export function ladeKonfiguration(env: Record<string, string | undefined>) {
           if (ergebnis.data[n] === undefined) namen.add(n);
         }
       }
+    }
+    // Ein Token ohne Schlüssel und Secret der App kann nichts signieren
+    if (
+      ergebnis.data.FLICKR_OAUTH_TOKEN !== undefined &&
+      ergebnis.data.FLICKR_API_KEY === undefined
+    ) {
+      for (const n of FLICKR_SCHLUESSEL) namen.add(n);
     }
     if (namen.size === 0) return ergebnis.data;
   }

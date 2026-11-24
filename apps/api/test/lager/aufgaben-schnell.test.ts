@@ -233,7 +233,12 @@ describe("Vorschlag", () => {
       status: "gefunden",
       text: "Pax",
       kandidaten: [
-        { id: personIds.pax, name: "Zacharias Gamma", ceviName: "Pax" },
+        {
+          id: personIds.pax,
+          name: "Zacharias Gamma",
+          ceviName: "Pax",
+          bildUrl: null,
+        },
       ],
     });
     expect(v.ressort).toEqual({
