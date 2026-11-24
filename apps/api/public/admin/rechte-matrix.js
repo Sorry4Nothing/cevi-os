@@ -53,7 +53,7 @@ export function rechteRaster({ z, rollen, art, einzel = false }) {
         "span",
         {
           class: "rr-fest",
-          title: rolle.abteilungsleitung
+          "data-tipp": rolle.abteilungsleitung
             ? "Diese Rechte setzt der Entwickler"
             : "Nur lesen: Diese Rolle stellt die Abteilungsleitung ein",
         },
@@ -71,7 +71,7 @@ export function rechteRaster({ z, rollen, art, einzel = false }) {
         "span",
         {
           class: "rr-fest",
-          title: "Im Code vorgegeben, nicht einstellbar",
+          "data-tipp": "Im Code vorgegeben, nicht einstellbar",
         },
         icon("sperre"),
         el("span", {}, `Fest: ${segmentText(fest.geltung, offen)}`),
@@ -160,7 +160,7 @@ export function rechteRaster({ z, rollen, art, einzel = false }) {
           "span",
           {
             class: "rr-marke rr-marke--faktor",
-            title: "Wer es nutzt, braucht den zweiten Faktor",
+            "data-tipp": "Wer es nutzt, braucht den zweiten Faktor",
           },
           icon("schluessel"),
           "2. Faktor",
@@ -173,7 +173,7 @@ export function rechteRaster({ z, rollen, art, einzel = false }) {
           "span",
           {
             class: m.gross ? "rr-marke rr-marke--gross" : "rr-marke",
-            title: m.hilfe,
+            "data-tipp": m.hilfe,
           },
           m.gross && icon("warnung"),
           m.text,

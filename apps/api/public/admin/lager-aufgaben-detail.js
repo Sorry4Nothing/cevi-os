@@ -14,6 +14,7 @@ import {
 } from "./lager-anim.js";
 import { sortierListe } from "./sortieren.js";
 import { zweiStufig } from "./rueckgaengig.js";
+import { schuetze } from "./ungespeichert.js";
 import { feldFehler, symbol, zurueckLink } from "./lager-gemeinsam.js";
 import {
   API,
@@ -385,6 +386,12 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
     }
     wurzel.addEventListener("input", markiere);
     wurzel.addEventListener("change", markiere);
+    // Menü, Link, Zurück und Tab schliessen fragen nur, wenn sich wirklich etwas gegenüber dem Server ändert (#699)
+    schuetze({
+      wurzel,
+      geaendert: () => !leiste.hidden && Object.keys(aenderungen()).length > 0,
+      text: "Aufgabe",
+    });
     verwerfen.addEventListener("click", () => {
       konfliktOrt.replaceChildren();
       neueSektion("angaben");
@@ -720,7 +727,13 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
         type: "submit",
       });
       const ab = knopf("Abbrechen", { klein: true, art: "still" });
-      const zeile = el("form", { class: "la-punktform" }, f.wurzel, ok, ab);
+      const zeile = el(
+        "form",
+        { class: "la-punktform", novalidate: true },
+        f.wurzel,
+        ok,
+        ab,
+      );
       ort.replaceChildren(zeile);
       f.eingabe.focus();
       ab.addEventListener("click", () => neueSektion("checkliste"));
@@ -824,7 +837,12 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
       klein: true,
       type: "submit",
     });
-    const form = el("form", { class: "la-punktform" }, f.wurzel, ok);
+    const form = el(
+      "form",
+      { class: "la-punktform", novalidate: true },
+      f.wurzel,
+      ok,
+    );
     form.addEventListener("submit", async (e) => {
       e.preventDefault();
       const t = f.eingabe.value.trim();
@@ -1030,7 +1048,12 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
         klein: true,
         type: "submit",
       });
-      form = el("form", { class: "la-punktform" }, f.wurzel, ok);
+      form = el(
+        "form",
+        { class: "la-punktform", novalidate: true },
+        f.wurzel,
+        ok,
+      );
       form.addEventListener("submit", (e) => {
         e.preventDefault();
         const w = f.eingabe.value.trim();

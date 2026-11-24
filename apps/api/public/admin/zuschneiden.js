@@ -380,7 +380,7 @@ export async function zuschneiden({
         type: "button",
         class: `knopf knopf--rund ${klasse}`.trim(),
         "aria-label": name,
-        title: name,
+        "data-tipp": name,
         onclick: beiKlick,
       },
       icon(symbolName),
@@ -513,9 +513,16 @@ export async function zuschneiden({
   const originalZuGross = gelesen.pixel > maxPixel;
   if (originalZuGross) {
     originalKnopf.disabled = true;
-    originalKnopf.title =
-      "Das Original hat zu viele Pixel. Zuschneiden verkleinert es.";
+    // Ein gesperrter Knopf zeigt keinen Hinweis beim Darüberfahren: Der Grund steht als Text daneben
+    originalKnopf.setAttribute("aria-describedby", "zs-original-grund");
   }
+  const originalGrund = originalZuGross
+    ? el(
+        "p",
+        { class: "hilfe", id: "zs-original-grund" },
+        "Das Original hat zu viele Pixel. Zuschneiden verkleinert es.",
+      )
+    : null;
 
   const seitenleiste = el(
     "div",
@@ -557,6 +564,7 @@ export async function zuschneiden({
       { class: "fluss-karte zs-karte" },
       inhalt,
       fehler,
+      originalGrund,
       el(
         "div",
         { class: "dialog-knoepfe" },

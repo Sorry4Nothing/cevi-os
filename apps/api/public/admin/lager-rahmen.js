@@ -249,6 +249,7 @@ function suchfeld(lager) {
     {
       class: "lg-kopfsuche suche",
       role: "search",
+      novalidate: true,
       onsubmit: (e) => {
         e.preventDefault();
         suchbegriff.frage = eingabe.value.trim();

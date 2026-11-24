@@ -192,11 +192,16 @@ describe("Verlauf in den Bereichen (Quelltext)", () => {
     new URL("../public/admin/", import.meta.url),
   ).filter((d) => d.endsWith(".js"));
 
-  test("kein Bereich schreibt mit replaceState eine Ansicht: nur verlauf.js und die Normalisierung alter Adressen in admin.js", () => {
+  test("kein Bereich schreibt mit replaceState eine Ansicht: nur verlauf.js, die Normalisierung alter Adressen in admin.js und der Wächter, der eine abgelehnte Adresse zurückstellt (ungespeichert.js, #699)", () => {
     const treffer = dateien.filter((d) =>
       /history\.replaceState/.test(lies(d)),
     );
-    expect(treffer.sort()).toEqual(["admin.js", "fluss.js", "verlauf.js"]);
+    expect(treffer.sort()).toEqual([
+      "admin.js",
+      "fluss.js",
+      "ungespeichert.js",
+      "verlauf.js",
+    ]);
     // admin.js: nur für alte Adressen (neueAdresse), der Zustand bleibt erhalten
     expect(lies("admin.js")).toMatch(
       /replaceState\(window\.history\.state, "", neu\)/,

@@ -80,7 +80,10 @@ function metaTeile(e) {
         felder.rest > 0
           ? el(
               "span",
-              { class: "pl-feld pl-feld--rest", title: e.felder.join(", ") },
+              {
+                class: "pl-feld pl-feld--rest",
+                "data-tipp": e.felder.join(", "),
+              },
               `+${felder.rest}`,
             )
           : false,
@@ -141,7 +144,7 @@ export function eintragZeile(e, beiOeffnen) {
         sicher ? sicherheitMarke(e) : gruppeMarke(e),
         el(
           "time",
-          { class: "pl-zeit", datetime: e.zeit, title: absolut(e.zeit) },
+          { class: "pl-zeit", datetime: e.zeit, "data-tipp": absolut(e.zeit) },
           relativ(e.zeit),
           el("span", { class: "nur-leser" }, `, ${absolut(e.zeit)}`),
         ),

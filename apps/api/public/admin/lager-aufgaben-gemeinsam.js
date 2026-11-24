@@ -193,7 +193,7 @@ export function fristChip(a, jetzt = heute()) {
 export const sternMarke = () =>
   el(
     "span",
-    { class: "la-stern", title: "Gemerkt" },
+    { class: "la-stern", "data-tipp": "Gemerkt" },
     symbol("stern"),
     el("span", { class: "nur-leser" }, "Gemerkt"),
   );

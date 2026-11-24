@@ -474,7 +474,7 @@ export function monatsAnsicht({
         el(
           "div",
           { class: "tm-wochentag", role: "columnheader" },
-          el("abbr", { title: lang }, kurz),
+          el("abbr", { "data-tipp": lang }, kurz),
         ),
       ),
     );

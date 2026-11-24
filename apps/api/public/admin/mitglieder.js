@@ -174,7 +174,7 @@ export function chipListe(chips, { max = 3, klasse = "" } = {}) {
           "li",
           {
             class: "chip chip--leise",
-            title: chips
+            "data-tipp": chips
               .slice(max)
               .map((c) => c.textContent)
               .join(", "),

@@ -457,6 +457,51 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/tipp.css:
+    get:
+      operationId: getAdminTippStilvorlage
+      summary: Stilvorlage der Verwaltung – eigener Hinweis statt Tooltip des Browsers
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/tipp.js:
+    get:
+      operationId: getAdminTippSkript
+      summary: Skript der Verwaltung – eigener Hinweis statt Tooltip des Browsers
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/ungespeichert.js:
+    get:
+      operationId: getAdminUngespeichertSkript
+      summary: Skript der Verwaltung – Wächter für ungespeicherte Änderungen (Menü, Link, Zurück, Tab schliessen)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/rueckgaengig.js:
     get:
       operationId: getAdminRueckgaengigSkript

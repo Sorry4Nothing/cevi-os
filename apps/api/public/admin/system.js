@@ -933,7 +933,7 @@ function fehlerListe(fehler, max = 8) {
           {
             class: "sv-fehler-zeit",
             datetime: f.zeit,
-            title: zeit(f.zeit),
+            "data-tipp": zeit(f.zeit),
           },
           vor(f.zeit),
         ),

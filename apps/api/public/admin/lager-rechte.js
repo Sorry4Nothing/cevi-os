@@ -3,6 +3,7 @@ import { filterleiste } from "./filterleiste.js";
 import { el, knopf } from "./dom.js";
 import { skeletonFlaeche } from "./lader.js";
 import { zweistufig } from "./rueckgaengig.js";
+import { schuetze } from "./ungespeichert.js";
 import { leerKarte } from "./zustaende.js";
 import {
   ADRESSE,
@@ -111,12 +112,13 @@ function zeichneRechte(bereich, ctx, lager, rechte, neu) {
       n === 1
         ? "1 Änderung, noch nicht gespeichert"
         : `${n} Änderungen, noch nicht gespeichert`;
-    // Beim Verlassen ohne Speichern gehen die Änderungen verloren (Neuladen, Tab schliessen)
-    window.onbeforeunload = n > 0 ? (e) => e.preventDefault() : null;
   };
-  // Wer die Seite wechselt, nimmt die Warnung mit
-  window.addEventListener("hashchange", () => (window.onbeforeunload = null), {
-    once: true,
+  // Beim Verlassen ohne Speichern gehen die Änderungen verloren: Menü, Link, Zurück und Tab schliessen fragen zuerst (#699)
+  schuetze({
+    wurzel: leiste,
+    geaendert: () => geaendert.size > 0,
+    text: "Rechte des Lagers",
+    verwerfen: () => geaendert.clear(),
   });
   verwerfen.addEventListener("click", () => {
     for (const [k, { box, zeile }] of kisten) {

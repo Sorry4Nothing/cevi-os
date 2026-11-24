@@ -470,6 +470,14 @@ Verlauf (`verlauf.js`): Jede Ansicht ist eine Adresse mit eigenem Eintrag; `repl
 
 Rückfragen sind Toasts mit «Rückgängig» (`rueckgaengig.js`, siehe «Rückmeldungen»); wo eine Verzögerung nicht sicher ist, gibt es `zweiStufig` (Knopf wird zum «Wirklich …?»-Knopf).
 
+## Nichts vom Browser gezeichnet (#699)
+
+Verwaltung und Website nutzen keine Oberfläche, die der Browser selbst zeichnet: kein `alert`, `confirm`, `prompt`, keine Validierungsblasen (jedes Formular hat `novalidate`, Fehler stehen am Feld), keine nativen Auswahllisten und Datums-/Zeitwähler (`auswahl.js`, `datumsfeld.js`), keine Tooltips per `title`. `test/admin-keine-browserdialoge.test.ts` liest alle Dateien unter `public/` und `src/website` und sperrt das dauerhaft.
+
+- **Ungespeichertes** (`ungespeichert.js`): Wer Eingaben hält, die verloren gingen, meldet sich mit `schuetze({ geaendert, innerhalb, verwerfen, frage, wurzel })` an (jede `speicherLeiste`, Seiten im Fluss, Konto, Rollen und Rechte, Lager-Rechte, Neues Lager, Aufgaben-Detail, Website-Editor). Menü, Link, Browser-Zurück und jede Adressänderung fragen mit einer Zeile im Inhalt («Änderungen verwerfen?», «Bleiben», «Verwerfen und gehen»), kein Popup; `geaendert()` wird bei jeder Frage neu gelesen, ein Wächter hält keinen eigenen Stand. Der Dialog des Browsers («Seite verlassen?») bleibt nur als letzte Rückfallebene beim Schliessen oder Neuladen des Tabs und erscheint nur, wenn `geaendert()` wahr ist. `admin.js` importiert den Wächter als Erstes, damit er vor der Navigation auf `hashchange` hört.
+- **Hinweise** (`tipp.js`, `tipp.css`): `data-tipp="Text"` statt `title`. Der Hinweis erscheint nach 450 ms unter dem Zeiger oder sofort beim Fokus per Tastatur, bleibt beim Darüberfahren, geht mit Escape weg (`role="tooltip"`, `aria-describedby`). Der Name des Elements bleibt sein Text oder `aria-label`. Ausnahme: der Rahmen der Vorschau im Editor braucht `title` als Namen.
+- **Dateiwahl:** Das Dateifeld bleibt unsichtbar, ein eigener Knopf löst es aus (`dateiFeld`, `nur-leser`). Der Systemdialog der Dateiwahl ist unvermeidlich.
+
 ## Scrollleisten (#572, #578)
 
 Die Regeln für Scrollleisten stehen **einmal** in `tokens.css` und gelten für Website und Verwaltung: schmal, runder Griff (`--leiste-griff` = `--outline`, mindestens 3:1), bei Hover `--leiste-griff-hover`, beim Ziehen `--leiste-griff-aktiv`, durchsichtige Spur. Sie gelten für die Seite und für jeden inneren Scrollbereich. `html` hat `scrollbar-gutter: stable`, damit nichts springt.

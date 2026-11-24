@@ -2,6 +2,7 @@ import { fehlertext } from "./api.js";
 import { el, knopf } from "./dom.js";
 import { skeletonFlaeche } from "./lader.js";
 import { zweiStufig } from "./rueckgaengig.js";
+import { schuetze } from "./ungespeichert.js";
 import {
   aendereRolle,
   ladeGrund,
@@ -40,10 +41,7 @@ const entwurf = neuerEntwurf();
 const speicher = new Map();
 let drin = false;
 window.addEventListener("hashchange", () => {
-  if (!location.hash.startsWith(ADRESSE)) {
-    drin = false;
-    window.onbeforeunload = null;
-  }
+  if (!location.hash.startsWith(ADRESSE)) drin = false;
 });
 
 const REITER = [
@@ -154,7 +152,15 @@ function zeichne(bereich, ctx, daten, neu, reiterWunsch, restWunsch) {
         : zeigeGruppen;
   ansicht(inhalt, z, rest);
   leiste.aktualisiere();
-  schuetzeVorVerlassen(bereich, leiste);
+  // Adressen innerhalb von «Rollen und Rechte» (Reiter, Gruppen) behalten den Entwurf; alles andere fragt zuerst (#699)
+  schuetze({
+    schluessel: "rechte",
+    wurzel: bereich,
+    geaendert: () => anzahlAenderungen(entwurf) > 0,
+    innerhalb: (hash) => hash.startsWith(ADRESSE),
+    text: "Rechte",
+    verwerfen: () => entwurf.clear(),
+  });
 }
 
 // Wie der Server gerade entscheidet: alt (Rollen wirken nicht), schatten (Rollen wirken zusätzlich), neu (nur Rollen und feste Regeln)
@@ -200,7 +206,6 @@ function baueLeiste(z) {
   function aktualisiere() {
     const n = anzahlAenderungen(entwurf);
     wurzel.hidden = n === 0;
-    window.onbeforeunload = n > 0 ? (e) => e.preventDefault() : null;
     zahl.textContent =
       n === 0
         ? ""
@@ -348,52 +353,4 @@ async function sichere(z) {
     );
   }
   z.neu();
-}
-
-// Ein Link aus der Seite heraus, während etwas ungespeichert ist: erst fragen. Browser-Zurück und Tab schliessen deckt beforeunload ab.
-// Höchstens ein Wächter: Jedes Neuladen der Ansicht ersetzt den alten
-let waechter = null;
-function schuetzeVorVerlassen(bereich, leiste) {
-  if (waechter) document.removeEventListener("click", waechter, true);
-  const beiKlick = (e) => {
-    if (!bereich.isConnected) {
-      document.removeEventListener("click", beiKlick, true);
-      return;
-    }
-    if (entwurf.size === 0) return;
-    const a = e.target.closest?.("a[href^='#']");
-    const ziel = a?.getAttribute("href");
-    if (!a || ziel === "#inhalt" || ziel === "#" || ziel.startsWith(ADRESSE)) {
-      return;
-    }
-    e.preventDefault();
-    e.stopPropagation();
-    if (bereich.querySelector(".rr-verlassen")) return;
-    const bleiben = knopf("Bleiben", { klein: true });
-    const gehen = knopf("Verwerfen und gehen", { klein: true });
-    const frage = el(
-      "div",
-      { class: "hinweis hinweis--warn rr-verlassen", role: "alert" },
-      el(
-        "span",
-        {},
-        "Du hast nicht gespeicherte Änderungen an Rechten. Wenn du gehst, sind sie weg.",
-      ),
-      bleiben,
-      gehen,
-    );
-    bleiben.addEventListener("click", () => {
-      frage.remove();
-      leiste.wurzel.querySelector("button")?.focus();
-    });
-    gehen.addEventListener("click", () => {
-      entwurf.clear();
-      window.onbeforeunload = null;
-      location.hash = ziel;
-    });
-    bereich.prepend(frage);
-    bleiben.focus();
-  };
-  waechter = beiKlick;
-  document.addEventListener("click", beiKlick, true);
 }

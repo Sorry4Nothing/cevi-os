@@ -49,9 +49,9 @@ test("das Logo führt zur Website, «Verwaltung» zur Übersicht; beide mit Name
   expect(rahmen.match(/href: "\/",/g)).toHaveLength(2);
   expect(rahmen).not.toMatch(/class: "marke[^}]*href: "#"/);
   expect(rahmen).toContain('"aria-label": "Cevi: zur Website"');
-  expect(rahmen).toContain('title: "Zur Website"');
+  expect(rahmen).toContain(`"data-tipp": "Zur Website"`);
   expect(rahmen).toMatch(
-    /class: "bereichname",\s*href: "#",\s*title: "Zur Übersicht der Verwaltung"/,
+    /class: "bereichname",\s*href: "#",\s*"data-tipp": "Zur Übersicht der Verwaltung"/,
   );
 });
 

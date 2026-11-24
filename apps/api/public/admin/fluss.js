@@ -1,8 +1,10 @@
 // Seiten im Fluss statt Dialoge (#578): Was früher als Fenster über der Seite aufging (Anlegen, Bearbeiten, Details), ersetzt jetzt die Ansicht im Inhalt der Verwaltung, mit eigenem Verlaufseintrag.
 // - «seite»: Die offene Ansicht bleibt im DOM (versteckt), damit Filter, Auswahl und Scrollposition beim Zurück noch da sind. Browser-Zurück und «Zurück» schliessen sie.
 // - «panel» (Editor): ein nicht modales Panel rechts im Layout, ohne Verlaufseintrag; bei schmalen Fenstern wird es eine Seite.
-// Ungespeicherte Eingaben fragt der Hinweis im Fluss ab («Änderungen verwerfen?», zweistufig, kein Popup); beforeunload deckt Tab schliessen und Neuladen ab.
-// Dieses Modul importiert nichts: dom.js baut die Knoten und ruft oeffneFluss().
+// Ungespeicherte Eingaben fragt der Hinweis im Fluss ab («Änderungen verwerfen?», zweistufig, kein Popup), auch bei Menü, Link und Browser-Zurück; ungespeichert.js hält die letzte Rückfallebene für Tab schliessen und Neuladen (#699).
+// Dieses Modul importiert nur den Wächter: dom.js baut die Knoten und ruft oeffneFluss().
+
+import { schuetze, wechsle } from "./ungespeichert.js";
 
 const stapel = [];
 let zaehler = 0;
@@ -109,7 +111,8 @@ function knopf(text, klasse, beiKlick) {
 }
 
 // Zweistufig, im Fluss: eine Zeile über den Knöpfen der Seite, kein Popup
-function zeigeFrage(e) {
+// ziel: Adresse, zu der die Person wollte (Menü, Link, Browser-Zurück); «Verwerfen» führt dorthin
+function zeigeFrage(e, ziel) {
   const vorhanden = e.wurzel.querySelector(".fluss-frage");
   if (vorhanden) {
     vorhanden.querySelector("button").focus();
@@ -124,6 +127,7 @@ function zeigeFrage(e) {
   const verwerfen = knopf("Verwerfen", "knopf--gefahr", () => {
     e.schmutzig = false;
     schliesse(e);
+    if (ziel) nachVerlauf(() => wechsle(ziel));
   });
   const text = document.createElement("span");
   text.textContent = "Änderungen verwerfen?";
@@ -159,8 +163,18 @@ window.addEventListener("popstate", (ereignis) => {
     return;
   }
   if (!oben || ereignis.state?.fluss === oben.id) return;
-  // Zu einer anderen Adresse: nichts mehr zu fragen, die Seite gehört zur alten Ansicht
-  if (location.hash !== oben.hash) return schliesseAlle();
+  // Zu einer anderen Adresse (Sprung im Verlauf): Ist etwas ungespeichert, kommt der Eintrag der Seite zurück und die Frage steht; sonst gehört die Seite zur alten Ansicht
+  if (location.hash !== oben.hash) {
+    if (!stapel.some((x) => x.schmutzig)) return schliesseAlle();
+    const ziel = location.hash;
+    window.history.replaceState(
+      { fluss: oben.id },
+      "",
+      `${location.pathname}${location.search}${oben.hash}`,
+    );
+    zeigeFrage(oben, ziel);
+    return;
+  }
   if (oben.schmutzig) {
     // Der Eintrag der Seite kommt zurück, die Frage steht; so bleibt der Verlauf stimmig
     window.history.pushState({ fluss: oben.id }, "", location.href);
@@ -180,7 +194,7 @@ document.addEventListener(
     if (oben.wurzel.contains(a)) return;
     ereignis.preventDefault();
     ereignis.stopImmediatePropagation();
-    zeigeFrage(oben);
+    zeigeFrage(oben, a.getAttribute("href"));
   },
   true,
 );
@@ -192,10 +206,16 @@ document.addEventListener("keydown", (ereignis) => {
   stapel.at(-1)?.wurzel.versuchSchliessen();
 });
 
-window.addEventListener("beforeunload", (ereignis) => {
-  if (!stapel.some((e) => e.schmutzig)) return;
-  ereignis.preventDefault();
-  ereignis.returnValue = "";
+// Sprünge im Verlauf und Adressen von aussen fängt der Wächter; die Frage ist die Zeile der obersten ungespeicherten Seite
+schuetze({
+  schluessel: "fluss",
+  geaendert: () => stapel.some((e) => e.schmutzig),
+  innerhalb: (hash) =>
+    stapel.filter((e) => e.schmutzig).every((e) => e.hash === hash),
+  frage: (ziel) => {
+    const e = stapel.filter((x) => x.schmutzig).at(-1);
+    if (e) zeigeFrage(e, ziel);
+  },
 });
 
 // Wartet, bis ein selbst ausgelöstes history.back() angekommen ist; danach darf fn die Adresse ändern (sonst landete das Zurück auf dem neuen Eintrag)

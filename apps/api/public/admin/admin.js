@@ -1,3 +1,6 @@
+// Der Wächter für ungespeicherte Änderungen hört auf «hashchange» vor der Navigation unten (#699)
+import "./ungespeichert.js";
+import "./tipp.js";
 import {
   ApiFehler,
   anfrage,

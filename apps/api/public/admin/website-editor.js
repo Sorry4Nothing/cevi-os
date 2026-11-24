@@ -4,6 +4,7 @@ import { el, feld, knopf, neueId } from "./dom.js";
 import { sk } from "./lader.js";
 import { splitKnopf } from "./aktionen.js";
 import { sortierListe } from "./sortieren.js";
+import { schuetze, wechsle } from "./ungespeichert.js";
 import { zeichen } from "./zustaende.js";
 import {
   ADRESSE,
@@ -1119,30 +1120,13 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   };
   document.addEventListener("keydown", taste);
 
-  // Tab schliessen oder neu laden mit ungespeicherten Änderungen
-  const vorDemSchliessen = (e) => {
-    if (!wurzel.isConnected)
-      return window.removeEventListener("beforeunload", vorDemSchliessen);
-    if (k.dirty || k.einstellungenGeaendert?.()) {
-      e.preventDefault();
-      e.returnValue = "";
-    }
-  };
-  window.addEventListener("beforeunload", vorDemSchliessen);
-
-  // Ein Link der Verwaltung mitten in ungespeicherten Änderungen: erst fragen. (Die Zurück-Taste fängt der Puffer auf.)
-  const beiKlick = (e) => {
-    if (!wurzel.isConnected)
-      return document.removeEventListener("click", beiKlick, true);
-    const a = e.target.closest?.("a[href^='#']");
-    if (!a || !(k.dirty || k.einstellungenGeaendert?.())) return;
-    const ziel = a.getAttribute("href");
-    if (ziel === "#inhalt" || ziel === location.hash || ziel === "#") return;
-    e.preventDefault();
-    e.stopPropagation();
-    verlassenDialog(k, pufferId, ziel);
-  };
-  document.addEventListener("click", beiKlick, true);
+  // Menü, Link, Browser-Zurück, Tab schliessen und Neuladen mit ungespeicherten Änderungen: Der Wächter (#699) fragt zuerst, hier mit «Speichern und verlassen». Der Puffer fängt zudem ab, was verloren ginge
+  schuetze({
+    schluessel: "website-editor",
+    wurzel,
+    geaendert: () => Boolean(k.dirty || k.einstellungenGeaendert?.()),
+    frage: (ziel) => verlassenDialog(k, pufferId, ziel),
+  });
 }
 
 // --- Rückfrage beim Verlassen (E2 «Verlassen Rückfrage») ----------------------------------------------------------------
@@ -1184,14 +1168,14 @@ function verlassenDialog(k, pufferId, ziel) {
     beschaeftigt(speichernUndGehen, false);
     // Bei einem Fehler bleibt die Person auf der Seite: Die Meldung steht dort
     frage.remove();
-    if (gespeichert) location.hash = ziel;
+    if (gespeichert) wechsle(ziel);
   });
   bei(verlassen, () => {
     puffer.delete(pufferId);
     k.dirty = false;
     k.einstellungenGeaendert = () => false;
     frage.remove();
-    location.hash = ziel;
+    wechsle(ziel);
   });
 }
 

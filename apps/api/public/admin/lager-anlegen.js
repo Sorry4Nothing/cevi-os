@@ -1,4 +1,5 @@
 import { anfrage } from "./api.js";
+import { schuetze } from "./ungespeichert.js";
 import { zurueck } from "./verlauf.js";
 import { avatar, el, knopf } from "./dom.js";
 import {
@@ -44,9 +45,14 @@ const neuerEntwurf = () => ({
 window.addEventListener("hashchange", () => {
   if (!location.hash.startsWith(`${ADRESSE}/neu`)) entwurf = null;
 });
-// Neuladen und Tab schliessen: Die Eingaben gingen verloren
-window.addEventListener("beforeunload", (e) => {
-  if (entwurf?.grund) e.preventDefault();
+// Menü, Link, Zurück, Neuladen und Tab schliessen: Die Eingaben gingen verloren (#699)
+schuetze({
+  geaendert: () => Boolean(entwurf?.grund) && !entwurf.speichert,
+  innerhalb: (hash) => hash.startsWith(`${ADRESSE}/neu`),
+  text: "Neues Lager",
+  verwerfen: () => {
+    entwurf = null;
+  },
 });
 
 export function zeige(bereich, ctx) {

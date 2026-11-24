@@ -25,7 +25,7 @@ export function ziehGriff({ name, nutzlast, text }) {
       type: "button",
       class: "mn-griff",
       "aria-label": `Ziehen: ${name}`,
-      title: "Ziehen. Ohne Maus: Menü «Verschieben» der Zeile.",
+      "data-tipp": "Ziehen. Ohne Maus: Menü «Verschieben» der Zeile.",
     },
     icon("sortieren"),
   );

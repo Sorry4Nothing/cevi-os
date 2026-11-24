@@ -113,7 +113,13 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
       klein: true,
       onclick: () => zeichneListe(),
     });
-    const form = el("form", { class: "la-punktform" }, f.wurzel, ok, ab);
+    const form = el(
+      "form",
+      { class: "la-punktform", novalidate: true },
+      f.wurzel,
+      ok,
+      ab,
+    );
     zeileEl.replaceChildren(form);
     f.eingabe.focus();
     form.addEventListener("submit", async (e) => {

@@ -90,8 +90,22 @@ function umgebung() {
     },
     go() {},
   };
-  const location = { hash: "#personen", href: "http://x/admin#personen" };
+  const location = {
+    hash: "#personen",
+    href: "http://x/admin#personen",
+    pathname: "/admin",
+    search: "",
+  };
+  // Der Wächter (ungespeichert.js, #699) ist hier eine Attrappe: Sie hält, was fluss.js anmeldet, und merkt Wechsel
+  const waechter = [] as {
+    geaendert: () => boolean;
+    innerhalb: (h: string) => boolean;
+    frage: (ziel: string) => void;
+  }[];
+  const gewechselt: string[] = [];
   const sandbox = {
+    schuetze: (o: (typeof waechter)[number]) => waechter.push(o),
+    wechsle: (z: string) => gewechselt.push(z),
     Date,
     Event: class {
       constructor(public type: string) {}
@@ -116,7 +130,7 @@ function umgebung() {
     location,
   };
   const api = runInNewContext(
-    `${FLUSS.replace(/^export /gm, "")}\n;({ oeffneFluss, schliesseAlle, flussOffen, nachVerlauf })`,
+    `${FLUSS.replace(/^import .*$/gm, "").replace(/^export /gm, "")}\n;({ oeffneFluss, schliesseAlle, flussOffen, nachVerlauf })`,
     sandbox,
   ) as {
     oeffneFluss: (w: Knoten, o?: { panel?: boolean }) => { id: string };
@@ -139,6 +153,8 @@ function umgebung() {
     fenster,
     location,
     neueSeite,
+    waechter,
+    gewechselt,
   };
 }
 
@@ -221,34 +237,44 @@ describe("Seiten im Fluss (fluss.js)", () => {
     expect(schmutzig.verbunden).toBe(true);
   });
 
-  test("Tab schliessen und Neuladen: beforeunload nur bei ungespeicherten Eingaben", () => {
+  test("der Wächter (Tab schliessen, Menü, Zurück) meldet nur ungespeicherte Eingaben", () => {
     const u = umgebung();
     const s = u.neueSeite();
     u.api.oeffneFluss(s);
-    const vorher = { verhindert: 0, returnValue: undefined as unknown };
-    const ereignis = {
-      preventDefault: () => vorher.verhindert++,
-      set returnValue(w: unknown) {
-        vorher.returnValue = w;
-      },
-    };
-    const lauf = () =>
-      u.fenster.get("beforeunload")!.forEach((f) => f(ereignis));
-    lauf();
-    expect(vorher.verhindert).toBe(0);
+    const [w] = u.waechter;
+    expect(w!.geaendert()).toBe(false);
     s.dispatchEvent({ type: "input" });
-    lauf();
-    expect(vorher.verhindert).toBe(1);
+    expect(w!.geaendert()).toBe(true);
+    // Dieselbe Adresse der Seite ist kein Verlassen, jede andere schon
+    expect(w!.innerhalb("#personen")).toBe(true);
+    expect(w!.innerhalb("#termine")).toBe(false);
   });
 
-  test("zu einer anderen Adresse schliesst alles ohne Frage; die Seite gehört zur alten Ansicht", () => {
+  test("zu einer anderen Adresse ohne Eingaben schliesst alles ohne Frage; die Seite gehört zur alten Ansicht", () => {
     const u = umgebung();
     const s = u.neueSeite();
     u.api.oeffneFluss(s);
-    s.dispatchEvent({ type: "input" });
     u.location.hash = "#termine";
     u.popstate({ von: "#personen" });
     expect(s.verbunden).toBe(false);
+  });
+
+  test("Sprung im Verlauf zu einer anderen Adresse mit Eingaben: die Seite bleibt, die Frage steht, «Verwerfen» führt zum Ziel", () => {
+    const u = umgebung();
+    const s = u.neueSeite();
+    const e = u.api.oeffneFluss(s);
+    s.dispatchEvent({ type: "input" });
+    u.location.hash = "#termine";
+    u.popstate({ von: "#personen" });
+    expect(s.verbunden).toBe(true);
+    expect(u.verlauf.state).toEqual({ fluss: e.id });
+    const frage = s.kinder.find((k) => k.className.includes("fluss-frage"));
+    expect(frage?.attr.get("role")).toBe("alert");
+    frage!.kinder[2]!.click();
+    expect(s.verbunden).toBe(false);
+    // Das Ziel folgt, sobald der Verlauf zurück ist
+    u.popstate({ von: "#personen" });
+    expect(u.gewechselt).toEqual(["#termine"]);
   });
 
   test("schliesseAlle() räumt auf, ohne den Verlauf anzufassen (die Navigation hat ihn schon gewechselt)", () => {

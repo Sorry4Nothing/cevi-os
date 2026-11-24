@@ -8,7 +8,10 @@ let markeDaten = { name: "", logoId: null, logoDunkelId: null };
 const medienUrl = (id) => `/api/v1/medien/${encodeURIComponent(id)}`;
 
 // Das Logo führt zur öffentlichen Website (#669, wie üblich); die Verwaltung öffnet «Verwaltung» daneben. Der Name sagt es Screenreadern, der Hinweis der Maus
-const MARKE_NAME = { "aria-label": "Cevi: zur Website", title: "Zur Website" };
+const MARKE_NAME = {
+  "aria-label": "Cevi: zur Website",
+  "data-tipp": "Zur Website",
+};
 
 function erstelleMarke() {
   const { name, logoId, logoDunkelId } = markeDaten;
@@ -273,7 +276,7 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
         {
           class: "bereichname",
           href: "#",
-          title: "Zur Übersicht der Verwaltung",
+          "data-tipp": "Zur Übersicht der Verwaltung",
         },
         "Verwaltung",
       ),

@@ -268,7 +268,7 @@ function textForm(k, b, reg) {
     ].map(([art, text, taste]) =>
       knopf(text, {
         klein: true,
-        title: taste ? `${text} (${taste})` : undefined,
+        "data-tipp": taste ? `${text} (${taste})` : undefined,
         onclick: () => wende(art),
       }),
     ),

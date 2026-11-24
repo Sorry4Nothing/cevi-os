@@ -362,7 +362,7 @@ function markenListe(x, eintrag) {
         "span",
         {
           class: m.gross ? "rr-marke rr-marke--gross" : "rr-marke",
-          title: m.hilfe,
+          "data-tipp": m.hilfe,
         },
         m.text,
       ),

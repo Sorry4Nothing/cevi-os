@@ -894,7 +894,7 @@ function jetztMarke(richtung, achse) {
   const marke = el("span", {
     class: `bl-jetzt bl-jetzt--${richtung}`,
     "aria-hidden": "true",
-    title: `Jetzt, ${uhrzeit(minuten)}`,
+    "data-tipp": `Jetzt, ${uhrzeit(minuten)}`,
   });
   if (richtung === "waagrecht") {
     marke.style.left = `${((minuten - achse.anfang) / achse.laenge) * 100}%`;

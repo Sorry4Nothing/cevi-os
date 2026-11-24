@@ -979,8 +979,7 @@
   display: none;
 }
 
-.rr-frage,
-.rr-verlassen {
+.rr-frage {
   flex-wrap: wrap;
 }
 

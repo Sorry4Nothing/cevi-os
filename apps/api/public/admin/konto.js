@@ -598,7 +598,6 @@ function zeichne(bereich, ctx, profil) {
       ]),
     ),
   });
-  const wegVorVerlassen = (e) => e.preventDefault();
   function pruefeAenderungen() {
     const werte = lesen();
     const body = aenderung(stand, werte);
@@ -616,22 +615,12 @@ function zeichne(bereich, ctx, profil) {
     }
     if (namen.length === 0) {
       leiste.verstecke();
-      window.onbeforeunload = null;
       return;
     }
     leiste.zeige(
       `${namen.length} ${namen.length === 1 ? "Änderung" : "Änderungen"} nicht gespeichert: ${aufzaehlung(namen)}`,
     );
-    window.onbeforeunload = wegVorVerlassen;
   }
-  // Wer die Seite per Adresse verlässt, nimmt keine Warnung des Browsers mit
-  window.addEventListener(
-    "hashchange",
-    () => {
-      window.onbeforeunload = null;
-    },
-    { once: true },
-  );
 
   const zeigeTelefonVorschau = () => {
     const n = normalisiereTelefon(telefon.eingabe.value);
@@ -950,7 +939,6 @@ function sitzungenBlock(ctx) {
       knopfEl.setAttribute("aria-busy", "true");
       try {
         await anfrage("POST", "/api/auth/revoke-sessions", {});
-        window.onbeforeunload = null;
         ctx.zurAnmeldung("Du bist auf allen Geräten abgemeldet.");
       } catch (f) {
         knopfEl.disabled = false;

@@ -1,5 +1,6 @@
 // Gemeinsame Bausteine der Bereiche «Termine», «Räume» und «Anlässe»: Zeitangaben nach dem Design («Sa 06.02.2027», «14:00–17:00»), Suchfeld, «Keine Treffer», sortierbare Spaltenköpfe, Meldungen beim Feld und ein Hinweis-Dialog.
 import { chip, el, icon, knopf, neueId, tabelle } from "./dom.js";
+import { schuetze } from "./ungespeichert.js";
 import { leerKarte } from "./zustaende.js";
 
 export const ZONE = "Europe/Zurich";
@@ -310,6 +311,12 @@ export function speicherLeiste({ beiSpeichern, beiVerwerfen }) {
     text,
     el("div", { class: "tm-speicherknoepfe" }, verwerfen, speichern),
   );
+  // Solange die Leiste steht, ist etwas ungespeichert: Menü, Link und Browser-Zurück fragen zuerst (#699)
+  schuetze({
+    wurzel,
+    geaendert: () => !wurzel.hidden,
+    verwerfen: () => beiVerwerfen(),
+  });
   return {
     wurzel,
     speichern,

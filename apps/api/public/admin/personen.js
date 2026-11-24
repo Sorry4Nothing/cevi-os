@@ -254,7 +254,7 @@ function zeichne(bereich, ctx, daten, neu) {
         class: "knopf knopf--klein mg-anruf",
         href: `tel:${e.person.telefon.replace(/[^\d+]/g, "")}`,
         "aria-label": `Anrufen: ${e.person.name}`,
-        title: "Anrufen",
+        "data-tipp": "Anrufen",
       },
       icon("telefon"),
     );
