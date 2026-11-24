@@ -3770,7 +3770,7 @@ paths:
         Das Profil der angemeldeten Person: Anzeigename, Benutzername, Schalter, die Rollen `abteilungsleitung` und `entwickler`,
         Stand des zweiten Faktors, Stufenrollen, die zugehörigen Stufen und die aktiven Kinder (nur Eltern haben welche).
         **Die Rollen stehen nur hier.** Die Apps und die Verwaltung lesen `abteilungsleitung` und `entwickler` aus dieser Antwort und nie `role` aus
-        `get-session` von better-auth; `role` ist nur ein Spiegel und entfällt später. Das Feld `admin` gibt es nicht mehr, ohne Alias.
+        `get-session` von better-auth; `role` ist nur ein Spiegel und entfällt mit Teil 10 des Umbaus (Epic #714). Das Feld `admin` gibt es nicht mehr, ohne Alias.
 
         Nie enthalten sind E-Mail, Bremsfelder, Sperrstatus, Ablauf des Startpassworts sowie Geheimnisse
         und Codes des zweiten Faktors.
@@ -5064,7 +5064,7 @@ paths:
         Wer Personen verwalten (`personen.verwalten`) oder sehen darf (`personen.sehen`), mit zweitem Faktor; die Abteilungsleitung hat beide (#650). Mit `personen.sehen` ist `startpasswort` immer `null`; mit `personen.verwalten` zeigt es nur die von Konten ohne Rechte, die Abteilungsleitung sieht alle. `kinder` und `elternteilVon` nennen nur Kinder der Stufen, die die Person sehen darf (`kinder.sehen` oder `kinder.verwalten`, je Stufe). Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Name) und die Kinder (nach Nachname, Vorname) für den Rollen-Editor.
         Enthält nie E-Mail, Telefon, Sperrgrund, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors.
 
-        Statuscodes: 200 bei Erfolg. 403, wenn die Person keine Abteilungsleitung ist, wenn eine Person der Abteilungsleitung noch keinen zweiten Faktor eingerichtet hat (Code `ZWEITER_FAKTOR_FEHLT`, gilt für alle Verwaltungsrouten) oder wenn noch ein Passwortwechsel aussteht. 401 ohne gültige Sitzung oder bei deaktiviertem Konto.
+        Statuscodes: 200 bei Erfolg. 403, wenn die Person weder `personen.verwalten` noch `personen.sehen` hat (Abteilungsleitung und Entwickler haben beide), wenn sie noch keinen zweiten Faktor eingerichtet hat (Code `ZWEITER_FAKTOR_FEHLT`, gilt für alle Verwaltungsrouten) oder wenn noch ein Passwortwechsel aussteht. 401 ohne gültige Sitzung oder bei deaktiviertem Konto.
       tags:
         - Verwaltung
       parameters:
@@ -5737,7 +5737,7 @@ paths:
 
         Die Antwort enthält nie Werte aus der Umgebung, Hosts, Adressen, Schlüssel oder Namen. Ist die Datenbank nicht erreichbar, antwortet die Route trotzdem mit 200 und `datenbank.erreichbar: false`.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -5766,7 +5766,7 @@ paths:
 
         Erfasst werden nur Methode, Routenmuster (nie der konkrete Pfad), Statuscode und Dauer; keine Query, kein Body, keine Header, keine IP-Adressen und keine Personen. Die Abrufe dieser beiden System-Routen und die statischen Dateien unter `/admin` zählen nicht mit. Dauern (`p50Ms`, `p95Ms`) sind die obere Grenze der Dauerklasse, in der das Quantil liegt (Klassen bis 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000 ms); `null` ohne Anfragen. Die Zähler je Route gelten seit dem Start.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -5793,7 +5793,7 @@ paths:
       description: |
         Nur mit dem Recht `system.lesen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Zeigt den Stand des Kalender-Syncs mit der Zahl der Programme der Abteilung. Die Antwort enthält nie Fehlertexte, nur feste Texte. Das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361); der Teil `eckdaten` ist entfallen.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -5861,7 +5861,7 @@ paths:
 
         Zwischenspeicher: Die Antwort gilt je Person 45 Sekunden im Arbeitsspeicher der API (höchstens elf Abfragen je Neuaufbau). `frisch=1` baut sie neu, aber nie öfter als alle zehn Sekunden je Person. Es gibt kein Polling: Die Oberfläche lädt beim Öffnen und auf «Aktualisieren».
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne Zugang zur Verwaltung (Eltern, Leitende ohne Stufenleitung) und, mit dem Code `ZWEITER_FAKTOR_FEHLT`, für Abteilungsleitung und Personen mit einem erweiterten Recht ohne zweiten Faktor. 426. 429.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne Zugang zur Verwaltung (Eltern, Leitende ohne Stufenleitung) und, mit dem Code `ZWEITER_FAKTOR_FEHLT`, für Abteilungsleitung, Entwickler und Personen mit einem erweiterten Recht ohne zweiten Faktor. 426. 429.
       tags:
         - Verwaltung
       parameters:
@@ -6414,7 +6414,7 @@ paths:
       description: |
         Wer Kinder sehen (`kinder.sehen`) oder verwalten darf (`kinder.verwalten`), mit zweitem Faktor; mit der Geltung «eigene» nur die Kinder der Stufe der Rolle (#650). Liefert die Kinder der eigenen Abteilung, die die Person sehen darf (sortiert nach Nachname, Vorname) mit den IDs der verknüpften Elternteile aus derselben Abteilung, dem Zugang (`zugang`: keiner, Eltern, eigenes Konto oder beides) und, wenn das Kind ein eigenes Konto hat, mit dem Stand des Kontos (`konto`, nur mit dem festen Recht `kinder.konto_verwalten`, also für die Abteilungsleitung; sonst `null`). Dazu die Einstellungen der Abteilung für Konten von Kindern.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -6620,7 +6620,7 @@ paths:
       description: |
         Nur die Abteilungsleitung. Ohne gespeicherte Einstellung gilt die vorsichtige Vorgabe: Konten für Kinder aus, Chat aus, die Eltern behalten die Einsicht.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -6875,7 +6875,7 @@ paths:
       description: |
         Nur mit dem Recht `zeitregeln.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert alle Regeln der eigenen Abteilung, sortiert nach Wochentag und Uhrzeit.
 
-        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -6999,7 +6999,7 @@ paths:
       description: |
         Wer Gruppen verwalten (`gruppen.verwalten`) oder Mitglieder ändern darf (`gruppen.mitglieder`, mit zweitem Faktor). Mit `gruppen.mitglieder` in der Geltung «eigene» nur die eigenen Gruppen (#650). Liefert die Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name. Bei Typ `anlass` steht der Anlass mit Titel und Termin dabei.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7239,7 +7239,7 @@ paths:
 
         Wer bearbeiten darf, prüft der Server bei jeder Anfrage: Die Abteilungsleitung darf alles, die Stufenleitung die Objekte ihrer Stufe, alle anderen nur mit einem Recht aus dieser Liste (auf die Person oder auf einen Tag, den sie trägt). Ein Tag verleiht für sich nichts.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7342,7 +7342,7 @@ paths:
 
         Nur Kennungen und Namen von Gruppen, Lagern, Räumen und Seiten sowie Rollenwerte; nie Namen oder Kontaktdaten von Personen. Sieben Abfragen je Aufruf, jede auf die Abteilung der Sitzung gefiltert.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7371,7 +7371,7 @@ paths:
 
         Nur Rechte mit Art `vergebbar` lassen sich einer Rolle geben; `fest` (Rechte vergeben, Entwickler vergeben, Konto löschen, Sperre, Protokoll) bleibt bei Abteilungsleitung und Entwickler, `struktur` folgt aus der Beziehung (jede angemeldete Person, Eltern des Kindes). Nichts im Katalog erlaubt etwas: Er beschreibt.
 
-        Statuscodes: 200 bei Erfolg. 403 für Personen ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für Personen ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7916,7 +7916,7 @@ paths:
 
         Jedes Recht des Katalogs ist «erweitert»: Wer es hat, braucht den zweiten Faktor, sonst antwortet jede Route, die das Recht verlangt, mit 403 und dem Code `ZWEITER_FAKTOR_FEHLT`. Die Abteilungsleitung hat jedes Recht fest; der Entwickler hat seit #722 jedes Recht, auch an Personen-, Kinder- und Lagerdaten (zweiter Faktor wie für jede Person), und lässt sich nur über die Kommandozeile vergeben (`npm run entwickler:vergeben`). Beide stehen nicht in der Liste und lassen sich nicht ändern. Die Rolle mit `vorgabe: true` (Webmaster) gibt es in jeder Abteilung; sie hat anfangs alle Rechte ausser dem Wartungsmodus der Website.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -8707,7 +8707,7 @@ paths:
       description: |
         Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert alle Lager der eigenen Abteilung, neueste zuerst.
 
-        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -9494,7 +9494,7 @@ paths:
       description: |
         Nur lesen, nie eine Rechteausweitung: Das Panel fragt, welche Bereiche es der Person zeigt. Antwortet jeder Person mit Sitzung, auch ohne Zugang (`redigieren: false`, keine Bereiche). Die Routen selbst prüfen jedes Recht neu.
 
-        Statuscodes: 200. 403 für die Abteilungsleitung ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) und bei offenem Pflichtwechsel des Passworts.
+        Statuscodes: 200. 403 für Abteilungsleitung und Entwickler ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) und bei offenem Pflichtwechsel des Passworts.
       tags:
         - Redaktion
       parameters:
@@ -26094,7 +26094,7 @@ paths:
       description: |
         Nur mit dem Recht `cevi_db.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor). `verbunden` heisst nur, dass Adresse und Token in der Umgebung des Servers stehen (`CEVI_DB_URL`, `CEVI_DB_TOKEN`); beide gibt keine Route heraus. Dazu die eingestellte Gruppe und der Stand des letzten Abrufs (Zeitpunkt, Ausgang `ok` oder `fehler`, Zahl der Personen), nie ein Fehlertext der Gegenseite.
 
-        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -26591,7 +26591,7 @@ components:
           description: Ob das Konto ein Entwickler ist (es steht in `plattform_entwickler`, vergeben nur per CLI). Der Entwickler hat jedes Recht des Katalogs; die Verwaltung zeigt damit ihre Oberfläche, die Prüfung bleibt auf dem Server.
         zweiterFaktor:
           type: boolean
-          description: Ob das Konto den zweiten Faktor eingerichtet hat. Die Abteilungsleitung braucht ihn für `/api/v1/admin`. Sagt nichts über die Sitzung. Eine App-Sitzung hat den Code nie geprüft (Verwaltung und Rechte mit «erweitert» antworten dann 403 `ZWEITER_FAKTOR_SITZUNG`).
+          description: Ob das Konto den zweiten Faktor eingerichtet hat. Abteilungsleitung und Entwickler brauchen ihn für `/api/v1/admin`. Sagt nichts über die Sitzung. Eine App-Sitzung hat den Code nie geprüft (Verwaltung und Rechte mit «erweitert» antworten dann 403 `ZWEITER_FAKTOR_SITZUNG`).
         rollen:
           type: array
           description: Stufenrollen der Person (Leitende und Stufenleitung); für Eltern und die Abteilungsleitung ohne Stufenrolle leer.

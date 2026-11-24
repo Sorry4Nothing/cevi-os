@@ -45,7 +45,7 @@ export async function legePersonAn(
       email: platzhalterEmail(),
       password: normalisiereStartpasswort(eingaben.startpasswort),
       name: `${eingaben.vorname} ${eingaben.nachname}`,
-      // Spiegel (#720): Die Abteilungsleitung steht in abteilungsleitung_person, role schreibt der Übergang weiter
+      // Spiegel (#720): Die Abteilungsleitung steht in abteilungsleitung_person, role schreibt weiter als Spiegel bis Teil 10 (Epic #714)
       role: eingaben.abteilungsleitung ? "admin" : "user",
       data: {
         username: eingaben.benutzername,

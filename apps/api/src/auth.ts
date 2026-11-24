@@ -24,7 +24,7 @@ import { normalisiereStartpasswort } from "./startpasswort.js";
 
 const ac = createAccessControl(defaultStatements);
 
-// Genau die Rechte, die createUser, setUserPassword, revokeUserSessions, banUser, unbanUser und removeUser prüfen; kein impersonate
+// Genau die Rechte, die createUser, setUserPassword, revokeUserSessions, banUser, unbanUser und removeUser prüfen; kein impersonate. Die Rolle «admin» ist better-auths Name: Sie ist nur der Spiegel der Abteilungsleitung bis Teil 10 (Epic #714), kein Recht der Plattform
 const rollen = {
   admin: ac.newRole({
     user: ["create", "set-role", "set-password", "ban", "delete"],

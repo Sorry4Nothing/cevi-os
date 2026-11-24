@@ -139,7 +139,7 @@ if (!argumente) {
           email: platzhalterEmail(),
           password: normalisiereStartpasswort(startpasswort),
           name,
-          // Spiegel (#720): Die Zuordnung steht in abteilungsleitung_person, role schreibt der Übergang weiter
+          // Spiegel (#720): Die Zuordnung steht in abteilungsleitung_person, role schreibt weiter als Spiegel bis Teil 10 (Epic #714)
           role: rolle === "abteilungsleitung" ? "admin" : "user",
           data: {
             username: benutzername,
