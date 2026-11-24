@@ -185,7 +185,8 @@ describe("hatRolle", () => {
   const person: Person = {
     id: "person-1",
     abteilungId: "abteilung-1",
-    admin: false,
+    abteilungsleitung: false,
+    entwickler: false,
     zweiterFaktor: false,
     rollen: [
       { stufeId: "a", typ: "leitung" },

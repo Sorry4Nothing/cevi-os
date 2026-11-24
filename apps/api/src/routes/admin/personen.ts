@@ -122,6 +122,7 @@ const anlegenSchema = z.strictObject({
   ceviName: ceviNameFeld.optional(),
   telefon: telefonSchema.optional(),
   benutzername: benutzernameFeld,
+  // Teil 8: Das Feld des Vertrags heisst bis zu dessen Umbau weiter admin (gemeint: Abteilungsleitung)
   admin: z.boolean(),
   rollen: rollenFeld,
   elternteilVon: elternteilVonFeld,
@@ -131,6 +132,7 @@ const aendernSchema = z.strictObject({
   name: text(201).optional(),
   ceviName: ceviNameFeld.nullable().optional(),
   telefon: telefonSchema.optional(),
+  // Teil 8: wie in anlegenSchema
   admin: z.boolean().optional(),
   rollen: rollenFeld.optional(),
   elternteilVon: elternteilVonFeld.optional(),
@@ -147,12 +149,15 @@ export function erstellePersonenRouten({
 }) {
   // Konten mit Rechten betreut nur, wer selbst jedes Recht hat: die Abteilungsleitung und der Entwickler (#722)
   const betreutKontenMitRechten = async (person: Person) =>
-    person.admin || (await istEntwickler(db, person));
+    person.abteilungsleitung || (await istEntwickler(db, person));
 
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
   async function ladeZiel(person: Person, id: string) {
     const [ziel] = await db
-      .select({ id: user.id, admin: istAbteilungsleitungSql(user.id) })
+      .select({
+        id: user.id,
+        abteilungsleitung: istAbteilungsleitungSql(user.id),
+      })
       .from(user)
       .where(
         and(
@@ -166,7 +171,7 @@ export function erstellePersonenRouten({
       abteilungId: person.abteilungId,
     });
     // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst, dazu der Entwickler (#722)
-    if (ziel.admin && !(await betreutKontenMitRechten(person))) {
+    if (ziel.abteilungsleitung && !(await betreutKontenMitRechten(person))) {
       throw new HTTPException(403);
     }
     return ziel;
@@ -220,7 +225,7 @@ export function erstellePersonenRouten({
     }
     const [[bisher], rollen, eltern] = await Promise.all([
       db
-        .select({ admin: istAbteilungsleitungSql(user.id) })
+        .select({ abteilungsleitung: istAbteilungsleitungSql(user.id) })
         .from(user)
         .where(eq(user.id, id)),
       db
@@ -233,7 +238,8 @@ export function erstellePersonenRouten({
         .where(eq(kindEltern.userId, id)),
     ]);
     const adminGeaendert =
-      aenderung.admin !== undefined && bisher.admin !== aenderung.admin;
+      aenderung.admin !== undefined &&
+      bisher.abteilungsleitung !== aenderung.admin;
     const alt = new Map(rollen.map((r) => [r.stufeId, r.typ]));
     const rollenGeaendert =
       aenderung.rollen !== undefined &&
@@ -352,7 +358,7 @@ export function erstellePersonenRouten({
               ceviName: user.ceviName,
               telefon: user.telefon,
               benutzername: user.username,
-              admin: istAbteilungsleitungSql(user.id),
+              abteilungsleitung: istAbteilungsleitungSql(user.id),
               twoFactorEnabled: user.twoFactorEnabled,
               banned: user.banned,
               mussPasswortAendern: user.mussPasswortAendern,
@@ -446,7 +452,8 @@ export function erstellePersonenRouten({
           bildUrl: p.bildUrl,
           telefon: p.telefon,
           benutzername: p.benutzername,
-          admin: p.admin,
+          // Teil 8: Das Feld des Vertrags heisst bis zu dessen Umbau weiter admin
+          admin: p.abteilungsleitung,
           zweiterFaktor: p.twoFactorEnabled === true,
           deaktiviert: p.banned === true,
           mussPasswortAendern: p.mussPasswortAendern,
@@ -497,6 +504,8 @@ export function erstellePersonenRouten({
         const angelegt = await db.transaction((tx) =>
           legePersonAn(tx, person, {
             ...eingaben,
+            // Teil 8: Das Feld des Vertrags heisst weiter admin
+            abteilungsleitung: eingaben.admin,
             startpasswort,
           }),
         );
@@ -579,7 +588,10 @@ export function erstellePersonenRouten({
             if (aenderung.admin !== undefined) {
               // Die Tabelle ist die Quelle, user.role der Spiegel für den Übergang (#720)
               felder.role = aenderung.admin ? "admin" : "user";
-              const bisherAdmin = await istAbteilungsleitung(tx, id);
+              const bisherAbteilungsleitung = await istAbteilungsleitung(
+                tx,
+                id,
+              );
               if (aenderung.admin) {
                 await tx
                   .insert(abteilungsleitungPerson)
@@ -590,7 +602,7 @@ export function erstellePersonenRouten({
                   .delete(abteilungsleitungPerson)
                   .where(eq(abteilungsleitungPerson.userId, id));
               }
-              if (bisherAdmin !== aenderung.admin) {
+              if (bisherAbteilungsleitung !== aenderung.admin) {
                 details.admin = aenderung.admin;
               }
             }

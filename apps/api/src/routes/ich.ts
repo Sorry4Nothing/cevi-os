@@ -141,7 +141,8 @@ export function erstelleIchRouten({ db }: { db: Db }) {
         return c.json({
           ...rest,
           ...(person.rollen.length > 0 && { pushAnmeldungen }),
-          admin: person.admin,
+          // Teil 8: Das Feld heisst bis zum Umbau des Vertrags weiter admin
+          admin: person.abteilungsleitung,
           // Das Konto hat ihn eingerichtet; ob diese Sitzung den Code geprüft hat, steht nicht hier (App-Sitzungen nie, #721)
           zweiterFaktor: person.zweiterFaktorKonto ?? person.zweiterFaktor,
           rollen: person.rollen,

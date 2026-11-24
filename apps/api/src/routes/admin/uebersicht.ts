@@ -6,7 +6,7 @@ import type { SchalterZustand } from "../../bereichsschalter.js";
 import type { Db } from "../../db/client.js";
 import { seite } from "../../db/schema.js";
 import type { Metriken } from "../../metriken.js";
-import { zweiterFaktorFehlt, type Person } from "../../rechte.js";
+import { siehtAlles, zweiterFaktorFehlt, type Person } from "../../rechte.js";
 import { entscheidetUeberRaum } from "../../termine/raum-buchung.js";
 import {
   alleTermine,
@@ -48,8 +48,9 @@ const iso = (spalte: string) =>
     `to_char(${spalte} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')`,
   );
 
+// siehtAlles: Abteilungsleitung und Entwickler sehen alle Kacheln (Sicht, kein Recht)
 type Rechte = {
-  admin: boolean;
+  siehtAlles: boolean;
   // «alle»: jede Stufe; eine Liste: die Stufen der Stufenleitung (leer: keine Zahl)
   stufen: "alle" | string[];
 };
@@ -100,7 +101,7 @@ export function erstelleUebersichtRouten({
       kommendT,
       lagerT,
     ] = await Promise.all([
-      rechte.admin
+      rechte.siehtAlles
         ? teil("aufgaben", async () => {
             const [z] = await db.execute<{
               vorschlaege: number;
@@ -148,7 +149,7 @@ export function erstelleUebersichtRouten({
           })
         : undefined,
       // Verläufe: je Zähler eine Gruppierung nach Woche (Alter in Wochen, 0 = die letzten sieben Tage), nie eine Abfrage je Fenster. Personen sind der Stand am Ende jedes Fensters (heutige Konten nach Anlegedatum); ältere als ein Jahr zählen im ältesten Fenster mit.
-      rechte.admin
+      rechte.siehtAlles
         ? teil("kennzahlen", async () => {
             const zeilen = await db.execute<{
               art: string;
@@ -189,7 +190,7 @@ export function erstelleUebersichtRouten({
           })
         : undefined,
       // Anlässe mit Anmeldungen: kommende (nach Beginn) und solche, deren Anmeldefrist im letzten Jahr lag; nur Titel, Zeiten und Zahlen, nie Personen
-      rechte.admin
+      rechte.siehtAlles
         ? teil("anlaesse", async () =>
             db.execute<{
               titel: string;
@@ -307,7 +308,7 @@ export function erstelleUebersichtRouten({
             from lager l
             where l.abteilung_id = ${a} and l.status in ('entwurf', 'aktiv') and l.bis >= current_date
               and l.von < current_date + ${TAGE}::int
-              ${person.admin ? sql`` : sql`and exists (select 1 from lager_mitglied m where m.lager_id = l.id and m.person_id = ${person.id})`}
+              ${siehtAlles(person) ? sql`` : sql`and exists (select 1 from lager_mitglied m where m.lager_id = l.id and m.person_id = ${person.id})`}
             order by l.von, l.id limit 5`),
       ),
     ]);
@@ -327,7 +328,7 @@ export function erstelleUebersichtRouten({
       aufgaben.anmeldefristen = zaehler.fristen;
       aufgaben.kalenderFehler = zaehler.fehler !== null;
     }
-    if (raum && (rechte.admin || raum.entscheidet)) {
+    if (raum && (rechte.siehtAlles || raum.entscheidet)) {
       aufgaben.raumanfragen = raum.n;
     }
     if (websiteZ) {
@@ -349,7 +350,7 @@ export function erstelleUebersichtRouten({
         programme: { kommend: zaehler.programme },
       };
     }
-    if (rechte.admin && anlaesseT) {
+    if (rechte.siehtAlles && anlaesseT) {
       body.anlaesse = [...anlaesseT].map((x) => ({
         titel: x.titel,
         kommend: x.kommend,
@@ -361,7 +362,7 @@ export function erstelleUebersichtRouten({
         letzteAm: x.letzte,
       }));
     }
-    if (rechte.admin && zaehler) {
+    if (rechte.siehtAlles && zaehler) {
       body.aktivitaet = {
         letzteBestellungAm: zaehler.letzte_bestellung,
         letzterVorschlagAm: zaehler.letzter_vorschlag,
@@ -413,7 +414,7 @@ export function erstelleUebersichtRouten({
       };
     }
     if (medien) zustand.medien = { ...medien };
-    if (rechte.admin) {
+    if (rechte.siehtAlles) {
       zustand.kalender = zaehler
         ? {
             eingerichtet: zaehler.eingerichtet,
@@ -430,7 +431,7 @@ export function erstelleUebersichtRouten({
     }
     if (Object.keys(zustand).length > 0) body.zustand = zustand;
 
-    if (rechte.admin) {
+    if (rechte.siehtAlles) {
       const m = metriken.momentaufnahme();
       body.betrieb = {
         seit: m.seit,
@@ -450,7 +451,7 @@ export function erstelleUebersichtRouten({
 
   return new Hono<{ Variables: { person: Person } }>().get("/", async (c) => {
     const person = c.get("person");
-    if (!person.admin && !(await hatWebsiteZugang(db, person))) {
+    if (!siehtAlles(person) && !(await hatWebsiteZugang(db, person))) {
       throw new HTTPException(403);
     }
     // Wie unter /api/v1/redaktion: Wer ein erweitertes Recht nutzt, braucht den zweiten Faktor (Stufenleitung an der eigenen Stufe nicht)
@@ -471,8 +472,8 @@ export function erstelleUebersichtRouten({
       ),
     ].sort();
     const rechte: Rechte = {
-      admin: person.admin,
-      stufen: person.admin ? "alle" : stufenDerSl,
+      siehtAlles: siehtAlles(person),
+      stufen: siehtAlles(person) ? "alle" : stufenDerSl,
     };
     // Die Signatur trägt, was die Person darf: Ändert sich ihr Recht, trifft ein alter Eintrag nicht mehr
     const signatur = JSON.stringify(rechte);

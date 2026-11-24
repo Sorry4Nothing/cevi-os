@@ -76,18 +76,19 @@ describe("Quelle der Abteilungsleitung", () => {
     // Ohne Spiegel bleibt sie Abteilungsleitung
     await setzeRole(al.id!, "user");
     expect(await ichAdmin(al)).toBe(true);
-    expect((await ladePerson(db, welt.testabteilungId, al.id!))?.admin).toBe(
-      true,
-    );
+    expect(
+      (await ladePerson(db, welt.testabteilungId, al.id!))?.abteilungsleitung,
+    ).toBe(true);
   });
 
   test("role = 'admin' ohne Zeile in der Tabelle macht nicht zur Abteilungsleitung", async () => {
     const konto = await legePersonaAn(welt, "slA");
     await setzeRole(konto.id!, "admin");
     expect(await ichAdmin(konto)).toBe(false);
-    expect((await ladePerson(db, welt.testabteilungId, konto.id!))?.admin).toBe(
-      false,
-    );
+    expect(
+      (await ladePerson(db, welt.testabteilungId, konto.id!))
+        ?.abteilungsleitung,
+    ).toBe(false);
     expect(await aktiveIds(welt.testabteilungId)).not.toContain(konto.id);
   });
 

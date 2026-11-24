@@ -307,7 +307,8 @@ beforeAll(async () => {
     personen[name] = {
       id: zeile!.id,
       abteilungId: abteilung,
-      admin: false,
+      abteilungsleitung: false,
+      entwickler: false,
       // Die Lagerleitung braucht den zweiten Faktor (#423)
       zweiterFaktor: name === "lagerleitung" || name === "fremd",
       rollen: [],

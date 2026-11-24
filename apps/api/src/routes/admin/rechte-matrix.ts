@@ -1048,7 +1048,7 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
           .orderBy(asc(tag.typ), asc(tag.name));
         return c.json({
           person: { id: ziel.id, name: ziel.name },
-          abteilungsleitung: ziel.admin,
+          abteilungsleitung: ziel.abteilungsleitung,
           entwickler: satz.entwickler,
           gruppen,
           rechte: RECHT_IDS.flatMap((id) => {
