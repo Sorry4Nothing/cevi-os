@@ -15,6 +15,8 @@ import { DATENPLAN, planFenster } from "./termine-liste.js";
 export const STIL_TERMINE = "/website/termine.css";
 // Das eigene Auswahlfeld (#564): Stil zu public/website/auswahl.js
 export const STIL_AUSWAHL = "/website/auswahl.css";
+// Mein Konto (#689): Profilkarte, Schalter und Passwortfeld
+export const STIL_KONTO = "/website/konto.css";
 
 type Definition = {
   datei: string;
@@ -23,6 +25,8 @@ type Definition = {
   skript: string;
   // Die Kopfzeile: bei Anlassseiten füllt das Skript Titel und Datum nach
   kopf: "einfach" | "anlass";
+  // Weitere Stile nur dieser Seite (Mein Konto, #689)
+  stile?: string[];
 };
 
 const SEITEN: Definition[] = [
@@ -68,6 +72,7 @@ const SEITEN: Definition[] = [
     seite: "konto",
     skript: "konto",
     kopf: "einfach",
+    stile: [STIL_KONTO],
   },
 ];
 
@@ -159,7 +164,7 @@ function seite(s: Definition, k: Kontext, jetzt: Date): string {
     aktuell: null,
     robots: "noindex",
     skript: `/website/${s.skript}.js`,
-    stile: [STIL_TERMINE, STIL_AUSWAHL],
+    stile: [STIL_TERMINE, STIL_AUSWAHL, ...(s.stile ?? [])],
     inhalt: `<div class="tm">
 ${kopf}
 <div id="tm-app" data-seite="${s.seite}">
