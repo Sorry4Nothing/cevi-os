@@ -134,7 +134,7 @@ export const abteilungsleitungRolle = (al) => ({
   gesperrt: al.aenderbar !== true,
 });
 
-// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen. gesperrt: Der Entwickler liest sie nur (er ändert nur die Zeile «Abteilungsleitung»)
+// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen. gesperrt: Die Person liest sie nur (wer «Rechte und Rollen vergeben» nicht hat)
 export const globaleRolle = (r, gesperrt = false) => ({
   id: r.id,
   art: "global",
@@ -258,13 +258,13 @@ export const geltungText = (geltung) =>
 export const zuteilungText = (z, klartext) =>
   `${klartext(z.recht)} (${geltungText(z.geltung)})`;
 
-// Wer ist betroffen? Aus dem Entwurf und der Zahl der Personen je Rolle; die Abteilungsleitung hat ohnehin alles und zählt nicht mit (admin: Menge der Kennungen)
-export function betroffene(rollen, entwurf, admin = new Set()) {
+// Wer ist betroffen? Aus dem Entwurf und der Zahl der Personen je Rolle; die Abteilungsleitung und der Entwickler haben ohnehin alles und zählen nicht mit (ohnehinAlle: Menge der Kennungen)
+export function betroffene(rollen, entwurf, ohnehinAlle = new Set()) {
   const personen = new Set();
   const jeRolle = aenderungenJeRolle(rollen, entwurf).map((a) => {
     const ids = a.rolle.personen
       .map((p) => p.id)
-      .filter((id) => !admin.has(id));
+      .filter((id) => !ohnehinAlle.has(id));
     ids.forEach((id) => personen.add(id));
     return { ...a, personen: ids.length };
   });
@@ -295,6 +295,9 @@ export function rechteFehlerText(f, fallback) {
   }
   if (code === "ZWEITER_FAKTOR_FEHLT") {
     return "Für die Rechte braucht es zuerst den zweiten Faktor. Richte ihn in «Mein Konto» ein.";
+  }
+  if (code === "ZWEITER_FAKTOR_SITZUNG") {
+    return "Diese Sitzung hat den Code nicht geprüft. Melde dich neu an und gib den Code ein.";
   }
   if (f?.status === 403) {
     return "Das kannst du nicht vergeben: Du hast dieses Recht selbst nicht, oder nicht für alle Objekte. Wer Rechte vergibt, hat sie selbst.";
@@ -358,8 +361,8 @@ export function vorschlaegeFuer(katalog) {
 // ---------- Wer darf dieses Recht? ----------
 
 // Aus dem, was schon geladen ist: Rollen mit dem Recht und ihre Personen. Die Abteilungsleitung steht immer da (ausser bei Rechten nur für den Entwickler); die Mitgliedschaft in Team und Funktion gibt zusätzlich Standardrechte, die nur die Anfrage je Person kennt (Reiter «Person»).
-// quellen: { eintrag, admin: [{id,name}], globale: [Rolle], gruppen: [{ gruppe, rollen: [Rolle] }] }
-export function werDarf({ eintrag, admin, globale, gruppen }) {
+// quellen: { eintrag, abteilungsleitung: [{id,name}], globale: [Rolle], gruppen: [{ gruppe, rollen: [Rolle] }] }
+export function werDarf({ eintrag, abteilungsleitung, globale, gruppen }) {
   const zeilen = [];
   if (eintrag.art === "struktur") {
     zeilen.push({
@@ -383,20 +386,19 @@ export function werDarf({ eintrag, admin, globale, gruppen }) {
       art: "abteilungsleitung",
       titel: "Abteilungsleitung",
       geltung: "alle",
-      personen: admin,
+      personen: abteilungsleitung,
       fest: true,
     });
   }
-  if (eintrag.entwickler) {
-    zeilen.push({
-      art: "entwickler",
-      titel: "Entwickler",
-      geltung: "alle",
-      personen: null,
-      fest: true,
-      hinweis: "Die Rolle setzt nur der Server.",
-    });
-  }
+  // Der Entwickler hat jedes Recht (#722), nie eingestellt: Die Rolle setzt nur der Server
+  zeilen.push({
+    art: "entwickler",
+    titel: "Entwickler",
+    geltung: "alle",
+    personen: null,
+    fest: true,
+    hinweis: "Die Rolle setzt nur der Server.",
+  });
   for (const r of globale) {
     if (r.abteilungsleitung) continue;
     const z = r.rechte.find((x) => x.recht === eintrag.id);
@@ -566,7 +568,8 @@ const ROLLENNAME = { stufenleitung: "Stufenleitung", leitung: "Leitung" };
 // person: Eintrag aus GET /api/v1/admin/personen; stufenName: Map Stufen-ID nach Name
 export function rolleText(person, stufenName) {
   const teile = [];
-  if (person.admin) teile.push("Abteilungsleitung");
+  if (person.abteilungsleitung) teile.push("Abteilungsleitung");
+  if (person.entwickler) teile.push("Entwickler");
   for (const r of person.rollen ?? []) {
     const name = ROLLENNAME[r.typ];
     if (name) teile.push(`${name} ${stufenName.get(r.stufeId) ?? ""}`.trim());

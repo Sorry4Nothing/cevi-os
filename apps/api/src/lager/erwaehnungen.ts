@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, isNull, lt, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { istAbteilungsleitungSql } from "../admins.js";
 import type { Db } from "../db/client.js";
 import {
   aufgabe,
@@ -179,7 +180,7 @@ async function pruefeNeue(
     .select({
       personId: lagerMitglied.personId,
       rolle: lagerMitglied.rolle,
-      konto: user.role,
+      abteilungsleitung: istAbteilungsleitungSql(user.id),
     })
     .from(lagerMitglied)
     .innerJoin(
@@ -201,7 +202,7 @@ async function pruefeNeue(
 
   const rechteJeRolle = new Map<string, ReadonlyMap<string, boolean>>();
   for (const m of mitglieder) {
-    const rolle = m.konto === "admin" ? "lagerleitung" : m.rolle;
+    const rolle = m.abteilungsleitung ? "lagerleitung" : m.rolle;
     let rechte: ReadonlyMap<string, boolean> = new Map();
     if (rolle !== "lagerleitung") {
       if (!rechteJeRolle.has(rolle)) {

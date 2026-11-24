@@ -6,9 +6,9 @@ import * as nav from "../public/admin/navigation.js";
 type Unter = { schluessel: string; name: string; modul?: string };
 type Bereich = { schluessel: string; name: string; unter: Unter[] };
 const BEREICHE = nav.BEREICHE as Bereich[];
-const admin = { istAdmin: true, zugang: null };
+const admin = { abteilungsleitung: true, zugang: null };
 const redaktion = {
-  istAdmin: false,
+  abteilungsleitung: false,
   zugang: { bereiche: ["website", "plattform"] },
 };
 const alle = nav.sichtbareBereiche(admin) as Bereich[];
@@ -84,7 +84,7 @@ describe("Verwaltung: navigation.js", () => {
     ]);
     expect(sicht.at(-1)!.unter.map((u) => u.schluessel)).toEqual(["plattform"]);
     const nurWebsite = nav.sichtbareBereiche({
-      istAdmin: false,
+      abteilungsleitung: false,
       zugang: { bereiche: ["website"] },
     }) as Bereich[];
     expect(nurWebsite.map((b) => b.schluessel)).toEqual([
@@ -118,7 +118,7 @@ describe("Verwaltung: navigation.js", () => {
 
   test("Einstellungen der Website nur mit dem Recht «Seiten veröffentlichen»", () => {
     const stufenleitung = {
-      istAdmin: false,
+      abteilungsleitung: false,
       zugang: { bereiche: ["website"], rechte: [] },
     };
     // Die Route der Einstellungen liefe für die Stufenleitung in ein 403
@@ -128,7 +128,7 @@ describe("Verwaltung: navigation.js", () => {
       "stufenfakten",
     ]);
     const webmaster = {
-      istAdmin: false,
+      abteilungsleitung: false,
       zugang: {
         bereiche: ["website"],
         rechte: ["seiten.bearbeiten", "seiten.veroeffentlichen"],
@@ -150,37 +150,41 @@ describe("Verwaltung: navigation.js", () => {
       rollen: [{ stufeId: "s1", typ: "stufenleitung" }],
       stufen: [{ id: "s1", name: "Pilami" }],
     };
-    expect(nav.rolleVon({ istAdmin: true })).toBe("Abteilungsleitung");
-    expect(nav.rolleVon({ istAdmin: true, entwickler: true })).toBe(
+    expect(nav.rolleVon({ abteilungsleitung: true })).toBe("Abteilungsleitung");
+    expect(nav.rolleVon({ abteilungsleitung: true, entwickler: true })).toBe(
       "Entwickler · Abteilungsleitung",
     );
     expect(
-      nav.rolleVon({ istAdmin: false, zugang: { rechte: [] }, profil }),
+      nav.rolleVon({
+        abteilungsleitung: false,
+        zugang: { rechte: [] },
+        profil,
+      }),
     ).toBe("Stufenleitung Pilami");
     expect(
       nav.rolleVon({
-        istAdmin: false,
+        abteilungsleitung: false,
         zugang: { rechte: ["seiten.bearbeiten"] },
         profil: null,
       }),
     ).toBe("Website-Redaktion");
     expect(
       nav.rolleVon({
-        istAdmin: false,
+        abteilungsleitung: false,
         zugang: { rechte: ["wartungsmodus.website"] },
         profil: { rollen: [], stufen: [] },
       }),
     ).toBe("Wartung der Website");
-    expect(nav.rolleVon({ istAdmin: false, zugang: { rechte: [] } })).toBe(
-      "Konto mit Zugang",
-    );
+    expect(
+      nav.rolleVon({ abteilungsleitung: false, zugang: { rechte: [] } }),
+    ).toBe("Konto mit Zugang");
   });
 });
 
 describe("Zugang nach Rechten des Katalogs (#648)", () => {
   const seite = (zugang: string) => ({ zugang });
   const person = (katalogRechte: string[], rechte: string[] = []) => ({
-    istAdmin: false,
+    abteilungsleitung: false,
     zugang: { bereiche: [], rechte, katalogRechte },
   });
 

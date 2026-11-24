@@ -2,9 +2,9 @@ import { parseArgs } from "node:util";
 import { eq } from "drizzle-orm";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb } from "../db/client.js";
-import { auditLog, plattformEntwickler, user } from "../db/schema.js";
+import { auditLog, plattformEntwickler, session, user } from "../db/schema.js";
 
-// Entwickler vergeben und entziehen (#423): nur hier, nie über eine Route oder die Oberfläche. Der Entwickler hat jedes Recht des Katalogs (plattform.ts) und braucht den zweiten Faktor.
+// Entwickler vergeben und entziehen (#423): nur hier, nie über eine Route oder die Oberfläche. Der Entwickler hat jedes Recht des Katalogs (plattform.ts) und braucht den zweiten Faktor; wer ihn noch nicht hat, wird bei «vergeben» abgemeldet.
 //   npm run entwickler:vergeben -w apps/api -- --benutzername <benutzername>
 //   npm run entwickler:entziehen -w apps/api -- --benutzername <benutzername>
 const VERWENDUNG = `Verwendung: npm run entwickler:vergeben -w apps/api -- --benutzername <benutzername>
@@ -91,8 +91,10 @@ if (!argumente) {
       } else if (aktion === "vergeben") {
         console.log(`«${benutzername}» ist jetzt Entwickler.`);
         if (ziel.zweiterFaktor !== true) {
+          // Der Entwickler hat Rechte mit Pflicht zum zweiten Faktor: Die Person meldet sich neu an und sieht die Einrichtung in der Verwaltung (#715)
+          await db.delete(session).where(eq(session.userId, ziel.id));
           console.log(
-            "Hinweis: Ohne zweiten Faktor antwortet die API mit 403 ZWEITER_FAKTOR_FEHLT. Die Person richtet ihn zuerst in der App ein.",
+            "Hinweis: Ohne zweiten Faktor antwortet die API mit 403 ZWEITER_FAKTOR_FEHLT. Die Sitzungen der Person sind beendet; beim nächsten Login richtet sie ihn in der Verwaltung ein.",
           );
         }
       } else {

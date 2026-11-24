@@ -1,6 +1,7 @@
 // Kommendes, Aktivität und Teilnahme der Übersicht (#620). Alles aus der Antwort von GET /api/v1/admin/uebersicht; nie Namen von Personen, nur Titel von Terminen und Anlässen, Zeiten und Zahlen.
 // Vorlagen (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «event-timeline» und «clinic-dashboard» (Zeitachse mit Marken, darunter die Liste in derselben Reihenfolge), «activity-feed» (Zeilen gleicher Höhe mit Symbol, Satz und Zeit), «poll-card» und «leaderboard» (Balken auf gemeinsamer Basis, Anteil und Zahl; der Balken wächst beim Erscheinen).
 import { chip, el, icon } from "./dom.js";
+import { siehtAlles } from "./sicht.js";
 import {
   fehlerKarte,
   karte,
@@ -316,7 +317,7 @@ export function stufenKarte(daten, ctx, nochmals) {
         : `${fmt(summe)} ${summe === 1 ? "Kind" : "Kinder"} in ${s.length === 1 ? "einer Stufe" : `${s.length} Stufen`}`,
     klasse: "ud-stufen",
     aktion:
-      ctx.ich.role === "admin" && kinder
+      siehtAlles(ctx.ich) && kinder
         ? verweisZeile(kinder, "Kinder")
         : undefined,
     inhalt:

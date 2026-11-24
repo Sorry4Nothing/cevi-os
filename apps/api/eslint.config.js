@@ -19,6 +19,8 @@ export default defineConfig(
         Node: "readonly",
         URLSearchParams: "readonly",
         TextDecoder: "readonly",
+        TextEncoder: "readonly",
+        URL: "readonly",
         document: "readonly",
         fetch: "readonly",
         location: "readonly",

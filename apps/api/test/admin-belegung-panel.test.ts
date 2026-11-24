@@ -37,18 +37,18 @@ describe("Panel der Abteilungsleitung: Belegungsplan", () => {
 
   test("Leitende sehen die Belegung und «Meine Anfragen» (#671); Räume und Anfragen bleiben bei der Abteilungsleitung", () => {
     const leitung = {
-      istAdmin: false,
+      abteilungsleitung: false,
       zugang: { bereiche: [], belegung: true },
     };
     expect(sichtbar(leitung)).toEqual([["raeume", ["belegung", "meine"]]]);
     // Mit Zugang zur Website kommen deren Bereiche dazu, die Räume bleiben bei Belegung und eigenen Anfragen
     const sl = {
-      istAdmin: false,
+      abteilungsleitung: false,
       zugang: { bereiche: ["website"], rechte: [], belegung: true },
     };
     const raumBereich = sichtbar(sl).find(([b]) => b === "raeume");
     expect(raumBereich).toEqual(["raeume", ["belegung", "meine"]]);
-    const admin = sichtbar({ istAdmin: true, zugang: null });
+    const admin = sichtbar({ abteilungsleitung: true, zugang: null });
     expect(admin.find(([b]) => b === "raeume")).toEqual([
       "raeume",
       ["belegung", "raeume", "anfragen", "meine"],
@@ -58,19 +58,19 @@ describe("Panel der Abteilungsleitung: Belegungsplan", () => {
   test("ohne das Signal «belegung» fehlt der Bereich ganz; die Übersicht gehört nur dem Zugang zur Website", () => {
     expect(
       sichtbar({
-        istAdmin: false,
+        abteilungsleitung: false,
         zugang: { bereiche: ["website"], rechte: [], belegung: false },
       }).some(([b]) => b === "raeume"),
     ).toBe(false);
     expect(
       sichtbar({
-        istAdmin: false,
+        abteilungsleitung: false,
         zugang: { bereiche: [], belegung: true },
       }).some(([b]) => b === "uebersicht"),
     ).toBe(false);
     expect(
       sichtbar({
-        istAdmin: false,
+        abteilungsleitung: false,
         zugang: { bereiche: ["website"], rechte: [] },
       }).some(([b]) => b === "uebersicht"),
     ).toBe(true);

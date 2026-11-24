@@ -839,7 +839,11 @@ describe("Stil und Editor", () => {
       "/*",
       css.indexOf("Text und Gestaltung (#741)"),
     );
-    const abschnitt = css.slice(start).replace(/\/\*[^]*?\*\//g, "");
+    // Bis zum nächsten Abschnitt der Datei (spätere Abschnitte anderer Bausteine gehören nicht dazu)
+    const ende = css.indexOf("/* ===== ", start + 10);
+    const abschnitt = css
+      .slice(start, ende === -1 ? undefined : ende)
+      .replace(/\/\*[^]*?\*\//g, "");
     for (const klasse of [
       ".hinweisbox",
       ".hinweisbox--tipp",

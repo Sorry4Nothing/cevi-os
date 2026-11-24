@@ -132,7 +132,7 @@ export function erstelleImportRouten({ db }: { db: Db }) {
               nachname: p.nachname!,
               ceviName: p.ceviName,
               benutzername: p.benutzername!,
-              admin: false,
+              abteilungsleitung: false,
               rollen: [{ stufeId, typ: p.art as "leitung" | "stufenleitung" }],
               elternteilVon: [],
               startpasswort,

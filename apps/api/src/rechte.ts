@@ -19,11 +19,13 @@ import { HTTPException } from "hono/http-exception";
 import type { erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import {
+  abteilungsleitungPerson,
   chat,
   kind,
   kindKontoEinstellung,
   kindZugang,
   nachricht,
+  plattformEntwickler,
   rolle,
   stufe,
   user,
@@ -33,12 +35,23 @@ import {
 export type Person = {
   id: string;
   abteilungId: string;
-  admin: boolean;
+  // Das Konto steht in abteilungsleitung_person (#720)
+  abteilungsleitung: boolean;
+  // Das Konto steht in plattform_entwickler: hat jedes Recht (#722) und, über siehtAlles, jede Sicht
+  entwickler: boolean;
+  // Gilt für diese Anfrage: Das Konto hat den zweiten Faktor UND diese Sitzung hat den Code geprüft (#721). Alle Prüfungen «braucht den zweiten Faktor» lesen dieses Feld. Eine App-Sitzung ohne Code ist hier falsch, auch bei einem Konto mit Faktor. Bei ladePerson (ohne Sitzung) gilt das Konto
   zweiterFaktor: boolean;
+  // Das Konto hat den zweiten Faktor eingerichtet, unabhängig von der Sitzung: für die Anzeige (/api/v1/ich) und den Code der Antwort (ZWEITER_FAKTOR_SITZUNG statt ZWEITER_FAKTOR_FEHLT). Fehlt das Feld, gilt zweiterFaktor
+  zweiterFaktorKonto?: boolean;
   rollen: { stufeId: string; typ: "leitung" | "stufenleitung" }[];
   // Gesetzt, wenn das Konto das eigene Konto eines Kindes ist (#644): die ID dieses Kindes. Solche Konten haben nie eine Rolle und nie die Abteilungsleitung
   kindId?: string;
 };
+
+// Sicht, kein Recht: Wer die Abteilungsleitung oder der Entwickler ist, sieht jedes Objekt der eigenen Abteilung (alle Programme, Seiten, Termine, jedes Lager als Lagerleitung, alle Kacheln der Übersicht). Der Katalog der Rechte kennt das nicht; wer nur ein Recht hat, sieht damit nichts Fremdes
+export const siehtAlles = (
+  person: Pick<Person, "abteilungsleitung" | "entwickler">,
+) => person.abteilungsleitung || person.entwickler;
 
 // Jede Route unter /api/v1 lädt ihr Objekt in SQL auf person.abteilungId gefiltert, sonst HTTPException(404); erst dann prüft sie das Recht, sonst HTTPException(403)
 export function personAusSitzung(
@@ -65,13 +78,15 @@ export function personAusSitzung(
       throw new HTTPException(403);
     }
     // Kein Fremdschlüssel sichert zu, dass die Stufe zur Abteilung der Person gehört, darum die Bedingung im Join
-    // Eine Abfrage für beides (Rollen und eigenes Kind): jede Anfrage zahlt sie, und die Tests der Datenbanklast zählen sie. Die Zeile mit kindId ist das eigene Konto eines Kindes (user_id ist eindeutig, höchstens eine)
+    // Eine Abfrage für alles (Rollen, eigenes Kind, Abteilungsleitung): jede Anfrage zahlt sie, und die Tests der Datenbanklast zählen sie. Die Zeile mit kindId ist das eigene Konto eines Kindes (user_id ist eindeutig, höchstens eine)
     const zeilen = await unionAll(
       db
         .select({
           stufeId: sql<string | null>`${rolle.stufeId}`.as("stufe_id"),
           typ: sql<string | null>`${rolle.typ}`.as("typ"),
           kindId: sql<string | null>`null::uuid`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`false`.as("entwickler"),
         })
         .from(rolle)
         .innerJoin(
@@ -87,6 +102,8 @@ export function personAusSitzung(
           stufeId: sql<string | null>`null::uuid`.as("stufe_id"),
           typ: sql<string | null>`null::text`.as("typ"),
           kindId: sql<string | null>`${kind.id}`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`false`.as("entwickler"),
         })
         .from(kind)
         .where(
@@ -95,6 +112,28 @@ export function personAusSitzung(
             eq(kind.abteilungId, sitzung.user.abteilungId),
           ),
         ),
+      // Die Abteilungsleitung steht in einer eigenen Tabelle (#720), nicht mehr in user.role
+      db
+        .select({
+          stufeId: sql<string | null>`null::uuid`.as("stufe_id"),
+          typ: sql<string | null>`null::text`.as("typ"),
+          kindId: sql<string | null>`null::uuid`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`true`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`false`.as("entwickler"),
+        })
+        .from(abteilungsleitungPerson)
+        .where(eq(abteilungsleitungPerson.userId, sitzung.user.id)),
+      // Der Entwickler steht ebenfalls in einer eigenen Tabelle (nur per CLI vergeben); derselbe Zweig der Union, keine zusätzliche Abfrage
+      db
+        .select({
+          stufeId: sql<string | null>`null::uuid`.as("stufe_id"),
+          typ: sql<string | null>`null::text`.as("typ"),
+          kindId: sql<string | null>`null::uuid`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
+          entwickler: sql<boolean>`true`.as("entwickler"),
+        })
+        .from(plattformEntwickler)
+        .where(eq(plattformEntwickler.userId, sitzung.user.id)),
     );
     const rollen = zeilen.flatMap((z) =>
       z.stufeId && z.typ
@@ -105,8 +144,13 @@ export function personAusSitzung(
     c.set("person", {
       id: sitzung.user.id,
       abteilungId: sitzung.user.abteilungId,
-      admin: sitzung.user.role === "admin",
-      zweiterFaktor: sitzung.user.twoFactorEnabled === true,
+      abteilungsleitung: zeilen.some((z) => z.abteilungsleitung),
+      entwickler: zeilen.some((z) => z.entwickler),
+      zweiterFaktor:
+        sitzung.user.twoFactorEnabled === true &&
+        (sitzung.session as { zweiterFaktorGeprueft?: boolean })
+          .zweiterFaktorGeprueft === true,
+      zweiterFaktorKonto: sitzung.user.twoFactorEnabled === true,
       rollen,
       ...(eigenesKind && { kindId: eigenesKind }),
     });
@@ -116,15 +160,16 @@ export function personAusSitzung(
   });
 }
 
-// Verwaltungsrouten erst mit zweitem Faktor; eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
+// Verwaltungsrouten erst mit zweitem Faktor für die Abteilungsleitung und den Entwickler (Entscheid vom 24.11.2026), geprüft in der Sitzung (person.zweiterFaktor, #721): Eine App-Sitzung ohne Code kommt nicht hinein, auch bei einem Konto mit Faktor (403 ZWEITER_FAKTOR_SITZUNG). Eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
 export const zweiterFaktorPflicht = createMiddleware<{
   Variables: { person: Person };
 }>(async (c, next) => {
   const person = c.get("person");
-  if (person.admin && !person.zweiterFaktor) {
+  if (siehtAlles(person) && !person.zweiterFaktor) {
     return c.json(
       zweiterFaktorFehlt(
         "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
+        person,
       ),
       403,
     );
@@ -132,9 +177,18 @@ export const zweiterFaktorPflicht = createMiddleware<{
   await next();
 });
 
-// Der Body der Antwort 403, wenn ein erweitertes Recht ohne zweiten Faktor genutzt wird (#423): Code für die App, Text zur Anzeige
-export const zweiterFaktorFehlt = (message: string) =>
-  ({ code: "ZWEITER_FAKTOR_FEHLT", message }) as const;
+// Der Body der Antwort 403, wenn ein erweitertes Recht ohne zweiten Faktor genutzt wird (#423): Code für die App, Text zur Anzeige. Hat das Konto den Faktor und nur die Sitzung hat den Code nicht geprüft (die Anmeldung der App, #721), lautet der Code ZWEITER_FAKTOR_SITZUNG: Die Verwaltung zeigt dann die neue Anmeldung mit Code, nicht die Einrichtung
+export const zweiterFaktorFehlt = (
+  message: string,
+  person?: Pick<Person, "zweiterFaktor" | "zweiterFaktorKonto">,
+) =>
+  person?.zweiterFaktorKonto === true && !person.zweiterFaktor
+    ? ({
+        code: "ZWEITER_FAKTOR_SITZUNG",
+        message:
+          "Diese Sitzung hat den zweiten Faktor nicht geprüft. Melde dich in der Verwaltung im Browser mit dem Code an.",
+      } as const)
+    : ({ code: "ZWEITER_FAKTOR_FEHLT", message } as const);
 
 // Chat: Mitgliedschaft wird nie gespeichert, sondern pro Anfrage aus Rollen und Kindern abgeleitet
 

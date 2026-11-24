@@ -93,7 +93,7 @@ export function ladeRechteSatz(
     const abfrage = sql`
       select 'a' as quelle, r as recht, null::text as geltung, null::uuid as tag_id, null::uuid as anlass_id, null::text as tag_typ, null::text as tag_name, null::text as rolle_name, false as raum_team, null::uuid as objekt_id
         from ${abteilungsleitungRecht}, unnest(${abteilungsleitungRecht.ohne}) as r
-        where ${person.admin ? sql`true` : sql`false`} and ${abteilungsleitungRecht.abteilungId} = ${abteilung}
+        where ${person.abteilungsleitung ? sql`true` : sql`false`} and ${abteilungsleitungRecht.abteilungId} = ${abteilung}
       union all
       select 'e' as quelle, null::text as recht, null::text as geltung, null::uuid as tag_id, null::uuid as anlass_id, null::text as tag_typ, null::text as tag_name, null::text as rolle_name, false as raum_team, null::uuid as objekt_id
         from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${person.id}
@@ -188,7 +188,7 @@ export class RechteSatz {
   // Hat der Entwickler der Abteilungsleitung dieses Recht weggenommen? Nur vergebbare Rechte lassen sich wegnehmen; was fest oder strukturell ist, bleibt (Schutz vor dem Aussperren)
   alVerzichtet(recht: string) {
     return (
-      this.person.admin &&
+      this.person.abteilungsleitung &&
       istRecht(recht) &&
       eintragVon(recht).art === "vergebbar" &&
       this.alOhne.has(recht)
@@ -212,10 +212,11 @@ export class RechteSatz {
     const irgendwo = objekt === undefined || abteilungsweit;
     const treffer: Herkunft[] = [];
 
-    if (p.admin && !e.nurEntwickler && !this.alVerzichtet(recht)) {
+    if (p.abteilungsleitung && !e.nurEntwickler && !this.alVerzichtet(recht)) {
       treffer.push({ art: "abteilungsleitung", geltung: "alle" });
     }
-    if (this.entwickler && e.entwickler) {
+    // Der Entwickler hat jedes Recht des Katalogs, abteilungsweit (Entscheid vom 24.11.2026, #722); was jede Person ohnehin hat (struktur), bekommt er nicht doppelt
+    if (this.entwickler && e.art !== "struktur") {
       treffer.push({ art: "entwickler", geltung: "alle" });
     }
     if (e.art === "struktur") {
@@ -303,10 +304,13 @@ export class RechteSatz {
     return this.herkuenfte(recht, objekt).length > 0;
   }
 
-  // Nur das, was die Rollen geben (Plattformrollen und Gruppenrollen): die Quellen, die es vor dem Rechtemodell nicht gab. Der Schattenbetrieb setzt sie neben dem alten Weg durch (darf.ts)
+  // Nur das, was die Rollen und der Entwickler geben (Plattformrollen, Gruppenrollen, Entwickler): die Quellen, die der alte Weg nicht kannte. Der Schattenbetrieb setzt sie neben dem alten Weg durch (darf.ts)
   ausRollen(recht: string, objekt?: Objekt) {
     return this.herkuenfte(recht, objekt).some(
-      (h) => h.art === "plattformrolle" || h.art === "gruppenrolle",
+      (h) =>
+        h.art === "plattformrolle" ||
+        h.art === "gruppenrolle" ||
+        h.art === "entwickler",
     );
   }
 

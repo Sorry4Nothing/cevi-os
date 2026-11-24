@@ -2241,6 +2241,66 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/qr.js:
+    get:
+      operationId: getAdminQrSkript
+      summary: Skript der Verwaltung – QR-Code zeichnen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zweiter-faktor-einrichten.js:
+    get:
+      operationId: getAdminZweiterFaktorEinrichtenSkript
+      summary: Skript der Verwaltung – Zweiten Faktor einrichten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zweiter-faktor.css:
+    get:
+      operationId: getAdminZweiterFaktorStilvorlage
+      summary: Stilvorlage der Verwaltung – Zweiten Faktor einrichten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/sicht.js:
+    get:
+      operationId: getAdminSichtSkript
+      summary: Skript der Verwaltung – Wer die Person ist
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/zuschneiden.js:
     get:
       operationId: getAdminZuschneidenSkript
@@ -3306,10 +3366,19 @@ paths:
         **Sitzung.** Bei Erfolg setzt die Antwort ein Session-Cookie (siehe Sicherheitsschema `sitzung`).
         Das Cookie ist 90 Tage gültig (`Max-Age=7776000`). Alle weiteren Aufrufe tragen es als `Cookie`-Header.
 
-        **Zweiter Faktor.** Hat die Person den zweiten Faktor eingerichtet (heute nur die Abteilungsleitung), setzt die
-        Antwort noch *keine* Sitzung. Sie gibt `twoFactorRedirect: true` zurück und setzt ein Zwischen-Cookie
-        (`two_factor`). Die App schickt es mit dem Code an `POST /api/auth/two-factor/verify-totp` oder
-        `POST /api/auth/two-factor/verify-backup-code`; erst dann entsteht die Sitzung.
+        **Zweiter Faktor.** Hat die Person den zweiten Faktor eingerichtet, hängt die Antwort von der Herkunft ab.
+        Meldet sich die **App** an (Kopfzeile `Origin` oder `expo-origin` mit dem Schema `cevi-os://`), gibt es die
+        Sitzung sofort, ohne Code und ohne `twoFactorRedirect`: Die Apps brauchen den zweiten Faktor nicht. Diese
+        Sitzung ist als «zweiter Faktor nicht geprüft» markiert (`session.zweiterFaktorGeprueft` ist `false` in
+        `GET /api/auth/get-session`). Mit ihr geht alles, was die Person ohne zweiten Faktor dürfte; die Verwaltung
+        (`/api/v1/admin/*`) und jedes Recht mit «erweitert» antworten mit 403 `ZWEITER_FAKTOR_SITZUNG`. Der Code lässt
+        sich in dieser Sitzung nicht nachholen (`verify-totp` und `verify-backup-code` antworten 403
+        `ZWEITER_FAKTOR_SITZUNG`).
+        Jede **andere** Herkunft (die Verwaltung im Browser, kein `Origin`) bekommt noch *keine* Sitzung. Die Antwort
+        gibt `twoFactorRedirect: true` zurück und setzt ein Zwischen-Cookie (`two_factor`). Der Browser schickt es mit
+        dem Code an `POST /api/auth/two-factor/verify-totp` oder `POST /api/auth/two-factor/verify-backup-code`; erst
+        dann entsteht die Sitzung, und sie ist geprüft (`zweiterFaktorGeprueft: true`). Die Kopfzeile ist keine
+        Sicherheitsgrenze (ein Skript setzt sie frei, ein Browser nicht); sicher ist die Markierung der Sitzung.
 
         **Startpasswort.** Hat die Person noch ein Startpasswort (`mussPasswortAendern` in
         `GET /api/auth/get-session` und `GET /api/v1/ich`), zählen bei der Eingabe Gross-/Kleinschreibung,
@@ -3562,9 +3631,18 @@ paths:
         `POST /api/auth/two-factor/verify-totp` mit dem ersten Code aktiv (`twoFactorEnabled` wird erst dann `true`).
         Ein Aufruf allein schaltet nichts ein und entsperrt die Verwaltungsrouten nicht.
 
-        Nur Die Abteilungsleitung richtet den zweiten Faktor ein. Für alle anderen Personen (auch ohne Sitzung) antwortet der Pfad
-        mit 404 `NICHT_GEFUNDEN`, als gäbe es ihn nicht. Die Abteilungsleitung braucht den Faktor für alle Routen unter
-        `/api/v1/admin`; ohne ihn antworten diese mit 403 `ZWEITER_FAKTOR_FEHLT`.
+        Jedes Konto mit Sitzung richtet den zweiten Faktor ein, nur das eigene Konto eines Kindes nicht. Ohne Sitzung und für das
+        Konto eines Kindes antwortet der Pfad mit 404 `NICHT_GEFUNDEN`, als gäbe es ihn nicht. Pflicht ist er für die
+        Abteilungsleitung (alle Routen unter `/api/v1/admin`) und für jede Person mit einem Recht, das ihn verlangt («erweitert»
+        und «fest» im Rechtekatalog, auch der Entwickler); ohne ihn antworten diese Routen mit 403 `ZWEITER_FAKTOR_FEHLT`.
+        Die Verwaltung im Browser zeigt dann die Seite «Zweiten Faktor einrichten» (QR-Code, Schlüssel als Text, Code, Ersatzcodes).
+        Die Website und die Apps brauchen den zweiten Faktor nicht: Die Anmeldung der App gibt auch einem Konto mit
+        zweitem Faktor eine Sitzung ohne Code (siehe `POST /api/auth/sign-in/username`), die weder die Verwaltung noch ein
+        Recht mit «erweitert» öffnet. Ob der Faktor in der Sitzung zählt, entscheidet `session.zweiterFaktorGeprueft`,
+        nicht nur das Konto: Hat das Konto den Faktor und die Sitzung hat keinen Code geprüft, lautet der Code
+        `ZWEITER_FAKTOR_SITZUNG` statt `ZWEITER_FAKTOR_FEHLT` (die Verwaltung führt dann zur neuen Anmeldung mit Code, nicht zur
+        Einrichtung). Ändern sich die Rechte einer Person so, dass er Pflicht wird,
+        und hat sie keinen, beendet der Server ihre Sitzungen; sie meldet sich neu an und richtet ihn ein.
 
         Der Link `totpURI` (`otpauth://`) trägt «Cevi OS» als Aussteller und den Benutzernamen als Kontonamen,
         6 Stellen und 30 Sekunden. Er enthält das Geheimnis und wird nur einmal gezeigt. Die zehn Ersatzcodes
@@ -3577,8 +3655,8 @@ paths:
         Wird der Faktor mit dem ersten Code bestätigt, beendet der Server alle anderen Sitzungen der Person
         und stellt ein neues Session-Cookie aus.
 
-        **Rollen.** Nur die Abteilungsleitung (auch ohne bisherigen zweiten Faktor). Statuscodes: 200, 400, 404 (keine Abteilungsleitung oder
-        keine Sitzung), 426, 429.
+        **Rollen.** Jedes Konto, ausser dem eigenen Konto eines Kindes. Statuscodes: 200, 400, 404 (keine Sitzung oder Konto eines
+        Kindes), 426, 429.
       requestBody:
         required: true
         content:
@@ -3624,7 +3702,7 @@ paths:
            Zwischen-Cookie `two_factor` und den Code. Bei einem richtigen Code entsteht die Sitzung (`Set-Cookie`),
            das Zwischen-Cookie wird gelöscht. Pro Zwischen-Cookie sind 5 Versuche erlaubt, danach 400
            `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE` und die App meldet sich neu an. Wiederholte Fehlversuche sperren
-           das Konto vorübergehend (429).
+           das Konto vorübergehend (429). Die Sitzung gilt als geprüft (`session.zweiterFaktorGeprueft`).
         2. **Einrichtung.** In einer laufenden Sitzung nach `POST /api/auth/two-factor/enable` bestätigt der erste
            richtige Code den Faktor. Der Server beendet alle anderen Sitzungen der Person und stellt ein neues
            Session-Cookie aus, das das alte ersetzt. In dieser Verwendung zählt der Server keine Fehlversuche.
@@ -3632,9 +3710,13 @@ paths:
         «Gerät vertrauen» (`trustDevice`) gibt es nicht: Der Server ignoriert das Feld, jede Anmeldung auf einem
         neuen Gerät fragt nach dem Code.
 
+        Eine laufende Sitzung, deren Konto den Faktor hat, die den Code aber nicht geprüft hat (die Anmeldung der App),
+        holt ihn hier nicht nach: 403 `ZWEITER_FAKTOR_SITZUNG`. Der Weg zu einer geprüften Sitzung ist die neue Anmeldung
+        im Browser. Sonst könnte jemand mit Passwort und App-Sitzung Codes raten, ohne dass die Sperre der Anmeldung greift.
+
         Limit: 5 Anfragen je 15 Minuten und Client-IP (429).
 
-        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung; im Betrieb die Abteilungsleitung. Statuscodes: 200, 400, 401, 426, 429.
+        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung. Statuscodes: 200, 400, 401, 403, 426, 429.
         Bekannte Fehlercodes: 401 `INVALID_CODE` (falscher Code), 401 `INVALID_TWO_FACTOR_COOKIE` (weder Sitzung noch
         gültiges Zwischen-Cookie), 400 `TOTP_NOT_ENABLED` (kein Faktor eingerichtet),
         400 `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE`.
@@ -3670,6 +3752,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fehler"
+        "403":
+          description: |
+            Code `ZWEITER_FAKTOR_SITZUNG`: Die Sitzung hat den Code nicht geprüft und holt ihn nicht nach.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -3692,7 +3781,9 @@ paths:
         Bei Erfolg entsteht die Sitzung (`Set-Cookie`). `trustDevice` ignoriert der Server.
         Limit: 5 Anfragen je 15 Minuten und Client-IP (429).
 
-        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung; im Betrieb die Abteilungsleitung. Statuscodes: 200, 400, 401, 426, 429.
+        Wie bei `verify-totp` holt eine Sitzung ohne geprüften Code ihn hier nicht nach (403 `ZWEITER_FAKTOR_SITZUNG`).
+
+        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung. Statuscodes: 200, 400, 401, 403, 426, 429.
         Bekannte Fehlercodes: 401 `INVALID_BACKUP_CODE`, 401 `INVALID_TWO_FACTOR_COOKIE`,
         400 `BACKUP_CODES_NOT_ENABLED`, 400 `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE`.
       requestBody:
@@ -3740,8 +3831,11 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Das Profil der angemeldeten Person: Anzeigename, Benutzername, Schalter, Kennzeichen der Abteilungsleitung,
+        Das Profil der angemeldeten Person: Anzeigename, Benutzername, Schalter, die Rollen `abteilungsleitung` und `entwickler`,
         Stand des zweiten Faktors, Stufenrollen, die zugehörigen Stufen und die aktiven Kinder (nur Eltern haben welche).
+        **Die Rollen stehen nur hier.** Die Apps und die Verwaltung lesen `abteilungsleitung` und `entwickler` aus dieser Antwort und nie `role` aus
+        `get-session` von better-auth; `role` ist nur ein Spiegel und entfällt mit Teil 10 des Umbaus (Epic #714). Das Feld `admin` gibt es nicht mehr, ohne Alias.
+
         Nie enthalten sind E-Mail, Bremsfelder, Sperrstatus, Ablauf des Startpassworts sowie Geheimnisse
         und Codes des zweiten Faktors.
 
@@ -5034,7 +5128,7 @@ paths:
         Wer Personen verwalten (`personen.verwalten`) oder sehen darf (`personen.sehen`), mit zweitem Faktor; die Abteilungsleitung hat beide (#650). Mit `personen.sehen` ist `startpasswort` immer `null`; mit `personen.verwalten` zeigt es nur die von Konten ohne Rechte, die Abteilungsleitung sieht alle. `kinder` und `elternteilVon` nennen nur Kinder der Stufen, die die Person sehen darf (`kinder.sehen` oder `kinder.verwalten`, je Stufe). Liefert alle Personen der eigenen Abteilung (sortiert nach Name), dazu alle Stufen (nach Name) und die Kinder (nach Nachname, Vorname) für den Rollen-Editor.
         Enthält nie E-Mail, Telefon, Sperrgrund, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors.
 
-        Statuscodes: 200 bei Erfolg. 403, wenn die Person keine Abteilungsleitung ist, wenn eine Person der Abteilungsleitung noch keinen zweiten Faktor eingerichtet hat (Code `ZWEITER_FAKTOR_FEHLT`, gilt für alle Verwaltungsrouten) oder wenn noch ein Passwortwechsel aussteht. 401 ohne gültige Sitzung oder bei deaktiviertem Konto.
+        Statuscodes: 200 bei Erfolg. 403, wenn die Person weder `personen.verwalten` noch `personen.sehen` hat (Abteilungsleitung und Entwickler haben beide), wenn sie noch keinen zweiten Faktor eingerichtet hat (Code `ZWEITER_FAKTOR_FEHLT`, gilt für alle Verwaltungsrouten) oder wenn noch ein Passwortwechsel aussteht. 401 ohne gültige Sitzung oder bei deaktiviertem Konto.
       tags:
         - Verwaltung
       parameters:
@@ -5058,7 +5152,7 @@ paths:
       operationId: legeAdminPersonAn
       summary: Person anlegen und Startpasswort erhalten
       description: |
-        Wer `personen.verwalten` hat (mit zweitem Faktor; #650). `admin: true` und Stufenrollen in `rollen` setzt nur die Abteilungsleitung (`rechte.verwalten`): Rechte vergibt sie allein. `elternteilVon` braucht `kinder.verwalten` in der Stufe jedes Kindes. Legt ein Konto in der eigenen Abteilung an, mit den angegebenen Stufenrollen und Verknüpfungen zu Kindern. Das Konto muss das Startpasswort beim ersten Login ändern und es ist 7 Tage gültig.
+        Wer `personen.verwalten` hat (mit zweitem Faktor; #650). `abteilungsleitung: true` und Stufenrollen in `rollen` setzt nur die Abteilungsleitung (`rechte.verwalten`): Rechte vergibt sie allein. `elternteilVon` braucht `kinder.verwalten` in der Stufe jedes Kindes. Legt ein Konto in der eigenen Abteilung an, mit den angegebenen Stufenrollen und Verknüpfungen zu Kindern. Das Konto muss das Startpasswort beim ersten Login ändern und es ist 7 Tage gültig.
 
         Das Startpasswort steht nur in dieser 201-Antwort. Es wird nicht gespeichert und lässt sich nicht erneut abrufen; ein neues erzeugt `POST /api/v1/admin/personen/{id}/startpasswort`. Die Antwort kommt erst nach dem Commit; scheitert das Anlegen, gibt es kein Startpasswort. Eine Person der Abteilungsleitung-Anlegen oder eine vergebene Rolle «stufenleitung» löst einen Push an die anderen Personen der Abteilungsleitung aus.
 
@@ -5101,11 +5195,11 @@ paths:
       operationId: aendereAdminPerson
       summary: Name, Recht der Abteilungsleitung, Stufenrollen und Kinder einer Person ändern
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst; `admin` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst; `abteilungsleitung` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Ziel in der eigenen Abteilung (404), dann Recht der Abteilungsleitung (403), dann Stufen- und Kind-IDs (400).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremden bzw. unbekannten Stufen- und Kind-IDs. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `LETZTER_ADMIN`, wenn `admin: false` die letzte aktive Abteilungsleitung der Abteilung entfernen würde.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremden bzw. unbekannten Stufen- und Kind-IDs. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `LETZTE_ABTEILUNGSLEITUNG`, wenn `abteilungsleitung: false` der Abteilung die letzte aktive Person mit Abteilungsleitung oder Entwickler nähme (ein Entwickler bleibt stehen, auch wenn ihm die Abteilungsleitung entzogen wird).
       tags:
         - Verwaltung
       parameters:
@@ -5129,7 +5223,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Der letzte aktive Abteilungsleitung lässt sich nicht entfernen (`LETZTER_ADMIN`).
+          description: Der Abteilung bliebe weder eine aktive Person mit Abteilungsleitung noch ein aktiver Entwickler (`LETZTE_ABTEILUNGSLEITUNG`).
           content:
             application/json:
               schema:
@@ -5144,7 +5238,7 @@ paths:
       description: |
         Nur die Abteilungsleitung (festes Recht `konto.loeschen`), nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für die letzte aktive Abteilungsleitung.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
         - Verwaltung
       parameters:
@@ -5162,7 +5256,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Eigenes Konto (`EIGENES_KONTO`) odie letzte Abteilungsleitung (`LETZTER_ADMIN`).
+          description: Eigenes Konto (`EIGENES_KONTO`) oder die letzte aktive Person mit Abteilungsleitung oder Entwickler (`LETZTE_ABTEILUNGSLEITUNG`).
           content:
             application/json:
               schema:
@@ -5176,7 +5270,7 @@ paths:
       operationId: setzeAdminStartpasswortNeu
       summary: Neues Startpasswort für eine Person erzeugen
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung. Konten mit Rechten (Abteilungsleitung, Entwickler, Plattformrolle, Rolle in einer Gruppe, Sonderrecht) setzt nur die Abteilungsleitung zurück (403 sonst, #650). Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung. Konten mit Rechten (Abteilungsleitung, Entwickler, Plattformrolle, Rolle in einer Gruppe, Sonderrecht) setzt nur die Abteilungsleitung und der Entwickler zurück (403 sonst, #650, #722). Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -5218,7 +5312,7 @@ paths:
       description: |
         Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für die letzte aktive Abteilungsleitung.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
         - Verwaltung
       parameters:
@@ -5236,7 +5330,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Eigenes Konto (`EIGENES_KONTO`) odie letzte Abteilungsleitung (`LETZTER_ADMIN`).
+          description: Eigenes Konto (`EIGENES_KONTO`) oder die letzte aktive Person mit Abteilungsleitung oder Entwickler (`LETZTE_ABTEILUNGSLEITUNG`).
           content:
             application/json:
               schema:
@@ -5707,7 +5801,7 @@ paths:
 
         Die Antwort enthält nie Werte aus der Umgebung, Hosts, Adressen, Schlüssel oder Namen. Ist die Datenbank nicht erreichbar, antwortet die Route trotzdem mit 200 und `datenbank.erreichbar: false`.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -5736,7 +5830,7 @@ paths:
 
         Erfasst werden nur Methode, Routenmuster (nie der konkrete Pfad), Statuscode und Dauer; keine Query, kein Body, keine Header, keine IP-Adressen und keine Personen. Die Abrufe dieser beiden System-Routen und die statischen Dateien unter `/admin` zählen nicht mit. Dauern (`p50Ms`, `p95Ms`) sind die obere Grenze der Dauerklasse, in der das Quantil liegt (Klassen bis 5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000 ms); `null` ohne Anfragen. Die Zähler je Route gelten seit dem Start.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -5763,7 +5857,7 @@ paths:
       description: |
         Nur mit dem Recht `system.lesen` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Zeigt den Stand des Kalender-Syncs mit der Zahl der Programme der Abteilung. Die Antwort enthält nie Fehlertexte, nur feste Texte. Das Auslesen der alten Stufenwebseiten gibt es nicht mehr (#361); der Teil `eckdaten` ist entfallen.
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`). 426.
       tags:
         - Verwaltung
       parameters:
@@ -5831,7 +5925,7 @@ paths:
 
         Zwischenspeicher: Die Antwort gilt je Person 45 Sekunden im Arbeitsspeicher der API (höchstens elf Abfragen je Neuaufbau). `frisch=1` baut sie neu, aber nie öfter als alle zehn Sekunden je Person. Es gibt kein Polling: Die Oberfläche lädt beim Öffnen und auf «Aktualisieren».
 
-        Statuscodes: 200 bei Erfolg. 401. 403 ohne Zugang zur Verwaltung (Eltern, Leitende ohne Stufenleitung) und, mit dem Code `ZWEITER_FAKTOR_FEHLT`, für Abteilungsleitung und Personen mit einem erweiterten Recht ohne zweiten Faktor. 426. 429.
+        Statuscodes: 200 bei Erfolg. 401. 403 ohne Zugang zur Verwaltung (Eltern, Leitende ohne Stufenleitung) und, mit dem Code `ZWEITER_FAKTOR_FEHLT`, für Abteilungsleitung, Entwickler und Personen mit einem erweiterten Recht ohne zweiten Faktor. 426. 429.
       tags:
         - Verwaltung
       parameters:
@@ -6384,7 +6478,7 @@ paths:
       description: |
         Wer Kinder sehen (`kinder.sehen`) oder verwalten darf (`kinder.verwalten`), mit zweitem Faktor; mit der Geltung «eigene» nur die Kinder der Stufe der Rolle (#650). Liefert die Kinder der eigenen Abteilung, die die Person sehen darf (sortiert nach Nachname, Vorname) mit den IDs der verknüpften Elternteile aus derselben Abteilung, dem Zugang (`zugang`: keiner, Eltern, eigenes Konto oder beides) und, wenn das Kind ein eigenes Konto hat, mit dem Stand des Kontos (`konto`, nur mit dem festen Recht `kinder.konto_verwalten`, also für die Abteilungsleitung; sonst `null`). Dazu die Einstellungen der Abteilung für Konten von Kindern.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -6590,7 +6684,7 @@ paths:
       description: |
         Nur die Abteilungsleitung. Ohne gespeicherte Einstellung gilt die vorsichtige Vorgabe: Konten für Kinder aus, Chat aus, die Eltern behalten die Einsicht.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -6845,7 +6939,7 @@ paths:
       description: |
         Nur mit dem Recht `zeitregeln.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert alle Regeln der eigenen Abteilung, sortiert nach Wochentag und Uhrzeit.
 
-        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -6969,7 +7063,7 @@ paths:
       description: |
         Wer Gruppen verwalten (`gruppen.verwalten`) oder Mitglieder ändern darf (`gruppen.mitglieder`, mit zweitem Faktor). Mit `gruppen.mitglieder` in der Geltung «eigene» nur die eigenen Gruppen (#650). Liefert die Tags der eigenen Abteilung mit der Zahl der Personen, die sie tragen, sortiert nach Typ und Name. Bei Typ `anlass` steht der Anlass mit Titel und Termin dabei.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7209,7 +7303,7 @@ paths:
 
         Wer bearbeiten darf, prüft der Server bei jeder Anfrage: Die Abteilungsleitung darf alles, die Stufenleitung die Objekte ihrer Stufe, alle anderen nur mit einem Recht aus dieser Liste (auf die Person oder auf einen Tag, den sie trägt). Ein Tag verleiht für sich nichts.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7312,7 +7406,7 @@ paths:
 
         Nur Kennungen und Namen von Gruppen, Lagern, Räumen und Seiten sowie Rollenwerte; nie Namen oder Kontaktdaten von Personen. Sieben Abfragen je Aufruf, jede auf die Abteilung der Sitzung gefiltert.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7337,11 +7431,11 @@ paths:
       operationId: leseAdminRechteKatalog
       summary: Rechtekatalog lesen
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Liefert den einen Katalog aller Rechte: Bereich, Klartext, Erklärung, Risiko (`normal`, `erweitert`, `fest`), Art (`vergebbar`, `struktur`, `fest`), Geltungen (`alle`, `eigene`), den Bezug, an dem «eigene» hängt, und ob das Recht den zweiten Faktor verlangt. Dazu den Modus, in dem das Rechtemodell läuft (`alt`, `schatten`, `neu`).
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Liefert den einen Katalog aller Rechte: Bereich, Klartext, Erklärung, Risiko (`normal`, `erweitert`, `fest`), Art (`vergebbar`, `struktur`, `fest`), Geltungen (`alle`, `eigene`), den Bezug, an dem «eigene» hängt, und ob das Recht den zweiten Faktor verlangt. Dazu den Modus, in dem das Rechtemodell läuft (`alt`, `schatten`, `neu`).
 
         Nur Rechte mit Art `vergebbar` lassen sich einer Rolle geben; `fest` (Rechte vergeben, Entwickler vergeben, Konto löschen, Sperre, Protokoll) bleibt bei Abteilungsleitung und Entwickler, `struktur` folgt aus der Beziehung (jede angemeldete Person, Eltern des Kindes). Nichts im Katalog erlaubt etwas: Er beschreibt.
 
-        Statuscodes: 200 bei Erfolg. 403 für Personen ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für Personen ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -7366,7 +7460,7 @@ paths:
       operationId: listeAdminRechteGruppen
       summary: Gruppen mit Zahl ihrer Rollen und Mitglieder
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Alle Gruppen (Tags jedes Typs) der eigenen Abteilung mit der Zahl ihrer Rollen, Mitglieder und der Mitglieder mit einer Rolle. Eine Abfrage.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Alle Gruppen (Tags jedes Typs) der eigenen Abteilung mit der Zahl ihrer Rollen, Mitglieder und der Mitglieder mit einer Rolle. Eine Abfrage.
 
         Statuscodes: 200 bei Erfolg. 403 wie beim Katalog.
       tags:
@@ -7393,7 +7487,7 @@ paths:
       operationId: listeAdminRechteGruppenRollen
       summary: Rollen einer Gruppe mit Rechten und Mitgliedern
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Die Rollen der Gruppe in ihrer Reihenfolge, je mit ihren Rechten und Geltungen, den festen Rechten im Code (nur Stufenrollen), der Versionsnummer und den Personen, die sie tragen (Kennung und Name). Systemrollen (`system: true`) legt das System an: «Stufenleitung» und «Leitung» an einer Stufe, «Verantwortliche/r» an jeder anderen Gruppe. Drei Abfragen für die ganze Gruppe.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Die Rollen der Gruppe in ihrer Reihenfolge, je mit ihren Rechten und Geltungen, den festen Rechten im Code (nur Stufenrollen), der Versionsnummer und den Personen, die sie tragen (Kennung und Name). Systemrollen (`system: true`) legt das System an: «Stufenleitung» und «Leitung» an einer Stufe, «Verantwortliche/r» an jeder anderen Gruppe. Drei Abfragen für die ganze Gruppe.
 
         Rechte der Rollen gelten, bis die Rolle, die Zuordnung oder die Gruppe gelöscht wird: Es gibt keine Frist.
 
@@ -7428,7 +7522,7 @@ paths:
       operationId: legeAdminRechteGruppenRolleAn
       summary: Rolle in einer Gruppe anlegen
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Legt eine Rolle mit Name, Beschreibung, Kennzeichen «Verantwortliche/r», Reihenfolge und einer Menge von Rechten an. Jedes Recht trägt seine Geltung: `alle` (jedes Objekt der Abteilung) oder `eigene` (nur Objekte der Gruppe: Seite des Teams, Räume des Teams, Anlass des OK). Welche Geltungen ein Recht kennt, steht im Katalog. Wer Rechte vergibt, hat sie selbst, mindestens in der Geltung, die er vergibt. Höchstens 30 Rollen je Gruppe. Das Anlegen steht im Audit-Log (`gruppen_rolle_angelegt`, mit den Rechten, ohne den Namen).
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Legt eine Rolle mit Name, Beschreibung, Kennzeichen «Verantwortliche/r», Reihenfolge und einer Menge von Rechten an. Jedes Recht trägt seine Geltung: `alle` (jedes Objekt der Abteilung) oder `eigene` (nur Objekte der Gruppe: Seite des Teams, Räume des Teams, Anlass des OK). Welche Geltungen ein Recht kennt, steht im Katalog. Wer Rechte vergibt, hat sie selbst, mindestens in der Geltung, die er vergibt. Höchstens 30 Rollen je Gruppe. Das Anlegen steht im Audit-Log (`gruppen_rolle_angelegt`, mit den Rechten, ohne den Namen).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), Gruppe in der eigenen Abteilung (404), Recht (403), eigene Rechte (403), Name und Zahl der Rollen (409).
 
@@ -7474,7 +7568,7 @@ paths:
       operationId: aendereAdminRechteGruppenRolle
       summary: Rolle einer Gruppe ändern
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Ändert Name, Beschreibung, Kennzeichen, Reihenfolge oder die Rechte der Rolle; `rechte` ersetzt die Menge als Ganzes. `version` ist Pflicht: Gespeichert wird nur auf dem Stand, den die Matrix gelesen hat. Hat jemand die Rolle inzwischen geändert, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand, statt zu überschreiben. Die Änderung wirkt bei der nächsten Anfrage der Personen. Nur hinzukommende Rechte muss die handelnde Person selbst haben. Systemrollen behalten Name und Kennzeichen; ihre Rechte lassen sich ändern. Das Ändern steht im Audit-Log (`gruppen_rolle_geaendert`, mit den hinzugekommenen und weggefallenen Rechten, ohne Namen).
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Ändert Name, Beschreibung, Kennzeichen, Reihenfolge oder die Rechte der Rolle; `rechte` ersetzt die Menge als Ganzes. `version` ist Pflicht: Gespeichert wird nur auf dem Stand, den die Matrix gelesen hat. Hat jemand die Rolle inzwischen geändert, antwortet der Server 409 `VERSION_KONFLIKT` mit dem aktuellen Stand, statt zu überschreiben. Die Änderung wirkt bei der nächsten Anfrage der Personen. Nur hinzukommende Rechte muss die handelnde Person selbst haben. Systemrollen behalten Name und Kennzeichen; ihre Rechte lassen sich ändern. Das Ändern steht im Audit-Log (`gruppen_rolle_geaendert`, mit den hinzugekommenen und weggefallenen Rechten, ohne Namen).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), Gruppe und Rolle in der eigenen Abteilung (404), Recht (403), Umbenennen einer Systemrolle (409), eigene Rechte (403), Version (409).
 
@@ -7520,7 +7614,7 @@ paths:
       operationId: loescheAdminRechteGruppenRolle
       summary: Rolle einer Gruppe löschen
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Löscht die Rolle samt ihren Rechten. Die Personen behalten ihre Mitgliedschaft in der Gruppe und verlieren die Rolle; der Entzug wirkt bei der nächsten Anfrage. Systemrollen lassen sich nicht löschen. Mit `version` nur, wenn die Rolle noch diesen Stand hat. Das Löschen steht im Audit-Log (`gruppen_rolle_geloescht`, mit den Rechten).
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Löscht die Rolle samt ihren Rechten. Die Personen behalten ihre Mitgliedschaft in der Gruppe und verlieren die Rolle; der Entzug wirkt bei der nächsten Anfrage. Systemrollen lassen sich nicht löschen. Mit `version` nur, wenn die Rolle noch diesen Stand hat. Das Löschen steht im Audit-Log (`gruppen_rolle_geloescht`, mit den Rechten).
 
         Statuscodes: 204 bei Erfolg. 409 mit Code `ROLLE_VORGEGEBEN` oder `VERSION_KONFLIKT`.
       tags:
@@ -7556,7 +7650,7 @@ paths:
       operationId: vorschauAdminRechteGruppenRolle
       summary: Vorschau, wer betroffen ist
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Rechnet eine Änderung, ohne zu schreiben: wie viele Personen die Rolle heute tragen und welche Rechte sie mit den vorgeschlagenen Rechten gewinnen und verlieren. Ohne `rolleId` ist es eine neue Rolle (keine Personen). Nur Zahlen, nie Namen.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Rechnet eine Änderung, ohne zu schreiben: wie viele Personen die Rolle heute tragen und welche Rechte sie mit den vorgeschlagenen Rechten gewinnen und verlieren. Ohne `rolleId` ist es eine neue Rolle (keine Personen). Nur Zahlen, nie Namen.
 
         Statuscodes: 200 bei Erfolg. 404, wenn Gruppe oder Rolle unbekannt sind oder zu einer anderen Abteilung gehören.
       tags:
@@ -7629,7 +7723,7 @@ paths:
       operationId: listeAdminRechteRollen
       summary: Globale Rollen mit dem ganzen Katalog
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Die Rollen der Abteilung (Plattformrollen, zuerst «Webmaster»), die abteilungsweit gelten, mit allen vergebbaren Rechten des Katalogs, ihrer Version und den Personen, die sie tragen. Die ältere Route `/api/v1/admin/plattform/rollen` bleibt: Sie kennt nur die Rechte der Website und lässt die übrigen Rechte einer Rolle stehen. Personen ordnet weiter `/api/v1/admin/plattform/rollen/{id}/personen/{userId}` zu.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Die Rollen der Abteilung (Plattformrollen, zuerst «Webmaster»), die abteilungsweit gelten, mit allen vergebbaren Rechten des Katalogs, ihrer Version und den Personen, die sie tragen. Die ältere Route `/api/v1/admin/plattform/rollen` bleibt: Sie kennt nur die Rechte der Website und lässt die übrigen Rechte einer Rolle stehen. Personen ordnet weiter `/api/v1/admin/plattform/rollen/{id}/personen/{userId}` zu.
 
         Statuscodes: 200 bei Erfolg.
       tags:
@@ -7655,7 +7749,7 @@ paths:
       operationId: legeAdminRechteRolleAn
       summary: Globale Rolle anlegen
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Legt eine Rolle mit Rechten aus dem ganzen Katalog an; sie gelten abteilungsweit. Wer Rechte vergibt, hat sie selbst. Audit-Log: `plattform_rolle_angelegt`.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Legt eine Rolle mit Rechten aus dem ganzen Katalog an; sie gelten abteilungsweit. Wer Rechte vergibt, hat sie selbst. Audit-Log: `plattform_rolle_angelegt`.
 
         Statuscodes: 201 bei Erfolg. 409 mit Code `ROLLENNAME_VERGEBEN`.
       tags:
@@ -7696,7 +7790,7 @@ paths:
       operationId: aendereAdminRechteRolle
       summary: Globale Rolle ändern
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Ändert Name oder Rechte (als Ganzes) auf dem gelesenen Stand (`version` Pflicht, sonst 409 `VERSION_KONFLIKT`). Rechte, die der Katalog nicht kennt, bleiben unberührt. Die Vorgabe «Webmaster» behält ihren Namen. Audit-Log: `plattform_rolle_geaendert`.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Ändert Name oder Rechte (als Ganzes) auf dem gelesenen Stand (`version` Pflicht, sonst 409 `VERSION_KONFLIKT`). Rechte, die der Katalog nicht kennt, bleiben unberührt. Die Vorgabe «Webmaster» behält ihren Namen. Audit-Log: `plattform_rolle_geaendert`.
 
         Statuscodes: 200 mit der neuen Version. 409 mit Code `ROLLENNAME_VERGEBEN`, `ROLLE_VORGEGEBEN` oder `VERSION_KONFLIKT`.
       tags:
@@ -7739,7 +7833,7 @@ paths:
       operationId: loescheAdminRechteRolle
       summary: Globale Rolle löschen
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Löscht die Rolle samt Rechten und Vergaben; der Entzug wirkt bei der nächsten Anfrage. Die Vorgabe lässt sich nicht löschen. Audit-Log: `plattform_rolle_geloescht`.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Löscht die Rolle samt Rechten und Vergaben; der Entzug wirkt bei der nächsten Anfrage. Die Vorgabe lässt sich nicht löschen. Audit-Log: `plattform_rolle_geloescht`.
 
         Statuscodes: 204 bei Erfolg. 409 mit Code `ROLLE_VORGEGEBEN` oder `VERSION_KONFLIKT`.
       tags:
@@ -7817,7 +7911,7 @@ paths:
       operationId: leseAdminRechtePerson
       summary: Was darf diese Person, und woher?
       description: |
-        Nur die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643). Jedes Recht, das die Person hat, mit seinen Quellen (`herkunft`): Abteilungsleitung, Entwickler, Plattformrolle, Stufenrolle, Mitgliedschaft, Gruppenrolle (mit Gruppe und Rolle) oder Sonderrecht, je mit Geltung. Dazu die Gruppen der Person mit ihrer Rolle. Das ist die Diagnose für «Ich komme nicht in die Anmeldungen». Zwei Abfragen für die Person, eine für die Rechte.
+        Die Abteilungsleitung und der Entwickler mit zweitem Faktor (Recht `rechte.verwalten`, Entscheid der Verwaltung #643; der Entwickler hat seit #722 jedes Recht). Jedes Recht, das die Person hat, mit seinen Quellen (`herkunft`): Abteilungsleitung, Entwickler, Plattformrolle, Stufenrolle, Mitgliedschaft, Gruppenrolle (mit Gruppe und Rolle) oder Sonderrecht, je mit Geltung. Dazu die Gruppen der Person mit ihrer Rolle. Das ist die Diagnose für «Ich komme nicht in die Anmeldungen». Zwei Abfragen für die Person, eine für die Rechte.
 
         Der Name der Person steht in der Antwort; nie Kontaktdaten.
 
@@ -7851,7 +7945,7 @@ paths:
       operationId: listeAdminRechteAenderungen
       summary: Änderungen an Rollen und Zuordnungen
       description: |
-        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (feste Rechte `rechte.abteilungsleitung`; seine Antworten enthalten keine Namen von Personen). Die Zeilen des Audit-Logs zu Rollen und Zuordnungen (Gruppenrollen und Plattformrollen angelegt, geändert, gelöscht, zugeordnet, vergeben, entzogen), neueste zuerst, mit dem Namen der handelnden Person. Seitenweise: `nach` ist die Kennung der letzten Zeile der Vorseite.
+        Die Abteilungsleitung mit zweitem Faktor (feste Rechte `rechte.verwalten`, Entscheid der Verwaltung #643) und, seit #663, der Entwickler mit zweitem Faktor (er hat seit #722 jedes Recht, auch `rechte.verwalten`; seine Antworten enthalten die Namen von Personen). Die Zeilen des Audit-Logs zu Rollen und Zuordnungen (Gruppenrollen und Plattformrollen angelegt, geändert, gelöscht, zugeordnet, vergeben, entzogen), neueste zuerst, mit dem Namen der handelnden Person. Seitenweise: `nach` ist die Kennung der letzten Zeile der Vorseite.
 
         Statuscodes: 200 bei Erfolg.
       tags:
@@ -7884,9 +7978,9 @@ paths:
       description: |
         Nur die Abteilungsleitung. Liefert den Rechtekatalog, die Rollen der eigenen Abteilung mit ihren Rechten und die Personen, die sie tragen (Kennung und Name). Zwei Datenbankabfragen für die ganze Liste.
 
-        Jedes Recht des Katalogs ist «erweitert»: Wer es hat, braucht den zweiten Faktor, sonst antwortet jede Route, die das Recht verlangt, mit 403 und dem Code `ZWEITER_FAKTOR_FEHLT`. Die Abteilungsleitung hat jedes Recht fest; der Entwickler hat jedes Recht und lässt sich nur über die Kommandozeile vergeben (`npm run entwickler:vergeben`). Beide stehen nicht in der Liste und lassen sich nicht ändern. Die Rolle mit `vorgabe: true` (Webmaster) gibt es in jeder Abteilung; sie hat anfangs alle Rechte ausser dem Wartungsmodus der Website.
+        Jedes Recht des Katalogs ist «erweitert»: Wer es hat, braucht den zweiten Faktor, sonst antwortet jede Route, die das Recht verlangt, mit 403 und dem Code `ZWEITER_FAKTOR_FEHLT`. Die Abteilungsleitung hat jedes Recht fest; der Entwickler hat seit #722 jedes Recht, auch an Personen-, Kinder- und Lagerdaten (zweiter Faktor wie für jede Person), und lässt sich nur über die Kommandozeile vergeben (`npm run entwickler:vergeben`). Beide stehen nicht in der Liste und lassen sich nicht ändern. Die Rolle mit `vorgabe: true` (Webmaster) gibt es in jeder Abteilung; sie hat anfangs alle Rechte ausser dem Wartungsmodus der Website.
 
-        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 für alle anderen (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -8735,7 +8829,7 @@ paths:
       description: |
         Nur mit dem Recht `lager.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor, #648). Liefert alle Lager der eigenen Abteilung, neueste zuerst.
 
-        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -9522,7 +9616,7 @@ paths:
       description: |
         Nur lesen, nie eine Rechteausweitung: Das Panel fragt, welche Bereiche es der Person zeigt. Antwortet jeder Person mit Sitzung, auch ohne Zugang (`redigieren: false`, keine Bereiche). Die Routen selbst prüfen jedes Recht neu.
 
-        Statuscodes: 200. 403 für die Abteilungsleitung ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) und bei offenem Pflichtwechsel des Passworts.
+        Statuscodes: 200. 403 für Abteilungsleitung und Entwickler ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) und bei offenem Pflichtwechsel des Passworts.
       tags:
         - Redaktion
       parameters:
@@ -26147,7 +26241,7 @@ paths:
       description: |
         Nur mit dem Recht `cevi_db.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor). `verbunden` heisst nur, dass Adresse und Token in der Umgebung des Servers stehen (`CEVI_DB_URL`, `CEVI_DB_TOKEN`); beide gibt keine Route heraus. Dazu die eingestellte Gruppe und der Stand des letzten Abrufs (Zeitpunkt, Ausgang `ok` oder `fehler`, Zahl der Personen), nie ein Fehlertext der Gegenseite.
 
-        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für Abteilungsleitung und Entwickler ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
       tags:
         - Verwaltung
       parameters:
@@ -26302,7 +26396,7 @@ components:
           type:
             - string
             - "null"
-          description: Rolle der Person bei better-auth; `admin` für die Abteilungsleitung.
+          description: "Spiegel der Rolle in better-auth (Übergang, entfällt in einem späteren Release). Nicht lesen: Die Abteilungsleitung und der Entwickler stehen in `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`)."
           example: admin
         twoFactorEnabled:
           type:
@@ -26336,6 +26430,12 @@ components:
           type: string
           format: date-time
           description: Ablauf der Sitzung (90 Tage ab der letzten Verlängerung).
+        zweiterFaktorGeprueft:
+          type: boolean
+          description: |
+            `true`, wenn diese Sitzung mit dem Code des zweiten Faktors begann (Anmeldung im Browser, Einrichten des
+            Faktors). `false` nach der Anmeldung der App und bei Konten ohne Faktor. Gilt der Faktor nur am Konto
+            (`user.twoFactorEnabled`) und nicht in der Sitzung, bleiben die Verwaltung und Rechte mit «erweitert» zu.
         createdAt:
           type: string
           format: date-time
@@ -26360,7 +26460,7 @@ components:
     AuthZweiterFaktorAufforderung:
       type: object
       description: |
-        Zweiter Faktor verlangt. Es gibt noch keine Sitzung; das Zwischen-Cookie `two_factor` steht im `Set-Cookie`-Header.
+        Zweiter Faktor verlangt (nur für Anmeldungen, die nicht von der App kommen). Es gibt noch keine Sitzung; das Zwischen-Cookie `two_factor` steht im `Set-Cookie`-Header.
       required:
         - twoFactorRedirect
         - twoFactorMethods
@@ -26515,7 +26615,7 @@ components:
             - stufenleitung
           description: |
             `stufenleitung` (SL) erfüllt auch alle Rechte von `leitung` derselben Stufe. die Abteilungsleitung ist keine Stufenrolle,
-            sondern das Feld `admin`.
+            sondern das Feld `abteilungsleitung` in `GET /api/v1/ich`.
     IchStufe:
       type: object
       required:
@@ -26578,7 +26678,8 @@ components:
         - bildUrl
         - pushChat
         - pushProgramme
-        - admin
+        - abteilungsleitung
+        - entwickler
         - zweiterFaktor
         - rollen
         - rechte
@@ -26629,11 +26730,15 @@ components:
         pushAnmeldungen:
           type: boolean
           description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
-        admin:
+        abteilungsleitung:
           type: boolean
+          description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier und nie aus `role` von better-auth.
+        entwickler:
+          type: boolean
+          description: Ob das Konto ein Entwickler ist (es steht in `plattform_entwickler`, vergeben nur per CLI). Der Entwickler hat jedes Recht des Katalogs; die Verwaltung zeigt damit ihre Oberfläche, die Prüfung bleibt auf dem Server.
         zweiterFaktor:
           type: boolean
-          description: Ob der zweite Faktor eingerichtet ist. Die Abteilungsleitung braucht ihn für `/api/v1/admin`.
+          description: Ob das Konto den zweiten Faktor eingerichtet hat. Abteilungsleitung und Entwickler brauchen ihn für `/api/v1/admin`. Sagt nichts über die Sitzung. Eine App-Sitzung hat den Code nie geprüft (Verwaltung und Rechte mit «erweitert» antworten dann 403 `ZWEITER_FAKTOR_SITZUNG`).
         rollen:
           type: array
           description: Stufenrollen der Person (Leitende und Stufenleitung); für Eltern und die Abteilungsleitung ohne Stufenrolle leer.
@@ -27568,7 +27673,7 @@ components:
           type: string
           enum:
             - BENUTZERNAME_VERGEBEN
-            - LETZTER_ADMIN
+            - LETZTE_ABTEILUNGSLEITUNG
             - EIGENES_KONTO
             - EIGENER_ZWEITER_FAKTOR
             - KEIN_ZWEITER_FAKTOR
@@ -27583,7 +27688,7 @@ components:
             - KONTO_VORHANDEN
         message:
           type: string
-          example: Die letzte Abteilungsleitung lässt sich nicht entfernen.
+          example: Die Abteilung braucht mindestens eine aktive Person der Abteilungsleitung oder einen aktiven Entwickler.
     AdminRolle:
       type: object
       description: Stufenrolle einer Person. «stufenleitung» erfüllt auch alles, was «leitung» darf.
@@ -27632,7 +27737,8 @@ components:
         - bildUrl
         - telefon
         - benutzername
-        - admin
+        - abteilungsleitung
+        - entwickler
         - zweiterFaktor
         - deaktiviert
         - mussPasswortAendern
@@ -27667,8 +27773,12 @@ components:
             - string
             - "null"
           description: Kleingeschrieben gespeichert.
-        admin:
+        abteilungsleitung:
           type: boolean
+          description: Ob die Person zur Abteilungsleitung gehört. Ersetzt das Feld `admin`, ohne Alias.
+        entwickler:
+          type: boolean
+          description: Ob die Person ein Entwickler ist (nur lesen; vergeben wird die Rolle per CLI).
         zweiterFaktor:
           type: boolean
           description: Ob die Person einen zweiten Faktor eingerichtet hat.
@@ -27768,7 +27878,7 @@ components:
         - vorname
         - nachname
         - benutzername
-        - admin
+        - abteilungsleitung
         - rollen
         - elternteilVon
       additionalProperties: false
@@ -27798,8 +27908,9 @@ components:
           pattern: ^[A-Za-z0-9._-]+$
           description: Gross-/Kleinschreibung wird nicht unterschieden; gespeichert wird kleingeschrieben.
           example: anna.muster
-        admin:
+        abteilungsleitung:
           type: boolean
+          description: Ob das neue Konto zur Abteilungsleitung gehört. Setzt nur, wer `rechte.verwalten` hat. Das frühere Feld `admin` ergibt 400.
         rollen:
           type: array
           maxItems: 50
@@ -27863,9 +27974,9 @@ components:
             - string
             - "null"
           description: Eine Nummer speichert nur, wer nach der Änderung eine Rolle `stufenleitung` hat (sonst 400); leer oder `null` entfernt sie, das geht immer. Ändert sich der Wert, schreibt die API `telefon_geaendert` ins Audit-Log, ohne die Nummer.
-        admin:
+        abteilungsleitung:
           type: boolean
-          description: "`false` für die letzte aktive Abteilungsleitung ergibt 409 `LETZTER_ADMIN`."
+          description: "Nimmt das Konto in die Abteilungsleitung auf (`true`) oder aus ihr heraus. Das frühere Feld `admin` ergibt 400. `false` ergibt 409 `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung sonst keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe."
         rollen:
           type: array
           maxItems: 50
@@ -41993,7 +42104,7 @@ components:
           properties:
             rechteVerwalten:
               type: boolean
-              description: Recht «Rechte und Rollen vergeben» (die Abteilungsleitung).
+              description: Recht «Rechte und Rollen vergeben» (die Abteilungsleitung und der Entwickler).
             abteilungsleitungAendern:
               type: boolean
               description: Recht «Rechte der Abteilungsleitung ändern» (der Entwickler).
@@ -42026,7 +42137,6 @@ components:
                 geltungen,
                 bezug,
                 zweiterFaktor,
-                entwickler,
                 nurEntwickler,
                 gruppenrolle,
               ]
@@ -42055,8 +42165,6 @@ components:
                 nullable: true
                 enum: [seite, anlass, raum, gruppe]
               zweiterFaktor:
-                type: boolean
-              entwickler:
                 type: boolean
               nurEntwickler:
                 type: boolean
@@ -42919,7 +43027,10 @@ components:
       in: header
       required: false
       description: |
-        Herkunft der App für die Schutzprüfung von better-auth. Jeder POST an `/api/auth/*`, der ein
+        Herkunft der App. Sie dient der Schutzprüfung von better-auth und kennzeichnet die Anmeldung der App: Mit diesem
+        Schema entsteht auch bei einem Konto mit zweitem Faktor eine Sitzung ohne Code (nicht geprüft, ohne Zugang zur
+        Verwaltung). Jede andere Herkunft verlangt den Code.
+        Schutzprüfung von better-auth: Jeder POST an `/api/auth/*`, der ein
         `Cookie` mitschickt, braucht eine vertraute Herkunft, sonst 403 (`MISSING_OR_NULL_ORIGIN` oder
         `INVALID_ORIGIN`). Vertraut ist das App-Schema `cevi-os://` (auch mit Host und Port, z. B.
         `cevi-os://192.0.2.1:8081` für Entwicklungs-Builds). Statt `Origin` genügt `expo-origin` mit demselben
