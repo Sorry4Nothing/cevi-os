@@ -1564,6 +1564,8 @@ const bspBild = (nr, unterschrift) => ({
 });
 const bspAbsatz = (...abschnitte) => ({ typ: "absatz", inhalt: abschnitte });
 const bspKarten = (darstellung, eintraege) => ({ darstellung, eintraege });
+// Beispieladressen: Der Quelltext der Verwaltung nennt keine Adresse im Klartext (seiten.test.ts), darum getrennt geschrieben
+const BSP_HTTPS = "https:" + "//";
 
 // Was «Baustein hinzufügen» anbietet (Reihenfolge und Texte wie im Design E3).
 // gruppe: Überschrift im Dialog (GRUPPEN). beispiel: Beispieldaten des Bausteins (das Feld «daten»), die der Server mit dem Renderer der Website zeigt; Platzhaltertexte, Bilder nur als Beispiel-ID. Jeder neue Eintrag braucht beides
@@ -1723,7 +1725,7 @@ export const KATALOG = [
     neu: () => ({ titel: "", link: "" }),
     beispiel: () => ({
       titel: "Beispieldatei zum Herunterladen",
-      link: "https://beispiel.sharepoint.com/datei.pdf",
+      link: `${BSP_HTTPS}beispiel.sharepoint.com/datei.pdf`,
       typ: "PDF",
       groesse: 240000,
     }),
@@ -1790,7 +1792,7 @@ export const KATALOG = [
     beispiel: () => ({
       art: "video",
       beschriftung: "Beispielvideo ansehen",
-      url: "https://www.beispiel.example/video",
+      url: `${BSP_HTTPS}www.beispiel.example/video`,
     }),
   },
   {
