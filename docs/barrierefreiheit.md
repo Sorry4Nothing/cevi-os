@@ -1458,3 +1458,21 @@ Gilt für die Bausteine `hinweisbox`, `zitat`, `fragen`, `spalten`, `bildneben`,
 ### Stand der Prüfung (#741)
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank, erfundene Texte, Bilder aus der Demo-Medienbibliothek) bei 1280, 1920 und 390 px, hell und dunkel: Eine Seite mit allen acht Bausteinen (in jeder Art der Hinweisbox, beide Darstellungen der Checkliste, Bild links und rechts, Tabelle mit Zeilenkopf und Zahlenspalten) wurde im Editor Baustein für Baustein angelegt, gespeichert und veröffentlicht; die erzeugte Seite wurde angesehen. Tastatur: Enter und Leertaste öffnen und schliessen die Fragen, der Fokusring der Fragen und der Tabellenfläche ist sichtbar (3 px), die Tabellenfläche ist nach vier Tabs erreichbar. Überschriftenfolge: H1, H2, H3 ohne Sprung. Kein seitliches Scrollen der Seite bei 390 px. Der Server lehnte einen Link auf eine Seite ab, die es nicht gibt (Meldung am Baustein). Per Test: Schema mit allen Grenzen und Ablehnungen, Verweise, Maskierung (kein Markup aus Daten), kein Skript und kein `style`, jedes Element und Attribut der Renderer passiert `knoten.js`. **Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), 200 % und 400 % Zoom, echtes Touch-Gerät, Firefox und Safari (das Verhalten von `details` bei einem Anker in der Adresse ist dort unbestätigt), hoher Kontrast des Systems (nur die Regel ist gesetzt).
+
+## 80. Verwaltung: keine leeren Flächen, Höhe aus dem verfügbaren Platz (#756)
+
+Gilt für jede Ansicht der Verwaltung unter `public/admin`, besonders für Bereiche mit eigenen Scrollspalten (Editor einer Seite, `formularraster--scroll`, Lager-Navigation, Tagesliste der Termine). Das Dokument ist nie höher als sein Inhalt: Scrollen und Bild-ab landen nicht in leerer Fläche, und Bildschirmleser und Tastatur finden keinen Bereich, der nichts enthält (WCAG 2.4.3, 1.4.10).
+
+### Prüfpunkte
+
+- [ ] **80.1** Das Dokument ragt nie über `main.inhalt` hinaus: Absolut gesetzte, unsichtbare Knoten (`.nur-leser`, Live-Regionen) haben einen Versatz (`top: 0; left: 0`) oder einen Bezugsrahmen (`position: relative`) und verlängern die Seite nicht (Messung: `scrollHeight` des Dokuments minus Unterkante von `main.inhalt` ist 0).
+- [ ] **80.2** Höhen kommen aus dem verfügbaren Platz: Ein Scrollbereich nutzt `var(--scroll-hoehe)` (Fenster minus haftende Leiste minus Abstand) oder rechnet `var(--leiste-hoehe)` ein. Nie `vh` minus eine geschätzte Kopfhöhe (wie `8.25rem`) und nie `min-height` in Fensterhöhe. Der Test `admin-keine-leere-flaeche.test.ts` lässt `vh`/`dvh` im CSS nur mit Token oder auf der Liste mit Grund zu.
+- [ ] **80.3** Am Seitenende füllt jede Scrollspalte das Fenster unter der Leiste, ohne dass die Oberkante unter der haftenden Leiste verschwindet; ein haftender Bereich (`position: sticky`) setzt `top` auf `calc(var(--leiste-hoehe) + 1rem)`.
+- [ ] **80.4** Innen bleibt Platz für den Fokusring (`padding: 4px` im Scrollbereich), die erste und letzte Zeile sind mit der Tastatur erreichbar, `scrollbar-gutter: stable` hält die Breite; nichts springt beim Wechsel der Ansicht.
+- [ ] **80.5** Unter 1100 px bleibt die Ansicht einspaltig und scrollt als eine Seite.
+
+### Stand der Prüfung (#756)
+
+Im Browser (Chromium, headless, Playwright, Kopie der Demo-Datenbank, Entwickler-Konto, eigener Dev-Server) bei 1280 x 720, 390 x 844, 2560 x 1440, 3774 x 2020 (Zoom 100 % und 150 %), dunkel; Editor der Seite «Datenschutz» (66 Bausteine) und Lager zusätzlich hell: 80.1 bis 80.3 gemessen, 80.5 gesehen.
+
+**Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 % von Hand.

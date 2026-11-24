@@ -65,7 +65,7 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: calc(100vh - var(--leiste-hoehe, 0px) - 2rem);
+  max-height: calc(100dvh - var(--leiste-hoehe, 0px) - 2rem);
   padding: 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -229,13 +229,6 @@
 @media (prefers-reduced-motion: no-preference) {
   .lg-nav a {
     transition: background-color var(--dauer) var(--kurve);
-  }
-}
-
-/* Breit: Der Arbeitsbereich ist mindestens so hoch wie das Fenster. Wechselt man das Modul, kann die Seite an der Stelle bleiben, auch wenn das neue Modul noch lädt (kein Springen nach oben) */
-@media (min-width: 901px) {
-  .lg-arbeit {
-    min-height: calc(100vh - var(--leiste-hoehe, 0px) - 2rem);
   }
 }
 

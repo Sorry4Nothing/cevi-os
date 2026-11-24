@@ -477,8 +477,8 @@ body.sortieren-aktiv {
 @media (min-width: 68.8125em) {
   .formularraster:not(.formularraster--scroll) .formularraster-seite {
     position: sticky;
-    top: 1rem;
-    max-height: calc(100dvh - 2rem);
+    top: calc(var(--leiste-hoehe) + 1rem);
+    max-height: calc(100dvh - var(--leiste-hoehe) - 2rem);
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -487,8 +487,7 @@ body.sortieren-aktiv {
 /* scroll: Zwei Spalten, zwei Scrollbereiche in Fensterhöhe, wie der Editor einer Seite */
 @media (min-width: 68.8125em) {
   .formularraster--scroll {
-    height: calc(100vh - 8.25rem);
-    height: calc(100dvh - 8.25rem);
+    height: var(--scroll-hoehe);
     min-height: 24rem;
     align-items: stretch;
   }
