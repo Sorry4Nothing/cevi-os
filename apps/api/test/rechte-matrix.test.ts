@@ -278,6 +278,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/lager-einteilung-laden.js": { erwartet: alle(200) },
   "GET /admin/lager-bewegung.js": { erwartet: alle(200) },
   "GET /admin/lager-skeleton.js": { erwartet: alle(200) },
+  "GET /admin/lager-status.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-detail.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-gemeinsam.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-logik.js": { erwartet: alle(200) },

@@ -1957,6 +1957,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-status.js:
+    get:
+      operationId: getAdminLagerStatusSkript
+      summary: Skript der Verwaltung – Bereich Lager, Status
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/lager-anim.css:
     get:
       operationId: getAdminLagerAnimStilvorlage
