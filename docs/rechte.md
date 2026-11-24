@@ -72,7 +72,7 @@ Der Katalog des Lagers (49 Rechte) und der Termine (11 Rechte) steht im Anhang.
    1. keine oder ungültige Sitzung, gesperrtes Konto: 401
    2. Konto mit Pflichtwechsel: 403
    3. Informationssperre: 423 `GESPERRT`; Wartung bei Änderungen: 503 `IN_WARTUNG` (Regel 8)
-   4. unter `/api/v1/admin/*`: Abteilungsleitung ohne zweiten Faktor: 403 `ZWEITER_FAKTOR_FEHLT`; mit Faktor am Konto, aber ohne Code in der Sitzung (App-Sitzung): 403 `ZWEITER_FAKTOR_SITZUNG`
+   4. unter `/api/v1/admin/*` und `/api/v1/redaktion`: Abteilungsleitung und Entwickler (`siehtAlles`) ohne zweiten Faktor: 403 `ZWEITER_FAKTOR_FEHLT` (seit #735 auch für den Entwickler); mit Faktor am Konto, aber ohne Code in der Sitzung (App-Sitzung): 403 `ZWEITER_FAKTOR_SITZUNG`
    5. Objekt in SQL auf die eigene Abteilung geladen: fremd oder unbekannt: **404**
    6. Recht an diesem Objekt fehlt: **403**
    7. Zustand passt nicht (Lager geschlossen, schon veröffentlicht): 409
