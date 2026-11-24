@@ -1,8 +1,8 @@
 $kind: http-request
 name: "DELETE /api/v1/admin/tags/:id"
-order: 153000
+order: 154000
 method: DELETE
-url: "{{baseUrl}}/api/v1/admin/tags/{{ziel_158}}"
+url: "{{baseUrl}}/api/v1/admin/tags/{{ziel_159}}"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

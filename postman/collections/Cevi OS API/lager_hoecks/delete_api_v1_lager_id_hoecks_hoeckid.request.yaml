@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/lager/:id/hoecks/:hoeckId"
-order: 309000
+order: 310000
 method: DELETE
 url: "{{baseUrl}}{{pfad_L107}}"
 headers:

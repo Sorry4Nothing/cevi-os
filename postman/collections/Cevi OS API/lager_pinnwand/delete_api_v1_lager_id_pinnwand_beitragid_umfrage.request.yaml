@@ -1,6 +1,6 @@
 $kind: http-request
 name: "DELETE /api/v1/lager/:id/pinnwand/:beitragId/umfrage"
-order: 418000
+order: 419000
 method: DELETE
 url: "{{baseUrl}}{{pfad_L216}}"
 headers:

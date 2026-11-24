@@ -1,6 +1,6 @@
 $kind: http-request
 name: "GET /api/v1/lager/:id/benachrichtigungen"
-order: 242000
+order: 243000
 method: GET
 url: "{{baseUrl}}{{pfad_L39}}"
 headers:

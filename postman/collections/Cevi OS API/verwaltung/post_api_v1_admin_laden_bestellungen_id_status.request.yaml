@@ -1,8 +1,8 @@
 $kind: http-request
 name: "POST /api/v1/admin/laden/bestellungen/:id/status"
-order: 146000
+order: 147000
 method: POST
-url: "{{baseUrl}}/api/v1/admin/laden/bestellungen/01a2060a-6bbe-7974-b3b1-d53345883676/status"
+url: "{{baseUrl}}/api/v1/admin/laden/bestellungen/01a20640-4bb0-729a-808c-cbcc2401d4f9/status"
 headers:
   - key: "Cookie"
     value: "{{cookie}}"

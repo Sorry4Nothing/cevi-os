@@ -1,6 +1,6 @@
 $kind: http-request
 name: "POST /api/v1/lager/:id/schichtplan/dienste"
-order: 390000
+order: 391000
 method: POST
 url: "{{baseUrl}}{{pfad_L188}}"
 headers:
