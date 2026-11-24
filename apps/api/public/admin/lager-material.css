@@ -117,7 +117,23 @@ tr.lm-erledigt th label {
   width: 100%;
   max-width: 28rem;
   height: 0.75rem;
-  accent-color: var(--akzent);
+  appearance: none;
+  overflow: hidden;
+  background: var(--rand-leise);
+  border: 0;
+  border-radius: var(--r-full);
+}
+
+.lm-fortschritt::-webkit-progress-bar {
+  background: var(--rand-leise);
+}
+
+.lm-fortschritt::-webkit-progress-value {
+  background: var(--akzent);
+}
+
+.lm-fortschritt::-moz-progress-bar {
+  background: var(--akzent);
 }
 
 .lm-fortschritt-text {

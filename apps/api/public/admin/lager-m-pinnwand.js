@@ -272,7 +272,7 @@ function beitragKarte({
       el(
         "div",
         { class: "lg-sm-beitragkopf" },
-        autor && avatar(autor, { hell: true }),
+        autor && avatar(autor, { hell: true, bildUrl: b.von?.bildUrl }),
         el(
           "div",
           { class: "lg-sm-beitragtitel" },
