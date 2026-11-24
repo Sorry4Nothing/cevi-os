@@ -1559,7 +1559,7 @@ Im Blatt einer Person (Bereich Personen, Abschnitt «Konto») löscht «Konto l�
 
 ### Prüfpunkte
 
-- [ ] **85.1** Der Knopf steht im Abschnitt «Konto» nach «Deaktivieren», als gefährlich gezeichnet (Rot, Papierkorb-Symbol, Text «Konto löschen»). Er fehlt beim eigenen Konto (dort steht «Für das eigene Konto gibt es diese Aktionen nicht.») und für alle, die weder Abteilungsleitung noch Entwickler sind.
+- [ ] **85.1** Der Knopf steht im Abschnitt «Konto» nach «Deaktivieren», als gefährlich gezeichnet (Rot, Papierkorb-Symbol, Text «Konto löschen»). Er fehlt beim eigenen Konto (dort steht «Für das eigene Konto gibt es diese Aktionen nicht.») und für alle ohne das Recht `konto.loeschen` (seit #771, siehe 86).
 - [ ] **85.2** Der Knopf öffnet die Karte unter sich (`aria-expanded`, `aria-controls`); sie trägt die Frage «Konto von <Name> endgültig löschen?» als Namen (`aria-labelledby`) und den Text, was verloren geht, als Beschreibung (`aria-describedby`). Der Text nennt Konto, Anmeldung, Chats und Verknüpfungen zu Gruppen und Rollen, dass Einträge im Änderungsprotokoll bleiben, und dass man stattdessen deaktivieren kann.
 - [ ] **85.3** Der Fokus liegt auf dem Feld «Tippe «<Name>» zur Bestätigung». «Endgültig löschen» bleibt ausgeschaltet, bis der Name stimmt (Leerzeichen am Rand zählen nicht). Enter im Feld schickt das Formular der Person nie ab; es bestätigt nur bei richtigem Namen.
 - [ ] **85.4** Esc und «Abbrechen» schliessen die Karte, leeren das Feld und bringen den Fokus zum Knopf «Konto löschen». Tab erreicht Feld, «Abbrechen» und «Endgültig löschen» in dieser Reihenfolge.
@@ -1580,3 +1580,28 @@ Im Browser (Chromium headless, Playwright, Kopie der Demo-Datenbank, eigener Dev
 - Server (Kopie der Daten): Löschen zweier Abteilungsleitungen (eine mit zweitem Faktor), eines Elternteils, einer Person mit Webmaster-Rolle und einer Stufenleitung: je 204, kein 500, keine Zeile mit der ID ausser im Audit-Log.
 
 **Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA: Namen und Beschreibung sind über `aria-labelledby` und `aria-describedby` gebaut, nicht gehört), Safari und Firefox, Zoom 200 % und 400 %, erzwungene Farben, Touch am echten Gerät.
+
+## 86. Verwaltung: «Konto löschen» als verteilbares Recht (#771)
+
+«Konto löschen» hängt nicht mehr an der Abteilungsleitung, sondern am Recht `konto.loeschen` (Bereich «Personen und Gruppen», Klartext «Konten endgültig löschen»). Es lässt sich im Rechte-Editor (Seite «Rollen und Rechte») einer Rolle geben und wieder nehmen; die Erklärung dort trägt die Warnung. Der Knopf im Blatt der Person folgt `ich.rechte` (aus `GET /api/v1/ich`). Ein Konto über der Person ist geschützt: Konten von Entwicklern löscht nur ein Entwickler, Konten der Abteilungsleitung nur Abteilungsleitung oder Entwickler (403 `KONTO_GESCHUETZT`). Dann steht statt des Knopfs ein Satz mit dem Grund. Die Karte mit dem Namen zum Eintippen bleibt wie bei 85.
+
+### Prüfpunkte
+
+- [ ] **86.1** Der Knopf «Konto löschen» erscheint nur, wenn die angemeldete Person das Recht hat; hat die Abteilungsleitung es nicht (der Entwickler hat es ihr genommen), fehlt der ganze Eintrag, ohne leere Zeile. Der Entwickler hat den Knopf immer.
+- [ ] **86.2** Bei einem Konto, das die Person nicht löschen darf, steht unter dem Titel «Konto löschen» der Satz «Dieses Konto darf nur ein Entwickler löschen.» oder «Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen.» als normaler Text (kein Tooltip, nicht nur Farbe, kontrastreich wie die anderen Beschreibungen), ohne Knopf und ohne Tab-Stopp.
+- [ ] **86.3** Das eigene Konto zeigt weiter nur «Für das eigene Konto gibt es diese Aktionen nicht.».
+- [ ] **86.4** Ein 403 `KONTO_GESCHUETZT` (zum Beispiel nach einem Wechsel der Rolle während das Blatt offen ist) steht als Text in der Karte, mit «Nicht gelöscht.» am Anfang; kein Toast.
+- [ ] **86.5** Im Rechte-Editor steht das Recht mit Klartext «Konten endgültig löschen» und der Erklärung, die vor den Folgen warnt und die Schutzregeln nennt; der Schalter hat einen Namen und ist mit der Tastatur bedienbar (wie jedes andere Recht).
+- [ ] **86.6** Bei 390 und 1280 Pixel, hell und dunkel: Der Grundsatz läuft nicht über, kein waagrechtes Scrollen.
+
+### Stand der Prüfung (#771)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server, frisch migrierte Datenbank mit Testpersonen; Sitzungen mit geprüftem zweiten Faktor) bei 390 x 844 und 1280 x 900, hell und dunkel:
+
+- **86.1:** Abteilungsleitung sieht den Knopf bei einer Person ohne Rechte und bei einer anderen Abteilungsleitung. Mit einem Abzug `konto.loeschen` in den Rechten der Abteilungsleitung fehlt der Eintrag ganz; der Entwickler behält den Knopf trotz Abzug.
+- **86.2:** Beim Konto eines Entwicklers steht «Dieses Konto darf nur ein Entwickler löschen.», kein Knopf. Der zweite Satz (nur Abteilungsleitung oder Entwickler) lässt sich im Browser nicht auslösen, weil nur Abteilungsleitung und Entwickler die Seite «Personen» öffnen; er ist durch den Quelltext-Test gesichert.
+- **86.3, 86.6:** In allen vier Kombinationen kein waagrechtes Scrollen; Text lesbar (Ansichten im Browser angeschaut, kein Messwert).
+- Tastatur: Fokus auf den Knopf, Enter öffnet die Karte (Fokus im Feld), Name tippen, Enter löscht: 204, Toast «Konto von … gelöscht.», Fokus auf der Überschrift, Zeile weg.
+- Server über HTTP mit einer Rolle «Datenschutz» (nur `konto.loeschen`, zweiter Faktor): Konto ohne Rechte 204; Entwickler 403 `KONTO_GESCHUETZT`; Abteilungsleitung 403 `KONTO_GESCHUETZT`; eigenes Konto 409 `EIGENES_KONTO`; Personenliste 403 (das Recht gibt keine Liste).
+
+**Nicht geprüft:** 86.4 und 86.5 im Browser (86.5: nur die Katalogantwort mit Klartext und Erklärung gelesen, die Seite des Rechte-Editors nicht bedient), Bildschirmleser, Safari und Firefox, Zoom 200 %. Offen: Die Seite «Personen» der Verwaltung öffnet sich nur für Abteilungsleitung und Entwickler (`navigation.js`, Standard `abteilungsleitung`). Eine Rolle mit `konto.loeschen` kann die Route über die API nutzen, bekommt in der Verwaltung aber noch keinen Weg zum Blatt der Person.

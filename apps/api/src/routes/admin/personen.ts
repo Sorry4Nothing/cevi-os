@@ -84,6 +84,19 @@ const KONFLIKT = {
   },
 } as const;
 
+// 403 beim Löschen eines Kontos, das über dem Löschenden steht (#771): sonst könnte eine Rolle mit «Konten löschen» die Leitung stürzen
+const GESCHUETZT = {
+  ABTEILUNGSLEITUNG: {
+    code: "KONTO_GESCHUETZT",
+    message:
+      "Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen.",
+  },
+  ENTWICKLER: {
+    code: "KONTO_GESCHUETZT",
+    message: "Dieses Konto darf nur ein Entwickler löschen.",
+  },
+} as const;
+
 // Trägt einen Konflikt aus einer Transaktion heraus; die Route antwortet 409 und alles ist zurückgerollt
 class Konflikt extends Error {
   constructor(public konflikt: keyof typeof KONFLIKT) {
@@ -151,7 +164,7 @@ export function erstellePersonenRouten({
     person.abteilungsleitung || (await istEntwickler(db, person));
 
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
-  async function ladeZiel(person: Person, id: string) {
+  async function ladeZielOhneRecht(person: Person, id: string) {
     const [ziel] = await db
       .select({
         id: user.id,
@@ -166,6 +179,11 @@ export function erstellePersonenRouten({
         ),
       );
     if (!ziel) throw new HTTPException(404);
+    return ziel;
+  }
+
+  async function ladeZiel(person: Person, id: string) {
+    const ziel = await ladeZielOhneRecht(person, id);
     await verlange(db, person, "personen.verwalten", {
       abteilungId: person.abteilungId,
     });
@@ -835,10 +853,20 @@ export function erstellePersonenRouten({
     .delete("/:id", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");
-      await ladeZiel(person, id);
-      // Konto löschen ist fest (konto.loeschen): Abteilungsleitung und Entwickler (#650, #722); das eigene Konto nie
-      await verlange(db, person, "konto.loeschen");
+      // Konto löschen ist ein eigenes, verteilbares Recht (konto.loeschen, #771) und gilt ohne «Personen verwalten»; geschützt bleibt, wer über dem Löschenden steht
+      const ziel = await ladeZielOhneRecht(person, id);
+      await verlange(db, person, "konto.loeschen", {
+        abteilungId: person.abteilungId,
+      });
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
+      const geschuetzt =
+        ziel.abteilungsleitung && !(await betreutKontenMitRechten(person))
+          ? GESCHUETZT.ABTEILUNGSLEITUNG
+          : !(await istEntwickler(db, person)) &&
+              (await istEntwickler(db, { id, abteilungId: person.abteilungId }))
+            ? GESCHUETZT.ENTWICKLER
+            : null;
+      if (geschuetzt) return c.json(geschuetzt, 403);
       try {
         await db.transaction(async (tx) => {
           await sperreLetzteAbteilungsleitung(tx, person.abteilungId, id);

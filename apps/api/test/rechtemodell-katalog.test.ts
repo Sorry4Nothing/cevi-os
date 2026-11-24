@@ -6,6 +6,7 @@ import {
   RECHT_IDS,
   RECHTE_KATALOG,
   VERGEBBARE_RECHTE,
+  brauchtZweitenFaktor,
   istRecht,
 } from "../src/rechtemodell/katalog.js";
 import {
@@ -100,11 +101,10 @@ describe("Rechtekatalog", () => {
     }
   });
 
-  test("fest bleibt: Rechte vergeben, Entwickler vergeben, Konto löschen, Sperre, Protokoll", () => {
+  test("fest bleibt: Rechte vergeben, Entwickler vergeben, Sperre, Protokoll", () => {
     for (const id of [
       "rechte.verwalten",
       "entwickler.vergeben",
-      "konto.loeschen",
       "plattform.sperren",
       "protokoll.lesen",
     ] as const) {
@@ -116,6 +116,15 @@ describe("Rechtekatalog", () => {
       (RECHTE_KATALOG["protokoll.lesen"] as { nurEntwickler?: true })
         .nurEntwickler,
     ).toBe(true);
+  });
+
+  test("Konten löschen ist vergebbar, erweitert und nur abteilungsweit (#771)", () => {
+    const e = RECHTE_KATALOG["konto.loeschen"];
+    expect(e.art).toBe("vergebbar");
+    expect(e.risiko).toBe("erweitert");
+    expect(e.geltungen).toEqual(["alle"]);
+    expect(VERGEBBARE_RECHTE as readonly string[]).toContain("konto.loeschen");
+    expect(brauchtZweitenFaktor("konto.loeschen")).toBe(true);
   });
 
   test("vergebbar seit #648: Lädeli, Lager, Betriebszahlen, Zeitregeln und die Wartung der Bereiche, alle mit zweitem Faktor", () => {

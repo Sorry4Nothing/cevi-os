@@ -317,7 +317,7 @@ describe("RechteSatz: die Standardmatrix als Literal", () => {
         recht: "seiten.anlegen_loeschen",
         geltung: "eigene",
       },
-      { rolleId: rolle.id, recht: "konto.loeschen", geltung: "alle" },
+      { rolleId: rolle.id, recht: "kinder.konto_verwalten", geltung: "alle" },
       { rolleId: rolle.id, recht: "unbekannt.recht", geltung: "alle" },
     ]);
     await db
@@ -327,7 +327,7 @@ describe("RechteSatz: die Standardmatrix als Literal", () => {
     const satz = await ladeRechteSatz(db, { ...p });
     expect(satz.hat("seiten.anlegen_loeschen")).toBe(false);
     // Ein festes Recht lässt sich nicht an eine Rolle hängen
-    expect(satz.hat("konto.loeschen")).toBe(false);
+    expect(satz.hat("kinder.konto_verwalten")).toBe(false);
     expect(satz.hat("unbekannt.recht")).toBe(false);
     await db
       .update(schema.personTag)

@@ -365,6 +365,8 @@ async function pruefeKonto(nachAnmeldung = true) {
     ...sitzung.user,
     abteilungsleitung: profil.abteilungsleitung === true,
     entwickler: profil.entwickler === true,
+    // Die Rechte des Katalogs, die der Server der Person gibt (GET /api/v1/ich, nach Abzügen der Abteilungsleitung): nur für die Anzeige, zum Beispiel «Konto löschen» (#771)
+    rechte: Array.isArray(profil.rechte) ? profil.rechte : [],
   };
   zugang = null;
   if (ich.mussPasswortAendern) {

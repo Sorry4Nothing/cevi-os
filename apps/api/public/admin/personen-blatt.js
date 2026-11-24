@@ -19,7 +19,7 @@ import { formularRaster } from "./formularraster.js";
 import { melde } from "./melden.js";
 import { entferneFehler, feldFehler, pruefHinweis } from "./liste-hilfen.js";
 import { suchWahl } from "./personen-wahl.js";
-import { siehtAlles } from "./sicht.js";
+import { istEntwickler, siehtAlles } from "./sicht.js";
 import { zweistufig } from "./rueckgaengig.js";
 import { typName } from "./tags-detail.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
@@ -395,7 +395,7 @@ function umschalten(person, ctx, neu, fertig) {
   });
 }
 
-// Endgültig löschen (konto.loeschen: Abteilungsleitung und Entwickler): kein Toast mit «Rückgängig», sondern die Karte am Ort mit dem Namen zum Eintippen. Fehler bleiben in der Karte, dort entscheidet die Person (#769)
+// Endgültig löschen (Recht konto.loeschen): kein Toast mit «Rückgängig», sondern die Karte am Ort mit dem Namen zum Eintippen. Fehler bleiben in der Karte, dort entscheidet die Person (#769)
 function kontoLoeschenKarte(person, ctx, neu, fertig) {
   return bestaetigungAmOrt({
     text: "Konto löschen",
@@ -416,6 +416,24 @@ function kontoLoeschenKarte(person, ctx, neu, fertig) {
     },
     fehlertext: (f) => `Nicht gelöscht. ${fehlertext(f)}`,
   }).wurzel;
+}
+
+// «Konto löschen» zeigt, wer das Recht «konto.loeschen» hat (ein Recht wie jedes andere, #771). Ein Konto über der Person ist geschützt: Konten von Entwicklern löscht nur ein Entwickler, Konten der Abteilungsleitung nur Abteilungsleitung oder Entwickler. Dann steht der Grund statt des Knopfs. Der Server prüft beides (403 KONTO_GESCHUETZT)
+function kontoLoeschenAktion(person, ctx, neu, schliesse) {
+  // Die Rechte stammen aus GET /api/v1/ich und berücksichtigen, was der Entwickler der Abteilungsleitung genommen hat; die Abteilungsleitung hat es nicht «immer»
+  if (!ctx?.ich?.rechte?.some((r) => r.recht === "konto.loeschen")) return null;
+  const grund =
+    person.entwickler && !istEntwickler(ctx.ich)
+      ? "Dieses Konto darf nur ein Entwickler löschen."
+      : person.abteilungsleitung && !siehtAlles(ctx.ich)
+        ? "Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen."
+        : null;
+  return kontoAktion(
+    "Konto löschen",
+    grund ??
+      "Löscht Konto und Anmeldung endgültig, auch die Chats und die Verknüpfungen zu Gruppen und Rollen. Das geht nicht rückgängig; zum Zurücknehmen deaktivierst du die Person stattdessen.",
+    grund ? null : kontoLoeschenKarte(person, ctx, neu, schliesse),
+  );
 }
 
 function faktorZuruecksetzen(person, ctx, neu, fertig) {
@@ -1122,12 +1140,7 @@ function kontoAbschnitt(person, { eigenes, ctx, neu, beiFokus, schliesse }) {
                   },
                 }),
               ),
-          siehtAlles(ctx?.ich) &&
-            kontoAktion(
-              "Konto löschen",
-              "Löscht Konto und Anmeldung endgültig, auch die Chats und die Verknüpfungen zu Gruppen und Rollen. Das geht nicht rückgängig; zum Zurücknehmen deaktivierst du die Person stattdessen.",
-              kontoLoeschenKarte(person, ctx, neu, schliesse),
-            ),
+          kontoLoeschenAktion(person, ctx, neu, schliesse),
         ],
   );
 }

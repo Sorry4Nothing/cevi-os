@@ -4,7 +4,7 @@ import { describe, expect, test } from "vitest";
 const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
-// «Konto löschen» im Blatt einer Person (#769): Die Quelle sichert die Regeln der Oberfläche; die Route selbst deckt test/konto-loeschen.test.ts und test/entwickler-alle-rechte.test.ts ab
+// «Konto löschen» im Blatt einer Person (#769, #771): Die Quelle sichert die Regeln der Oberfläche; die Route selbst deckt test/konto-loeschen.test.ts und test/entwickler-alle-rechte.test.ts ab
 describe("Konto löschen im Blatt der Person (#769)", () => {
   const blatt = lies("personen-blatt.js");
   const karte = blatt.slice(
@@ -55,17 +55,38 @@ describe("Konto löschen im Blatt der Person (#769)", () => {
     expect(karte).not.toContain('"fehler"');
   });
 
-  test("der Knopf erscheint nur für Abteilungsleitung und Entwickler und nie beim eigenen Konto", () => {
+  test("der Knopf erscheint mit dem Recht konto.loeschen und nie beim eigenen Konto (#771)", () => {
     const abschnitt = blatt.slice(blatt.indexOf("function kontoAbschnitt"));
     expect(abschnitt).toMatch(/eigenes\s*\?\s*el\(/);
     const eigene = abschnitt.indexOf("eigenes");
-    const loeschen = abschnitt.indexOf("kontoLoeschenKarte(");
-    // Er steht im Zweig für fremde Konten, hinter «Deaktivieren», und nur mit siehtAlles()
+    const loeschen = abschnitt.indexOf("kontoLoeschenAktion(");
+    // Er steht im Zweig für fremde Konten, hinter «Deaktivieren»
     expect(loeschen).toBeGreaterThan(abschnitt.indexOf('"Deaktivieren"'));
     expect(loeschen).toBeGreaterThan(eigene);
-    expect(abschnitt).toMatch(
-      /siehtAlles\(ctx\?\.ich\)\s*&&\s*kontoAktion\(\s*"Konto löschen"/,
+    // Nicht mehr an siehtAlles gebunden, sondern an das Recht
+    const aktion = blatt.slice(
+      blatt.indexOf("function kontoLoeschenAktion"),
+      blatt.indexOf("function faktorZuruecksetzen"),
     );
+    expect(aktion).toContain('r.recht === "konto.loeschen"');
+    expect(aktion).toContain("ctx?.ich?.rechte");
+    expect(aktion).not.toMatch(/siehtAlles\(ctx\?\.ich\)\s*&&/);
+  });
+
+  test("geschützte Konten zeigen den Grund statt des Knopfs, wie der Server sie schützt", () => {
+    const aktion = blatt.slice(
+      blatt.indexOf("function kontoLoeschenAktion"),
+      blatt.indexOf("function faktorZuruecksetzen"),
+    );
+    expect(aktion).toContain("person.entwickler && !istEntwickler(ctx.ich)");
+    expect(aktion).toContain("Dieses Konto darf nur ein Entwickler löschen.");
+    expect(aktion).toContain(
+      "person.abteilungsleitung && !siehtAlles(ctx.ich)",
+    );
+    expect(aktion).toContain(
+      "Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen.",
+    );
+    expect(aktion).toContain("grund ? null : kontoLoeschenKarte(");
   });
 
   test("die Karte ist zugänglich: Beschreibung, Eingabefeld zuerst, Escape, Enter schickt das Formular nicht ab", () => {
