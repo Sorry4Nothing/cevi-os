@@ -6,8 +6,8 @@ import type {
 } from "../matrix.js";
 
 // Matrix-Zeilen von L5b (#391): Wetter. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
-// Rechte (Standard): wetter.lesen haben alle vier Rollen, auch das Team; im abgeschlossenen Lager geht Lesen weiter. Den Ort setzt nur die Lagerleitung (die Abteilungsleitung gilt als Lagerleitung); alle anderen Rollen bekommen 403 vor dem Schreibschutz, die beiden im abgeschlossenen Lager 409. Nicht-Mitglied und fremde Abteilung 404.
-// Der Ort der Matrix ist leer (null): Mit einem Ort riefe das nächste GET den echten Wetterdienst ab, die Matrix läuft ohne Netz.
+// Rechte (Standard): wetter.lesen haben alle vier Rollen, auch das Team; im abgeschlossenen Lager geht Lesen weiter. Den Ort setzt niemand von Hand, der Server bestimmt ihn aus dem Lagerort (#694); es gibt keine Route dafür. Nicht-Mitglied und fremde Abteilung 404.
+// Das Lager der Matrix hat keinen Ort: Mit einem Ort suchte das nächste GET beim echten Ortsdienst, die Matrix läuft ohne Netz.
 const status = (
   werte: Partial<Record<LagerPersona, number>>,
   grundlage: number,
@@ -33,20 +33,6 @@ export const ZEILEN: LagerMatrix = {
     erwartet: {
       aktiv: status({ ...nichtMitglied }, 200),
       abgeschlossen: status({ ...nichtMitglied }, 200),
-    },
-  },
-  "PUT /api/v1/lager/:id/wetter/ort": {
-    url: (w, z) => `${pfad(w, z)}/ort`,
-    body: () => ({ breite: null, laenge: null }),
-    erwartet: {
-      aktiv: status(
-        { ...nichtMitglied, abteilungsleitung: 200, lagerleitung: 200 },
-        403,
-      ),
-      abgeschlossen: status(
-        { ...nichtMitglied, abteilungsleitung: 409, lagerleitung: 409 },
-        403,
-      ),
     },
   },
 };

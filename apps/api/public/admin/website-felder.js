@@ -1483,6 +1483,20 @@ export const TYPEN = {
       ),
     ],
   },
+  fotoalben: {
+    name: "Fotoalben",
+    kurz: () => "Die Fotoalben der Abteilung aus Flickr, nur angemeldet",
+    pruefe: () => [],
+    form: () => [
+      el(
+        "p",
+        { class: "hilfe" },
+        "Zeigt die Alben, die du freigegeben hast, mit einer Grossansicht der Bilder. Die Seite ist für alle sichtbar, die Fotos sehen aber nur angemeldete Personen; alle anderen lesen «Nur angemeldet sichtbar» mit einem Link zur Anmeldung. Welche Alben erscheinen und in welcher Reihenfolge, stellst du unter ",
+        el("a", { href: "#website/fotos" }, "Website, Fotos"),
+        " ein.",
+      ),
+    ],
+  },
   stufenfakten: {
     name: "Samstagsangaben der Stufen",
     kurz: () => "Datum, Treffpunkt und Mitnehmen der Stufe",
@@ -1603,6 +1617,11 @@ export const KATALOG = [
   {
     typ: "laden",
     beschreibung: "Das Lädeli: Artikel, Warenkorb und Bestellung.",
+    neu: () => ({}),
+  },
+  {
+    typ: "fotoalben",
+    beschreibung: "Fotoalben aus Flickr, nur für angemeldete Personen.",
     neu: () => ({}),
   },
   {

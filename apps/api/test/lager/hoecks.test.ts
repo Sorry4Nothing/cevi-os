@@ -962,7 +962,7 @@ describe("Anwesenheit", () => {
     expect((await anfrage(leiter(), "PUT", url)).status).toBe(204);
     const gelesen = await anfrage(leiter(), "GET", `${L()}/hoecks/${h.id}`);
     expect(gelesen.body.anwesende).toEqual([
-      { id: p, name: "Mitglied Test", ceviName: null },
+      { id: p, name: "Mitglied Test", ceviName: null, bildUrl: null },
     ]);
     const liste = await anfrage(leiter(), "GET", `${L()}/hoecks`);
     expect(
@@ -1114,7 +1114,12 @@ describe("Höck-Modus", () => {
         id: ressortA!.id,
         kuerzel: "KU",
         name: "Küche",
-        leitung: { id: person, name: "Mitglied Test", ceviName: null },
+        leitung: {
+          id: person,
+          name: "Mitglied Test",
+          ceviName: null,
+          bildUrl: null,
+        },
         aufgaben: { gesamt: 3, erledigt: 1, offen: 2, ueberfaellig: 1 },
         // Nur die offenen, nach Frist: «a» (gestern) vor «b» (morgen); die Leitung des Ressorts ist die wirksame Verantwortliche
         offeneAufgaben: [
@@ -1122,13 +1127,21 @@ describe("Höck-Modus", () => {
             id: expect.any(String),
             titel: "a",
             status: "offen",
-            verantwortlich: { id: person, name: expect.any(String) },
+            verantwortlich: {
+              id: person,
+              name: expect.any(String),
+              bildUrl: null,
+            },
           },
           {
             id: expect.any(String),
             titel: "b",
             status: "laeuft",
-            verantwortlich: { id: person, name: expect.any(String) },
+            verantwortlich: {
+              id: person,
+              name: expect.any(String),
+              bildUrl: null,
+            },
           },
         ],
       },

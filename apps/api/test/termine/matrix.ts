@@ -32,6 +32,8 @@ export const TERMINE_MODULE = [
   "raeume",
   "admin-raeume",
   "raum-anfragen",
+  // #691
+  "cevi-db",
 ] as const;
 export type TermineModul = (typeof TERMINE_MODULE)[number];
 

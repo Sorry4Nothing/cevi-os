@@ -10,7 +10,7 @@ import {
   ladeStart,
 } from "../../lager/aggregate.js";
 import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
-import type { WetterHolen } from "../../lager/wetter-openmeteo.js";
+import type { Wetterdienst } from "../../lager/wetter-openmeteo.js";
 
 const lagerPfad = z.strictObject({ id: z.uuid() });
 
@@ -21,7 +21,7 @@ export function erstelleAggregateRouten({
   jetzt,
 }: {
   db: Db;
-  wetter: WetterHolen;
+  wetter: Wetterdienst;
   jetzt: () => Date;
 }) {
   const zugriff = lagerZugriff(db);

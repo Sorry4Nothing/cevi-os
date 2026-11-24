@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { sql, type SQLWrapper } from "drizzle-orm";
 import { profilbild, stufenlogo } from "./db/schema.js";
 
 // Hart, vor dem Einlesen: Das Bild wird danach ohnehin auf rund 20 KB verkleinert, das Original ist nur der Weg dorthin
@@ -28,3 +28,12 @@ export const bildUrl = sql<
 export const logoUrl = sql<
   string | null
 >`case when ${stufenlogo.stufeId} is null then null else '/api/v1/stufen/' || ${stufenlogo.stufeId} || '/logo?v=' || (extract(epoch from ${stufenlogo.geaendertAm}) * 1000)::bigint end`;
+
+// Wie bildUrl, für Personen in den Antworten eines Lagers, ohne Join auf profilbild und in jedem Ausdruck nutzbar (Spalte, Alias, jsonb_build_object). Nur Mitglieder dieses Lagers mit aktivem Konto haben ein Bild: dieselbe Regel wie der Weg «Lager» in GET /personen/:id/bild, nie ein Bild, das die Route der Person nicht herausgäbe. Teilnehmende sind keine Konten und bleiben null. Ein Unterausdruck je Zeile, aber in derselben Abfrage über den Schlüssel (kein N+1)
+export const bildUrlImLager = (
+  personId: SQLWrapper,
+  lagerId: SQLWrapper | string,
+) =>
+  sql<
+    string | null
+  >`(select '/api/v1/personen/' || bp.user_id || '/bild?v=' || (extract(epoch from bp.geaendert_am) * 1000)::bigint from profilbild bp inner join lager_mitglied bm on bm.person_id = bp.user_id and bm.lager_id = ${lagerId} inner join "user" bu on bu.id = bp.user_id and bu.deaktiviert_am is null and bu.banned is not true where bp.user_id = ${personId})`;

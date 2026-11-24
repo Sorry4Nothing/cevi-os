@@ -53,9 +53,18 @@ export const lager = pgTable(
     anwesenheitFrist: timestamp("anwesenheit_frist", { withTimezone: true }),
     // Link zur Lageradresse in einer Karten-App (#393), nur gespeichert: Der Server ruft keinen Kartendienst ab. Setzt die Lagerleitung über PUT /lager/{id}/notfall/karte
     kartenLink: text("karten_link"),
-    // Ort für das Wetter (#391): Breite und Länge in Grad. Nur sie gehen an den Wetterdienst (lager/wetter.ts), auf zwei Stellen gerundet. Setzt die Lagerleitung über PUT /lager/{id}/wetter/ort; beide leer: kein Wetter
+    // Ort für das Wetter (#391, #694): Breite und Länge in Grad, auf zwei Stellen gerundet. Niemand gibt sie ein: Der Server bestimmt sie aus «ort» (lager/wetter-ort.ts). Nur sie gehen an den Wetterdienst; beide leer: kein Wetter
     breite: doublePrecision("breite"),
     laenge: doublePrecision("laenge"),
+    // Stand der Ortssuche (#694): der Schlüssel des Textes, für den gesucht wurde (aus ort und adresse; ein anderer Text heisst «neu suchen»), der gefundene Name («Musterstadt, Kanton Beispiel»), das Ergebnis und der letzte Versuch
+    wetterOrtSchluessel: text("wetter_ort_schluessel"),
+    wetterOrtName: text("wetter_ort_name"),
+    wetterOrtErgebnis: text("wetter_ort_ergebnis", {
+      enum: ["gefunden", "nicht_gefunden", "mehrdeutig", "fehler"],
+    }),
+    wetterOrtVersuchAm: timestamp("wetter_ort_versuch_am", {
+      withTimezone: true,
+    }),
     // Dass das Medium zur Abteilung gehört und ein Bild ist, prüft die Route
     logoMediumId: uuid("logo_medium_id").references(() => medium.id, {
       onDelete: "set null",
@@ -87,6 +96,10 @@ export const lager = pgTable(
     check(
       "lager_ort_check",
       sql`(${t.breite} is null) = (${t.laenge} is null) and (${t.breite} is null or (${t.breite} between -90 and 90 and ${t.laenge} between -180 and 180))`,
+    ),
+    check(
+      "lager_wetter_ort_ergebnis_check",
+      sql`${t.wetterOrtErgebnis} is null or ${t.wetterOrtErgebnis} in ('gefunden', 'nicht_gefunden', 'mehrdeutig', 'fehler')`,
     ),
     check(
       "lager_farbe_check",

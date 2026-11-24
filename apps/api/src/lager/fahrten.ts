@@ -10,6 +10,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   fahrt,
@@ -269,19 +270,22 @@ export type MitfahrerEintrag = {
   teilnehmerId: string | null;
   name: string;
   stufe: string | null;
+  // Pfad des Profilbilds der Person (Konto mit Bild, Mitglied des Lagers), sonst null; Teilnehmende immer null
+  bildUrl: string | null;
 };
 
 // Antwort einer Fahrt mit Fahrer, Mitfahrenden und Belegung: «belegt» zählt die Mitfahrenden ohne den Fahrer, «frei» sind die Plätze «x von y» (nie unter 0), «ueberbelegt» die Warnung bei mehr Mitfahrenden als Plätzen
 function fahrtMitBelegung(
   f: FahrtZeile,
   fahrerName: string | null,
+  fahrerBild: string | null,
   mitfahrer: MitfahrerEintrag[],
 ) {
   const belegt = mitfahrer.length;
   return {
     ...fahrtAnsicht(f),
     fahrer: f.fahrerPersonId
-      ? { personId: f.fahrerPersonId, name: fahrerName }
+      ? { personId: f.fahrerPersonId, name: fahrerName, bildUrl: fahrerBild }
       : null,
     mitfahrer,
     belegt,
@@ -301,9 +305,14 @@ export async function ladeFahrten(
   const mitfahrerUser = alias(user, "mitfahrer_user");
   const mitfahrer = sql<
     MitfahrerEintrag[]
-  >`coalesce(json_agg(json_build_object('id', ${fahrtMitfahrer.id}, 'version', ${fahrtMitfahrer.version}, 'personId', ${fahrtMitfahrer.personId}, 'teilnehmerId', ${fahrtMitfahrer.teilnehmerId}, 'name', coalesce(${mitfahrerUser.name}, ${teilnehmer.vorname} || ' ' || ${teilnehmer.nachname}), 'stufe', ${teilnehmer.stufe}) order by ${fahrtMitfahrer.erstelltAm}, ${fahrtMitfahrer.id}) filter (where ${fahrtMitfahrer.id} is not null), '[]'::json)`;
+  >`coalesce(json_agg(json_build_object('id', ${fahrtMitfahrer.id}, 'version', ${fahrtMitfahrer.version}, 'personId', ${fahrtMitfahrer.personId}, 'teilnehmerId', ${fahrtMitfahrer.teilnehmerId}, 'name', coalesce(${mitfahrerUser.name}, ${teilnehmer.vorname} || ' ' || ${teilnehmer.nachname}), 'stufe', ${teilnehmer.stufe}, 'bildUrl', ${bildUrlImLager(sql`${mitfahrerUser.id}`, zugriff.lager.id)}) order by ${fahrtMitfahrer.erstelltAm}, ${fahrtMitfahrer.id}) filter (where ${fahrtMitfahrer.id} is not null), '[]'::json)`;
   const zeilen = await db
-    .select({ f: getTableColumns(fahrt), fahrerName: fahrer.name, mitfahrer })
+    .select({
+      f: getTableColumns(fahrt),
+      fahrerName: fahrer.name,
+      fahrerBild: bildUrlImLager(sql`${fahrer.id}`, zugriff.lager.id),
+      mitfahrer,
+    })
     .from(fahrt)
     .leftJoin(fahrer, eq(fahrer.id, fahrt.fahrerPersonId))
     .leftJoin(
@@ -332,7 +341,12 @@ export async function ladeFahrten(
   const seite = zeilen.slice(0, limit);
   return {
     fahrten: seite.map((z) =>
-      fahrtMitBelegung(z.f as FahrtZeile, z.fahrerName, z.mitfahrer),
+      fahrtMitBelegung(
+        z.f as FahrtZeile,
+        z.fahrerName,
+        z.fahrerBild,
+        z.mitfahrer,
+      ),
     ),
     naechster: zeilen.length > limit ? seite[limit - 1]!.f.id : null,
   };
@@ -359,10 +373,11 @@ export async function ladeOhneFahrt(
     id: string;
     name: string;
     stufe: string | null;
+    bild: string | null;
     gesamt: number;
   }>(sql`
     with ohne as (
-      select 'teilnehmer'::text as art, t.id::text as id, t.vorname || ' ' || t.nachname as name, t.stufe as stufe, t.nachname || ' ' || t.vorname as sortname
+      select 'teilnehmer'::text as art, t.id::text as id, t.vorname || ' ' || t.nachname as name, t.stufe as stufe, t.nachname || ' ' || t.vorname as sortname, null::text as bild
       from teilnehmer t
       where t.lager_id = ${lagerId}
         and not exists (
@@ -370,7 +385,7 @@ export async function ladeOhneFahrt(
           where m.lager_id = t.lager_id and m.teilnehmer_id = t.id and m.richtung = ${p.richtung}
         )
       union all
-      select 'person'::text, lm.person_id::text, u.name, null::text, u.name
+      select 'person'::text, lm.person_id::text, u.name, null::text, u.name, ${bildUrlImLager(sql`lm.person_id`, lagerId)}
       from lager_mitglied lm
       join "user" u on u.id = lm.person_id
       where lm.lager_id = ${lagerId} and u.abteilung_id = ${abteilungId}
@@ -384,7 +399,7 @@ export async function ladeOhneFahrt(
           where f.lager_id = lm.lager_id and f.fahrer_person_id = lm.person_id and f.richtung = ${p.richtung}
         )
     )
-    select o.art, o.id, o.name, o.stufe, (select count(*)::int from ohne) as gesamt
+    select o.art, o.id, o.name, o.stufe, o.bild, (select count(*)::int from ohne) as gesamt
     from ohne o
     ${seitenwechsel}
     order by o.sortname, o.id
@@ -396,6 +411,7 @@ export async function ladeOhneFahrt(
       personId: z.art === "person" ? z.id : null,
       name: z.name,
       stufe: z.stufe,
+      bildUrl: z.bild,
     })),
     gesamt: zeilen[0]?.gesamt ?? 0,
     naechster:

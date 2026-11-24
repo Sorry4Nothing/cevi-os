@@ -194,6 +194,11 @@ const AUSNAHMEN = {
     "geaendert",
   ],
   "POST /api/v1/admin/mitteilungen": ["Mitteilung", "gesendet", "gesendet"],
+  "POST /api/v1/admin/fotos/verbindung": [
+    "Verbindung zu Flickr",
+    "geprüft",
+    "status",
+  ],
   "POST /api/v1/admin/mitteilungen/vorschau": [
     "Mitteilung",
     "geprüft",
@@ -220,6 +225,11 @@ const AUSNAHMEN = {
     "angelegt",
   ],
   "POST /api/v1/admin/import/vorschau": ["Import", "geprüft", "status"],
+  "POST /api/v1/admin/cevi-db/pruefen": [
+    "Verbindung zur Cevi-Datenbank",
+    "geprüft",
+    "status",
+  ],
   "PUT /api/v1/admin/kinder/konto-einstellung": [
     "Einstellungen der Kinderkonten",
     "gespeichert",
@@ -726,11 +736,6 @@ const AUSNAHMEN = {
     "gesetzt",
     "geaendert",
   ],
-  "PUT /api/v1/lager/:p/wetter/ort": [
-    "Ort für das Wetter",
-    "gesetzt",
-    "geaendert",
-  ],
   "PUT /api/v1/admin/kategorie-zuordnungen": [
     "Kategorie eines Tags",
     "zugeordnet",
@@ -855,6 +860,8 @@ const NICHT_ERFASST = {
   pruefung: [
     "POST /api/v1/admin/mitteilungen/vorschau",
     "POST /api/v1/admin/import/vorschau",
+    "POST /api/v1/admin/cevi-db/pruefen",
+    "POST /api/v1/admin/fotos/verbindung",
     "POST /api/v1/admin/rechte/gruppen/:p/rollen/vorschau",
     "POST /api/v1/redaktion/orte/vorschau",
     "POST /api/v1/lager/:p/schichtplan/vorschlag",

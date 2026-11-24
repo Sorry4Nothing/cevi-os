@@ -16,6 +16,7 @@ import { LAGER_RECHTE } from "../../src/lager/rechte-katalog.js";
 import { erstelleApp } from "../../src/app.js";
 import { erstelleDb } from "../../src/db/client.js";
 import * as schema from "../../src/db/schema.js";
+import { dienst } from "./wetter-hilfen.js";
 import { ladeSeiten } from "../../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "../hilfen/auth.js";
 import { API_URL } from "../hilfen/datenbank.js";
@@ -37,6 +38,11 @@ const app = erstelleApp({
   db,
   auth,
   seiten: ladeSeiten(),
+  // Kein Abruf ins Netz: Beim Anlegen mit Ort sucht der Server den Wetterort
+  wetter: dienst(
+    async () => [],
+    async () => [],
+  ),
 });
 afterAll(() => sql.end());
 
@@ -703,6 +709,7 @@ describe("Rolle bei jeder Anfrage: /api/v1/lager", () => {
       status: "archiviert",
       farbe: null,
       logoMediumId: null,
+      wetterOrt: { status: "kein_ort", name: null },
       uebung: false,
       rolle: "team",
       schreibgeschuetzt: true,

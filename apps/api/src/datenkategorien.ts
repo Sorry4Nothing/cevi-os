@@ -170,7 +170,7 @@ export const KATEGORIEN = {
   abteilung: {
     titel: "Angaben der Abteilung",
     zweck:
-      "Die Abteilung, ihre Stufen (mit freiwilligem Logo) und die Anbindung an den Kalender.",
+      "Die Abteilung, ihre Stufen (mit freiwilligem Logo), die Anbindung an den Kalender und die Auswahl der Fotoalben, die auf der Website erscheinen.",
     frist: "Bis die Leitung die Angaben ändert oder löscht.",
     apple: [],
     google: [],
@@ -334,8 +334,8 @@ export const KATEGORIEN = {
   lagerWetter: {
     titel: "Wetter im Lager",
     zweck:
-      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des Lagers als Breite und Länge fest. Der Server holt die Vorhersage dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen gerundet, keine Namen und keine Angaben zu Personen.",
-    frist: `Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
+      "Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind, Hitze und viel Regen warnen. Niemand gibt Koordinaten ein: Der Server bestimmt den Wetterort aus dem Ort des Lagers. Dazu sucht er den Ortsnamen beim Ortsdienst von Open-Meteo (gesendet wird nur der Ortsname, nie die Adresse) und speichert Breite und Länge auf zwei Stellen gerundet, den gefundenen Namen und das Ergebnis der Suche am Lager. Die Vorhersage holt er dafür beim Wetterdienst Open-Meteo und speichert sie je Lager zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des Ortes, keine Namen und keine Angaben zu Personen.",
+    frist: `Der Wetterort, bis sich der Ort des Lagers ändert oder das Lager gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf ersetzt und geht mit dem Lager. ${AUF_ANFRAGE}`,
     apple: [],
     google: [],
   },
@@ -366,6 +366,23 @@ export const KATEGORIEN = {
     google: [
       "Personal info: Name",
       "App activity: Other user-generated content",
+    ],
+  },
+  cevi_db: {
+    titel: "Angaben aus der Cevi-Datenbank",
+    zweck:
+      "Die Anmeldung füllt Angaben vor, die du in der Cevi-Datenbank selbst gemacht hast, damit du sie nicht noch einmal eintippst: Geburtsdatum, Telefon, Adresse und E-Mail, aber nur die Angaben, die der Anlass in der Anmeldung fragt. Der Server liest sie beim Öffnen der Anmeldung mit dem Zugang der Abteilung, nur lesend, ordnet dich nur bei einem eindeutigen Treffer zu und zeigt sie als Vorschlag, den du ändern kannst. Gespeichert wird erst, was du mit der Anmeldung absendest, dann wie jede andere Antwort. Gesundheitsangaben holt Cevi OS nie. Was in der Cevi-Datenbank fehlt, fragt die Anmeldung wie sonst. Zusätzlich merkt sich Cevi OS die Nummer deines Eintrags in der Cevi-Datenbank, damit die nächste Zuordnung eindeutig ist, und in den Einstellungen die Gruppe der Abteilung und den Stand des letzten Abrufs (Zeitpunkt, Ergebnis und Zahl der Personen).",
+    frist:
+      "Die Personen aus der Cevi-Datenbank liegen höchstens 15 Minuten im Arbeitsspeicher des Servers und nie in der Datenbank. Die Nummer bleibt, bis das Konto oder das Kind gelöscht wird. Die übernommenen Angaben löscht der Server mit der Anmeldung. Auf Anfrage löscht die Leitung Daten.",
+    apple: [
+      "Contact Info: Email Address",
+      "Contact Info: Phone Number",
+      "Contact Info: Physical Address",
+    ],
+    google: [
+      "Personal info: Email address",
+      "Personal info: Phone number",
+      "Personal info: Address",
     ],
   },
   // Die Tabelle blockierung stammt aus dem Datenmodell des Chats; die API hat keine Funktion dazu, und Blockieren gibt es nicht
@@ -522,10 +539,21 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "pflicht",
       "reihenfolge",
     ],
+    cevi_db: ["cevi_quelle"],
   },
   blockierung: { ungenutzt: ["user_id", "blockiert_id"] },
   chat: {
     chat: ["id", "abteilung_id", "typ", "stufe_id", "eltern_user_id"],
+  },
+  cevi_db_einstellung: {
+    cevi_db: [
+      "abteilung_id",
+      "gruppe_id",
+      "letzter_abruf_am",
+      "letzter_status",
+      "anzahl_personen",
+      "geaendert_am",
+    ],
   },
   chat_status: { chat: ["chat_id", "user_id", "gelesen_bis"] },
   kind: {
@@ -539,6 +567,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "stufe_seit",
       "inaktiv_seit",
     ],
+    cevi_db: ["cevi_db_id"],
     kinderkonto: [
       "user_id",
       "konto_seit",
@@ -695,6 +724,28 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "einzelpreis_rappen",
     ],
   },
+  // Fotos aus Flickr (#690): nur die Auswahl der Abteilung (Konto, Albumkennungen, Titel); die Bilder liegen bei Flickr, Zugangsdaten nur in der Umgebung des Servers
+  foto_einstellung: {
+    abteilung: [
+      "abteilung_id",
+      "flickr_konto",
+      "flickr_link_zeigen",
+      "version",
+      "geaendert_am",
+    ],
+  },
+  foto_album: {
+    abteilung: [
+      "id",
+      "abteilung_id",
+      "flickr_album_id",
+      "sichtbar",
+      "reihenfolge",
+      "titel",
+      "version",
+      "geaendert_am",
+    ],
+  },
   // Raumanfragen (#447): wer angefragt hat (user_id), Zeit und Zweck (Freitext, höchstens 200 Zeichen), Stand und Entscheid
   raum_buchung: {
     raumanfragen: [
@@ -822,7 +873,14 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
     lagerNotfall: ["karten_link"],
-    lagerWetter: ["breite", "laenge"],
+    lagerWetter: [
+      "breite",
+      "laenge",
+      "wetter_ort_schluessel",
+      "wetter_ort_name",
+      "wetter_ort_ergebnis",
+      "wetter_ort_versuch_am",
+    ],
   },
   // Der Änderungsfeed (#366) hält nur Art, Tabelle, Zeilen-ID, Version und Zeitpunkt einer Änderung, keine Inhalte und keine Person
   lager_aenderung: {
@@ -1532,6 +1590,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datenschutz_gelesen_am",
     ],
     telefon: ["telefon"],
+    cevi_db: ["cevi_db_id"],
     benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },
   verification: {

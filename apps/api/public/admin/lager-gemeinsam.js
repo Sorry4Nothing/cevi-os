@@ -141,6 +141,27 @@ export const datumKurz = (iso) => {
     : `${zweistellig(wert.getDate())}.${zweistellig(wert.getMonth() + 1)}.${wert.getFullYear()}`;
 };
 
+// Der Stand der Ortssuche für das Wetter (#694) als Satz. Der Server bestimmt den Wetterort aus dem Lagerort; hier gibt es nie ein Feld für Koordinaten. «wetterOrt» kommt vom Lager ({ status, name })
+export function wetterOrtZeile(w) {
+  switch (w?.status) {
+    case "gefunden":
+      return `Das Wetter kommt für ${w.name}.`;
+    case "nicht_gefunden":
+      return "Der Ort wurde nicht gefunden, darum gibt es kein Wetter. Schreibe nur den Ortsnamen, zum Beispiel «Musterstadt».";
+    case "mehrdeutig":
+      return "Mehrere Orte passen, darum gibt es kein Wetter. Ergänze bei der Adresse die Postleitzahl.";
+    case "nicht_erreichbar":
+      return "Der Ortsdienst antwortet gerade nicht. Der Server versucht es später nochmals.";
+    case "kein_ort":
+      return "Ohne Ort gibt es kein Wetter. Trage einen Ort ein.";
+    default:
+      return "Das Wetter wird für diesen Ort geholt.";
+  }
+}
+// Ein Ort, der sich nicht bestimmen liess, verdient einen Hinweis statt einer stillen Meldung
+export const wetterOrtProblem = (w) =>
+  ["nicht_gefunden", "mehrdeutig"].includes(w?.status);
+
 // Fehler direkt unter einem Feld aus feld() oder auswahl(); der Fokus geht ins Feld. Eine alte Meldung verschwindet beim nächsten Tippen.
 export function feldFehler(f, text, { fokus = true } = {}) {
   const alt = f.wurzel.querySelector(".feld-fehler");
@@ -184,7 +205,7 @@ export function grunddaten(start = {}) {
   const bis = datumsfeld({ label: "Ende", wert: start.bis ?? "" });
   const ort = feld({
     label: "Ort",
-    hilfe: "Freiwillig.",
+    hilfe: "Freiwillig. Das Wetter wird für diesen Ort geholt.",
     wert: start.ort ?? "",
     maxlength: 200,
     autocomplete: "off",

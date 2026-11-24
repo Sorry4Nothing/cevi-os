@@ -332,6 +332,7 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
               typ: anlassFeld.typ,
               optionen: anlassFeld.optionen,
               pflicht: anlassFeld.pflicht,
+              ceviQuelle: anlassFeld.ceviQuelle,
               reihenfolge: anlassFeld.reihenfolge,
             },
           })

@@ -1,6 +1,7 @@
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   gruppe,
@@ -460,6 +461,7 @@ export async function ladeBeitraege(
       zeile: pinnwandBeitrag,
       name: user.name,
       ceviName: user.ceviName,
+      bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
       rollen: sql<
         string[]
       >`coalesce((select array_agg(e.rolle order by e.rolle) from pinnwand_empfaenger e where e.beitrag_id = ${B.id} and e.rolle is not null), '{}')`,
@@ -530,6 +532,7 @@ export async function ladeBeitraege(
         id: z.zeile.erstelltVon,
         name: z.name,
         ceviName: z.ceviName,
+        bildUrl: z.bildUrl,
       },
       empfaenger: {
         anAlle:
@@ -565,7 +568,7 @@ async function ladeGesehen(db: Db, zugriff: LagerZugriff, ids: string[]) {
     {
       anzahl: number;
       eigene: boolean;
-      personen: { id: string; name: string }[] | null;
+      personen: { id: string; name: string; bildUrl: string | null }[] | null;
     }
   >();
   if (ids.length === 0) return je;
@@ -579,6 +582,12 @@ async function ladeGesehen(db: Db, zugriff: LagerZugriff, ids: string[]) {
         ? sql<
             string[]
           >`array_agg(${pinnwandGesehen.personId}::text order by ${pinnwandGesehen.gesehenAm}, ${pinnwandGesehen.personId})`
+        : sql<null>`null`,
+      // Gleiche Reihenfolge wie «personen»: das Profilbild an derselben Stelle (null ohne Bild)
+      bilder: mitNamen
+        ? sql<
+            (string | null)[]
+          >`array_agg(${bildUrlImLager(sql`${pinnwandGesehen.personId}`, zugriff.lager.id)} order by ${pinnwandGesehen.gesehenAm}, ${pinnwandGesehen.personId})`
         : sql<null>`null`,
     })
     .from(pinnwandGesehen)
@@ -602,9 +611,9 @@ async function ladeGesehen(db: Db, zugriff: LagerZugriff, ids: string[]) {
       anzahl: z.anzahl,
       eigene: z.eigene,
       personen: z.personen
-        ? z.personen.flatMap((id) => {
+        ? z.personen.flatMap((id, i) => {
             const name = namen.get(id);
-            return name ? [{ id, name }] : [];
+            return name ? [{ id, name, bildUrl: z.bilder?.[i] ?? null }] : [];
           })
         : null,
     });

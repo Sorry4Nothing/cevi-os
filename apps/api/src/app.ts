@@ -19,6 +19,9 @@ import {
   type AktivitaetVariablen,
 } from "./aktivitaet-middleware.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
+import type { CeviDbDienst } from "./cevi-db/dienst.js";
+import { erstelleCeviDbRouten } from "./routes/cevi-db.js";
+import { erstelleAdminCeviDbRouten } from "./routes/admin/cevi-db.js";
 import type { Db } from "./db/client.js";
 import { LagerAntwortFehler } from "./lager/sync.js";
 import { log } from "./log.js";
@@ -65,11 +68,13 @@ import {
 import { erstelleEditorRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
-import type { WetterHolen } from "./lager/wetter-openmeteo.js";
+import type { Wetterdienst } from "./lager/wetter-openmeteo.js";
 import type { OrtssucheHolen } from "./ortssuche/index.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleIcalRoute } from "./routes/termine/ical.js";
 import { erstelleLadenRouten } from "./routes/laden/index.js";
+import { erstelleFotoRouten } from "./routes/fotos/index.js";
+import type { FotoQuelle } from "./fotos/quelle.js";
 import { erstelleTermineRouten } from "./routes/termine/index.js";
 import { erstelleProfilbildRouten } from "./routes/profilbild.js";
 import { erstelleStufenlogoRouten } from "./routes/stufenlogo.js";
@@ -122,6 +127,7 @@ export function erstelleApp({
   db,
   auth,
   fcm,
+  ceviDb,
   wetter,
   ortssuche,
   jetzt,
@@ -135,14 +141,17 @@ export function erstelleApp({
   website,
   websiteKontakt,
   aktivitaet,
+  fotos,
 }: {
   appMinVersion: string;
   sql: Sql;
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
   fcm?: Fcm;
+  // Cevi-Datenbank (#691): Abruf der Personen der eigenen Ebene mit Zwischenspeicher; ohne Angabe ist die Funktion aus (die Anmeldung füllt nichts vor), die Tests spritzen einen Dienst mit einer Attrappe ein
+  ceviDb?: CeviDbDienst;
   // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
-  wetter?: WetterHolen;
+  wetter?: Wetterdienst;
   // Adresssuche der Orte (#695); ohne Angabe antwortet die Suche mit 503, server.ts setzt die Suche des Bundes ein, die Tests eine Attrappe
   ortssuche?: OrtssucheHolen;
   // Uhr der Lager-Aggregate (#395); ohne Angabe die Systemzeit
@@ -167,6 +176,8 @@ export function erstelleApp({
   };
   // Aktivitätsprotokoll (#637): nimmt jede schreibende Anfrage entgegen; ohne Angabe (Tests, Werkzeuge) wird nichts erfasst. Die Route des Protokolls liest die Tabelle ohnehin
   aktivitaet?: AktivitaetSenke;
+  // Quelle der Fotos (#690), heute Flickr (fotos/flickr.ts); ohne sie antworten die Foto-Routen mit «nicht eingerichtet». Die Tests spritzen eine Attrappe ein
+  fotos?: FotoQuelle;
   // Adresse, Telefon und E-Mail der Abteilung für die Vorschau im Editor (#570); der Abgleich bekommt dieselben Werte in server.ts
   websiteKontakt?: { adresse?: string; telefon?: string; email?: string };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
@@ -194,6 +205,7 @@ export function erstelleApp({
   const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
   // Bis zu 100 Operationen der Offline-Warteschlange des Lagers (#367)
   const warteschlangeLimit = bodyLimit({ maxSize: 256 * 1024 });
+  const fotoRouten = erstelleFotoRouten({ db, quelle: fotos });
   const protokollieren = aktivitaet
     ? aktivitaetMiddleware(aktivitaet)
     : undefined;
@@ -315,19 +327,24 @@ export function erstelleApp({
         }),
       )
       .route("/api/v1/ich", erstelleIchRouten({ db }))
+      // Vorschlag aus der Cevi-Datenbank für die Anmeldung (#691)
+      .route("/api/v1/cevi-db", erstelleCeviDbRouten({ db, dienst: ceviDb }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
       .route("/api/v1/lager", erstelleLagerRouten({ db, fcm, wetter, jetzt }))
       // Termine (Epic #430): Einstieg bei /api/v1, die Module tragen den vollen Pfad (routes/termine/index.ts)
-      .route("/api/v1", erstelleTermineRouten({ db, fcm }))
+      .route("/api/v1", erstelleTermineRouten({ db, fcm, ceviDb }))
       // Lädeli (#566): Laden, Bestellungen und ihre Verwaltung
       .route("/api/v1", erstelleLadenRouten({ db }))
+      // Fotos aus Flickr (#690): nur angemeldet; die Verwaltung erbt den zweiten Faktor
+      .route("/api/v1/fotos", fotoRouten.oeffentlich)
+      .route("/api/v1/admin/fotos", fotoRouten.verwaltung)
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db, auth }))
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
-      .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
+      .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db, wetter }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/vorlagen", erstelleAdminVorlagenRouten({ db }))
       .route(
@@ -361,6 +378,11 @@ export function erstelleApp({
       )
       // Aktivitätsprotokoll (#637): nur der Entwickler, die Route prüft selbst
       .route("/api/v1/admin/protokoll", erstelleProtokollRouten({ db }))
+      // Verbindung zur Cevi-Datenbank prüfen, Gruppe einstellen (#691)
+      .route(
+        "/api/v1/admin/cevi-db",
+        erstelleAdminCeviDbRouten({ db, dienst: ceviDb }),
+      )
       .route(
         "/api/v1/admin/system",
         erstelleSystemRouten({ db, sql, metriken, syncs }),

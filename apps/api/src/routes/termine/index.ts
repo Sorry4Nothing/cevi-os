@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import type { CeviDbDienst } from "../../cevi-db/dienst.js";
 import type { Db } from "../../db/client.js";
 import type { Fcm } from "../../push.js";
 import type { Person } from "../../rechte.js";
@@ -26,13 +27,21 @@ import { erstelleWarnungenRouten } from "./warnungen.js";
 export type TermineEnv = { Variables: { person: Person } };
 
 // «alle» steht vor «mein»: Dort fängt /termine/:id jeden Pfad ab
-export function erstelleTermineRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
+export function erstelleTermineRouten({
+  db,
+  fcm,
+  ceviDb,
+}: {
+  db: Db;
+  fcm?: Fcm;
+  ceviDb?: CeviDbDienst;
+}) {
   return new Hono<TermineEnv>()
     .route("/", erstelleAlleRouten({ db }))
     .route("/", erstelleMeinRouten({ db, fcm }))
     .route("/", erstelleAdminAnlaesseRouten({ db }))
     .route("/", erstelleAdminAnmeldungenRouten({ db }))
-    .route("/", erstelleAnlaesseRouten({ db }))
+    .route("/", erstelleAnlaesseRouten({ db, ceviDb }))
     .route("/", erstelleWarnungenRouten({ db }))
     .route("/", erstelleKalenderLinkRouten({ db }))
     .route("/", erstelleKategorieZuordnungenRouten({ db }))

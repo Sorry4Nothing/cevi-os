@@ -1,6 +1,7 @@
 import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   pinnwandBeitrag,
@@ -122,7 +123,12 @@ const inListe = (ids: string[]) =>
     sql`, `,
   );
 
-type Personen = { id: string; name: string; ceviName: string | null }[];
+type Personen = {
+  id: string;
+  name: string;
+  ceviName: string | null;
+  bildUrl: string | null;
+}[];
 
 // Umfragen für eine Seite Beiträge, höchstens fünf Abfragen. Der Aufrufer hat schon geprüft, dass die Person die Beiträge lesen darf
 export async function ladeUmfragen(
@@ -176,6 +182,7 @@ export async function ladeUmfragen(
         id: umfrageStimme.personId,
         name: user.name,
         ceviName: user.ceviName,
+        bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
       })
       .from(umfrageStimme)
       .innerJoin(user, eq(user.id, umfrageStimme.personId))
@@ -189,7 +196,12 @@ export async function ladeUmfragen(
     for (const z of zeilen) {
       personenJeOption.set(z.optionId, [
         ...(personenJeOption.get(z.optionId) ?? []),
-        { id: z.id, name: z.name, ceviName: z.ceviName },
+        {
+          id: z.id,
+          name: z.name,
+          ceviName: z.ceviName,
+          bildUrl: z.bildUrl,
+        },
       ]);
     }
   }

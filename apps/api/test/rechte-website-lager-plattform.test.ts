@@ -529,7 +529,8 @@ describe("GET /api/v1/redaktion/ich: Katalogrechte der Person", () => {
     const konto = await legePersonaMitFaktorAn(welt, "elternA");
     await macheWebmaster(db, welt.testabteilungId, konto.id!);
     const a = await ich(konto);
-    expect(a.bereiche).toEqual(["website"]);
+    // Die Vorgabe «Webmaster» hat auch «fotos.verwalten» (#690)
+    expect(a.bereiche).toEqual(["website", "fotos"]);
     expect(a.rechte).toContain("medien.verwalten");
     expect(a.katalogRechte.filter((r) => r.startsWith("laden."))).toEqual([]);
   });

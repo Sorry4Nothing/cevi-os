@@ -178,8 +178,11 @@ describe("GET /api/v1/redaktion/ich", () => {
       !koerper.redigieren
         ? []
         : name === "Abteilungsleitung"
-          ? ["website", "plattform", "laedeli", "lager", "system"]
-          : ["website"],
+          ? ["website", "plattform", "laedeli", "lager", "system", "fotos"]
+          : // Die Vorgabe «Webmaster» hat auch «fotos.verwalten» (#690)
+            name === "Webmaster"
+            ? ["website", "fotos"]
+            : ["website"],
     );
     expect(koerper.verwalten).toBe(erwartet.verwalten);
   });

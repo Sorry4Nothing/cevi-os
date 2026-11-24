@@ -426,6 +426,7 @@ describe("Feldvalidierung", () => {
             typ: "text",
             optionen: [],
             pflicht: false,
+            ceviQuelle: null,
           },
         ]),
       ).toBeNull();
@@ -509,6 +510,7 @@ describe("Liste und Detail", () => {
         typ: "text",
         optionen: [],
         pflicht: false,
+        ceviQuelle: null,
         reihenfolge: 0,
       },
       {
@@ -517,6 +519,7 @@ describe("Liste und Detail", () => {
         typ: "auswahl",
         optionen: ["X", "Y"],
         pflicht: true,
+        ceviQuelle: null,
         reihenfolge: 1,
       },
     ]);

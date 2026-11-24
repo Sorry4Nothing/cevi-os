@@ -552,7 +552,10 @@
         freiwilliges Profilbild, oder, wer die Website bearbeiten darf, Bilder
         für die Website. Von Kindern gibt es nie ein Bild. Ein Video erscheint
         auf der Website nur als Link. Einzelheiten stehen bei «Profilbild» und
-        «Medien» in <a href="#os-daten">Abschnitt 11.2</a>.
+        «Medien» in <a href="#os-daten">Abschnitt 11.2</a>. Die Fotos der
+        Abteilung (zum Beispiel von Anlässen und Lagern) liegen bei Flickr,
+        nicht in Cevi OS. Die Website zeigt sie nur angemeldeten Personen und
+        nur Alben, die die Leitung freigegeben hat.
       </p>
 
       <h2 id="cevi-os">
@@ -1105,13 +1108,16 @@
           <dt>Daten</dt>
           <dd>
             Name der Abteilung, ihre Stufen (mit freiwilligem Logo), die
-            Anbindung an den Kalender und die Hosts, auf denen Datei-Links im
-            Lager liegen dürfen.
+            Anbindung an den Kalender, die Hosts, auf denen Datei-Links im Lager
+            liegen dürfen, und die Auswahl der Fotoalben (Kennung des
+            Flickr-Kontos und der Alben, Reihenfolge, eigener Titel, ob ein
+            Album sichtbar ist).
           </dd>
           <dt>Zweck</dt>
           <dd>
-            Die Abteilung, ihre Stufen (mit freiwilligem Logo) und die Anbindung
-            an den Kalender.
+            Die Abteilung, ihre Stufen (mit freiwilligem Logo), die Anbindung an
+            den Kalender und die Auswahl der Fotoalben, die auf der Website
+            erscheinen.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>Bis die Leitung die Angaben ändert oder löscht.</dd>
@@ -1528,25 +1534,30 @@
         <dl>
           <dt>Daten</dt>
           <dd>
-            Der Ort des Lagers als Breite und Länge, und je Lager die zuletzt
-            abgerufene Vorhersage (Tageswerte für Wettercode, Temperatur, Regen
-            und Böen) mit dem Zeitpunkt des Abrufs.
+            Der Wetterort des Lagers als Breite und Länge (der Server bestimmt
+            ihn aus dem Ort des Lagers), der gefundene Ortsname, das Ergebnis
+            der Suche und je Lager die zuletzt abgerufene Vorhersage (Tageswerte
+            für Wettercode, Temperatur, Regen und Böen) mit dem Zeitpunkt des
+            Abrufs.
           </dd>
           <dt>Zweck</dt>
           <dd>
             Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind,
-            Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des
-            Lagers als Breite und Länge fest. Der Server holt die Vorhersage
-            dafür beim Wetterdienst Open-Meteo und speichert sie je Lager
-            zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den
-            Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen
-            gerundet, keine Namen und keine Angaben zu Personen.
+            Hitze und viel Regen warnen. Niemand gibt Koordinaten ein: Der
+            Server bestimmt den Wetterort aus dem Ort des Lagers. Dazu sucht er
+            den Ortsnamen beim Ortsdienst von Open-Meteo (gesendet wird nur der
+            Ortsname, nie die Adresse) und speichert Breite und Länge auf zwei
+            Stellen gerundet, den gefundenen Namen und das Ergebnis der Suche am
+            Lager. Die Vorhersage holt er dafür beim Wetterdienst Open-Meteo und
+            speichert sie je Lager zwischen, damit nicht jeder Aufruf einen
+            Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des
+            Ortes, keine Namen und keine Angaben zu Personen.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
-            Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht
-            wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf
-            ersetzt und geht mit dem Lager. Auf Anfrage löscht die Leitung
+            Der Wetterort, bis sich der Ort des Lagers ändert oder das Lager
+            gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem
+            Abruf ersetzt und geht mit dem Lager. Auf Anfrage löscht die Leitung
             Daten.
           </dd>
         </dl>
@@ -1879,6 +1890,48 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-cevi-db">
+        <h4 id="k-cevi-db">Angaben aus der Cevi-Datenbank</h4>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Die Nummer deines Eintrags in der Cevi-Datenbank (bei dir oder
+            deinem Kind), bei einem Zusatzfeld der Anmeldung die Angabe, aus
+            welcher Angabe der Cevi-Datenbank es sich füllt, und je Abteilung
+            die Gruppe, der Zeitpunkt des letzten Abrufs, sein Ergebnis (ok oder
+            Fehler) und die Zahl der Personen. Die Angaben selbst (Geburtsdatum,
+            Telefon, Adresse, E-Mail) speichert Cevi OS nur, wenn du sie mit der
+            Anmeldung absendest. Zugangsdaten zur Cevi-Datenbank stehen nur in
+            der Umgebung des Servers.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Die Anmeldung füllt Angaben vor, die du in der Cevi-Datenbank selbst
+            gemacht hast, damit du sie nicht noch einmal eintippst:
+            Geburtsdatum, Telefon, Adresse und E-Mail, aber nur die Angaben, die
+            der Anlass in der Anmeldung fragt. Der Server liest sie beim Öffnen
+            der Anmeldung mit dem Zugang der Abteilung, nur lesend, ordnet dich
+            nur bei einem eindeutigen Treffer zu und zeigt sie als Vorschlag,
+            den du ändern kannst. Gespeichert wird erst, was du mit der
+            Anmeldung absendest, dann wie jede andere Antwort.
+            Gesundheitsangaben holt Cevi OS nie. Was in der Cevi-Datenbank
+            fehlt, fragt die Anmeldung wie sonst. Zusätzlich merkt sich Cevi OS
+            die Nummer deines Eintrags in der Cevi-Datenbank, damit die nächste
+            Zuordnung eindeutig ist, und in den Einstellungen die Gruppe der
+            Abteilung und den Stand des letzten Abrufs (Zeitpunkt, Ergebnis und
+            Zahl der Personen).
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Die Personen aus der Cevi-Datenbank liegen höchstens 15 Minuten im
+            Arbeitsspeicher des Servers und nie in der Datenbank. Die Nummer
+            bleibt, bis das Konto oder das Kind gelöscht wird. Die übernommenen
+            Angaben löscht der Server mit der Anmeldung. Auf Anfrage löscht die
+            Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
       <h3 id="os-herkunft">11.3 Woher die Daten stammen</h3>
       <ul>
         <li>
@@ -1886,6 +1939,12 @@
           Leitung trägt sie ein. Die Kinder selbst geben nichts ein; ein Kind
           mit eigenem Konto kann nur die Programme seiner Stufe beantworten und,
           wenn die Abteilung es erlaubt, im Gruppenchat schreiben.
+        </li>
+        <li>
+          Angaben wie Geburtsdatum, Telefon, Adresse und E-Mail können aus der
+          Cevi-Datenbank stammen, wo du sie selbst angegeben hast. Die Anmeldung
+          füllt sie nur vor, wenn der Anlass sie fragt, und du kannst sie vor
+          dem Absenden ändern oder löschen.
         </li>
         <li>
           Die Konten legt die Leitung an. Name und Benutzername stammen von ihr,
@@ -1996,6 +2055,13 @@
           daraus die Programme und schickt nichts über Personen dorthin.
         </li>
         <li>
+          Für die Vorbefüllung der Anmeldung liest der Server mit dem Zugang der
+          Abteilung die Personen der eigenen Ebene aus der Cevi-Datenbank, nur
+          lesend, und hält sie höchstens 15 Minuten im Arbeitsspeicher. Die
+          Cevi-Datenbank erfährt nur die IP-Adresse des Servers und den Zugang
+          der Abteilung, nie, wer sich anmeldet oder wofür.
+        </li>
+        <li>
           Beim Anlegen eines Ortes der Abteilung (zum Beispiel eines
           Treffpunkts) schlägt Cevi OS Adressen vor. Dafür schickt der Server
           den Text, den die Leitung ins Suchfeld tippt, an die Ortssuche des
@@ -2008,7 +2074,10 @@
           Open-Meteo. Der Dienst erfährt nur die Breite und Länge des Lagerorts
           auf zwei Stellen gerundet und die IP-Adresse des Servers, nie Namen,
           Konten oder Angaben zu Personen. Ein Abruf erfolgt höchstens einmal in
-          sechs Stunden je Lager.
+          sechs Stunden je Lager. Den Wetterort bestimmt der Server aus dem Ort
+          des Lagers: Dazu fragt er den Ortsdienst von Open-Meteo einmal nach
+          dem Ortsnamen (nur der Name, nie die Adresse, und nur wenn sich der
+          Ort ändert).
         </li>
         <li>
           Pushes laufen über Firebase Cloud Messaging von Google und, auf dem
@@ -2042,6 +2111,16 @@
           verbindet sich dein Browser mit Google (Google Maps), ohne dass die
           Website mitgeschickt wird, woher du kommst; ab dann gelten die
           Bedingungen von Google. Cevi OS erfährt davon nichts.
+        </li>
+        <li>
+          Die Fotos der Abteilung liegen bei Flickr (USA). Für die Website holt
+          der Server Alben und Bilder dort mit dem Zugang der Abteilung und
+          zeigt sie nur angemeldeten Personen. Dein Browser verbindet sich nie
+          mit Flickr. Flickr erfährt nur die IP-Adresse des Servers und welche
+          Alben und Bilder abgerufen werden, nie dein Konto, deinen Namen oder
+          deine IP-Adresse. Die Leitung gibt nur Alben frei, für die die
+          Einwilligung nach Abschnitt 10 vorliegt. Cevi OS speichert keine
+          Bilder: Der Server reicht sie durch.
         </li>
         <li>
           Cevi OS selbst gibt sonst keine Daten an Dritte weiter und verkauft

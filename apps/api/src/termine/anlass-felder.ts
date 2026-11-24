@@ -1,6 +1,7 @@
 import { and, eq, notInArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
+import { CEVI_QUELLEN } from "../cevi-db/felder.js";
 import { anlassFeld } from "../db/schema.js";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
@@ -15,6 +16,11 @@ const feld = z
     typ: z.enum(["text", "ja_nein", "auswahl"]),
     optionen: z.array(z.string().trim().min(1).max(100)).max(20).default([]),
     pflicht: z.boolean().default(false),
+    // Aus welcher Angabe der Cevi-Datenbank die Anmeldung das Feld vorausfüllt (#691); nur bei Textfeldern, nie Gesundheit (die Liste ist fest)
+    ceviQuelle: z.enum(CEVI_QUELLEN).nullable().default(null),
+  })
+  .refine((f) => f.ceviQuelle === null || f.typ === "text", {
+    message: "ceviQuelle nur bei Text",
   })
   .refine(
     (f) =>
@@ -115,6 +121,7 @@ export async function schreibeFelder(
         typ: f.typ,
         optionen: f.optionen,
         pflicht: f.pflicht,
+        ceviQuelle: f.ceviQuelle,
         reihenfolge,
       })),
     )
@@ -125,6 +132,7 @@ export async function schreibeFelder(
         typ: sql`excluded.typ`,
         optionen: sql`excluded.optionen`,
         pflicht: sql`excluded.pflicht`,
+        ceviQuelle: sql`excluded.cevi_quelle`,
         reihenfolge: sql`excluded.reihenfolge`,
       },
     });

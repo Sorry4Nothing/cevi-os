@@ -21442,11 +21442,13 @@ paths:
       operationId: holeLagerWetter
       summary: Wetter des Lagers lesen
       description: |
-        Braucht das Recht `wetter.lesen` (Standard: alle Rollen). Liefert die Vorhersage für den Ort des Lagers (`ort`, von der Lagerleitung gesetzt) mit Wort, Temperatur, Regen, Böen und Warnungen je Tag, dazu den Zeitpunkt des Abrufs (`stand`). Die Warnungen: `gewitter`, `boeen` (ab 60 km/h), `hitze` (ab 30 Grad Höchsttemperatur) und `regen` (ab 20 mm am Tag).
+        Braucht das Recht `wetter.lesen` (Standard: alle Rollen). Liefert die Vorhersage für den Ort des Lagers mit Wort, Temperatur, Regen, Böen und Warnungen je Tag, dazu den Zeitpunkt des Abrufs (`stand`). Die Warnungen: `gewitter`, `boeen` (ab 60 km/h), `hitze` (ab 30 Grad Höchsttemperatur) und `regen` (ab 20 mm am Tag).
 
-        Der Server holt die Vorhersage beim Wetterdienst Open-Meteo und hält sie je Lager zwischen: höchstens ein Abruf je Lager und 6 Stunden, egal wie viele Personen fragen; nach einem Fehlschlag frühestens nach 15 Minuten ein neuer Versuch. Zum Wetterdienst gehen nur Breite und Länge, auf zwei Stellen gerundet. Ohne Ort, bei Ausfall des Dienstes und wenn der Stand älter ist als 24 Stunden ist `tage` leer, es gibt keinen Fehler. Die Antwort enthält Tage von zwei Tagen zurück bis 16 Tage voraus.
+        Der Server holt die Vorhersage beim Wetterdienst Open-Meteo und hält sie je Lager zwischen: höchstens ein Abruf je Lager und 6 Stunden, egal wie viele Personen fragen; nach einem Fehlschlag frühestens nach 15 Minuten ein neuer Versuch. Zum Wetterdienst gehen nur Breite und Länge, auf zwei Stellen gerundet.
 
-        Datenbanklast: eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang.
+        Den Ort gibt niemand ein: Der Server bestimmt ihn aus dem Lagerort («Ort» des Lagers, die Postleitzahl aus Ort oder Adresse hilft bei mehreren Treffern) mit dem Ortsdienst von Open-Meteo und hält Koordinaten und Namen am Lager. Zum Ortsdienst geht nur der Ortsname, nie die Adresse. Ändert sich Ort oder Adresse, sucht der Server beim nächsten Lesen neu. `ort.status` sagt, wie es steht: `gefunden` (mit `name`), `kein_ort` (das Lager hat keinen Ort), `nicht_gefunden`, `mehrdeutig` (mehrere Orte passen), `nicht_erreichbar` (der Ortsdienst antwortet nicht, neuer Versuch frühestens nach 15 Minuten) oder `offen`. Ohne gefundenen Ort, bei Ausfall des Dienstes und wenn der Stand älter ist als 24 Stunden ist `tage` leer, es gibt keinen Fehler. Eine Route zum Setzen des Ortes gibt es nicht. Die Antwort enthält Tage von zwei Tagen zurück bis 16 Tage voraus.
+
+        Datenbanklast: eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang; ist der Ort noch nicht bestimmt, kommt eine Suche beim Ortsdienst und ein Schreibvorgang auf das Lager dazu.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
 
@@ -21477,59 +21479,6 @@ paths:
           $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
-        "426":
-          $ref: "#/components/responses/AppVeraltet426"
-        "429":
-          $ref: "#/components/responses/ZuVieleAnfragen429"
-  /api/v1/lager/{id}/wetter/ort:
-    put:
-      operationId: setzeLagerWetterOrt
-      summary: Ort für das Wetter setzen
-      description: |
-        Nur die Lagerleitung (die Abteilungsleitung gilt als Lagerleitung); der Ort lässt sich nicht je Rolle einstellen. Speichert Breite und Länge des Lagerorts in Grad, auf zwei Stellen gerundet; beide `null` schaltet das Wetter aus. Beide Werte oder keiner (sonst 400). Die Änderung steht im Protokoll (`lager_wetter_ort`, ohne den Ort).
-
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
-
-        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `nur Lagerleitung`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
-      tags:
-        - Lager
-      parameters:
-        - $ref: "#/components/parameters/AppVersion"
-        - name: id
-          in: path
-          required: true
-          description: ID des Lagers (UUID).
-          schema:
-            type: string
-            format: uuid
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/LagerWetterOrt"
-      responses:
-        "200":
-          description: "Der gespeicherte Ort."
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/LagerWetterOrt"
-        "400":
-          $ref: "#/components/responses/UngueltigeEingabe400"
-        "401":
-          $ref: "#/components/responses/NichtAngemeldet401"
-        "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
-        "404":
-          $ref: "#/components/responses/NichtGefunden404"
-        "409":
-          description: |
-            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`).
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -25494,6 +25443,460 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/fotos/alben:
+    get:
+      operationId: listeFotoAlben
+      summary: Fotoalben der Abteilung
+      description: |
+        Für jede angemeldete Person der Abteilung ausser dem Konto eines Kindes (403): die Alben, die die Abteilung in der Verwaltung sichtbar gestellt hat, in ihrer Reihenfolge, mit Titel (der eigene, sonst der von Flickr), Anzahl, Datum und ob es ein Titelbild gibt. Ohne eingerichtete Fotos (kein Zugang zu Flickr oder kein Konto) ist `konfiguriert` falsch und die Liste leer. Ein Album, das es bei Flickr nicht mehr gibt, fehlt.
+
+        Der Server holt die Daten bei Flickr und merkt sie sich 10 Minuten im Speicher; die Bilder liefert er selbst aus (siehe `GET /api/v1/fotos/alben/{id}/bilder/{bildId}`), der Browser verbindet sich nie mit Flickr. Pro Konto höchstens 120 solche Abrufe je Minute (429).
+
+        Statuscodes: 200 bei Erfolg. 401 ohne gültige Sitzung. 403 für das Konto eines Kindes. 429. 502 und 503, wenn Flickr nicht erreichbar oder der Zugang ungültig ist (ohne Geheimnisse im Text).
+
+        Datenbanklast: eine Abfrage für die Einstellung, eine für die Albumzeilen; bei kaltem Speicher ein Abruf bei Flickr.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die sichtbaren Alben.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoAlbenAnsicht"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "502":
+          description: Flickr antwortet nicht oder falsch (`FOTOS_NICHT_ERREICHBAR`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+        "503":
+          description: Der Server hat keinen gültigen Zugang zu Flickr (`FOTOS_NICHT_EINGERICHTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+  /api/v1/fotos/alben/{id}:
+    get:
+      operationId: holeFotoAlbum
+      summary: Fotoalbum mit seinen Bildern
+      description: |
+        Für jede angemeldete Person der Abteilung ausser dem Konto eines Kindes: Titel, Datum und die Bilder des Albums (höchstens 2000) mit Kennung, Titel und den Massen der mittleren Grösse. Server und Secret der Bilder bei Flickr stehen nie in der Antwort. `flickrUrl` steht nur, wenn die Abteilung den Link zu Flickr eingeschaltet hat.
+
+        Statuscodes: 200 bei Erfolg. 404, wenn die Kennung kein sichtbares Album der eigenen Abteilung ist (auch bei Alben, die es bei Flickr gibt). 401, 403, 429, 502, 503 wie bei der Liste.
+
+        Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; bei kaltem Speicher drei Abrufe bei Flickr je 500 Bilder.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: Kennung des Albums bei Flickr (Ziffern).
+          schema:
+            type: string
+            pattern: "^[0-9]{1,20}$"
+      responses:
+        "200":
+          description: Das Album.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoAlbumAnsicht"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "502":
+          description: Flickr antwortet nicht oder falsch (`FOTOS_NICHT_ERREICHBAR`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+        "503":
+          description: Der Server hat keinen gültigen Zugang zu Flickr (`FOTOS_NICHT_EINGERICHTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+  /api/v1/fotos/alben/{id}/titel:
+    get:
+      operationId: holeFotoAlbumTitelbild
+      summary: Titelbild eines Fotoalbums
+      description: |
+        Das Titelbild eines sichtbaren Albums als Bilddatei (JPEG, PNG, GIF oder WebP), die der Server bei Flickr holt und durchreicht. Nur der feste Bild-Host von Flickr kommt in Frage; eine Adresse oder eine Pixelzahl vom Client gibt es nicht. `Cache-Control: private, no-cache` mit ETag (der Browser fragt jedes Mal nach, die Antwort kommt erst nach der Sitzungsprüfung; unverändert 304).
+
+        Statuscodes: 200 mit der Datei, 304. 404, wenn das Album nicht sichtbar ist oder kein Titelbild hat. 401, 403 (Konto eines Kindes), 429 (höchstens 1500 Bilder je Konto und Minute), 502, 503.
+
+        Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Datei fliesst als Strom durch (höchstens 20 MiB), ohne sie im Speicher zu sammeln.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: Kennung des Albums bei Flickr (Ziffern).
+          schema:
+            type: string
+            pattern: "^[0-9]{1,20}$"
+        - name: groesse
+          in: query
+          required: false
+          description: Feste Grössenstufe; ohne Angabe `mittel`. Eine Pixelzahl gibt es nicht.
+          schema:
+            type: string
+            enum:
+              - klein
+              - mittel
+              - gross
+            default: mittel
+      responses:
+        "200":
+          description: Bilddatei.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: Unverändert (ETag).
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "502":
+          description: Flickr antwortet nicht oder falsch (`FOTOS_NICHT_ERREICHBAR`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+        "503":
+          description: Der Server hat keinen gültigen Zugang zu Flickr (`FOTOS_NICHT_EINGERICHTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+  /api/v1/fotos/alben/{id}/bilder/{bildId}:
+    get:
+      operationId: holeFotoBild
+      summary: Bild eines Fotoalbums
+      description: |
+        Ein Bild eines sichtbaren Albums als Datei, die der Server bei Flickr holt und durchreicht. Das Bild muss im Album stehen: Eine beliebige Kennung öffnet nichts (404). Sonst wie das Titelbild: feste Grössenstufen, nur der Bild-Host von Flickr, `private, no-cache` mit ETag, Strom ohne Zwischenspeichern, höchstens 20 MiB.
+
+        Statuscodes: 200, 304, 404, 401, 403 (Konto eines Kindes), 429, 502, 503.
+
+        Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Bildliste kommt aus dem Speicher des Servers.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: Kennung des Albums bei Flickr (Ziffern).
+          schema:
+            type: string
+            pattern: "^[0-9]{1,20}$"
+        - name: bildId
+          in: path
+          required: true
+          description: Kennung des Bildes bei Flickr (Ziffern).
+          schema:
+            type: string
+            pattern: "^[0-9]{1,20}$"
+        - name: groesse
+          in: query
+          required: false
+          description: Feste Grössenstufe; ohne Angabe `mittel`. Eine Pixelzahl gibt es nicht.
+          schema:
+            type: string
+            enum:
+              - klein
+              - mittel
+              - gross
+            default: mittel
+      responses:
+        "200":
+          description: Bilddatei.
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "304":
+          description: Unverändert (ETag).
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "502":
+          description: Flickr antwortet nicht oder falsch (`FOTOS_NICHT_ERREICHBAR`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+        "503":
+          description: Der Server hat keinen gültigen Zugang zu Flickr (`FOTOS_NICHT_EINGERICHTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoFehler"
+  /api/v1/admin/fotos:
+    get:
+      operationId: holeAdminFotos
+      summary: Fotos für die Verwaltung
+      description: |
+        Nur mit dem Recht `fotos.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, etwa «Webmaster», jeweils mit zweitem Faktor). Das gewählte Flickr-Konto, der Schalter für den Link zu Flickr, die Verbindung als Wort (`verbindung`) und die Alben des Kontos mit dem, was die Abteilung dazu entschieden hat (sichtbar, eigener Titel, Version). Neue Alben bei Flickr stehen unsichtbar am Ende. `eingerichtet` sagt nur, ob der Server Zugangsdaten für Flickr hat; Schlüssel und Token stehen nie in einer Antwort. Fehler von Flickr sind hier kein HTTP-Fehler, sondern `verbindung`.
+
+        Statuscodes: 200 bei Erfolg. 401, 403 wie bei den anderen Routen der Verwaltung.
+
+        Datenbanklast: zwei Abfragen; ein Abruf bei Flickr, wenn der Speicher kalt ist.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Stand der Fotos.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoVerwaltung"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/fotos/verbindung:
+    post:
+      operationId: testeAdminFotosVerbindung
+      summary: Verbindung zu Flickr testen
+      description: |
+        Nur mit dem Recht `fotos.verwalten`. Ein frischer Abruf der Albumliste bei Flickr (der Speicher wird übergangen und geleert). Mit `flickrKonto` prüft die Route ein Konto, das noch nicht gespeichert ist; sonst das gespeicherte. Antwortet immer 200: Das Ergebnis steht im Body (`ok`, bei Erfolg die Zahl der Alben, sonst `art`), und es enthält nie ein Geheimnis. Die Route ändert nichts und steht nicht im Änderungsprotokoll.
+
+        Statuscodes: 200. 400 bei ungültiger Eingabe. 401, 403.
+
+        Datenbanklast: eine Abfrage; ein Abruf bei Flickr.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FotoVerbindungAnfrage"
+      responses:
+        "200":
+          description: Ergebnis des Tests.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoVerbindungAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/fotos/einstellung:
+    put:
+      operationId: setzeAdminFotosEinstellung
+      summary: Fotoeinstellungen speichern
+      description: |
+        Nur mit dem Recht `fotos.verwalten`. Ersetzt das Flickr-Konto (Kennung wie `12345678@N00`, `null` entfernt es) und den Schalter «Album auf Flickr öffnen» (Vorgabe aus). `version` ist die aus dem Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`. Die Entscheide zu Alben bleiben bei einem Kontowechsel bestehen, gelten aber nur für ihre Kennungen. Der Speicher des Servers wird geleert.
+
+        Statuscodes: 200 mit der neuen Version. 400, 401, 403, 409.
+
+        Datenbanklast: eine Transaktion mit Lesen und Upsert.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FotoEinstellung"
+      responses:
+        "200":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoVersion"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "409":
+          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoKonflikt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/fotos/alben/reihenfolge:
+    put:
+      operationId: setzeAdminFotosReihenfolge
+      summary: Reihenfolge der Fotoalben setzen
+      description: |
+        Nur mit dem Recht `fotos.verwalten`. `ids` nennt Kennungen von Flickr in der neuen Reihenfolge (höchstens 500, ohne Doppelte). Ein Album ohne Zeile bekommt eine unsichtbare Zeile. Die Website zeigt die sichtbaren Alben in dieser Reihenfolge.
+
+        Statuscodes: 204. 400, 401, 403.
+
+        Datenbanklast: ein Upsert für alle Alben.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FotoReihenfolge"
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/fotos/alben/{id}:
+    put:
+      operationId: setzeAdminFotosAlbum
+      summary: Fotoalbum speichern
+      description: |
+        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet ein Album aus (`sichtbar`) und setzt einen eigenen Titel (`titel`, `null` zurück auf den von Flickr); mindestens eines von beiden. Das Album muss zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). `version` ist die des Albums im Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`.
+
+        Statuscodes: 200 mit der neuen Version. 400, 401, 403, 404, 409, 502.
+
+        Datenbanklast: eine Abfrage für die Einstellung, ein Abruf der Albumliste aus dem Speicher, eine Transaktion mit Sperre der Zeile.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: Kennung des Albums bei Flickr (Ziffern).
+          schema:
+            type: string
+            pattern: "^[0-9]{1,20}$"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FotoAlbumAenderung"
+      responses:
+        "200":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoVersion"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoKonflikt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "502":
+          description: Flickr antwortet nicht.
+  /admin/website-fotos.js:
+    get:
+      operationId: getAdminWebsiteFotosSkript
+      summary: Skript der Verwaltung – Bereich Website, Fotos
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-fotos.css:
+    get:
+      operationId: getAdminWebsiteFotosStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Fotos
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/laedeli.js:
     get:
       operationId: getAdminLaedeliSkript
@@ -25537,6 +25940,159 @@ paths:
           description: Datei (`text/css; charset=UTF-8`).
           content:
             text/css:
+              schema:
+                type: string
+  # termine-pfade: cevi-db (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/cevi-db/vorschlag:
+    get:
+      operationId: leseCeviDbVorschlag
+      summary: Vorschlag aus der Cevi-Datenbank für eine Anmeldung
+      description: |
+        Die Anmeldung ruft diese Route einmal beim Öffnen auf und füllt damit freiwillige Angaben vor, die die Person in der Cevi-Datenbank selbst gemacht hat. Nur lesend; es wird nichts gespeichert, erst das Absenden der Anmeldung speichert, wie jede Antwort.
+
+        Wer den Anlass sehen darf (wie bei der Anmeldung), darf den Vorschlag für sich (`anmeldungFuer: person`, ohne `kindId`) oder für das eigene aktive Kind (`anmeldungFuer: kind`, mit `kindId`) abrufen; jedes andere Kind und jeder unsichtbare oder fremde Anlass ist 404. Es gibt keine Suche und nie eine Auskunft über Dritte.
+
+        Der Server liefert nur Werte für Textfelder des Anlasses, die `ceviQuelle` gesetzt haben, und nie für ein Feld, das in der gespeicherten Anmeldung schon beantwortet ist (der eigene Wert gewinnt). Zugeordnet wird nur bei genau einem eindeutigen Treffer: über die gemerkte Nummer, sonst über die E-Mail (beim Kind die der Eltern) plus Vorname, sonst über Vorname, Nachname und Geburtsdatum. Ein Name allein genügt nie. Bei keinem oder mehreren Treffern ist `status` `kein_treffer`, ohne Hinweis, was von beidem zutrifft und ohne Namen Dritter.
+
+        `status`: `aus` (die Verbindung ist nicht eingerichtet oder der Anlass fragt nichts aus der Cevi-Datenbank), `ok` (zugeordnet; `felder` kann trotzdem leer sein), `kein_treffer`, `nicht_erreichbar` (die Cevi-Datenbank antwortet nicht; die Anmeldung geht trotzdem). `felder` ist ein Objekt vom Schlüssel des Feldes auf `{ wert, quelle: "cevi-db" }`; das Geburtsdatum steht als `TT.MM.JJJJ`.
+
+        Ratenbegrenzung: höchstens 10 Abrufe je Konto und Minute (429). Der Server holt die Personen der eigenen Ebene höchstens alle 15 Minuten bei der Cevi-Datenbank (Zwischenspeicher im Arbeitsspeicher, Zeitlimit 5 Sekunden, keine Weiterleitung). Audit: `cevi_db_vorschlag` mit den Kennungen von Anlass, der Art (Kind oder Person), dem Ausgang und der Zahl der Felder, nie Werte.
+
+        Abfragen: Anlass mit Feldern (1), Kind und Eltern (2, nur bei `kind`) oder Konto (1), bestehende Anmeldung (1), Audit (1); der Abruf bei der Cevi-Datenbank ist der Zwischenspeicher oder höchstens ein Abruf je 15 Minuten.
+
+        Statuscodes: 200 bei Erfolg (auch bei `aus`, `kein_treffer` und `nicht_erreichbar`). 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 für einen unbekannten oder unsichtbaren Anlass und ein fremdes Kind. 429 bei zu vielen Abrufen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: anlassId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: kindId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Vorschlag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CeviDbVorschlag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/cevi-db:
+    get:
+      operationId: leseAdminCeviDb
+      summary: Stand der Verbindung zur Cevi-Datenbank
+      description: |
+        Nur mit dem Recht `cevi_db.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor). `verbunden` heisst nur, dass Adresse und Token in der Umgebung des Servers stehen (`CEVI_DB_URL`, `CEVI_DB_TOKEN`); beide gibt keine Route heraus. Dazu die eingestellte Gruppe und der Stand des letzten Abrufs (Zeitpunkt, Ausgang `ok` oder `fehler`, Zahl der Personen), nie ein Fehlertext der Gegenseite.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Der Stand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CeviDbStand"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminCeviDb
+      summary: Gruppe der Abteilung in der Cevi-Datenbank festlegen
+      description: |
+        Nur mit dem Recht `cevi_db.verwalten` (mit zweitem Faktor). Stellt die Nummer der Gruppe (Ebene) der Abteilung ein; `null` löscht sie. Die Gruppe dient nur der Prüfung der Verbindung. Adresse und Token lassen sich hier nicht setzen. Audit: `cevi_db_einstellung_geaendert`.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (nur Ziffern, höchstens 20). 403 ohne das Recht.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CeviDbEinstellung"
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/cevi-db/pruefen:
+    post:
+      operationId: pruefeAdminCeviDb
+      summary: Verbindung zur Cevi-Datenbank prüfen
+      description: |
+        Nur mit dem Recht `cevi_db.verwalten` (mit zweitem Faktor). Fragt die Cevi-Datenbank einmal mit dem Token des Servers: ohne eingestellte Gruppe eine einzelne kleine Seite der Personen, mit Gruppe diese Gruppe. Die Antwort sagt nur Ja oder Nein und nennt weder Adresse noch Token noch Namen oder Texte der Gegenseite. `ergebnis`: `ok`, `nicht_eingerichtet` (Adresse oder Token fehlen auf dem Server), `abgelehnt` (Token ungültig oder ohne Recht), `nicht_erreichbar`, `antwort` (unerwartetes Format). Bei `ok` sagt `gruppe`, ob das Token die eingestellte Gruppe sieht (`null` ohne eingestellte Gruppe).
+
+        Ratenbegrenzung: höchstens 5 Prüfungen je Konto und Minute (429). Audit: `cevi_db_geprueft` mit dem Ausgang.
+
+        Statuscodes: 200 bei Erfolg (auch bei einem Fehler der Verbindung; er steht in `ergebnis`). 403 ohne das Recht. 429 bei zu vielen Prüfungen.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Das Ergebnis der Prüfung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CeviDbPruefung"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /admin/cevi-db.js:
+    get:
+      operationId: getAdminCeviDbSkript
+      summary: Skript der Verwaltung – Cevi-Datenbank
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
               schema:
                 type: string
 components:
@@ -29404,6 +29960,8 @@ components:
               name:
                 type: string
                 description: Anzeigename des Lagers.
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
               rolle:
                 $ref: "#/components/schemas/LagerRolle"
               ressorts:
@@ -29441,6 +29999,7 @@ components:
         - uebung
         - farbe
         - logoMediumId
+        - wetterOrt
       properties:
         id:
           type: string
@@ -29453,6 +30012,8 @@ components:
         bis:
           type: string
           format: date
+        wetterOrt:
+          $ref: "#/components/schemas/LagerWetterOrt"
         uebung:
           type: boolean
           description: Wahr bei einem Übungslager (erfundene Daten).
@@ -30120,6 +30681,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerRessort:
       description: "Ein Ressort des Lagers."
       type: object
@@ -30456,6 +31019,10 @@ components:
     LagerAufgabeStatus:
       type: string
       enum: [offen, laeuft, wartet, erledigt, naechster_hoeck]
+    LagerBildUrl:
+      description: "Pfad des Profilbilds der Person mit Version (`/api/v1/personen/{id}/bild?v=…`), `null` ohne Bild. Es gibt nur ein Bild für ein Konto, das Mitglied dieses Lagers ist; Teilnehmende ohne Konto haben nie eins (`null`). Das Bild selbst liefert `GET /api/v1/personen/{id}/bild`: Wer die Person im Lager sieht, darf es abrufen. Optional und additiv: Ein Client, der das Feld nicht kennt, zeigt die Initialen."
+      type: [string, "null"]
+      pattern: "^/api/v1/personen/[0-9a-f-]{36}/bild\\?v=\\d+$"
     LagerAufgabePerson:
       description: "Eine Person, mit dem Namen beim Lesen aufgelöst; die ID bleibt gleich, auch wenn die Person umbenannt wird."
       type: object
@@ -30472,6 +31039,8 @@ components:
           type: [string, "null"]
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerAufgabe:
       description: "Eine Aufgabe des Lagers. Personen als ID, die Namen kommen aufgelöst unter `verantwortlich` und `unterstuetzung`."
       type: object
@@ -30581,6 +31150,8 @@ components:
                   type: [string, "null"]
                 ceviName:
                   type: [string, "null"]
+                bildUrl:
+                  $ref: "#/components/schemas/LagerBildUrl"
                 automatisch:
                   type: boolean
             - type: "null"
@@ -30726,6 +31297,8 @@ components:
                 type: string
               ceviName:
                 type: [string, "null"]
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
     LagerAufgabeSchnellRessort:
       type: object
       additionalProperties: false
@@ -32568,6 +33141,8 @@ components:
                 type:
                   - string
                   - "null"
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
               rolle:
                 type: string
                 enum:
@@ -32630,6 +33205,8 @@ components:
                             id: *a2
                             name:
                               type: string
+                            bildUrl:
+                              $ref: "#/components/schemas/LagerBildUrl"
                         - type: "null"
               name:
                 type: string
@@ -32991,6 +33568,8 @@ components:
                 format: uuid
               name:
                 type: string
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
     LagerPinnwandGesehenSammel:
       type: object
       additionalProperties: false
@@ -33605,6 +34184,8 @@ components:
             ceviName:
               type: string
               nullable: true
+            bildUrl:
+              $ref: "#/components/schemas/LagerBildUrl"
     LagerEingangSeite:
       type: object
       required: [eintraege, naechster]
@@ -33930,6 +34511,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         geprueft:
           type: boolean
         geprueftAm:
@@ -34235,6 +34818,8 @@ components:
                 type: [string, "null"]
               ceviName:
                 type: [string, "null"]
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
         naechster:
           description: "Cursor für die nächste Seite, sonst null."
           type: [string, "null"]
@@ -34472,6 +35057,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         stufe:
           description: "Stufe des Teilnehmenden, bei einer Person leer."
           type: [string, "null"]
@@ -34590,6 +35177,8 @@ components:
               format: uuid
             name:
               type: [string, "null"]
+            bildUrl:
+              $ref: "#/components/schemas/LagerBildUrl"
         mitfahrer:
           description: "Die Mitfahrenden in der Reihenfolge des Eintragens."
           type: array
@@ -34686,6 +35275,8 @@ components:
                 format: uuid
               name:
                 type: string
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
               stufe:
                 type: [string, "null"]
         gesamt:
@@ -34771,6 +35362,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         rolle:
           type: string
           enum:
@@ -35141,6 +35734,8 @@ components:
         ceviName:
           description: "Cevi-Name des Kontos; bei Teilnehmenden immer `null`."
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         stufe:
           description: "Stufe der teilnehmenden Person; bei Konten `null`."
           type: [string, "null"]
@@ -35163,6 +35758,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         anzahl:
           type: integer
           minimum: 1
@@ -35289,6 +35886,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerSchichtUnbesetzt:
       description: "Ein Dienst an einem Tag, für den sich nicht genug Leute finden liessen."
       type: object
@@ -35328,6 +35927,8 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         vorher:
           type: integer
           minimum: 0
@@ -35424,6 +36025,12 @@ components:
         mitName:
           description: "Anzeigename von `mitPersonId`; `null` ohne Person."
           type: [string, "null"]
+        vonBildUrl:
+          description: "Profilbild der anfragenden Person (`LagerBildUrl`); `null` ohne Bild oder wenn sie nicht mehr Mitglied ist."
+          $ref: "#/components/schemas/LagerBildUrl"
+        mitBildUrl:
+          description: "Profilbild von `mitPersonId`; `null` ohne Person oder Bild."
+          $ref: "#/components/schemas/LagerBildUrl"
         schicht:
           $ref: "#/components/schemas/LagerDiensttauschSchicht"
         mitSchicht:
@@ -35656,6 +36263,11 @@ components:
           type: object
           additionalProperties:
             type: string
+        bilder:
+          description: "Profilbilder der Personen der Seite: ID der Person -> Pfad (`LagerBildUrl`). Nur Konten, die Mitglied des Lagers sind und ein Bild haben; Teilnehmende und Personen ohne Bild fehlen."
+          type: object
+          additionalProperties:
+            $ref: "#/components/schemas/LagerBildUrl"
         eintraege:
           type: array
           items:
@@ -36198,21 +36810,6 @@ components:
           items:
             type: string
             enum: [gewitter, boeen, hitze, regen]
-    LagerWetterOrtWerte:
-      type: object
-      additionalProperties: false
-      required:
-        - breite
-        - laenge
-      properties:
-        breite:
-          type: number
-          minimum: -90
-          maximum: 90
-        laenge:
-          type: number
-          minimum: -180
-          maximum: 180
     LagerWetter:
       type: object
       additionalProperties: false
@@ -36222,10 +36819,7 @@ components:
         - tage
       properties:
         ort:
-          description: "Der Ort des Lagers; null, solange die Lagerleitung keinen gesetzt hat."
-          oneOf:
-            - $ref: "#/components/schemas/LagerWetterOrtWerte"
-            - type: "null"
+          $ref: "#/components/schemas/LagerWetterOrt"
         stand:
           description: "Zeitpunkt des letzten gelungenen Abrufs; null ohne Werte."
           type: [string, "null"]
@@ -36235,21 +36829,27 @@ components:
           items:
             $ref: "#/components/schemas/LagerWetterTag"
     LagerWetterOrt:
-      description: "Breite und Länge in Grad; beide null schaltet das Wetter aus."
+      description: "Stand der Ortssuche für das Wetter: Der Server bestimmt den Ort aus dem Lagerort, niemand gibt Koordinaten ein."
       type: object
       additionalProperties: false
       required:
-        - breite
-        - laenge
+        - status
+        - name
       properties:
-        breite:
-          type: [number, "null"]
-          minimum: -90
-          maximum: 90
-        laenge:
-          type: [number, "null"]
-          minimum: -180
-          maximum: 180
+        status:
+          type: string
+          enum:
+            [
+              kein_ort,
+              offen,
+              gefunden,
+              nicht_gefunden,
+              mehrdeutig,
+              nicht_erreichbar,
+            ]
+        name:
+          description: "Der gefundene Ort mit Kanton; nur bei `gefunden`."
+          type: [string, "null"]
     LagerTagesseite:
       description: "Was ein Tag zeigt: Seite mit Blöcken, Wetter des Tages und die Aufgaben mit Frist an diesem Tag."
       type: object
@@ -36314,6 +36914,8 @@ components:
           type: [string, "null"]
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerEinkaufWarengruppe:
       description: "Warengruppe eines Artikels. Die Apps zeigen sie als: `obst_gemuese` Obst und Gemüse, `brot` Brot, `milch_kaese` Milch und Käse, `fleisch_fisch` Fleisch und Fisch, `vorrat` Vorrat, `getraenke` Getränke, `haushalt` Haushalt, `diverses` Diverses."
       type: string
@@ -36750,6 +37352,8 @@ components:
           type: string
         ceviName:
           type: [string, "null"]
+        bildUrl:
+          $ref: "#/components/schemas/LagerBildUrl"
         telefon:
           type: [string, "null"]
           description: Die eigene Nummer des Eintrags, sonst die Nummer aus dem Konto; null, wenn keine da ist.
@@ -37184,6 +37788,8 @@ components:
                     type: string
                   ceviName:
                     type: [string, "null"]
+                  bildUrl:
+                    $ref: "#/components/schemas/LagerBildUrl"
                   stufe:
                     type: [string, "null"]
                   dienst:
@@ -38296,6 +38902,20 @@ components:
         pflicht:
           type: boolean
           default: false
+        ceviQuelle:
+          type:
+            - string
+            - "null"
+          enum:
+            - geburtsdatum
+            - telefon
+            - adresse
+            - plz
+            - ort
+            - email
+            - null
+          default: null
+          description: Aus welcher Angabe der Cevi-Datenbank die Anmeldung dieses Textfeld vorausfüllt. Nur bei `typ` `text`, sonst 400. Nie Gesundheitsdaten. Ohne Wert (`null`) füllt nichts vor.
     AdminAnlassFeld:
       type: object
       required:
@@ -38322,6 +38942,18 @@ components:
             type: string
         pflicht:
           type: boolean
+        ceviQuelle:
+          type:
+            - string
+            - "null"
+          enum:
+            - geburtsdatum
+            - telefon
+            - adresse
+            - plz
+            - ort
+            - email
+            - null
         reihenfolge:
           type: integer
           minimum: 0
@@ -38640,6 +39272,19 @@ components:
             type: string
         pflicht:
           type: boolean
+        ceviQuelle:
+          type:
+            - string
+            - "null"
+          description: "Gesetzt heisst: Die Seite fragt `GET /api/v1/cevi-db/vorschlag` einmal beim Öffnen und füllt das Feld vor, wenn es leer ist."
+          enum:
+            - geburtsdatum
+            - telefon
+            - adresse
+            - plz
+            - ort
+            - email
+            - null
     AnlassKontoWert:
       type: object
       description: Eine Angabe, die das Konto schon kennt. Die App zeigt sie als «aus deinem Konto», nicht editierbar.
@@ -41612,6 +42257,357 @@ components:
           type: string
           format: uuid
           nullable: true
+    # termine-schemas: cevi-db (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    CeviDbVorschlag:
+      type: object
+      required:
+        - status
+        - felder
+      properties:
+        status:
+          type: string
+          enum:
+            - aus
+            - ok
+            - kein_treffer
+            - nicht_erreichbar
+        felder:
+          type: object
+          description: Vom Schlüssel des Feldes auf den Vorschlag. Nur Felder, die der Anlass aus der Cevi-Datenbank füllt und die noch keine Antwort haben.
+          additionalProperties:
+            type: object
+            required:
+              - wert
+              - quelle
+            properties:
+              wert:
+                type: string
+                maxLength: 200
+              quelle:
+                type: string
+                enum:
+                  - cevi-db
+    CeviDbStand:
+      type: object
+      required:
+        - verbunden
+        - gruppeId
+        - letzterAbrufAm
+        - letzterStatus
+        - anzahlPersonen
+      properties:
+        verbunden:
+          type: boolean
+          description: Adresse und Token stehen in der Umgebung des Servers.
+        gruppeId:
+          type:
+            - string
+            - "null"
+          pattern: ^[0-9]{1,20}$
+        letzterAbrufAm:
+          type:
+            - string
+            - "null"
+          format: date-time
+        letzterStatus:
+          type:
+            - string
+            - "null"
+          enum:
+            - ok
+            - fehler
+            - null
+        anzahlPersonen:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+    CeviDbEinstellung:
+      type: object
+      additionalProperties: false
+      required:
+        - gruppeId
+      properties:
+        gruppeId:
+          type:
+            - string
+            - "null"
+          pattern: ^[0-9]{1,20}$
+    CeviDbPruefung:
+      type: object
+      required:
+        - ergebnis
+      properties:
+        ergebnis:
+    FotoFehler:
+      type: object
+      description: Fehler der Fotos mit eigenem `code` und deutschem Text; nie ein Text oder Geheimnis von Flickr.
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - FOTOS_NICHT_EINGERICHTET
+            - FOTOS_NICHT_ERREICHBAR
+        message:
+          type: string
+    FotoKonflikt:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - VERSION_KONFLIKT
+        message:
+          type: string
+    FotoVersion:
+      type: object
+      required:
+        - version
+      properties:
+        version:
+          type: integer
+          minimum: 1
+    FotoAlbumKurz:
+      type: object
+      required:
+        - id
+        - titel
+        - anzahl
+        - datum
+        - titelbild
+      properties:
+        id:
+          type: string
+          description: Kennung des Albums bei Flickr (Ziffern).
+        titel:
+          type: string
+        anzahl:
+          type: integer
+          minimum: 0
+        datum:
+          type:
+            - string
+            - "null"
+          description: Erstellt am, `JJJJ-MM-TT`.
+        titelbild:
+          type: boolean
+          description: Ob `GET /api/v1/fotos/alben/{id}/titel` ein Bild liefert.
+    FotoAlbenAnsicht:
+      type: object
+      required:
+        - konfiguriert
+        - flickrLink
+        - alben
+      properties:
+        konfiguriert:
+          type: boolean
+          description: Falsch, wenn der Server keinen Zugang zu Flickr oder die Abteilung kein Konto hat.
+        flickrLink:
+          type: boolean
+        alben:
+          type: array
+          items:
+            $ref: "#/components/schemas/FotoAlbumKurz"
+    FotoBild:
+      type: object
+      required:
+        - id
+        - titel
+        - breite
+        - hoehe
+      properties:
+        id:
+          type: string
+        titel:
+          type: string
+        breite:
+          type: integer
+        hoehe:
+          type: integer
+    FotoAlbumAnsicht:
+      type: object
+      required:
+        - id
+        - titel
+        - anzahl
+        - datum
+        - bilder
+      properties:
+        id:
+          type: string
+        titel:
+          type: string
+        anzahl:
+          type: integer
+        datum:
+          type:
+            - string
+            - "null"
+        flickrUrl:
+          type: string
+          description: Nur, wenn die Abteilung den Link eingeschaltet hat.
+        bilder:
+          type: array
+          items:
+            $ref: "#/components/schemas/FotoBild"
+    FotoVerwaltungAlbum:
+      type: object
+      required:
+        - id
+        - titel
+        - eigenerTitel
+        - anzahl
+        - datum
+        - titelbild
+        - sichtbar
+        - version
+      properties:
+        id:
+          type: string
+        titel:
+          type: string
+          description: Titel bei Flickr.
+        eigenerTitel:
+          type:
+            - string
+            - "null"
+        anzahl:
+          type: integer
+        datum:
+          type:
+            - string
+            - "null"
+        titelbild:
+          type: boolean
+        sichtbar:
+          type: boolean
+        version:
+          type: integer
+          minimum: 0
+    FotoVerwaltung:
+      type: object
+      required:
+        - eingerichtet
+        - flickrKonto
+        - flickrLinkZeigen
+        - version
+        - verbindung
+        - alben
+      properties:
+        eingerichtet:
+          type: boolean
+          description: Ob der Server Zugangsdaten für Flickr hat. Die Werte selbst stehen nie hier.
+        flickrKonto:
+          type:
+            - string
+            - "null"
+        flickrLinkZeigen:
+          type: boolean
+        version:
+          type: integer
+          minimum: 0
+        verbindung:
+          type: string
+          enum:
+            - ok
+            - nicht_eingerichtet
+            - abgelehnt
+            - nicht_erreichbar
+            - antwort
+        gruppe:
+          type:
+            - boolean
+            - "null"
+          description:
+            Nur bei `ok`. Sieht das Token die eingestellte Gruppe? `null` ohne eingestellte Gruppe.
+            - kein_konto
+            - zugang
+            - nicht_gefunden
+            - nicht_erreichbar
+        alben:
+          type: array
+          items:
+            $ref: "#/components/schemas/FotoVerwaltungAlbum"
+    FotoEinstellung:
+      type: object
+      additionalProperties: false
+      required:
+        - flickrKonto
+        - flickrLinkZeigen
+        - version
+      properties:
+        flickrKonto:
+          type:
+            - string
+            - "null"
+          pattern: "^[0-9]{1,20}@N[0-9]{2}$"
+        flickrLinkZeigen:
+          type: boolean
+        version:
+          type: integer
+          minimum: 0
+    FotoAlbumAenderung:
+      type: object
+      additionalProperties: false
+      required:
+        - version
+      properties:
+        sichtbar:
+          type: boolean
+        titel:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 120
+        version:
+          type: integer
+          minimum: 0
+    FotoReihenfolge:
+      type: object
+      additionalProperties: false
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: string
+            pattern: "^[0-9]{1,20}$"
+    FotoVerbindungAnfrage:
+      type: object
+      additionalProperties: false
+      properties:
+        flickrKonto:
+          type: string
+          pattern: "^[0-9]{1,20}@N[0-9]{2}$"
+    FotoVerbindungAntwort:
+      type: object
+      required:
+        - ok
+      properties:
+        ok:
+          type: boolean
+        alben:
+          type: integer
+          description: Nur bei `ok`.
+        art:
+          type: string
+          description: Nur ohne `ok`.
+          enum:
+            - nicht_eingerichtet
+            - kein_konto
+            - zugang
+            - nicht_gefunden
+            - nicht_erreichbar
   parameters:
     MedienLimit:
       name: limit

@@ -106,6 +106,14 @@ export const BEREICHE = [
         untertitel: "Treffzeit, Treffpunkt und Mitnehmen je Stufe und Samstag.",
         zugang: "website",
       },
+      // Fotos aus Flickr (#690): Konto wählen und Alben zeigen; die Route verlangt «fotos.verwalten»
+      {
+        schluessel: "fotos",
+        name: "Fotos",
+        modul: "./website-fotos.js",
+        untertitel: "Welche Fotoalben aus Flickr die Website zeigt.",
+        zugang: "recht:fotos.verwalten",
+      },
       {
         schluessel: "einstellungen",
         name: "Einstellungen",
@@ -301,6 +309,14 @@ export const BEREICHE = [
         modul: "./zeitregeln.js",
         untertitel: "Pushes an Eltern, die noch nicht geantwortet haben.",
         zugang: "recht:zeitregeln.verwalten",
+      },
+      {
+        schluessel: "cevi-db",
+        name: "Cevi-Datenbank",
+        modul: "./cevi-db.js",
+        untertitel:
+          "Verbindung prüfen und die Gruppe der Abteilung einstellen.",
+        zugang: "recht:cevi_db.verwalten",
       },
       {
         schluessel: "protokoll",

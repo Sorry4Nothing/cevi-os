@@ -16,6 +16,8 @@ import { bildUrl } from "../../bild.js";
 import { eingabe } from "../../eingabe.js";
 import { lagerAnsicht } from "../../lager/ansicht.js";
 import { ereignisverteiler } from "../../lager/ereignisse.js";
+import { openMeteo, type Wetterdienst } from "../../lager/wetter-openmeteo.js";
+import { mussSuchen, sucheWetterOrt } from "../../lager/wetter-ort.js";
 import { loeschbar, loescheLager } from "../../lager/loeschen.js";
 import { istGeschlossen } from "../../lager/policy.js";
 import { schreibeStandardrechte } from "../../lager/rechte.js";
@@ -102,8 +104,26 @@ const zeitraumGueltig = (zeit: {
   zeit.bis >= zeit.von &&
   (!zeit.vorbereitungAb || zeit.vorbereitungAb <= zeit.von);
 
-export function erstelleAdminLagerRouten({ db }: { db: Db }) {
+export function erstelleAdminLagerRouten({
+  db,
+  wetter = openMeteo,
+}: {
+  db: Db;
+  wetter?: Wetterdienst;
+}) {
   type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
+
+  // Nach dem Speichern von Ort oder Adresse bestimmt der Server den Wetterort (#694), damit die Verwaltung den Stand gleich zeigt. Ausserhalb der Transaktion: Ein langsamer Dienst hält keine Sperre. Misslingt es, holt das Wetter es beim Lesen nach
+  async function bestimmeWetterOrt(id: string) {
+    try {
+      const [z] = await db.select().from(lager).where(eq(lager.id, id));
+      if (z && mussSuchen(z, new Date())) {
+        await sucheWetterOrt(db, z, wetter.suchen);
+      }
+    } catch {
+      // Fehlertext bleibt aus dem Protokoll: Er könnte den Ort enthalten
+    }
+  }
 
   // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht der Abteilungsleitung. Mit sperren (nur in einer Transaktion) halten Schreibzugriffe auf ein Lager die Reihenfolge ein, auch die Zählung der Lagerleitung
   async function ladeLager(
@@ -219,6 +239,7 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
         });
         return zeile;
       });
+      if (felder.ort || felder.adresse) await bestimmeWetterOrt(neu.id);
       return c.json({ id: neu.id }, 201);
     })
     .get("/:id", eingabe("param", pfad()), async (c) => {
@@ -284,6 +305,9 @@ export function erstelleAdminLagerRouten({ db }: { db: Db }) {
             return c.json(antwortKonflikt(fehler), 409);
           }
           throw fehler;
+        }
+        if ("ort" in stammdaten || "adresse" in stammdaten) {
+          await bestimmeWetterOrt(id);
         }
         return c.body(null, 204);
       },

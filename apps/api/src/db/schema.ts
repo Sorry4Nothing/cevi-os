@@ -79,6 +79,8 @@ export const user = pgTable("user", {
   displayUsername: text("display_username"),
   // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
   ceviName: text("cevi_name"),
+  // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
+  ceviDbId: text("cevi_db_id"),
   role: text("role"),
   banned: boolean("banned").default(false),
   banReason: text("ban_reason"),
@@ -333,6 +335,8 @@ export const kind = pgTable("kind", {
   nachname: text("nachname").notNull(),
   // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
   ceviName: text("cevi_name"),
+  // Nummer in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
+  ceviDbId: text("cevi_db_id"),
   stufeId: uuid("stufe_id")
     .notNull()
     .references(() => tag.id, { onDelete: "restrict" }),
@@ -864,5 +868,11 @@ export * from "./schema-bereichsschalter.js";
 // Lädeli (#566)
 export * from "./schema-laden.js";
 
+// Fotos aus Flickr (#690)
+export * from "./schema-fotos.js";
+
 // Aktivitätsprotokoll (#637)
 export * from "./schema-aktivitaet.js";
+
+// Cevi-Datenbank (#691)
+export * from "./schema-cevi-db.js";

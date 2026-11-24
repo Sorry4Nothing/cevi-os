@@ -40,6 +40,14 @@ services:
       KONTAKT_EMAIL:
       # Telefon im Fuss und in der Kontaktkarte der Website (leer = nicht gesetzt)
       KONTAKT_TELEFON:
+      # Cevi-Datenbank (#691): Adresse und Dienstkonto-Token der Abteilung; beide oder keines (leer = Anmeldung füllt nichts vor)
+      CEVI_DB_URL:
+      CEVI_DB_TOKEN:
+      # Fotos aus Flickr (#690): Geheimnisse aus deploy/.env, leer = nicht gesetzt (Anleitung: docs/flickr-einrichten.md)
+      FLICKR_API_KEY:
+      FLICKR_API_SECRET:
+      FLICKR_OAUTH_TOKEN:
+      FLICKR_OAUTH_TOKEN_SECRET:
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:

@@ -198,7 +198,11 @@ export async function legeWebmasterAn(
     .insert(plattformRolle)
     .values({ abteilungId, name: "Webmaster", schluessel: "webmaster" })
     .returning({ id: plattformRolle.id });
-  await tx
-    .insert(plattformRolleRecht)
-    .values(WEBMASTER_VORGABE.map((recht) => ({ rolleId: rolle.id, recht })));
+  await tx.insert(plattformRolleRecht).values(
+    // Dazu «fotos.verwalten» aus dem Rechtekatalog (#690): die Vorgabe «Webmaster» pflegt auch die Fotoalben
+    [...WEBMASTER_VORGABE, "fotos.verwalten"].map((recht) => ({
+      rolleId: rolle.id,
+      recht,
+    })),
+  );
 }

@@ -2,6 +2,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { bildUrlImLager } from "../bild.js";
 import type { Db } from "../db/client.js";
 import {
   AUFGABE_STATUS,
@@ -231,7 +232,13 @@ async function aufgabeSichtbar(db: Db, zugriff: LagerZugriff, ids: string[]) {
   return new Set(zeilen.map((z) => z.id));
 }
 
-type PersonKurz = { id: string; name: string | null; ceviName: string | null };
+type PersonKurz = {
+  id: string;
+  name: string | null;
+  ceviName: string | null;
+  // Pfad des Profilbilds (nur Mitglieder dieses Lagers mit Bild), sonst null
+  bildUrl: string | null;
+};
 
 export type AufgabeAntwort = ReturnType<typeof aufgabeAnsicht> & {
   // Die wirksame Verantwortliche; «automatisch» heisst: gesetzt ist niemand, es ist die Leitung des Ressorts
@@ -267,6 +274,7 @@ export async function ladeAufgaben(
       ressortName: ressort.name,
       vName: verantwortliche.name,
       vCevi: verantwortliche.ceviName,
+      vBild: bildUrlImLager(sql`${verantwortliche.id}`, lagerId),
       vId: sql<string | null>`${wirksam}`,
     })
     .from(aufgabe)
@@ -310,6 +318,7 @@ export async function ladeAufgaben(
         id: user.id,
         name: user.name,
         ceviName: user.ceviName,
+        bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
       })
       .from(aufgabeUnterstuetzung)
       .innerJoin(user, eq(user.id, aufgabeUnterstuetzung.personId))
@@ -335,6 +344,7 @@ export async function ladeAufgaben(
             id: z.vId,
             name: z.vName,
             ceviName: z.vCevi,
+            bildUrl: z.vBild,
             automatisch: z.zeile.verantwortlichPersonId === null,
           }
         : null,

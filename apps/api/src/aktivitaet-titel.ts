@@ -839,6 +839,20 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "vergeben",
     gruppe: "zugeordnet",
   },
+  "POST /api/v1/admin/cevi-db/pruefen": {
+    titel: "Verbindung zur Cevi-Datenbank prüfen",
+    objekt: "Verbindung zur Cevi-Datenbank",
+    aktion: "geprüft",
+    gruppe: "status",
+    nicht: "pruefung",
+  },
+  "POST /api/v1/admin/fotos/verbindung": {
+    titel: "Verbindung zu Flickr testen",
+    objekt: "Verbindung zu Flickr",
+    aktion: "geprüft",
+    gruppe: "status",
+    nicht: "pruefung",
+  },
   "POST /api/v1/admin/import": {
     titel: "Kinder und Leitende importieren",
     objekt: "Kinder und Leitende",
@@ -1492,6 +1506,30 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "ersetzt",
     gruppe: "geaendert",
   },
+  "PUT /api/v1/admin/cevi-db": {
+    titel: "Gruppe der Abteilung in der Cevi-Datenbank festlegen",
+    objekt: "Gruppe der Abteilung in der Cevi-Datenbank",
+    aktion: "festgelegt",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/fotos/alben/:p": {
+    titel: "Fotoalbum speichern",
+    objekt: "Fotoalbum",
+    aktion: "gespeichert",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/fotos/alben/reihenfolge": {
+    titel: "Reihenfolge der Fotoalben setzen",
+    objekt: "Reihenfolge der Fotoalben",
+    aktion: "gesetzt",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/fotos/einstellung": {
+    titel: "Fotoeinstellungen speichern",
+    objekt: "Fotoeinstellungen",
+    aktion: "gespeichert",
+    gruppe: "geaendert",
+  },
   "PUT /api/v1/admin/kategorie-zuordnungen": {
     titel: "Kategorie einem Tag zuordnen",
     objekt: "Kategorie eines Tags",
@@ -1737,12 +1775,6 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     titel: "Reihenfolge der Traktanden ändern",
     objekt: "Reihenfolge der Traktanden",
     aktion: "geändert",
-    gruppe: "geaendert",
-  },
-  "PUT /api/v1/lager/:p/wetter/ort": {
-    titel: "Ort für das Wetter setzen",
-    objekt: "Ort für das Wetter",
-    aktion: "gesetzt",
     gruppe: "geaendert",
   },
   "PUT /api/v1/plattform/schalter": {
