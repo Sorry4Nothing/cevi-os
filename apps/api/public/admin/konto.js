@@ -12,6 +12,7 @@ import { setzeKontoBild } from "./rahmen.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
 import { zuschneiden } from "./zuschneiden.js";
+import { erstelleEinrichtung } from "./zweiter-faktor-einrichten.js";
 
 const BILD_MAX_BYTES = 5 * 1024 * 1024;
 const BILD_ARTEN = ["image/jpeg", "image/png", "image/webp"];
@@ -420,6 +421,14 @@ function zeichne(bereich, ctx, profil) {
     zugang: ctx.zugang,
     entwickler: ctx.entwickler,
   });
+  // Der Kennwert «Zweiter Faktor» ändert sich, sobald der Ablauf in der Sicherheit fertig ist (#715)
+  const faktorKennwert = el("div", { class: "kt-kennwert" });
+  const zeichneFaktorKennwert = (an) =>
+    faktorKennwert.replaceChildren(
+      el("dt", {}, "Zweiter Faktor"),
+      el("dd", {}, icon(an ? "schild" : "minus"), an ? "Aktiv" : "Aus"),
+    );
+  zeichneFaktorKennwert(profil.zweiterFaktor === true);
   const kennwert = (label, wert, symbol) =>
     el(
       "div",
@@ -470,11 +479,7 @@ function zeichne(bereich, ctx, profil) {
         "dl",
         { class: "kt-kennwerte" },
         kennwert("Konto", "Aktiv", "haken"),
-        kennwert(
-          "Zweiter Faktor",
-          profil.zweiterFaktor ? "Aktiv" : "Aus",
-          profil.zweiterFaktor ? "schild" : "minus",
-        ),
+        faktorKennwert,
       ),
       el("div", { class: "kt-bildblock" }, bildAktionen, bildStatus, datei),
     ),
@@ -737,7 +742,7 @@ function zeichne(bereich, ctx, profil) {
     el(
       "div",
       { class: "kt-stapel" },
-      zweiterFaktorBlock(profil),
+      zweiterFaktorBlock(profil, zeichneFaktorKennwert),
       sitzungenBlock(ctx),
     ),
   );
@@ -899,33 +904,47 @@ function passwortBlock() {
   return el("div", { class: "kt-gruppe" }, el("h3", {}, "Passwort"), formular);
 }
 
-// Zweiter Faktor: nur der Stand. Einrichten kann ihn nur die Abteilungsleitung (Route two-factor/enable), Zurücksetzen macht sie für andere unter «Personen»
-function zweiterFaktorBlock(profil) {
-  const an = profil.zweiterFaktor;
-  return el(
-    "div",
-    { class: "kt-gruppe" },
-    el("h3", {}, "Zweiter Faktor"),
-    el(
-      "p",
-      {},
+// Zweiter Faktor (#715): der Stand und, solange er fehlt, der Ablauf zum Einrichten (derselbe wie auf der Pflichtseite). Ausschalten und neue Ersatzcodes gibt es nicht; Zurücksetzen macht die Abteilungsleitung für andere unter «Personen»
+function zweiterFaktorBlock(profil, beiStand) {
+  const wurzel = el("div", { class: "kt-gruppe" });
+  const zeichneStand = (an) => {
+    beiStand(an);
+    const einrichten = knopf("Zweiten Faktor einrichten", {
+      symbol: "schluessel",
+      onclick: () => {
+        const ablauf = erstelleEinrichtung({
+          beiAbbruch: () => zeichneStand(false),
+          beiFertig: () => zeichneStand(true),
+          fertigText: "Fertig",
+        });
+        wurzel.replaceChildren(el("h3", {}, "Zweiter Faktor"), ablauf.wurzel);
+        ablauf.fokus();
+      },
+    });
+    wurzel.replaceChildren(
+      el("h3", {}, "Zweiter Faktor"),
       el(
-        "span",
-        { class: an ? "chip chip--ok" : "chip" },
-        icon(an ? "haken" : "minus"),
-        an ? "Aktiv" : "Nicht eingerichtet",
+        "p",
+        {},
+        el(
+          "span",
+          { class: an ? "chip chip--ok" : "chip" },
+          icon(an ? "haken" : "minus"),
+          an ? "Aktiv" : "Nicht eingerichtet",
+        ),
       ),
-    ),
-    el(
-      "p",
-      { class: "hilfe" },
-      an
-        ? "Beim Anmelden fragt die Verwaltung nach dem Code aus deiner Authenticator-App. Hast du dein Gerät verloren, setzt die Abteilungsleitung den zweiten Faktor für dich zurück."
-        : profil.admin
-          ? "Für die Verwaltung braucht die Abteilungsleitung einen zweiten Faktor."
-          : "Für dein Konto gibt es keinen zweiten Faktor. Einrichten lässt er sich nur für Konten der Abteilungsleitung.",
-    ),
-  );
+      el(
+        "p",
+        { class: "hilfe" },
+        an
+          ? "Beim Anmelden in der Verwaltung fragt das System nach dem Code aus deiner Authenticator-App. Hast du dein Gerät verloren, setzt die Abteilungsleitung den zweiten Faktor für dich zurück."
+          : "Der zweite Faktor schützt dein Konto: Beim Anmelden in der Verwaltung gibst du zusätzlich einen Code aus einer Authenticator-App ein. Für manche Rechte ist er Pflicht. Die Website und die Apps fragen nie danach.",
+      ),
+      !an && el("div", { class: "kt-aktionen" }, einrichten),
+    );
+  };
+  zeichneStand(profil.zweiterFaktor === true);
+  return wurzel;
 }
 
 // Überall abmelden: beendet alle Sitzungen, auch diese; eine Liste der Geräte gibt die API nicht her

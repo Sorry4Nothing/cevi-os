@@ -3498,9 +3498,14 @@ paths:
         `POST /api/auth/two-factor/verify-totp` mit dem ersten Code aktiv (`twoFactorEnabled` wird erst dann `true`).
         Ein Aufruf allein schaltet nichts ein und entsperrt die Verwaltungsrouten nicht.
 
-        Nur Die Abteilungsleitung richtet den zweiten Faktor ein. Für alle anderen Personen (auch ohne Sitzung) antwortet der Pfad
-        mit 404 `NICHT_GEFUNDEN`, als gäbe es ihn nicht. Die Abteilungsleitung braucht den Faktor für alle Routen unter
-        `/api/v1/admin`; ohne ihn antworten diese mit 403 `ZWEITER_FAKTOR_FEHLT`.
+        Jedes Konto mit Sitzung richtet den zweiten Faktor ein, nur das eigene Konto eines Kindes nicht. Ohne Sitzung und für das
+        Konto eines Kindes antwortet der Pfad mit 404 `NICHT_GEFUNDEN`, als gäbe es ihn nicht. Pflicht ist er für die
+        Abteilungsleitung (alle Routen unter `/api/v1/admin`) und für jede Person mit einem Recht, das ihn verlangt («erweitert»
+        und «fest» im Rechtekatalog, auch der Entwickler); ohne ihn antworten diese Routen mit 403 `ZWEITER_FAKTOR_FEHLT`.
+        Die Verwaltung im Browser zeigt dann die Seite «Zweiten Faktor einrichten» (QR-Code, Schlüssel als Text, Code, Ersatzcodes).
+        Die Website und die Apps brauchen den zweiten Faktor nicht (bis die API-Anmeldung der Apps ihn überspringt, meldet sich ein
+        Konto mit zweitem Faktor in der Android-App noch nicht an, Epic #714). Ändern sich die Rechte einer Person so, dass er Pflicht wird,
+        und hat sie keinen, beendet der Server ihre Sitzungen; sie meldet sich neu an und richtet ihn ein.
 
         Der Link `totpURI` (`otpauth://`) trägt «Cevi OS» als Aussteller und den Benutzernamen als Kontonamen,
         6 Stellen und 30 Sekunden. Er enthält das Geheimnis und wird nur einmal gezeigt. Die zehn Ersatzcodes
@@ -3513,8 +3518,8 @@ paths:
         Wird der Faktor mit dem ersten Code bestätigt, beendet der Server alle anderen Sitzungen der Person
         und stellt ein neues Session-Cookie aus.
 
-        **Rollen.** Nur die Abteilungsleitung (auch ohne bisherigen zweiten Faktor). Statuscodes: 200, 400, 404 (keine Abteilungsleitung oder
-        keine Sitzung), 426, 429.
+        **Rollen.** Jedes Konto, ausser dem eigenen Konto eines Kindes. Statuscodes: 200, 400, 404 (keine Sitzung oder Konto eines
+        Kindes), 426, 429.
       requestBody:
         required: true
         content:
@@ -3570,7 +3575,7 @@ paths:
 
         Limit: 5 Anfragen je 15 Minuten und Client-IP (429).
 
-        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung; im Betrieb die Abteilungsleitung. Statuscodes: 200, 400, 401, 426, 429.
+        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung. Statuscodes: 200, 400, 401, 426, 429.
         Bekannte Fehlercodes: 401 `INVALID_CODE` (falscher Code), 401 `INVALID_TWO_FACTOR_COOKIE` (weder Sitzung noch
         gültiges Zwischen-Cookie), 400 `TOTP_NOT_ENABLED` (kein Faktor eingerichtet),
         400 `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE`.
@@ -3628,7 +3633,7 @@ paths:
         Bei Erfolg entsteht die Sitzung (`Set-Cookie`). `trustDevice` ignoriert der Server.
         Limit: 5 Anfragen je 15 Minuten und Client-IP (429).
 
-        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung; im Betrieb die Abteilungsleitung. Statuscodes: 200, 400, 401, 426, 429.
+        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung. Statuscodes: 200, 400, 401, 426, 429.
         Bekannte Fehlercodes: 401 `INVALID_BACKUP_CODE`, 401 `INVALID_TWO_FACTOR_COOKIE`,
         400 `BACKUP_CODES_NOT_ENABLED`, 400 `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE`.
       requestBody:

@@ -160,6 +160,9 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/system.css": { erwartet: alle(200) },
   "GET /admin/konto.js": { erwartet: alle(200) },
   "GET /admin/konto.css": { erwartet: alle(200) },
+  "GET /admin/qr.js": { erwartet: alle(200) },
+  "GET /admin/zweiter-faktor-einrichten.js": { erwartet: alle(200) },
+  "GET /admin/zweiter-faktor.css": { erwartet: alle(200) },
   "GET /admin/zuschneiden.js": { erwartet: alle(200) },
   "GET /admin/zuschneiden.css": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
@@ -397,11 +400,11 @@ const MATRIX: Record<string, Zeile> = {
   },
   "POST /api/auth/two-factor/enable": {
     body: () => ({ password: FALSCH }),
+    // Jedes Konto mit Sitzung darf ihn einrichten (#715); ohne Sitzung (auch deaktiviert) und für das Konto eines Kindes ist der Pfad zu. Das falsche Passwort gibt 400, das Gate 404
     erwartet: {
-      ...alle(404),
-      admin: 400,
-      adminOhneZweitenFaktor: 400,
-      demoAdmin: 400,
+      ...alle(400),
+      deaktiviert: 404,
+      ohneLogin: 404,
     },
   },
   // Die Felder je Rolle prüft test/ich.test.ts; GET /ich bleibt als einzige /api/v1-Route auch unter dem Pflichtwechsel offen (#15)

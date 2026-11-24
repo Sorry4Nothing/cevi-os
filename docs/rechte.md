@@ -77,7 +77,7 @@ Der Katalog des Lagers (49 Rechte) und der Termine (11 Rechte) steht im Anhang.
    6. Recht an diesem Objekt fehlt: **403**
    7. Zustand passt nicht (Lager geschlossen, schon veröffentlicht): 409
 3. **Fremde Abteilung ist 404, nie 403.** Wer ein Objekt einer anderen Abteilung anspricht, erfährt nicht, ob es existiert. Routen ohne Objekt im Pfad (Listen) antworten mit der eigenen Abteilung. Wer ein Objekt der eigenen Abteilung nicht sehen darf (zum Beispiel einen Termin einer fremden Stufe), bekommt ebenfalls 404; 403 gibt es nur dort, wo die Person das Objekt kennen darf, aber nichts damit tun darf.
-4. **Der zweite Faktor** (TOTP) gilt nur im Web, nicht in der App (Entscheid #523). Er ist Pflicht für:
+4. **Der zweite Faktor** (TOTP) gilt nur in der Verwaltung im Browser, nicht auf der Website und nicht in den Apps (Entscheid #523). Einrichten darf ihn jedes Konto, ausser dem eigenen Konto eines Kindes (#715): Die Verwaltung zeigt einer Person, die ein Recht mit Pflicht hat und keinen Faktor, die Seite «Zweiten Faktor einrichten» (QR-Code, Schlüssel als Text, Code, Ersatzcodes); freiwillig geht es unter «Mein Konto». Ändern sich die Rechte einer Person so, dass er Pflicht wird, und hat sie keinen, endet ihre Sitzung (Rolle zuweisen, Rechte einer Rolle ändern, Abteilungsleitung vergeben, Entwickler vergeben): Beim nächsten Login sieht sie die Einrichtung. Wer ihn schon hat, bleibt angemeldet. Er ist Pflicht für:
    - jede Route unter `/api/v1/admin/*` (Abteilungsleitung), auch Lager anlegen und löschen
    - jede Route unter `/api/v1/redaktion` für die Abteilungsleitung und für jede Person mit einem erweiterten Recht (Plattformrolle, Sonderrecht, Team-Verantwortung)
    - `/api/v1/plattform/schalter` (Wartungsmodus, Sperre)

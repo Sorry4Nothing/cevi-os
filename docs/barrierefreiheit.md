@@ -12,6 +12,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Lädeli auf der Website: Abschnitt 11 («Lädeli»); Bereich «Lädeli» der Verwaltung: Abschnitt 13, im Browser geprüft.
 - Verwaltung insgesamt (Web statt App), im Browser geprüft: Toasts und zweistufige Knöpfe Abschnitt 14, Kopf, Auswahlfelder und Seiten im Fluss Abschnitt 15, Übersicht Abschnitt 16, Anmeldung, System und Mitteilungen Abschnitt 17, Website-Medien, Einstellungen und Lädeli Abschnitt 18, Personen Abschnitt 19, Lager Abschnitt 20, Seiten und Editor Abschnitt 21, Navigation, Bereichsauswahl und Befehlspalette Abschnitt 22.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
+- Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 72, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1288,3 +1289,25 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Tag und Nacht) geprüf
 - **Ungespeichert, Szenarien:** Mein Konto (Schalter ändern, Menü, Browser-Zurück, «Bleiben», «Verwerfen und gehen»), Seite im Fluss (Person erfassen: Menü, Browser-Zurück, «Verwerfen»), «Verwerfen» über die Speicherleiste: jeweils kein Browserdialog, Adresse bleibt beim «Bleiben», danach ist `beforeunload` nicht mehr scharf.
 - **Nicht geprüft:** Safari und Firefox; Bildschirmleser; Touch (der Hinweis `data-tipp` erscheint dort nicht, die Information steht im Namen oder im Text); jede einzelne Zeile der Seiten, die nur mit Daten erreichbar sind, die die Demo-Datenbank nicht enthält.
 - **Bleibt unvermeidlich:** der Dialog des Browsers beim Schliessen oder Neuladen des Tabs mit echten ungespeicherten Änderungen, und der Systemdialog der Dateiwahl.
+
+## 72. Verwaltung: Zweiten Faktor einrichten (#715)
+
+Die Seite «Zweiten Faktor einrichten» erscheint nach der Anmeldung, wenn ein Recht den zweiten Faktor verlangt und keiner eingerichtet ist (`admin.js`, `zeigeEinrichtung`). Derselbe Ablauf (`zweiter-faktor-einrichten.js`) steht freiwillig unter «Mein Konto». Er hat drei Schritte: Passwort bestätigen, Konto in der App eintragen (QR-Code oder Schlüssel, erster Code), Ersatzcodes speichern. Den QR-Code zeichnet `qr.js` im Browser als SVG, ohne Abhängigkeit und ohne Skript von Dritten.
+
+### Prüfpunkte
+
+- [ ] **72.1** Tastatur: Jeder Schritt ist ohne Maus zu bedienen; die Tabfolge geht Feld, Hauptknopf, «Abbrechen» oder «Abmelden». Nach jedem Schritt steht der Fokus auf der neuen Überschrift (`h2`, `tabindex="-1"`), damit der Bildschirmleser den Schritt ansagt. Enter im Passwortfeld geht weiter, die sechste Ziffer des Codes bestätigt von selbst.
+- [ ] **72.2** Fokus: Jedes Bedienelement trägt einen sichtbaren Fokusring (3 px), auch im dunklen Theme. Nach einem Fehler geht der Fokus ins Feld; ein Fehler ohne Feld (Netz, Server) bekommt `role="alert"` und den Fokus.
+- [ ] **72.3** Fehlermeldungen am Feld: «Das Passwort stimmt nicht», «Der Code stimmt nicht» und «Gib die sechs Ziffern aus der App ein» stehen als Text mit Symbol beim Feld (`aria-invalid`, `aria-describedby`), nie nur als Farbe. Das Formular hat `novalidate`; kein Dialog und keine Blase des Browsers.
+- [ ] **72.4** Schlüssel für den Bildschirmleser: Der Schlüssel steht in Gruppen zu vier Zeichen zum Abtippen und wird zeichenweise vorgelesen («K Q Y G, Y 2 S S, …», `nur-leser`); die sichtbare Fassung ist für den Bildschirmleser versteckt, damit er ihn nicht doppelt liest. «Schlüssel kopieren» meldet das Ergebnis in einer Statusregion, auch wenn das Kopieren nicht geht («Markiere den Schlüssel von Hand»).
+- [ ] **72.5** QR-Code mit Textalternative: Das SVG ist ein Bild (`role="img"`) mit der Beschriftung «QR-Code für die Authenticator-App. Den Schlüssel dazu findest du als Text darunter.» Der Code ist immer Schwarz auf Weiss mit Ruhezone, im hellen und im dunklen Theme, und der Schlüssel als Text steht immer dabei: Wer nicht scannen kann, kommt ohne Kamera zum Ziel.
+- [ ] **72.6** Kontrast: Text mindestens 4,5:1, Knöpfe und Rahmen mindestens 3:1, hell und dunkel. Der Fehlertext erreicht mindestens 7:1.
+- [ ] **72.7** Reflow und Schrift: Bei 320 px Breite gibt es kein waagrechtes Scrollen; die Ersatzcodes stehen unter 32 em in einer Spalte und brechen nicht mitten im Code um. Text und Schlüssel wachsen mit der Schrift.
+- [ ] **72.8** Ersatzcodes: Sie stehen als Liste «Ersatzcodes» mit «Ersatzcodes kopieren». «Zur Verwaltung» oder «Fertig» verlangt das Häkchen «Ich habe die Ersatzcodes gespeichert»; ohne Häkchen erscheint ein Hinweis beim Häkchen (`role="alert"`) und der Fokus geht dorthin. Danach sind die Codes aus der Seite gelöscht.
+- [ ] **72.9** Bewegung: Der Ablauf kommt ohne Animation aus; nichts blinkt.
+
+### Stand der Prüfung (#715)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung) mit einem Test-TOTP (RFC 6238, im Skript nachgerechnet) geprüft: Pflichtseite für ein Konto der Abteilungsleitung und für eine Person mit Webmaster-Rolle, «Mein Konto» für eine Stufenleitung, hell und dunkel, 1100 und 375 px; danach verlangt die neue Anmeldung den Code. Punkte 72.1 bis 72.3, 72.6 und 72.7 sind mit Tabfolge, berechnetem Fokusring, berechnetem Kontrast (hell mindestens 5,4:1, Fehlertext 7,9:1, dunkel 5,4:1 und 7,0:1) und der Messung der Breite bei 320 px belegt. Der QR-Code aus dem Browser wurde mit zbar und OpenCV dekodiert und gleicht dem Link der API.
+
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA (72.4, 72.5, 72.8 nur als Quelltext und Rolle), echte Authenticator-Apps auf einem Telefon, Safari und Firefox, 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.

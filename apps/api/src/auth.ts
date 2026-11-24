@@ -482,15 +482,21 @@ function mitExpoOrigin(anfrage: Request) {
   return new Request(anfrage, { headers: kopfzeilen });
 }
 
-export function erstelleAuthRouten(auth: ReturnType<typeof erstelleAuth>) {
+// istKinderkonto: ob die Kennung das eigene Konto eines Kindes ist (kind.user_id, #644); ohne Angabe gibt es keine Kinderkonten
+export function erstelleAuthRouten(
+  auth: ReturnType<typeof erstelleAuth>,
+  istKinderkonto: (userId: string) => Promise<boolean> = async () => false,
+) {
   const routen = new Hono<{ Variables: AktivitaetVariablen }>();
-  // Den zweiten Faktor richtet nur die Abteilungsleitung ein; für alle anderen ist der Pfad zu
+  // Den zweiten Faktor richtet jedes Konto ein, ausser dem eigenen Konto eines Kindes (#715); ohne Sitzung und für Kinderkonten ist der Pfad zu. Zwei Schritte: enable gibt Link und Ersatzcodes, erst verify-totp mit einem gültigen Code schaltet ihn ein (twoFactorEnabled)
   routen.post("/api/auth/two-factor/enable", async (c, next) => {
     const sitzung = await auth.api.getSession({
       headers: c.req.raw.headers,
       query: { disableRefresh: true },
     });
-    if (sitzung?.user.role !== "admin") return c.notFound();
+    if (!sitzung || (await istKinderkonto(sitzung.user.id))) {
+      return c.notFound();
+    }
     await next();
   });
   for (const eintrag of offenePfade) {

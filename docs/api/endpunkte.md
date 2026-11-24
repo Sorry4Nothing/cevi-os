@@ -132,7 +132,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `POST /api/auth/revoke-sessions`               | Überall abmelden (alle Sitzungen beenden)        | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin |
 | `POST /api/auth/two-factor/verify-totp`        | TOTP-Code prüfen (Anmeldung oder Einrichtung)    | **400** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, mussPasswortAendern, demoEltern<br>**401** admin, elternB, deaktiviert, ohneLogin, demoAdmin |
 | `POST /api/auth/two-factor/verify-backup-code` | Ersatzcode prüfen (Anmeldung ohne Authenticator) | **400** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, mussPasswortAendern, demoEltern<br>**401** admin, elternB, deaktiviert, ohneLogin, demoAdmin |
-| `POST /api/auth/two-factor/enable`             | Zweiten Faktor (TOTP) einrichten                 | **400** admin, adminOhneZweitenFaktor, demoAdmin<br>**404** slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, deaktiviert, ohneLogin, demoEltern |
+| `POST /api/auth/two-factor/enable`             | Zweiten Faktor (TOTP) einrichten                 | **400** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoAdmin, demoEltern<br>**404** deaktiviert, ohneLogin |
 
 ## App: ich
 

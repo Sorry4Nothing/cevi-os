@@ -13,6 +13,7 @@ import { schliesseAlle } from "./fluss.js";
 import { erstellePalette } from "./befehlspalette.js";
 import { erstelleHinweisband } from "./hinweisband.js";
 import { erstelleLader } from "./lader.js";
+import { erstelleEinrichtung } from "./zweiter-faktor-einrichten.js";
 import {
   BEREICHE,
   loese,
@@ -303,6 +304,27 @@ function zeigeCode(ersatz = false) {
 
 const SPERRE_2FA = ["Zweiter Faktor fehlt", "schild", "warn"];
 
+// Pflicht, aber noch nicht eingerichtet (#715): statt einer Fehlermeldung der Ablauf zum Einrichten. Danach geht es mit dem neuen Zustand der Sitzung in die Verwaltung. Der Faktor gilt für die Verwaltung; die Website und die Apps brauchen ihn nie
+function zeigeEinrichtung() {
+  const einrichtung = erstelleEinrichtung({
+    beiFertig: () => pruefeKonto(false).catch(zeigeStartFehler),
+    fertigText: "Zur Verwaltung",
+  });
+  anmeldeSeite({
+    titel: "Zweiten Faktor einrichten",
+    text: "Für die Verwaltung brauchst du einen zweiten Faktor. Richte ihn jetzt ein, das dauert ein paar Minuten.",
+    kopfzeichen: zeichen(SPERRE_2FA),
+    inhalt: [
+      einrichtung.wurzel,
+      knopf("Abmelden", {
+        art: "still",
+        symbol: "abmelden",
+        onclick: abmelden,
+      }),
+    ],
+  });
+}
+
 // grund: [Text des Chips, Icon, Art]; ohne Angabe gilt der fehlende zweite Faktor
 function zeigeSperre(text, grund = SPERRE_2FA) {
   anmeldeSeite({
@@ -334,9 +356,7 @@ async function pruefeKonto(nachAnmeldung = true) {
     );
   } else if (istAdmin()) {
     if (!ich.twoFactorEnabled) {
-      zeigeSperre(
-        "Für die Verwaltung braucht es zuerst einen zweiten Faktor. Richte ihn ein und melde dich danach neu an.",
-      );
+      zeigeEinrichtung();
       return;
     }
     zugang = mitDarf(
@@ -346,7 +366,16 @@ async function pruefeKonto(nachAnmeldung = true) {
     await zeigeVerwaltung();
   } else {
     // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Daten der Abteilungsleitung geladen
-    zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
+    try {
+      zugang = mitDarf(await anfrage("GET", "/api/v1/redaktion/ich"), false);
+    } catch (f) {
+      // Ein Recht, das den zweiten Faktor verlangt, aber kein Faktor (#715)
+      if (f instanceof ApiFehler && f.code === "ZWEITER_FAKTOR_FEHLT") {
+        zeigeEinrichtung();
+        return;
+      }
+      throw f;
+    }
     // Leitende ohne Zugang zur Website sehen den Belegungsplan der Räume (#628)
     if (
       zugang.bereiche.length === 0 &&
