@@ -387,7 +387,7 @@ function anwesenheit({ ctx, lagerId, hoeckId, mitglieder, kannAendern }) {
       return el(
         "li",
         { class: "lg-sm-person" },
-        avatar(m.name, { hell: true }),
+        avatar(m.name, { hell: true, bildUrl: m.bildUrl }),
         m.name,
       );
     const k = ankreuzen({
