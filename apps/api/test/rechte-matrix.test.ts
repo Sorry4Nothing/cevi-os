@@ -186,6 +186,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-bausteine.js": { erwartet: alle(200) },
   "GET /admin/website-dialoge.js": { erwartet: alle(200) },
   "GET /admin/website-felder.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-dynamisch.js": { erwartet: alle(200) },
   "GET /admin/website-sichtbarkeit.js": { erwartet: alle(200) },
   "GET /admin/website-symbole.js": { erwartet: alle(200) },
   "GET /admin/website-veroeffentlichen.js": { erwartet: alle(200) },
@@ -2436,6 +2437,18 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "GET /api/v1/redaktion/tags": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Anlaesse und Orte fuer die Bausteine aus Cevi OS (#740): wie die Tags, nur Namen und Tage
+  "GET /api/v1/redaktion/baustein-auswahl": {
     erwartet: {
       ...alle(403),
       admin: 200,

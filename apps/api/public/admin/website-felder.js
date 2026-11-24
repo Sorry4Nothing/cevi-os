@@ -10,6 +10,11 @@ import {
 import { sk } from "./lader.js";
 import { sortierListe } from "./sortieren.js";
 import { symbol } from "./website-symbole.js";
+import {
+  dynamischeBausteine,
+  FELDNAMEN_DYNAMISCH,
+  VERWEIS_TEXTE_DYNAMISCH,
+} from "./website-felder-dynamisch.js";
 
 // Felder und Typen der Bausteine (Boards E3 und E4). Ein Baustein hat einen Typ mit Name, Kurztext für die Liste, Prüfung und Formular.
 // Das Formular arbeitet auf einer Kopie des Bausteins (b) im Seitenblatt «Baustein bearbeiten»; erst «Übernehmen» schreibt ins Dokument.
@@ -909,7 +914,21 @@ function linkTeil(b) {
 const tagText = (d, k, leer) =>
   d.tagId ? `Gruppe ${k.tagNamen.get(d.tagId) ?? "unbekannt"}` : leer;
 
+// Bausteine mit Daten aus Cevi OS (#740): eigene Datei, die Helfer von hier bekommt
+const dynamisch = dynamischeBausteine({
+  eingabe,
+  wahl,
+  waehler,
+  anmelden,
+  listenForm,
+  teilEingabe,
+  loescheFeldFehler,
+});
+Object.assign(FELDNAMEN, FELDNAMEN_DYNAMISCH);
+Object.assign(VERWEIS_TEXTE, VERWEIS_TEXTE_DYNAMISCH);
+
 export const TYPEN = {
+  ...dynamisch.TYPEN,
   ueberschrift: {
     name: "Überschrift",
     kurz: (d) => d.text ?? "",
@@ -1645,6 +1664,7 @@ export const KATALOG = [
       "«Fragen? Melde dich bei uns.» mit Knöpfen für E-Mail und Telefon, Anschrift und Verweisen.",
     neu: () => ({}),
   },
+  ...dynamisch.KATALOG,
 ].map((e) => ({ name: TYPEN[e.typ].name, ...e }));
 
 // Ein Karten-Baustein heisst nach seiner Darstellung («Zeitstrahl»): So findet man ihn in der Liste der Seite wieder

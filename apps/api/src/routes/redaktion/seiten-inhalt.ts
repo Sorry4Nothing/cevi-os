@@ -18,6 +18,7 @@ import {
   type Kontakt,
 } from "../../website/rendern.js";
 import { ladeLadenDaten } from "../../laden/laden.js";
+import { ladeDynamischeBausteine } from "../../website/dynamisch-daten.js";
 import { ladeStufenfaktenGemerkt } from "../../website/stufenfakten.js";
 import {
   ladeAnlassSeiten,
@@ -230,32 +231,47 @@ export function erstelleSeitenInhaltRouten({
             })),
           };
           // Termin-Liste und «Zur Anmeldung» (#570) aus denselben Quellen wie der Abgleich; die Termine nur, wenn die Seite eine Liste hat (dann drei Abfragen mehr, sonst eine)
-          const [daten, laden, fakten, termine, anlaesse, [abt], logo] =
-            await Promise.all([
-              ladeDaten(db, person.abteilungId, [dokument], false),
-              // Lädeli (#566): Die Vorschau zeigt die Artikel wie die Website; die Abfragen laufen nur, wenn die Seite den Baustein hat
-              ladeLadenDaten(
-                db,
-                person.abteilungId,
-                [id],
-                new Map([[id, dokument]]),
-              ),
-              ladeStufenfaktenGemerkt(db, person.abteilungId, id),
-              dokument.bausteine.some((b) => b.typ === "terminliste")
-                ? ladeTerminlisten(
-                    db,
-                    person.abteilungId,
-                    [id],
-                    new Map([[id, dokument]]),
-                  )
-                : {},
-              ladeAnlassSeiten(db, person.abteilungId, [id]),
-              db
-                .select({ name: abteilung.name })
-                .from(abteilung)
-                .where(eq(abteilung.id, person.abteilungId)),
-              ladeLogo(db, person.abteilungId),
-            ]);
+          const [
+            daten,
+            laden,
+            fakten,
+            termine,
+            anlaesse,
+            dynamisch,
+            [abt],
+            logo,
+          ] = await Promise.all([
+            ladeDaten(db, person.abteilungId, [dokument], false),
+            // Lädeli (#566): Die Vorschau zeigt die Artikel wie die Website; die Abfragen laufen nur, wenn die Seite den Baustein hat
+            ladeLadenDaten(
+              db,
+              person.abteilungId,
+              [id],
+              new Map([[id, dokument]]),
+            ),
+            ladeStufenfaktenGemerkt(db, person.abteilungId, id),
+            dokument.bausteine.some((b) => b.typ === "terminliste")
+              ? ladeTerminlisten(
+                  db,
+                  person.abteilungId,
+                  [id],
+                  new Map([[id, dokument]]),
+                )
+              : {},
+            ladeAnlassSeiten(db, person.abteilungId, [id]),
+            // Bausteine mit Daten aus Cevi OS (#740): öffentliche Anlässe, gewählte Orte, Zahlen; dieselben Regeln wie auf der Website
+            ladeDynamischeBausteine(
+              db,
+              person.abteilungId,
+              [id],
+              new Map([[id, dokument]]),
+            ),
+            db
+              .select({ name: abteilung.name })
+              .from(abteilung)
+              .where(eq(abteilung.id, person.abteilungId)),
+            ladeLogo(db, person.abteilungId),
+          ]);
           if (fakten) daten.stufenfakten = new Map([[id, fakten]]);
           if (laden.laden) {
             daten.laden = laden.laden;
@@ -267,7 +283,13 @@ export function erstelleSeitenInhaltRouten({
             }
             daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
           }
-          Object.assign(daten, termine, anlaesse, kontakt && { kontakt });
+          Object.assign(
+            daten,
+            termine,
+            anlaesse,
+            dynamisch,
+            kontakt && { kontakt },
+          );
           // Die Startseite hat einen eigenen Einstieg (Titelkarte im Bild): Die Vorschau zeigt ihn nur unter ihrer Adresse
           const start =
             z.seite.elternId === null && z.seite.adresse === STARTSEITE;
