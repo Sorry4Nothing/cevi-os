@@ -117,7 +117,20 @@ async function sende(pfad, body) {
   return { status: antwort.status, code: daten?.code, daten };
 }
 
-const weiter = () => location.assign(ziel);
+// Ein Konto mit Startpasswort darf bis zum Wechsel nur sein Profil lesen (Pflichtwechsel): Die Anmeldung führt dann zu «Mein Konto», wo der Wechsel steht. Auf der Zielseite sähe die Person nichts von der Anmeldung (der Kopf bekommt ein 403)
+async function weiter() {
+  let sitzung = null;
+  try {
+    const r = await fetch("/api/auth/get-session", {
+      credentials: "same-origin",
+      cache: "no-store",
+    });
+    if (r.ok) sitzung = await r.json();
+  } catch {
+    // Ohne Antwort gilt die Zielseite
+  }
+  location.assign(sitzung?.user?.mussPasswortAendern ? "/konto" : ziel);
+}
 
 // «Melde an …»: Der Knopf bleibt fokussierbar (aria-disabled statt disabled), die Felder sind schreibgeschützt
 function laeuft(form, an, text) {
