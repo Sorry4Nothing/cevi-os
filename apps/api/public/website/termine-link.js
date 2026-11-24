@@ -9,10 +9,10 @@ import {
   h,
   icon,
   ladeAnsage,
-  melde,
   skelett,
   sk,
 } from "./tm.js";
+import { toast } from "./toast.js";
 
 export const linkAdresse = (host, pfad) => `webcal://${host}${pfad}`;
 export const linkVerkuerzt = (host, endung) =>
@@ -64,22 +64,6 @@ export function linkKastenView(z, host) {
           rolle: "alert",
         })
       : null,
-    z.meldung === "erzeugt"
-      ? bandView({
-          art: "ok",
-          symbol: "haken",
-          titel: "Link erzeugt.",
-          text: "Kopiere ihn und füge ihn in deinem Kalender als Abo ein.",
-        })
-      : null,
-    z.meldung === "ersetzt"
-      ? bandView({
-          art: "ok",
-          symbol: "haken",
-          titel: "Neuer Link erzeugt.",
-          text: "Abonniere ihn in deinem Kalender neu.",
-        })
-      : null,
     z.aktiv || z.neu
       ? h(
           "div",
@@ -109,6 +93,16 @@ export function linkKastenView(z, host) {
                 "Link kopieren",
               )
             : null,
+        )
+      : null,
+    // Was als Nächstes zu tun ist, bleibt stehen; dass der Link erzeugt ist, sagt der Toast
+    z.neu
+      ? h(
+          "p",
+          { class: "hilfe" },
+          z.meldung === "ersetzt"
+            ? "Abonniere ihn in deinem Kalender neu."
+            : "Kopiere ihn und füge ihn in deinem Kalender als Abo ein.",
         )
       : null,
     z.aktiv && !z.neu
@@ -232,11 +226,14 @@ export function startLink(doc, behaelter, beiAbmeldung) {
         neu: { adresse: linkAdresse(host, r.daten.pfad) },
         meldung: hatte ? "ersetzt" : "erzeugt",
       });
-      melde(doc, hatte ? "Neuer Link erzeugt." : "Link erzeugt.");
+      zeichne();
+      toast(hatte ? "Neuer Link erzeugt." : "Link erzeugt.");
+      return;
     } else if (r.status === 401) {
       return beiAbmeldung();
     } else {
-      z.fehler = fehlerVon(r);
+      const f = fehlerVon(r);
+      toast(`${f.titel} ${f.text}`, "fehler");
     }
     zeichne();
   }
@@ -245,32 +242,13 @@ export function startLink(doc, behaelter, beiAbmeldung) {
     const feld = doc.getElementById("tm-link-feld");
     try {
       await doc.defaultView.navigator.clipboard.writeText(z.neu.adresse);
-      zeigeSnack("Link kopiert");
+      toast("Link kopiert.");
     } catch {
       // Ohne Zwischenablage (kein https, Browser verweigert): Link markieren, die Person kopiert selbst
       feld?.focus();
       feld?.select();
-      zeigeSnack("Link markiert. Kopiere ihn mit Strg+C.");
+      toast("Link markiert. Kopiere ihn mit Strg+C.", "info");
     }
-  }
-
-  // Die Meldung bleibt, bis die Person sie schliesst
-  function zeigeSnack(text) {
-    doc.getElementById("tm-snack")?.remove();
-    const snack = baue(
-      doc,
-      h(
-        "div",
-        { class: "snack", id: "tm-snack", role: "status" },
-        h("span", {}, text),
-        h("button", { type: "button", "data-aktion": "snack:zu" }, "OK"),
-      ),
-    );
-    snack.querySelector("button").addEventListener("click", () => {
-      snack.remove();
-      doc.querySelector('[data-f="link-kopieren"]')?.focus();
-    });
-    behaelter.append(snack);
   }
 
   behaelter.addEventListener("click", (e) => {

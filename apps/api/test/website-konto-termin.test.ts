@@ -483,21 +483,8 @@ describe("Mein Konto (#671)", () => {
     expect(eltern).toContain("079 123 45 67");
     expect(eltern).toContain('data-aktion="tel-weg"');
     expect(eltern).not.toContain("<input");
-    // Direkt nach dem Entfernen bleibt die Karte mit der Rückmeldung, ohne Formular
-    const weg = html(
-      konto.telefonKarte(
-        stand(profil(), {
-          tel: {
-            wert: "",
-            fehler: null,
-            senden: false,
-            meldung: { art: "ok", text: "Die Nummer ist entfernt." },
-          },
-        }),
-      ),
-    );
-    expect(weg).toContain("Die Nummer ist entfernt.");
-    expect(weg).not.toContain("<form");
+    // Nach dem Entfernen fällt die Karte weg; der Toast meldet es (#762)
+    expect(konto.telefonKarte(stand(profil({ telefon: null })))).toBeNull();
     const sl = profil({ rollen: [{ stufeId: "s1", typ: "stufenleitung" }] });
     const h = html(konto.telefonKarte(stand(sl)));
     expect(h).toContain("Nummer speichern");

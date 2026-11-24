@@ -13,6 +13,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Verwaltung insgesamt (Web statt App), im Browser geprüft: Toasts und zweistufige Knöpfe Abschnitt 14, Kopf, Auswahlfelder und Seiten im Fluss Abschnitt 15, Übersicht Abschnitt 16, Anmeldung, System und Mitteilungen Abschnitt 17, Website-Medien, Einstellungen und Lädeli Abschnitt 18, Personen Abschnitt 19, Lager Abschnitt 20, Seiten und Editor Abschnitt 21, Navigation, Bereichsauswahl und Befehlspalette Abschnitt 22.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
 - Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 73; Rollen «Abteilungsleitung» und «Entwickler» in der Verwaltung: Abschnitt 74; beide im Browser geprüft.
+- Rückmeldungen nach einer Aktion auf der öffentlichen Website (Toasts): Abschnitt 82, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1491,3 +1492,24 @@ Gilt für jede Ansicht der Verwaltung unter `public/admin`, besonders für Berei
 Im Browser (Chromium, headless, Playwright, Kopie der Demo-Datenbank, Entwickler-Konto, eigener Dev-Server) bei 1280 x 720, 390 x 844, 2560 x 1440, 3774 x 2020 (Zoom 100 % und 150 %), dunkel; Editor der Seite «Datenschutz» (66 Bausteine) und Lager zusätzlich hell: 81.1 bis 81.3 gemessen, 81.5 gesehen.
 
 **Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 % von Hand.
+
+## 82. Website: Rückmeldungen als Toast (#762)
+
+Gilt für jede Aktion auf der öffentlichen Website: Anmelden, Abmelden, Mein Konto (Passwort, Telefon, Mitteilungen, Datenschutz), Anlass-Anmeldung, Antwort auf einen Termin, Kalender-Link, Terminvorschlag und Lädeli. Das Ergebnis erscheint als Toast an einer festen Stelle (`website/toast.js`, Stil `website.css`, Regel in `docs/website-design.md`, «Rückmeldungen»). Massstab WCAG 2.2.1 (Zeitbegrenzung), 4.1.3 (Statusmeldungen), 2.1.1, 2.4.3, 1.4.3, 1.4.10, 2.5.8.
+
+### Prüfpunkte
+
+- [ ] **82.1** Erfolg, ein nicht blockierender Fehler und eine Info erscheinen als Toast, nie als Kasten oder Absatz im Inhalt, der stehen bleibt. Der Toast steht überall an derselben Stelle (unten in der Mitte, am Handy über die Breite) und sieht überall gleich aus. Der Test `website-toasts.test.ts` hält neue Kästen draussen.
+- [ ] **82.2** Inline bleiben: Feldfehler am Feld (`aria-describedby`, `aria-invalid`), die Fehlerzusammenfassung beim Absenden, Lade- und Leerzustände, dauerhafte Seitenzustände («Du bist angemeldet.», Pflicht-Passwortwechsel, Anmeldeschluss), Meldungen, die der Warenkorb selbst auslöst, und Fehler mit eigener Aktion («Nochmals versuchen»).
+- [ ] **82.3** Erfolg und Info gehen nach 4 Sekunden, ein Fehler nach 8 Sekunden von selbst. Solange der Zeiger auf dem Toast steht oder der Fokus darin liegt, läuft die Zeit nicht (WCAG 2.2.1); danach läuft der Rest. «Schliessen» (mindestens 44 × 44 px, Name «Schliessen») und Esc schliessen jederzeit.
+- [ ] **82.4** Ansage (WCAG 4.1.3): Erfolg und Info in einer Region mit `aria-live="polite"`, Fehler in einer mit `aria-live="assertive"`, beide stehen schon im Dokument, bevor ein Toast dazukommt. Der Toast nimmt dem Fokus nichts weg; die Region steht im Seitenaufbau gleich vor dem Inhalt, Tab erreicht den Knopf «Schliessen» nach dem Kopf. Nach dem Schliessen kehrt der Fokus dorthin zurück, wo die Person herkam.
+- [ ] **82.5** Höchstens 3 Toasts stehen zugleich (der älteste weicht), derselbe Text wird nicht verdoppelt. Am Handy (390 px) verdeckt der Toast keinen Knopf, den die Person gerade bedient (Lädeli-Knopf unten rechts: der Toast steht darüber); in einem geöffneten Dialog (Warenkorb, Artikel, Bestellübersicht) steht er oben im Dialog und bleibt bedienbar, auch wenn der Dialog sich neu zeichnet; er deckt dort kurz den Kopf des Dialogs ab (bekannte Einschränkung, «Schliessen» und Esc genügen).
+- [ ] **82.6** Nach «Anmelden» und «Abmelden», die die Seite wechseln, erscheint «Angemeldet.» oder «Abgemeldet.» auf der neuen Seite. Seiten ohne Aktion laden `toast.js` nicht.
+- [ ] **82.7** Kontrast Tag und Nacht (Tokens): Erfolg und Info 10.4:1 und 16.6:1, Fehler 6.8:1 und 7.5:1; Art nie nur über die Farbe (Haken, Kreis, Dreieck mit Text); bei erzwungenen Farben hat der Toast einen Rand. Mit «Bewegung reduzieren» keine Einblendung, die Zeiten gelten gleich.
+- [ ] **82.8** Texte: kurze Sätze mit Zustand oder Verb («Angemeldet.», «Passwort geändert.», «Bestellung gesendet.»), ein Fehler sagt, was zu tun ist; keine Emojis, Schweizer Schreibweise.
+
+### Stand der Prüfung (#762)
+
+Im Browser (Chromium headless, Playwright, Kopie der Demo-Datenbank, eigener Dev-Server mit Proxy für die erzeugten Seiten, Konto ohne Rolle) bei 390 x 844 und 1280 x 900, hell und dunkel, je ein voller Lauf: Anmelden falsch (inline, kein Toast), ohne Netz (Fehler-Toast), erfolgreich («Angemeldet.» auf der nächsten Seite, 82.6), Abmelden im Kopf («Abgemeldet.» nach dem Neuladen), Passwort ändern (Toast; Feldfehler inline), Anlass-Anmeldung und Abmeldung, Kalender-Link erzeugen und kopieren, Lädeli (Bestellung gesendet und storniert, im Dialog; Abmelden ohne Netz; Bestellen ohne Netz im Dialog, auch nach dem Neuzeichnen). Tastatur und Zeiger: Fokus auf «Schliessen» hält den Fehler-Toast länger als 8 s, Esc schliesst, der Zeiger hält die Zeit an, der Erfolg geht nach 4 s. Kontraste gerechnet (82.7). Screenshots nur im Scratchpad.
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA: die Ansage ist über `aria-live` gebaut, nicht gehört), Safari und Firefox, Zoom 200 % und 400 %, «Bewegung reduzieren» von Hand (der Stil ist im Test geprüft), erzwungene Farben, Telefon-Karte und Mitteilungen in «Mein Konto» (keine Stufenleitung und keine App-Schalter im Testkonto), Antwort auf einen Termin und Terminvorschlag (Stil und Texte im Test, nicht im Browser).

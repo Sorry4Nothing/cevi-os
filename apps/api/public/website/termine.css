@@ -1264,41 +1264,6 @@
     padding: 20px 20px 24px;
   }
 }
-.tm .snack {
-  position: fixed;
-  z-index: 10;
-  left: 16px;
-  right: 16px;
-  bottom: 24px;
-  margin: 0 auto;
-  max-width: 480px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-height: 56px;
-  padding: 8px 8px 8px 18px;
-  border-radius: var(--r-md);
-  background: var(--inverse-surface);
-  color: var(--inverse-on-surface);
-  font-size: 1rem;
-  font-weight: 600;
-  box-shadow: var(--elevation-float);
-}
-.tm .snack span {
-  flex: 1;
-}
-.tm .snack button {
-  min-height: 48px;
-  min-width: 48px;
-  padding: 0 14px;
-  border: 0;
-  background: transparent;
-  color: inherit;
-  font: inherit;
-  font-weight: 800;
-  text-decoration: underline;
-  cursor: pointer;
-}
 
 @media (forced-colors: active) {
   .tm .pille[aria-pressed="true"],

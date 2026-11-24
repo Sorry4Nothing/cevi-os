@@ -16,6 +16,7 @@ import {
   zuerichZuIso,
   zustandView,
 } from "./tm.js";
+import { toast } from "./toast.js";
 
 export const MAX_TITEL = 120;
 export const MAX_ORT = 120;
@@ -362,26 +363,7 @@ export function formularView(s) {
 
 export const hinweisView = () =>
   bandView({
-    text: "Die Abteilungsleitung prüft deinen Vorschlag. Erst nach der Freigabe erscheint er im Kalender.",
-  });
-
-export const erfolgView = () =>
-  bandView({
-    art: "ok",
-    symbol: "haken",
-    titel: "Gesendet.",
-    text: "Du erfährst es, sobald die Leitung entschieden hat.",
-    attr: { tabindex: "-1", id: "tm-erfolg" },
-    aktion: h(
-      "div",
-      { class: "knopfreihe" },
-      h(
-        "button",
-        { type: "button", class: "btn s", "data-aktion": "neu" },
-        "Weiteren Termin vorschlagen",
-      ),
-      h("a", { class: "verweis", href: "/termine/" }, "Zu den Terminen"),
-    ),
+    text: "Die Abteilungsleitung prüft deinen Vorschlag. Erst nach der Freigabe erscheint er im Kalender. Du erfährst es, sobald die Leitung entschieden hat.",
   });
 
 export const keinZugriffView = () =>
@@ -435,7 +417,6 @@ function start(doc, wurzel) {
       ansicht = nichtAngemeldetView("/termine/vorschlagen");
     else if (modus === "keinZugriff") ansicht = keinZugriffView();
     else if (modus === "fehler") ansicht = fehlerView("nochmal");
-    else if (modus === "erfolg") ansicht = erfolgView();
     else ansicht = formularView(z);
     inhalt.replaceChildren(baue(doc, ansicht));
     if (fokus) doc.getElementById(fokus)?.focus();
@@ -477,9 +458,12 @@ function start(doc, wurzel) {
     });
     z.senden = false;
     if (r.status === 201) {
+      // Das Formular ist wieder leer; der Toast meldet das Senden, der Hinweis oben sagt, wie es weitergeht
       z.werte = leereWerte();
-      modus = "erfolg";
-      zeichne("tm-erfolg");
+      z.fehler = {};
+      z.zusammenfassung = [];
+      zeichne("t-titel");
+      toast("Vorschlag gesendet.");
       return;
     }
     const f = sendeFehler(r);
@@ -490,13 +474,7 @@ function start(doc, wurzel) {
       z.fehler = { [f.feld]: f.text };
       z.zusammenfassung = [{ feld: f.feld, text: f.text }];
     } else if (f.art === "band") {
-      z.band = bandView({
-        art: "fe",
-        symbol: "warnung",
-        titel: f.titel,
-        text: f.text,
-        rolle: "alert",
-      });
+      toast(`${f.titel} ${f.text}`, "fehler");
     } else if (f.art === "offline") {
       z.band = bandView({
         art: "wa",
@@ -553,13 +531,6 @@ function start(doc, wurzel) {
     if (!b) return;
     if (b.dataset.aktion === "nochmal") ladeOptionen();
     else if (b.dataset.aktion === "nochmal-senden") sende();
-    else if (b.dataset.aktion === "neu") {
-      z.werte = leereWerte();
-      z.fehler = {};
-      z.zusammenfassung = [];
-      modus = "form";
-      zeichne("t-titel");
-    }
   });
   doc.defaultView.addEventListener("online", () => {
     if (z.offline) {

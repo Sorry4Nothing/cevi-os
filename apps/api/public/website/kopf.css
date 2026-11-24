@@ -870,16 +870,6 @@ html[data-konto="erwartet"] .kopf a.anmelden {
   opacity: 0.6;
 }
 
-.konto-meldung {
-  padding: 0.5rem 0.75rem 0.25rem;
-  color: var(--on-error-container);
-  font-size: 0.9375rem;
-}
-
-.konto-meldung:empty {
-  display: none;
-}
-
 /* Im Menü am Handy: ausgeklappt in der Liste, ohne Knopf, ohne Rahmen. Der Umschalter steht darunter */
 .konto-menue--liste {
   flex: 1 0 100%;
