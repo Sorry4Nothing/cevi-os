@@ -7,12 +7,15 @@ import { avatar, el, icon, knopf, leere } from "./dom.js";
 let markeDaten = { name: "", logoId: null, logoDunkelId: null };
 const medienUrl = (id) => `/api/v1/medien/${encodeURIComponent(id)}`;
 
+// Das Logo führt zur öffentlichen Website (#669, wie üblich); die Verwaltung öffnet «Verwaltung» daneben. Der Name sagt es Screenreadern, der Hinweis der Maus
+const MARKE_NAME = { "aria-label": "Cevi: zur Website", title: "Zur Website" };
+
 function erstelleMarke() {
   const { name, logoId, logoDunkelId } = markeDaten;
   if (!logoId) {
     return el(
       "a",
-      { class: "marke", href: "#" },
+      { class: "marke", href: "/", ...MARKE_NAME },
       el("b", {}, "CEVI"),
       name && el("span", {}, name),
     );
@@ -28,7 +31,8 @@ function erstelleMarke() {
     "a",
     {
       class: `marke marke--logo${logoDunkelId ? " marke--zwei" : ""}`,
-      href: "#",
+      href: "/",
+      ...MARKE_NAME,
     },
     bild(logoDunkelId ? "logo logo--hell" : "logo", logoId),
     logoDunkelId && bild("logo logo--dunkel", logoDunkelId),
@@ -117,25 +121,143 @@ function themaSchalter() {
 // Nach dem Einsetzen des Kopfs aufrufen: theme.js verbindet die Knöpfe und zeigt sie
 export const bindeThema = () => window.ceviThema?.binde();
 
-// «Mein Konto» (#621): Der Name im Kopf ist der Link zur Seite; er trägt aria-current, solange sie offen ist, und zeigt das Profilbild, sobald die Person eines gesetzt hat
+// Konto-Menü im Kopf (#669), gleicher Aufbau wie auf der Website (website/kopf.css, Abschnitt «Konto-Menü»): Bild, Name und Rolle öffnen eine Tafel mit «Zur Website», «Mein Konto» (#621) und «Abmelden».
+// «Mein Konto» trägt aria-current, solange die Seite offen ist; das Profilbild erscheint, sobald die Person eines gesetzt hat
 const meldeKontoSeite = () => {
   const hier = window.location.hash.startsWith("#konto");
-  for (const a of document.querySelectorAll("a.konto")) {
+  for (const a of document.querySelectorAll(".konto-liste a[href='#konto']")) {
     if (hier) a.setAttribute("aria-current", "page");
     else a.removeAttribute("aria-current");
+  }
+  for (const k of document.querySelectorAll(".konto")) {
+    k.classList.toggle("konto--hier", hier);
   }
 };
 window.addEventListener("hashchange", meldeKontoSeite);
 // bildUrl: Pfad des Bildes oder null (Initialen)
 export function setzeKontoBild(bildUrl) {
-  for (const a of document.querySelectorAll("a.konto")) {
-    a.querySelector(".ava")?.replaceWith(
-      avatar(a.dataset.name, { bildUrl: bildUrl ?? null }),
-    );
+  for (const m of document.querySelectorAll(".konto-menue")) {
+    for (const a of m.querySelectorAll(".ava")) {
+      a.replaceWith(avatar(m.dataset.name, { bildUrl: bildUrl ?? null }));
+    }
   }
 }
 
-// Logozeile: Marke, «Verwaltung», Konto mit Rolle, Suche, «Abmelden» und ganz rechts der Umschalter (wie auf der Website)
+// Das Menü ist ein details-Element (Offenlegungsmuster, wie auf der Website): Tab geht durch die Einträge, Pfeile ebenso, Esc schliesst und gibt den Fokus an den Knopf zurück, ein Klick daneben und das Verlassen mit Tab schliessen
+function erstelleKontoMenue({ konto, beiAbmelden }) {
+  const meldung = el("p", { class: "konto-meldung", role: "status" });
+  const abmelden = el(
+    "button",
+    { type: "button" },
+    icon("abmelden"),
+    "Abmelden",
+  );
+  abmelden.addEventListener("click", async () => {
+    if (abmelden.getAttribute("aria-disabled") === "true") return;
+    abmelden.setAttribute("aria-disabled", "true");
+    abmelden.setAttribute("aria-busy", "true");
+    meldung.textContent = "";
+    try {
+      await beiAbmelden();
+    } finally {
+      // Gelingt es, ersetzt die Anmeldeseite den Kopf; sonst bleibt das Menü bedienbar
+      abmelden.removeAttribute("aria-disabled");
+      abmelden.removeAttribute("aria-busy");
+    }
+  });
+  const hier = window.location.hash.startsWith("#konto");
+  const menue = el(
+    "details",
+    { class: "konto-menue", "data-name": konto.name },
+    el(
+      "summary",
+      { class: `konto${hier ? " konto--hier" : ""}` },
+      avatar(konto.name, { bildUrl: konto.bildUrl }),
+      el(
+        "div",
+        { class: "konto-text" },
+        el(
+          "p",
+          { class: "kontoname" },
+          el("span", { class: "nur-leser" }, "Konto: "),
+          konto.name,
+        ),
+        el("p", { class: "mini leise" }, konto.rolle),
+      ),
+      icon("runter"),
+    ),
+    el(
+      "div",
+      { class: "konto-tafel" },
+      el(
+        "div",
+        { class: "konto-kopf" },
+        avatar(konto.name, { bildUrl: konto.bildUrl }),
+        el("p", {}, el("strong", {}, konto.name), el("span", {}, konto.rolle)),
+      ),
+      el(
+        "ul",
+        { class: "konto-liste" },
+        el("li", {}, el("a", { href: "/" }, icon("website"), "Zur Website")),
+        el(
+          "li",
+          {},
+          el(
+            "a",
+            {
+              href: "#konto",
+              ...(hier && { "aria-current": "page" }),
+            },
+            icon("personen"),
+            "Mein Konto",
+          ),
+        ),
+        el("li", {}, abmelden),
+      ),
+      meldung,
+    ),
+  );
+  const zu = (fokusZurueck) => {
+    menue.open = false;
+    if (fokusZurueck) menue.querySelector("summary").focus();
+  };
+  const eintraege = () => [
+    ...menue.querySelectorAll(".konto-liste a, .konto-liste button"),
+  ];
+  menue.addEventListener("keydown", (e) => {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    const liste = eintraege();
+    const i = liste.indexOf(document.activeElement);
+    if (e.key === "Escape" && menue.open) zu(true);
+    else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      if (!menue.open) menue.open = true;
+      const schritt = e.key === "ArrowDown" ? 1 : -1;
+      const n =
+        i < 0
+          ? schritt > 0
+            ? 0
+            : liste.length - 1
+          : (i + schritt + liste.length) % liste.length;
+      liste[n].focus();
+    } else if (e.key === "Home" && i >= 0) liste[0].focus();
+    else if (e.key === "End" && i >= 0) liste.at(-1).focus();
+    else return;
+    e.preventDefault();
+  });
+  menue.addEventListener("focusout", (e) => {
+    if (e.relatedTarget && !menue.contains(e.relatedTarget)) menue.open = false;
+  });
+  // «Mein Konto» und «Zur Website» führen weg: Das Menü klappt zu
+  menue.addEventListener("click", (e) => {
+    if (e.target.closest(".konto-liste a")) menue.open = false;
+  });
+  document.addEventListener("click", (e) => {
+    if (menue.open && !menue.contains(e.target)) menue.open = false;
+  });
+  return menue;
+}
+
+// Logozeile: Marke (führt zur Website), «Verwaltung» (Übersicht), Suche, Konto-Menü mit Rolle und ganz rechts der Umschalter (wie auf der Website)
 // konto: { name, rolle, bildUrl } (rolle: Text unter dem Namen; bildUrl: Profilbild oder null)
 export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
   return el(
@@ -145,50 +267,22 @@ export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
       "div",
       { class: "breite" },
       erstelleMarke(),
-      el("span", { class: "bereichname" }, "Verwaltung"),
-      // Zur öffentlichen Website (#669): dieselbe Sitzung, dort steht das Konto-Menü. Das Logo bleibt die Übersicht der Verwaltung; schmal bleibt nur das Symbol, der Name steht im Text für Screenreader
+      // «Verwaltung» ist der Link zur Übersicht der Verwaltung (das Logo führt zur Website)
       el(
         "a",
-        { class: "zur-website", href: "/" },
-        icon("website"),
-        el("span", { class: "zur-website-text" }, "Zur Website"),
+        {
+          class: "bereichname",
+          href: "#",
+          title: "Zur Übersicht der Verwaltung",
+        },
+        "Verwaltung",
       ),
       el(
         "div",
         { class: "kopf-rechts" },
-        sichtbar &&
-          konto &&
-          el(
-            "a",
-            {
-              class: "konto",
-              href: "#konto",
-              "data-name": konto.name,
-              ...(window.location.hash.startsWith("#konto") && {
-                "aria-current": "page",
-              }),
-            },
-            avatar(konto.name, { bildUrl: konto.bildUrl }),
-            el(
-              "div",
-              { class: "konto-text" },
-              el(
-                "p",
-                { class: "kontoname" },
-                el("span", { class: "nur-leser" }, "Mein Konto: "),
-                konto.name,
-              ),
-              el("p", { class: "mini leise" }, konto.rolle),
-            ),
-          ),
         sichtbar && konto && suche?.(),
-        sichtbar &&
-          konto &&
-          knopf(el("span", { class: "abmelden-text" }, "Abmelden"), {
-            symbol: "abmelden",
-            klein: true,
-            onclick: beiAbmelden,
-          }),
+        // Das Profil mit Menü steht vor dem Umschalter, wie das Konto-Menü auf der Website
+        sichtbar && konto && erstelleKontoMenue({ konto, beiAbmelden }),
         // Ganz rechts, wie im Kopf der Website
         themaSchalter(),
       ),
@@ -296,17 +390,6 @@ function erstelleBereichswahl({
           ),
       );
     }),
-    // Am schmalen Handy hat «Zur Website» in der Logozeile keinen Platz (geruest.css): Es steht dann als letzter Eintrag hier (#669)
-    el(
-      "li",
-      { class: "bereichswahl-website" },
-      link(
-        "/",
-        [icon("website"), el("span", {}, "Zur Website")],
-        false,
-        "bereichswahl-bereich",
-      ),
-    ),
   );
   const panel = el(
     "div",

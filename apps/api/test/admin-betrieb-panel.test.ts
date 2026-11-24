@@ -260,12 +260,12 @@ describe("Quelltext der Bereiche (#593)", () => {
     expect(quelle("zeitregeln.js")).toContain("mitRueckgaengig");
   });
 
-  test("Lager: ohne Lagerleitung ist «Aktivieren» gesperrt und erklärt", () => {
-    const lager = quelle("lager-detail.js");
-    expect(lager).toContain('rolle("lagerleitung") > 0');
-    expect(lager).toContain("aktivieren.haupt.disabled = true");
+  test("Lager: ohne Lagerleitung ist «Lager starten» gesperrt und erklärt", () => {
+    const lager = quelle("lager-status.js");
+    expect(lager).toContain('m.rolle === "lagerleitung"');
+    expect(lager).toContain("hauptKnopf.disabled = true");
     expect(lager).toContain('"aria-describedby", "lg-ohne-leitung"');
-    expect(lager).toContain("Zum Aktivieren fehlt die Lagerleitung");
+    expect(lager).toContain("Zum Starten fehlt die Lagerleitung");
   });
 
   test("Samstagsangaben der Stufen: 403 auf eine fremde Stufe führt zur eigenen Stufe", () => {

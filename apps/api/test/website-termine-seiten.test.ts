@@ -117,6 +117,24 @@ describe("Stil und Module der Seiten", () => {
     expect(css).toContain("forced-colors: active");
     expect(css).not.toMatch(/url\(|@import|https?:\/\//);
   });
+  test("Mein Konto (#689) lädt seinen eigenen Stil, nur diese Seite; er gilt unter .tm, mit Bewegung nur bei erlaubter Bewegung", () => {
+    const konto = seiten.find(([d]) => d === "konto/index.html")![1];
+    expect(konto).toContain(
+      '<link rel="stylesheet" href="/website/konto.css">',
+    );
+    for (const [d, inhalt] of seiten) {
+      if (d !== "konto/index.html") expect(inhalt).not.toContain("konto.css");
+    }
+    const k = readFileSync(new URL("konto.css", PUBLIC), "utf8");
+    expect(k).not.toMatch(/url\(|@import|https?:\/\//);
+    expect(k).toContain("prefers-reduced-motion: no-preference");
+    expect(k).toContain("forced-colors: active");
+    // Jede Regel steht unter .tm, nie global
+    const regeln = k
+      .replace(/\/\*[\s\S]*?\*\//g, "")
+      .match(/^\s*\.[^{}]*\{/gm)!;
+    for (const r of regeln) expect(r.trim(), r).toMatch(/^\.tm /);
+  });
   test("kein innerHTML, kein eval in den Modulen", () => {
     for (const n of readdirSync(PUBLIC).filter((n) =>
       /^(tm|termine|termine-link|vorschlag|anlass|anmeldung|auswahl)\.js$/.test(

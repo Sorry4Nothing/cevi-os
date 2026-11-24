@@ -52,7 +52,7 @@ Stand: Basis `feature/662-protokoll-aenderungen`. «Neu» heisst: mit #671 gebau
 
 ## Was #671 baut
 
-1. Website `/konto`: Name und Rolle lesen, Startpasswort und Passwort ändern, Datenschutz zur Kenntnis nehmen, Telefon, Mitteilungsschalter, andere Geräte abmelden, Abmelden, Links zu Kalender, Datenschutz, Support, Konto löschen.
+1. Website `/konto` (neu gestaltet in #689, zweispaltig mit Profilkarte; Barrierefreiheit Abschnitt 65): Name und Rolle lesen, Startpasswort und Passwort ändern, Datenschutz zur Kenntnis nehmen, Telefon, Mitteilungsschalter, andere Geräte abmelden, Abmelden, Links zu Kalender, Datenschutz, Support, Konto löschen.
 2. Website `/termin/?id=`: Termin mit Eckdaten, Antwort je Kind, Antwort der Leitung, Kontakt, Zahlen und Listen für Leitende; Termine in der Liste führen dorthin, wenn die Person angemeldet ist.
 3. Verwaltung: Räume, «Meine Anfragen»: Raum anfragen, eigene Anfragen mit Status ansehen und zurückziehen.
 4. Die Adressen `termin` und `konto` sind reserviert; `docs/website-auslieferung.md` und `docs/verwaltung-geruest.md` sind nachgeführt.

@@ -149,14 +149,15 @@ export const ressortOptionen = (ressorts, leer = "Kein Ressort") => [
 // Person mit Gesicht (Initialen), Name daneben; ohne Person steht der Hinweis
 export function personZeile(p, { automatisch = false, leer = "Niemand" } = {}) {
   if (!p) return el("span", { class: "leise" }, leer);
+  const name = personName(p);
   return el(
     "span",
     { class: "la-person" },
     el(
       "span",
       { class: "la-person-zeile" },
-      avatar(personName(p), { hell: true }),
-      el("span", {}, personName(p)),
+      avatar(name, { hell: true, bildUrl: p.bildUrl }),
+      el("span", {}, name),
     ),
     automatisch &&
       el("span", { class: "leise klein" }, "als Leitung des Ressorts"),

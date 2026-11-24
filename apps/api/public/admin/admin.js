@@ -586,7 +586,8 @@ async function navigiere() {
   // Ein neuer Container je Navigation: Späte Antworten des alten landen in einem abgehängten Knoten
   const container = el("div", { id: "bereich" });
   document.getElementById("bereich").replaceWith(container);
-  kopf.h1.focus();
+  // Ohne Scrollen: Die Stelle der Seite setzt stelleWiederHer() (oder der Bereich, der sie behält)
+  kopf.h1.focus({ preventScroll: true });
   let modul;
   try {
     modul = await import(unter.modul ?? "./platzhalter.js");
