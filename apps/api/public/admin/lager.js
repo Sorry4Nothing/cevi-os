@@ -12,6 +12,7 @@ import {
   ID,
   nichtGefunden,
   statusChip,
+  vergissRahmen,
   zeigeWartende,
   zeitraum,
 } from "./lager-gemeinsam.js";
@@ -43,6 +44,8 @@ const STATUS_FOLGE = ["entwurf", "aktiv", "abgeschlossen", "archiviert"];
 
 function liste(bereich, ctx) {
   zeigeWartende(ctx);
+  // Wer die Liste öffnet, sieht beim nächsten Lager den frischen Stand
+  vergissRahmen();
   ctx.kopfAktion(
     knopf("Neues Lager", {
       art: "haupt",

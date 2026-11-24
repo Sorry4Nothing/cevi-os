@@ -10,7 +10,7 @@ import {
   tabelle,
 } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
-import { skeletonListe } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { feldFehler, haenge, meldung } from "./lager-gemeinsam.js";
 import {
   druckKnopf,
@@ -134,7 +134,14 @@ export function zeige(bereich, ctx, lagerId, lager) {
       return { artikel, mitglieder };
     },
     (daten, neu) => bereich.append(zeichne(ctx, lagerId, lager, daten, neu)),
-    { skeleton: () => skeletonListe({ zeilen: 6 }) },
+    {
+      skeleton: skeletonVon({
+        reiter: 3,
+        filter: 3,
+        inhalt: "liste",
+        zeilen: 5,
+      }),
+    },
   );
 }
 

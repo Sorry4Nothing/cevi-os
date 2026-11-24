@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { el, icon, knopf } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { ADRESSE, meldung } from "./lager-gemeinsam.js";
 import { MODULE } from "./lager-module.js";
 
@@ -200,6 +200,6 @@ export function zeige(bereich, ctx, id) {
         einstellungen(ctx, einst),
       );
     },
-    { skeleton: () => skeletonListe({ zeilen: 5 }) },
+    { skeleton: skeletonVon({ inhalt: "flaechen", zeilen: 2 }) },
   );
 }

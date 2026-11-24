@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { chip, el, feld, knopf, tabelle, zeit } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { feldFehler, haenge, meldung } from "./lager-gemeinsam.js";
 import { angabe, lagerPfad } from "./lager-m-hilfen.js";
 import { leerKarte } from "./zustaende.js";
@@ -77,7 +77,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
   ctx.lade(
     () => anfrage("GET", lagerPfad(lagerId, "/wetter")),
     (daten, neu) => haenge(bereich, zeichne(ctx, lagerId, lager, daten, neu)),
-    { skeleton: () => skeletonListe({ zeilen: 5 }) },
+    { skeleton: skeletonVon({ inhalt: "flaechen", zeilen: 2 }) },
   );
 }
 

@@ -11,7 +11,7 @@ import {
   tabelle,
 } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
-import { skeletonTabelle } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { leerKarte } from "./zustaende.js";
 import {
   beschrifteZellen,
@@ -142,7 +142,12 @@ function alleAnsicht(inhalt, ctx, lagerId, lager, lade) {
     },
     (d, neu) => zeichneAlle(inhalt, ctx, lagerId, lager, d, neu),
     {
-      skeleton: () => skeletonTabelle({ spalten: 6, zeilen: 4, avatar: false }),
+      skeleton: skeletonVon({
+        filter: 3,
+        inhalt: "tabelle",
+        zeilen: 4,
+        spalten: 6,
+      }),
     },
   );
 }
@@ -468,7 +473,7 @@ function eigeneAnsicht(inhalt, ctx, lagerId, lager, lade) {
       }),
     (liste, neu) => zeichneEigene(inhalt, ctx, lagerId, lager, liste, neu),
     {
-      skeleton: () => skeletonTabelle({ spalten: 4, zeilen: 3, avatar: false }),
+      skeleton: skeletonVon({ inhalt: "tabelle", zeilen: 3, spalten: 4 }),
     },
   );
 }

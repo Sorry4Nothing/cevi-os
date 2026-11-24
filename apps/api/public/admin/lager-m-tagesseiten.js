@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { auswahl, dialogFormular, el, feld, knopf } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { ADRESSE, haenge, meldung } from "./lager-gemeinsam.js";
 import {
   aussenLink,
@@ -70,7 +70,7 @@ export function zeige(bereich, ctx, lagerId, lager) {
       return { tage: liste.tage, tag, detail, mitglieder };
     },
     (daten, neu) => haenge(bereich, zeichne(ctx, lagerId, lager, daten, neu)),
-    { skeleton: () => skeletonListe({ zeilen: 6 }) },
+    { skeleton: skeletonVon({ inhalt: "liste", zeilen: 5 }) },
   );
 }
 

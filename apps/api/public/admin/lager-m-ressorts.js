@@ -1,6 +1,6 @@
 import { anfrage } from "./api.js";
 import { auswahl, dialogFormular, el, feld, knopf } from "./dom.js";
-import { skeletonListe } from "./lader.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { ADRESSE, haenge, ID, nichtGefunden } from "./lager-gemeinsam.js";
 import { istVersionKonflikt, schreibFehlertext } from "./lager-konflikt.js";
 import { ansichtVon } from "./rueckgaengig.js";
@@ -241,7 +241,7 @@ function liste(bereich, ctx, lager) {
       });
       bereich.append(sl.wurzel ?? sl);
     },
-    { skeleton: () => skeletonListe({ zeilen: 5 }) },
+    { skeleton: skeletonVon({ knopf: true, inhalt: "liste", zeilen: 5 }) },
   );
 }
 
@@ -521,7 +521,7 @@ function detail(bereich, ctx, lager, ressortId) {
         loeschen && el("div", { class: "lg-fuss" }, loeschen),
       );
     },
-    { skeleton: () => skeletonListe({ zeilen: 4 }) },
+    { skeleton: skeletonVon("detail") },
   );
 }
 

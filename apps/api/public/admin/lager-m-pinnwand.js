@@ -11,7 +11,8 @@ import {
   knopf,
 } from "./dom.js";
 import { datumZeitFeld } from "./datumsfeld.js";
-import { skeletonListe } from "./lader.js";
+import { fuelle } from "./lager-bewegung.js";
+import { skeletonVon } from "./lager-skeleton.js";
 import { leerKarte } from "./zustaende.js";
 import { nichtGefunden } from "./lager-gemeinsam.js";
 import {
@@ -82,7 +83,14 @@ export function zeige(bereich, ctx, lagerId, lagerRoh) {
       return { lager, beitraege, mitglieder, ressorts, gruppen };
     },
     (d, neu) => zeichne(bereich, ctx, lagerId, d, neu),
-    { skeleton: () => skeletonListe({ zeilen: 3 }) },
+    {
+      skeleton: skeletonVon({
+        knopf: true,
+        reiter: 2,
+        inhalt: "flaechen",
+        zeilen: 2,
+      }),
+    },
   );
 }
 
@@ -451,11 +459,13 @@ function umfrage({ ctx, lagerId, lager, b, zeichneNeu, neu }) {
     const ergebnis = el(
       "div",
       { class: "lg-sm-ergebnis" },
-      el("progress", {
-        max: String(total),
-        value: String(o.stimmen),
-        "aria-label": `${o.text}: ${o.stimmen} Stimmen`,
-      }),
+      fuelle(
+        el("progress", {
+          max: String(total),
+          "aria-label": `${o.text}: ${o.stimmen} Stimmen`,
+        }),
+        o.stimmen,
+      ),
       el(
         "span",
         { class: "klein lg-zahlen" },

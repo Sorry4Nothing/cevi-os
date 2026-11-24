@@ -1,5 +1,6 @@
 import { anfrage } from "./api.js";
 import { auswahl, el, icon, knopf } from "./dom.js";
+import { skeletonListe } from "./lader.js";
 import { ADRESSE, meldung } from "./lager-gemeinsam.js";
 import { MODULE, suchbegriff } from "./lager-module.js";
 
@@ -70,7 +71,19 @@ export function zeige(bereich, ctx, id, lager) {
   const status = el("p", { class: "klein leise", role: "status" });
   const ergebnis = el("ul", { class: "lg-liste lg-treffer" });
   const fehler = el("p", { class: "feld-fehler", role: "alert", hidden: true });
+  // Läuft die Suche länger als eine Viertelsekunde, stehen Platzhalter an Stelle der Treffer (wie beim Laden anderer Seiten)
+  const platzhalter = el(
+    "div",
+    { class: "sk-huelle", hidden: true, "aria-hidden": "true" },
+    skeletonListe({ zeilen: 4 }),
+  );
   let lauf = 0;
+  let platzhalterTimer = 0;
+  const ende = () => {
+    window.clearTimeout(platzhalterTimer);
+    platzhalter.hidden = true;
+    absenden.removeAttribute("aria-busy");
+  };
 
   async function suche() {
     const frage = eingabe.value.trim();
@@ -86,6 +99,12 @@ export function zeige(bereich, ctx, id, lager) {
     }
     const meine = ++lauf;
     status.textContent = "Suche läuft …";
+    absenden.setAttribute("aria-busy", "true");
+    window.clearTimeout(platzhalterTimer);
+    platzhalterTimer = window.setTimeout(() => {
+      ergebnis.replaceChildren();
+      platzhalter.hidden = false;
+    }, 250);
     const abfrage = new URLSearchParams({ q: frage });
     if (art.eingabe.value) abfrage.set("typ", art.eingabe.value);
     try {
@@ -94,6 +113,7 @@ export function zeige(bereich, ctx, id, lager) {
         `/api/v1/lager/${id}/suche?${abfrage}`,
       );
       if (meine !== lauf) return;
+      ende();
       ergebnis.replaceChildren(
         ...treffer.map((t) => {
           const adresse = trefferAdresse(id, t, sichtbar);
@@ -123,6 +143,7 @@ export function zeige(bereich, ctx, id, lager) {
             : `${treffer.length} Treffer.`;
     } catch (f) {
       if (meine !== lauf) return;
+      ende();
       status.textContent = "";
       fehler.textContent =
         f?.status === 429 ? "Zu viele Suchen. Warte eine Minute." : meldung(f);
@@ -155,6 +176,7 @@ export function zeige(bereich, ctx, id, lager) {
     ),
     fehler,
     status,
+    platzhalter,
     ergebnis,
   );
   if (suchbegriff.frage.length >= 2) suche();
