@@ -831,6 +831,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "user_agent",
       "user_id",
       "impersonated_by",
+      "zweiter_faktor_geprueft",
     ],
   },
   stufe: {
