@@ -24,7 +24,7 @@ import {
   type Tx,
 } from "../../lager/sync.js";
 import {
-  anzeigeNamenLager,
+  anzeigeNamenUndBilder,
   ladeZimmer,
   nurEigenes,
   versionAbfrage,
@@ -147,14 +147,14 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
         const lagerId = zugriff.lager.id;
         const abteilungId = zugriff.lager.abteilungId;
         const eigenes = nurEigenes(zugriff);
-        const [zeilen, namen, offen] = await Promise.all([
+        const [zeilen, { namen, bilder }, offen] = await Promise.all([
           ladeZimmer(
             db,
             lagerId,
             abteilungId,
             eigenes ? { nurPerson: zugriff.personId } : {},
           ),
-          anzeigeNamenLager(
+          anzeigeNamenUndBilder(
             db,
             lagerId,
             darf(zugriff, "teilnehmer.bearbeiten"),
@@ -163,7 +163,11 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
         ]);
         const sortiert = (z: ZimmerZeile) =>
           z.mitglieder
-            .map((m) => ({ ...m, name: namen.get(m.id) }))
+            .map((m) => ({
+              ...m,
+              name: namen.get(m.id),
+              bildUrl: bilder.get(m.id) ?? null,
+            }))
             .filter((m): m is typeof m & { name: string } => !!m.name)
             .sort((a, b) => a.name.localeCompare(b.name, "de"));
         if (eigenes) {
@@ -173,7 +177,10 @@ export function erstelleZimmerRouten({ db }: { db: Db }) {
               version: z.version,
               name: z.name,
               art: z.art,
-              mitglieder: sortiert(z).map((m) => ({ name: m.name })),
+              mitglieder: sortiert(z).map((m) => ({
+                name: m.name,
+                bildUrl: m.bildUrl,
+              })),
             })),
           });
         }
