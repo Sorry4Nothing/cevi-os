@@ -5,7 +5,7 @@ import { describe, expect, test } from "vitest";
 // Rückmeldungen nach einer Aktion sind Toasts (#761): `ctx.melde(text, art, aktion)` (oder `melde` aus melden.js). Diese Prüfung hindert daran, dass neue Rückmeldungen als eigene Kästen im Inhalt entstehen.
 // Sie zählt je Datei die Elemente mit role="status", role="alert", aria-live und die Klasse «hinweis». Jede Datei darf genau so viele haben, wie hier mit Grund stehen (genau, damit die Liste nicht veraltet).
 // Kommt eines dazu: Ist es das Ergebnis einer Aktion, ist es ein Toast. Passt es zu einem Grund unten, trage die neue Zahl samt Grund ein; sonst gehört es nicht in den Inhalt.
-// Das Verhalten der Toasts im Browser prüft die Skriptprobe in docs/barrierefreiheit.md, Abschnitt 82.
+// Das Verhalten der Toasts im Browser prüft die Skriptprobe in docs/barrierefreiheit.md, Abschnitt 84.
 
 const WURZEL = new URL("..", import.meta.url).pathname.replace(
   /^\/([A-Za-z]:)/,

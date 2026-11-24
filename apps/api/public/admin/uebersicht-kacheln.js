@@ -1,6 +1,6 @@
 // Bausteine der Übersicht (#583, neu gebaut in #620 als Dashboard): Karte, Aufgabenliste, Kennzahlenband und Zustandsstreifen. Jede Funktion baut aus der Antwort von GET /api/v1/admin/uebersicht einen Knoten. Fehlt ein Teil in der Antwort, fehlt der Baustein (kein Recht, siehe docs/rechte.md); steht er in «fehlt», zeigt die Karte für sich «Nochmals versuchen», der Rest bleibt stehen. Das Hauptdiagramm steht in uebersicht-verlauf.js, Kommendes, Aktivität und Teilnahme in uebersicht-kommend.js.
 // Vorlagen für Aufbau und Zustände (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben als kompakte Liste nach dem, was sie von dir brauchen, mit Gruppen und Zahl), «stats-headline» und «stats-feature» (Kennzahlen in einem Band, durch feine Linien geteilt, Zahl gross, Veränderung, kleine Grafik) und «status-footer» (schmaler Streifen mit Zustand als Wort und Symbol).
-import { chip, el, icon, knopf } from "./dom.js";
+import { chip, el, icon, knopf, vorZeit } from "./dom.js";
 import { BEREICHE, darfSehen } from "./navigation.js";
 import { istAbteilungsleitung, istEntwickler } from "./sicht.js";
 import {
@@ -22,19 +22,8 @@ const fDatumZeit = de({
   minute: "2-digit",
 });
 
-// «vor 5 Minuten», «vor 3 Stunden», «vor 4 Tagen»
-export function vor(iso, jetzt = Date.now()) {
-  const min = Math.max(
-    0,
-    Math.round((jetzt - new Date(iso).getTime()) / 60_000),
-  );
-  if (min < 1) return "gerade eben";
-  if (min < 60) return `vor ${min} ${min === 1 ? "Minute" : "Minuten"}`;
-  const std = Math.round(min / 60);
-  if (std < 48) return `vor ${std} ${std === 1 ? "Stunde" : "Stunden"}`;
-  const tage = Math.round(std / 24);
-  return `vor ${tage} Tagen`;
-}
+// «vor 5 Minuten», «gestern», «vor 2 Wochen»: die Einheit wächst mit dem Abstand (dom.js)
+export const vor = vorZeit;
 
 // Wohin ein Verweis führt: [Bereich, Unterseite]. Der Eintrag ist nur dann ein Link, wenn die Person die Seite sehen darf
 export function ziel(ctx, [bereich, unter]) {

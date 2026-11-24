@@ -17,6 +17,7 @@ import { erstelleEditorIchRouten } from "./ich.js";
 import { erstelleEditorMedienRouten } from "./medien.js";
 import { erstelleOrteRouten } from "./orte.js";
 import { erstelleSeitenRouten } from "./seiten.js";
+import { erstelleTeamRouten } from "./team.js";
 import { erstelleSeitenInhaltRouten } from "./seiten-inhalt.js";
 import { erstelleVorlagenRouten } from "./vorlagen.js";
 import { erstelleWeiterleitungsRouten } from "./weiterleitungen.js";
@@ -61,6 +62,7 @@ export function erstelleEditorRouten({
     .route("/orte", erstelleOrteRouten({ db, ortssuche }))
     .route("/medien", erstelleEditorMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }))
+    .route("/", erstelleTeamRouten({ db }))
     .route("/", erstelleVorlagenRouten({ db }))
     .route("/weiterleitungen", erstelleWeiterleitungsRouten({ db }));
 }

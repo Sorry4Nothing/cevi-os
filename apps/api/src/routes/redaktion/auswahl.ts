@@ -3,7 +3,8 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
-import { ort, personTag, tag, user } from "../../db/schema.js";
+import { redaktionBildUrl } from "../../bild.js";
+import { ort, personTag, profilbild, tag, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
 import {
@@ -91,10 +92,13 @@ export function erstelleAuswahlRouten({ db }: { db: Db }) {
             funktion: personTag.rolle,
             gruppe: tag.name,
             tagId: tag.id,
+            // Das Bild holt die Auswahl einzeln über /personen/:id/bild (team.ts, #760)
+            bildUrl: redaktionBildUrl,
           })
           .from(personTag)
           .innerJoin(user, eq(user.id, personTag.userId))
           .innerJoin(tag, eq(tag.id, personTag.tagId))
+          .leftJoin(profilbild, eq(profilbild.userId, user.id))
           .where(
             and(
               aktivesKonto(person.abteilungId),

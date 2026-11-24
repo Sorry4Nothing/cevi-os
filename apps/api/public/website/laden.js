@@ -5,6 +5,7 @@
 // Ansichten sind reine Funktionen von Daten zu einer Beschreibung (tm.js: h, baue): kein innerHTML, kein style-Attribut (CSP). Stil: laden.css. Auswahlfelder wertet auswahl.js auf.
 import "./auswahl.js";
 import { api, bandView, baue, h, loginLink, sk, skelett } from "./tm.js";
+import { toast } from "./toast.js";
 
 const SPEICHER = "laden-korb";
 // Nach der Anmeldung geht der Artikel («a:<id>») oder die Bestellübersicht («1») wieder auf
@@ -304,13 +305,6 @@ export const kontoView = (z) =>
           },
           "Abmelden",
         ),
-        z.kontoFehler
-          ? h(
-              "p",
-              { class: "laden-konto-fehler", role: "alert" },
-              z.kontoFehler,
-            )
-          : null,
       )
     : z.sitzungsHinweis
       ? bandView({ art: "wa", symbol: "warnung", ...z.sitzungsHinweis })
@@ -956,14 +950,10 @@ export function uebersichtView(z) {
         ),
         zu,
       ),
-      bandView({
-        art: "ok",
-        symbol: "haken",
-        titel: "Deine Bestellung ist eingegangen.",
-        text: t.bestaetigung
-          ? t.bestaetigung.replaceAll("{uebergabe}", b.uebergabe)
-          : null,
-      }),
+      // Dass die Bestellung eingegangen ist, sagt der Toast; hier steht, was die Abteilung dazu schreibt
+      t.bestaetigung
+        ? h("p", {}, t.bestaetigung.replaceAll("{uebergabe}", b.uebergabe))
+        : null,
       positionenView(b),
       h(
         "div",
@@ -1185,7 +1175,6 @@ export function bestellungenView(b) {
   }
   return [
     titel,
-    b.meldung ? bandView({ rolle: "alert", ...b.meldung }) : null,
     h(
       "ul",
       { class: "laden-liste" },
@@ -1246,6 +1235,24 @@ export function bestellungenView(b) {
   ];
 }
 
+// Fehler, die der Warenkorb selbst auslöst (Preis, Verfügbarkeit, Übergabe, Mindestbestellung): Sie stehen im Korb, bis die Person ihn ändert. Alles andere (kein Netz, zu viele Versuche, Fehler des Servers) ist ein Toast (#762)
+const BEKANNT = [
+  "BESTELL_LIMIT",
+  "ARTIKEL_NICHT_VERFUEGBAR",
+  "GROESSE_NICHT_VERFUEGBAR",
+  "VARIANTE_UNGUELTIG",
+  "UEBERGABE_UNBEKANNT",
+  "PREIS_GEAENDERT",
+  "STATUS_UNGUELTIG",
+  "LADEN_GESCHLOSSEN",
+  "MINDESTBESTELLUNG",
+  "POSITIONEN_ZU_VIELE",
+  "MENGE_ZU_GROSS",
+];
+export const istAmKorb = (r) =>
+  r.status !== 0 && r.status !== 429 && BEKANNT.includes(r.daten?.code);
+const alsText = (m) => [m.titel, m.text].filter(Boolean).join(" ");
+
 // Was die Person nach einem Fehler beim Bestellen liest
 export function fehlerMeldung(r) {
   const code = r.daten?.code;
@@ -1265,19 +1272,7 @@ export function fehlerMeldung(r) {
       text: "Dein Warenkorb bleibt erhalten. Prüfe die Verbindung und sende nochmals.",
     };
   }
-  const bekannt = [
-    "BESTELL_LIMIT",
-    "ARTIKEL_NICHT_VERFUEGBAR",
-    "GROESSE_NICHT_VERFUEGBAR",
-    "VARIANTE_UNGUELTIG",
-    "UEBERGABE_UNBEKANNT",
-    "PREIS_GEAENDERT",
-    "STATUS_UNGUELTIG",
-    "LADEN_GESCHLOSSEN",
-    "MINDESTBESTELLUNG",
-    "POSITIONEN_ZU_VIELE",
-    "MENGE_ZU_GROSS",
-  ];
+  const bekannt = BEKANNT;
   return {
     art: "fe",
     symbol: "warnung",
@@ -1556,7 +1551,6 @@ function start(doc, wurzel) {
   function sitzungEnde(ansage, hinweis) {
     Object.assign(z, OHNE_SITZUNG, {
       bestellungen: { ...OHNE_SITZUNG.bestellungen },
-      kontoFehler: null,
       sitzungsHinweis: hinweis ?? null,
     });
     setze("localStorage", SPEICHER, null);
@@ -1599,7 +1593,6 @@ function start(doc, wurzel) {
     }
   }
   async function meldeAb() {
-    z.kontoFehler = null;
     let ok;
     try {
       const r = await fenster.fetch("/api/auth/sign-out", {
@@ -1618,12 +1611,11 @@ function start(doc, wurzel) {
       ok = false;
     }
     if (!ok) {
-      z.kontoFehler = "Abmelden hat nicht geklappt. Versuche es nochmals.";
-      zeichneKonto();
-      sage(z.kontoFehler);
+      toast("Abmelden hat nicht geklappt. Versuche es nochmals.", "fehler");
       return;
     }
     sitzungEnde("Du bist abgemeldet.");
+    toast("Abgemeldet.");
     // Der Fokus geht zum Weg zurück in die Anmeldung
     kopf.querySelector("a")?.focus();
   }
@@ -1754,7 +1746,7 @@ function start(doc, wurzel) {
       zeichneKopf();
       zeichneKorb();
       karteDlg.querySelector("h2")?.focus();
-      sage("Deine Bestellung ist eingegangen.");
+      toast("Bestellung gesendet.");
       void ladeBestellungen();
       return;
     }
@@ -1765,12 +1757,16 @@ function start(doc, wurzel) {
         ABGELAUFEN,
       );
       return;
-    } else {
+    }
+    if (istAmKorb(r)) {
       z.meldung = fehlerMeldung(r);
       // Preise, Verfügbarkeit oder Übergabe haben sich geändert: den Laden neu lesen, damit Korb und Summe wieder stimmen
       if (r.status === 409 || r.status === 400 || r.status === 422) {
         await pruefeKonto();
       }
+    } else {
+      // Kein Netz, zu viele Versuche, Fehler des Servers: Der Korb ist in Ordnung, ein Toast meldet es
+      toast(alsText(fehlerMeldung(r)), "fehler");
     }
     zeichneKopf();
     zeichneKorb();
@@ -1780,15 +1776,14 @@ function start(doc, wurzel) {
     const r = await api(`/laden/bestellungen/${id}`, { methode: "DELETE" });
     if (r.status === 204) {
       await ladeBestellungen();
-      sage("Die Bestellung ist storniert.");
+      toast("Bestellung storniert.");
       return;
     }
     if (r.status === 401) {
       sitzungEnde("Du bist nicht mehr angemeldet.", ABGELAUFEN);
       return;
     }
-    z.bestellungen.meldung = fehlerMeldung(r);
-    zeichneListe();
+    toast(alsText(fehlerMeldung(r)), "fehler");
   }
 
   function ordne() {

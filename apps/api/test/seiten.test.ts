@@ -172,7 +172,7 @@ describe("Verwaltung unter /admin", () => {
     expect(String(admin["rahmen.js"])).toContain('"aria-pressed"');
   });
 
-  // Entscheid des Auftraggebers (#570, #761): Rückmeldungen sind Toasts; Erfolg und Info 4 s, Warnung und Fehler 8 s, mit Aktion bleiben sie (docs/barrierefreiheit.md 82)
+  // Entscheid des Auftraggebers (#570, #761): Rückmeldungen sind Toasts; Erfolg und Info 4 s, Warnung und Fehler 8 s, mit Aktion bleiben sie (docs/barrierefreiheit.md 84)
   test("Rückmeldungen: Erfolg und Info 4 Sekunden, Warnung und Fehler 8, mit Aktion bis zum Schliessen", async () => {
     // dom.js hängt beim Laden einen Klick-Zuhörer an document: Ohne Browser genügt eine Attrappe
     vi.stubGlobal("document", { addEventListener: () => {} });

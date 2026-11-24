@@ -132,7 +132,7 @@ describe("Artikelfenster", () => {
     const ohne = html(tm.h("div", {}, laden.kontoView({ ...z, name: null })));
     expect(ohne).toContain("Angemeldet");
     expect(ohne).not.toContain("Angemeldet als");
-    // Fehler beim Abmelden steht als Text
+    // Fehler beim Abmelden ist ein Toast (#762), kein Text in der Zeile
     expect(
       html(
         tm.h(
@@ -141,7 +141,7 @@ describe("Artikelfenster", () => {
           laden.kontoView({ ...z, kontoFehler: "Nicht geklappt." }),
         ),
       ),
-    ).toContain("Nicht geklappt.");
+    ).not.toContain("Nicht geklappt.");
     // Ohne Sitzung: keine Zeile, keine Bedienelemente; nach Ablauf ein Hinweis
     const aus = zustand("aus");
     expect(laden.kontoView(aus)).toBeNull();

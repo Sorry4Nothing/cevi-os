@@ -2,6 +2,7 @@
 // Das Passwort geht nur als JSON im Body hin, nie in eine Adresse; es wird nach dem Absenden aus dem Feld gelöscht und nirgends gespeichert oder protokolliert.
 import { sicheresZiel } from "./weiter.js";
 import { band, el, holeMitFrist, symbol } from "./ui.js";
+import { merkeToast, toast } from "./toast.js";
 
 const $ = (id) => document.getElementById(id);
 const meldung = $("meldung");
@@ -27,7 +28,8 @@ const TEXTE = {
   codeFalsch: ["Der Code stimmt nicht.", "Prüfe ihn und versuche es nochmals."],
   abgelaufen: ["Die Anmeldung ist abgelaufen.", "Melde dich nochmals an."],
 };
-const ART = { zuViele: "wa", abgelaufen: "", netz: "fe" };
+// Falsche Angaben stehen am Feld und oben im Band; was die Anmeldung als Ganzes betrifft (Netz, Sperre, abgelaufen) ist ein Toast (#762)
+const TOAST = { zuViele: "fehler", netz: "fehler", abgelaufen: "info" };
 
 const felder = [benutzername, passwort, code];
 
@@ -44,13 +46,12 @@ function raeumeFehler() {
 // Eine Meldung oben, die der Screenreader sofort ansagt; der Fokus bleibt, wo er ist, ausser bei der Zusammenfassung (sie trägt ihn)
 function zeigeMeldung(schluessel, markiere = []) {
   const [titel, text] = TEXTE[schluessel];
-  const b = band(
-    ART[schluessel] ?? "fe",
-    titel,
-    text,
-    ART[schluessel] === "" ? "info" : "warnung",
-  );
-  b.setAttribute("role", ART[schluessel] === "" ? "status" : "alert");
+  if (TOAST[schluessel]) {
+    toast(`${titel} ${text}`, TOAST[schluessel]);
+    return;
+  }
+  const b = band("fe", titel, text, "warnung");
+  b.setAttribute("role", "alert");
   meldung.replaceChildren(b);
   for (const f of markiere) f.setAttribute("aria-invalid", "true");
 }
@@ -118,7 +119,9 @@ async function sende(pfad, body) {
 }
 
 // Ein Konto mit Startpasswort darf bis zum Wechsel nur sein Profil lesen (Pflichtwechsel): Die Anmeldung führt dann zu «Mein Konto», wo der Wechsel steht. Auf der Zielseite sähe die Person nichts von der Anmeldung (der Kopf bekommt ein 403)
+// Der Toast «Angemeldet.» erscheint auf der Seite, zu der es weitergeht (#762)
 async function weiter() {
+  merkeToast("Angemeldet.");
   let sitzung = null;
   try {
     const r = await fetch("/api/auth/get-session", {
