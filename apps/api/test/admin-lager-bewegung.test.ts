@@ -6,6 +6,7 @@ type Modul = Record<string, (...a: any[]) => any>; // eslint-disable-line @types
 let bewegung: Modul;
 let skeleton: Modul & { SKELETON_ARTEN: string[] };
 let register: { MODULE: { schluessel: string }[] };
+let status: Modul & { STATUS_SATZ: Record<string, string> };
 
 const quelle = (name: string) =>
   readFileSync(new URL(`../public/admin/${name}`, import.meta.url), "utf8");
@@ -18,6 +19,7 @@ beforeAll(async () => {
   bewegung = await lade("lager-bewegung.js");
   skeleton = (await lade("lager-skeleton.js")) as typeof skeleton;
   register = (await lade("lager-module.js")) as unknown as typeof register;
+  status = (await lade("lager-status.js")) as typeof status;
   vi.unstubAllGlobals();
 });
 
@@ -149,5 +151,86 @@ describe("Lager: Bewegung", () => {
     vi.stubGlobal("MutationObserver", undefined);
     expect(typeof bewegung.beobachteListen!({})).toBe("function");
     vi.unstubAllGlobals();
+  });
+});
+
+describe("Lager: Navigation ohne Hochspringen (#693)", () => {
+  test("der Rahmen meldet den Klick in der Navigation und bei Reitern, verlauf.js scrollt dann nicht nach oben", () => {
+    const r = quelle("lager-rahmen.js");
+    expect(r).toMatch(/behalteStelle\(\s*a\.classList\.contains\("tab"\)/);
+    expect(r).toMatch(/nimmBehaltene\(\)/);
+    expect(r).toMatch(/haltStelle\(/);
+    const v = quelle("verlauf.js");
+    expect(v).toMatch(/export function behalteStelle/);
+    expect(v).toMatch(/if \(frischBehalten\(\)\)/);
+    // Der Fokus auf die Überschrift scrollt nicht von selbst
+    expect(quelle("admin.js")).toMatch(
+      /kopf\.h1\.focus\(\{ preventScroll: true \}\)/,
+    );
+  });
+
+  test("die Navigation klappt je Gruppe auf und zu und hat keine eigene dicke Leiste: Gruppen sind Knöpfe mit aria-expanded", () => {
+    const r = quelle("lager-rahmen.js");
+    expect(r).toMatch(/"aria-expanded": String\(offen\)/);
+    expect(r).toContain("offeneGruppen");
+    const css = quelle("lager-rahmen.css");
+    expect(css).toMatch(/\.lg-nav-auf \{[^}]*grid-template-rows: 0fr/);
+    // Keine eigenen Regeln für Scrollleisten: Sie stehen nur in tokens.css
+    expect(css).not.toMatch(/scrollbar|::-webkit-scrollbar/);
+  });
+});
+
+describe("Lager: Status mit klaren Schritten (#693)", () => {
+  test("je Status genau eine Hauptaktion, die übrigen Schritte im Menü", () => {
+    expect(status.schritteFuer!("entwurf")).toEqual({
+      haupt: "starten",
+      mehr: ["archivieren"],
+    });
+    expect(status.schritteFuer!("aktiv")).toEqual({
+      haupt: "abschliessen",
+      mehr: ["archivieren"],
+    });
+    expect(status.schritteFuer!("abgeschlossen")).toEqual({
+      haupt: "archivieren",
+      mehr: ["oeffnen"],
+    });
+    expect(status.schritteFuer!("archiviert")).toEqual({
+      haupt: "wiederherstellen",
+      mehr: [],
+    });
+    expect(status.schritteFuer!("gibtsnicht")).toBeNull();
+  });
+
+  test("jeder Schritt hat Verb, Ziel und eine Folge in einem Satz; Abschliessen sagt, dass niemand mehr etwas ändert", () => {
+    for (const name of [
+      "starten",
+      "abschliessen",
+      "archivieren",
+      "oeffnen",
+      "wiederherstellen",
+    ]) {
+      const s = status.schrittDaten!(name);
+      expect(s.text, name).toMatch(/^Lager |^Ins Archiv/);
+      expect(["aktiv", "abgeschlossen", "archiviert"]).toContain(s.nach);
+      expect(s.folge.split(". ").length, name).toBeLessThanOrEqual(3);
+      expect(s.meldung("X")).toContain("«X»");
+    }
+    expect(status.schrittDaten!("abschliessen").folge).toContain(
+      "niemand mehr etwas ändern",
+    );
+  });
+
+  test("jeder Status hat einen Satz, nie «Aktivieren» auf einem Knopf, Bestätigung am Ort mit Rückgängig", () => {
+    for (const k of ["entwurf", "aktiv", "abgeschlossen", "archiviert"])
+      expect(status.STATUS_SATZ![k]).toMatch(/\.$/);
+    const q = quelle("lager-status.js");
+    expect(q).not.toMatch(/text: "Aktivieren"|text: "Archivieren"/);
+    expect(q).toContain("Rückgängig");
+    expect(q).not.toMatch(/confirm\(|alert\(/);
+    // Die Schritte erscheinen nur mit dem Recht «lager.verwalten»
+    expect(q).toContain('"lager.verwalten"');
+    // Der Kopf des Arbeitsbereichs zeigt den Status, die Angaben nicht mehr
+    expect(quelle("lager-rahmen.js")).toContain("statusZeile(");
+    expect(quelle("lager-detail.js")).not.toContain("splitKnopf");
   });
 });

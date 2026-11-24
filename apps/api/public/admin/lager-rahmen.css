@@ -17,6 +17,7 @@
 }
 
 .lg-arbeit {
+  scroll-margin-top: calc(var(--leiste-hoehe, 0px) + 16px);
   display: grid;
   grid-template-columns: minmax(0, 15rem) minmax(0, 1fr);
   gap: 24px;
@@ -60,11 +61,11 @@
 /* Navigation: Gruppen mit Überschrift, die Seite, auf der du bist, ist gefüllt und trägt aria-current */
 .lg-nav {
   position: sticky;
-  top: 16px;
+  top: calc(var(--leiste-hoehe, 0px) + 16px);
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: calc(100vh - 2rem);
+  max-height: calc(100vh - var(--leiste-hoehe, 0px) - 2rem);
   padding: 8px;
   overflow-y: auto;
   overscroll-behavior: contain;
@@ -102,7 +103,7 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 2px;
 }
 
 /* Marke hinter dem aktiven Eintrag: gleitet beim Wechsel an den neuen Platz (lager-rahmen.js, setzeMarke) */
@@ -123,6 +124,10 @@
   pointer-events: none;
 }
 
+.lg-nav--marke .lg-nav-marke[hidden] {
+  display: none;
+}
+
 .lg-nav--marke a[aria-current="page"],
 .lg-nav--marke a[aria-current="page"]:hover {
   background: transparent;
@@ -131,18 +136,64 @@
 .lg-nav-gruppe {
   display: flex;
   flex-direction: column;
-  gap: 2px;
 }
 
-.lg-nav-kopf {
+.lg-nav-titel {
   margin: 0;
-  padding: 4px 12px;
+}
+
+/* Überschrift der Gruppe: ein Knopf, der die Gruppe auf- und zuklappt (44 px hoch) */
+.lg-nav-kopf {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
   color: var(--leise);
+  background: none;
+  border: 0;
+  border-radius: var(--r-sm);
+  font: inherit;
   font-size: 0.75rem;
-  line-height: 1rem;
   font-weight: 700;
   letter-spacing: 0.06em;
+  text-align: left;
   text-transform: uppercase;
+  cursor: pointer;
+}
+
+.lg-nav-kopf:hover {
+  color: var(--text);
+  background: var(--surface-container);
+}
+
+.lg-nav-kopf .i {
+  width: 16px;
+  height: 16px;
+  margin-left: auto;
+}
+
+.lg-nav-kopf[aria-expanded="true"] .i {
+  transform: rotate(180deg);
+}
+
+/* Auf- und Zuklappen: die Zeile des Gitters wächst von 0 auf die Höhe des Inhalts; zu ist die Gruppe für Tastatur und Screenreader nicht erreichbar */
+.lg-nav-auf {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+}
+
+.lg-nav-auf[data-offen] {
+  grid-template-rows: 1fr;
+  visibility: visible;
+}
+
+.lg-nav-auf-innen {
+  min-height: 0;
+  overflow: clip;
+  overflow-clip-margin: 4px;
 }
 
 .lg-nav ul {
@@ -178,6 +229,13 @@
 @media (prefers-reduced-motion: no-preference) {
   .lg-nav a {
     transition: background-color var(--dauer) var(--kurve);
+  }
+}
+
+/* Breit: Der Arbeitsbereich ist mindestens so hoch wie das Fenster. Wechselt man das Modul, kann die Seite an der Stelle bleiben, auch wenn das neue Modul noch lädt (kein Springen nach oben) */
+@media (min-width: 901px) {
+  .lg-arbeit {
+    min-height: calc(100vh - var(--leiste-hoehe, 0px) - 2rem);
   }
 }
 
@@ -461,8 +519,19 @@
     animation: lg-ein var(--dauer) var(--kurve) backwards;
   }
 
-  .lg-nav-knopf .i {
+  .lg-nav-knopf .i,
+  .lg-nav-kopf .i {
     transition: transform var(--dauer) var(--kurve);
+  }
+
+  .lg-nav-auf {
+    transition:
+      grid-template-rows var(--dauer-lang) var(--kurve),
+      visibility 0s linear var(--dauer-lang);
+  }
+
+  .lg-nav-auf[data-offen] {
+    transition-delay: 0s;
   }
 
   /* Das Skeleton kommt erst nach einer Verzögerung (lader.js): sanft statt plötzlich */
@@ -624,5 +693,58 @@
 
   .lg-sk-zwei {
     grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ===== Status im Kopf (#693, lager-status.js) ===== */
+.lg-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: var(--surface-container-low);
+  border: 1px solid var(--rand-leise);
+  border-radius: var(--r-md);
+}
+
+.lg-status-text {
+  flex: 1 1 16rem;
+  margin: 0;
+  min-width: 0;
+}
+
+.lg-status-aktion {
+  flex: none;
+}
+
+.lg-status-frage {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 100%;
+  gap: 8px;
+}
+
+.lg-status-frage p {
+  margin: 0;
+}
+
+.lg-status-frage[hidden],
+.lg-status-aktion[hidden] {
+  display: none;
+}
+
+.lg-status-hinweis {
+  flex: 1 1 100%;
+}
+
+.lg-status-hinweis:empty {
+  display: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .lg-status-frage:not([hidden]) {
+    animation: lg-zeile-ein var(--dauer) var(--kurve) backwards;
   }
 }

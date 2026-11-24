@@ -466,7 +466,7 @@ export function zeige(bereich, ctx) {
           el(
             "span",
             {},
-            "Ohne Lagerleitung bleibt das Lager ein Entwurf. Aktivieren geht erst, wenn jemand die Lagerleitung hat.",
+            "Ohne Lagerleitung bleibt das Lager ein Entwurf. Starten geht erst, wenn jemand die Lagerleitung hat.",
           ),
         ),
       fuss(anlegen),
