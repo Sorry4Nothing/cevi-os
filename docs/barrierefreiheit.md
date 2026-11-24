@@ -1552,3 +1552,31 @@ Gilt für jede Ansicht unter `public/admin`: Das Ergebnis einer Aktion (Erfolg, 
 ### Stand der Prüfung (#761)
 
 **STAND**
+
+## 85. Verwaltung: Konto einer Person endgültig löschen (#769)
+
+Im Blatt einer Person (Bereich Personen, Abschnitt «Konto») löscht «Konto löschen» das Konto samt Anmeldung, Chats und Verknüpfungen zu Gruppen und Rollen (`DELETE /api/v1/admin/personen/{id}`, Recht `konto.loeschen`: Abteilungsleitung und Entwickler, zweiter Faktor). Die Sicherheitsabfrage ist die Karte am Ort (`bestaetigungAmOrt` in `aktionen.js`), kein Browserdialog und kein Toast mit «Rückgängig»; die Leitplanke ist `test/admin-personen-konto-loeschen.test.ts`.
+
+### Prüfpunkte
+
+- [ ] **85.1** Der Knopf steht im Abschnitt «Konto» nach «Deaktivieren», als gefährlich gezeichnet (Rot, Papierkorb-Symbol, Text «Konto löschen»). Er fehlt beim eigenen Konto (dort steht «Für das eigene Konto gibt es diese Aktionen nicht.») und für alle, die weder Abteilungsleitung noch Entwickler sind.
+- [ ] **85.2** Der Knopf öffnet die Karte unter sich (`aria-expanded`, `aria-controls`); sie trägt die Frage «Konto von <Name> endgültig löschen?» als Namen (`aria-labelledby`) und den Text, was verloren geht, als Beschreibung (`aria-describedby`). Der Text nennt Konto, Anmeldung, Chats und Verknüpfungen zu Gruppen und Rollen, dass Einträge im Änderungsprotokoll bleiben, und dass man stattdessen deaktivieren kann.
+- [ ] **85.3** Der Fokus liegt auf dem Feld «Tippe «<Name>» zur Bestätigung». «Endgültig löschen» bleibt ausgeschaltet, bis der Name stimmt (Leerzeichen am Rand zählen nicht). Enter im Feld schickt das Formular der Person nie ab; es bestätigt nur bei richtigem Namen.
+- [ ] **85.4** Esc und «Abbrechen» schliessen die Karte, leeren das Feld und bringen den Fokus zum Knopf «Konto löschen». Tab erreicht Feld, «Abbrechen» und «Endgültig löschen» in dieser Reihenfolge.
+- [ ] **85.5** Ein Fehler (409 `LETZTE_ABTEILUNGSLEITUNG`, 403, 404, kein Netz) steht in der Karte (`role="alert"`), beginnt mit «Nicht gelöscht.», sagt, was zu tun ist, und lässt die Karte offen; der Name bleibt im Feld, «Endgültig löschen» ist wieder bedienbar. Kein Toast.
+- [ ] **85.6** Nach Erfolg schliesst das Blatt, die Liste lädt neu, der Fokus liegt auf der Überschrift, und der Toast «Konto von <Name> gelöscht.» steht 4 Sekunden (`aria-live="polite"`). Es gibt kein «Rückgängig».
+- [ ] **85.7** Bei 390 und 1280 Pixel, hell und dunkel: Die Karte läuft nicht über, kein waagrechtes Scrollen, Text und Feld lesbar; der Fokusring des Felds ist sichtbar.
+
+### Stand der Prüfung (#769)
+
+Im Browser (Chromium headless, Playwright, Kopie der Demo-Datenbank, eigener Dev-Server, Sitzung des Test-Entwicklers) bei 390 x 844 (hell, dunkel) und 1280 x 900 (hell, dunkel):
+
+- **85.1:** Knopf mit Symbol neben «Deaktivieren»; beim eigenen Konto kein Knopf (geprüft).
+- **85.2, 85.3:** Fokus im Feld; leer und bei «Spidy» bleibt «Endgültig löschen» aus, Enter bei falschem Namen tut nichts (das Blatt bleibt offen, nichts gespeichert); bei «Spidy Demo» frei.
+- **85.4:** Esc schliesst, Fokus auf dem Knopf; Enter auf dem Knopf öffnet mit leerem Feld; Tab: Feld, «Abbrechen».
+- **85.5:** Antworten von Hand ersetzt (409 `LETZTE_ABTEILUNGSLEITUNG`, 409 `EIGENES_KONTO`, 403, 404, Verbindungsabbruch): je ein Text in der Karte, kein Toast, Karte offen, Knopf wieder frei. Den echten 409 gibt es für Verwalter nicht auszulösen, weil sie selbst aktiv bleiben.
+- **85.6:** Löschen mit Enter bei richtigem Namen: 204, Blatt zu, Liste neu, Fokus auf der Überschrift, Toast «Konto von Sancho Demo gelöscht.».
+- **85.7:** Bei 390 Pixel steht die Karte in der Spalte (41 bis 335 Pixel), kein waagrechtes Scrollen; dunkel wie hell lesbar.
+- Server (Kopie der Daten): Löschen zweier Abteilungsleitungen (eine mit zweitem Faktor), eines Elternteils, einer Person mit Webmaster-Rolle und einer Stufenleitung: je 204, kein 500, keine Zeile mit der ID ausser im Audit-Log.
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA: Namen und Beschreibung sind über `aria-labelledby` und `aria-describedby` gebaut, nicht gehört), Safari und Firefox, Zoom 200 % und 400 %, erzwungene Farben, Touch am echten Gerät.

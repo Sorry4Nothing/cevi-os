@@ -111,6 +111,8 @@ export function bestaetigungAmOrt({
   frage,
   folge,
   bestaetigenText = text,
+  symbol,
+  klein,
   erwartet,
   ausfuehren,
   fehlertext = (f) => f?.message ?? "Das hat nicht geklappt.",
@@ -118,6 +120,8 @@ export function bestaetigungAmOrt({
   const id = neueId("amort");
   const ausloeser = knopf(text, {
     art: "gefahr",
+    symbol,
+    klein,
     "aria-expanded": "false",
     "aria-controls": id,
   });
@@ -143,8 +147,10 @@ export function bestaetigungAmOrt({
   let eingabe = null;
   karte.append(
     el("p", { class: "fett", id: `${id}-frage` }, frage),
-    folge && el("p", { class: "leise klein" }, folge),
+    folge && el("p", { class: "leise klein", id: `${id}-folge` }, folge),
   );
+  // Der Screenreader liest mit der Frage auch, was verloren geht
+  if (folge) karte.setAttribute("aria-describedby", `${id}-folge`);
   if (erwartet) {
     const eid = `${id}-eingabe`;
     eingabe = el("input", {
@@ -157,6 +163,12 @@ export function bestaetigungAmOrt({
     });
     eingabe.addEventListener("input", () => {
       los.disabled = eingabe.value.trim() !== erwartet;
+    });
+    // Enter löst nie das Formular um die Karte aus (etwa «Person speichern»); bei richtigem Text bestätigt es
+    eingabe.addEventListener("keydown", (e) => {
+      if (e.key !== "Enter") return;
+      e.preventDefault();
+      if (!los.disabled) los.click();
     });
     karte.append(
       el(

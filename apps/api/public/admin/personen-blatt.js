@@ -1,3 +1,4 @@
+import { bestaetigungAmOrt } from "./aktionen.js";
 import { anfrage, fehlertext } from "./api.js";
 import {
   ankreuzen,
@@ -392,6 +393,29 @@ function umschalten(person, ctx, neu, fertig) {
     fehlertext,
     danach: neu,
   });
+}
+
+// Endgültig löschen (konto.loeschen: Abteilungsleitung und Entwickler): kein Toast mit «Rückgängig», sondern die Karte am Ort mit dem Namen zum Eintippen. Fehler bleiben in der Karte, dort entscheidet die Person (#769)
+function kontoLoeschenKarte(person, ctx, neu, fertig) {
+  return bestaetigungAmOrt({
+    text: "Konto löschen",
+    symbol: "papierkorb",
+    klein: true,
+    frage: `Konto von ${person.name} endgültig löschen?`,
+    folge:
+      "Das Konto, die Anmeldung, die Chats und die Verknüpfungen zu Gruppen und Rollen sind danach weg. Einträge im Änderungsprotokoll bleiben. Zum Zurücknehmen deaktiviere die Person stattdessen.",
+    bestaetigenText: "Endgültig löschen",
+    erwartet: person.name,
+    ausfuehren: async () => {
+      await anfrage("DELETE", `/api/v1/admin/personen/${person.id}`);
+      const geladen = neu();
+      fertig();
+      // Die Zeile der Person gibt es nicht mehr: Nach dem Neuladen geht der Fokus zur Überschrift
+      nachLaden(geladen, () => document.querySelector("h1")?.focus());
+      ctx.melde(`Konto von ${person.name} gelöscht.`);
+    },
+    fehlertext: (f) => `Nicht gelöscht. ${fehlertext(f)}`,
+  }).wurzel;
 }
 
 function faktorZuruecksetzen(person, ctx, neu, fertig) {
@@ -1098,6 +1122,12 @@ function kontoAbschnitt(person, { eigenes, ctx, neu, beiFokus, schliesse }) {
                   },
                 }),
               ),
+          siehtAlles(ctx?.ich) &&
+            kontoAktion(
+              "Konto löschen",
+              "Löscht Konto und Anmeldung endgültig, auch die Chats und die Verknüpfungen zu Gruppen und Rollen. Das geht nicht rückgängig; zum Zurücknehmen deaktivierst du die Person stattdessen.",
+              kontoLoeschenKarte(person, ctx, neu, schliesse),
+            ),
         ],
   );
 }
