@@ -1473,3 +1473,21 @@ Gilt für die Auswahl «Person» in den Bausteinen «Personen», «Kontaktperson
 ### Stand der Prüfung (#755)
 
 Im Browser (Chromium, headless, Kopie der Vorschau-Datenbank, Konto der Abteilungsleitung mit zweitem Faktor) bei 1280 und 390 px: Baustein «Personen» angelegt, Person per Tastatur gewählt, gespeichert; Eltern ohne Rolle erscheinen nicht in der Liste; nach Entzug der Rolle zeigt das Blatt den Hinweis und der Server lehnt das Speichern am Baustein ab. **Nicht geprüft:** Screenreader, Dunkel und hoher Kontrast, 200 % und 400 % Zoom, Touch, Firefox und Safari, Veröffentlichen mit einer entzogenen Rolle (nur Speichern geprüft; dieselbe Verweisprüfung).
+
+## 81. Verwaltung: keine leeren Flächen, Höhe aus dem verfügbaren Platz (#756)
+
+Gilt für jede Ansicht der Verwaltung unter `public/admin`, besonders für Bereiche mit eigenen Scrollspalten (Editor einer Seite, `formularraster--scroll`, Lager-Navigation, Tagesliste der Termine). Das Dokument ist nie höher als sein Inhalt: Scrollen und Bild-ab landen nicht in leerer Fläche, und Bildschirmleser und Tastatur finden keinen Bereich, der nichts enthält (WCAG 2.4.3, 1.4.10).
+
+### Prüfpunkte
+
+- [ ] **81.1** Das Dokument ragt nie über `main.inhalt` hinaus: Absolut gesetzte, unsichtbare Knoten (`.nur-leser`, Live-Regionen) haben einen Versatz (`top: 0; left: 0`) oder einen Bezugsrahmen (`position: relative`) und verlängern die Seite nicht (Messung: `scrollHeight` des Dokuments minus Unterkante von `main.inhalt` ist 0).
+- [ ] **81.2** Höhen kommen aus dem verfügbaren Platz: Ein Scrollbereich nutzt `var(--scroll-hoehe)` (Fenster minus haftende Leiste minus Abstand) oder rechnet `var(--leiste-hoehe)` ein. Nie `vh` minus eine geschätzte Kopfhöhe (wie `8.25rem`) und nie `min-height` in Fensterhöhe. Der Test `admin-keine-leere-flaeche.test.ts` lässt `vh`/`dvh` im CSS nur mit Token oder auf der Liste mit Grund zu.
+- [ ] **81.3** Am Seitenende füllt jede Scrollspalte das Fenster unter der Leiste, ohne dass die Oberkante unter der haftenden Leiste verschwindet; ein haftender Bereich (`position: sticky`) setzt `top` auf `calc(var(--leiste-hoehe) + 1rem)`.
+- [ ] **81.4** Innen bleibt Platz für den Fokusring (`padding: 4px` im Scrollbereich), die erste und letzte Zeile sind mit der Tastatur erreichbar, `scrollbar-gutter: stable` hält die Breite; nichts springt beim Wechsel der Ansicht.
+- [ ] **81.5** Unter 1100 px bleibt die Ansicht einspaltig und scrollt als eine Seite.
+
+### Stand der Prüfung (#756)
+
+Im Browser (Chromium, headless, Playwright, Kopie der Demo-Datenbank, Entwickler-Konto, eigener Dev-Server) bei 1280 x 720, 390 x 844, 2560 x 1440, 3774 x 2020 (Zoom 100 % und 150 %), dunkel; Editor der Seite «Datenschutz» (66 Bausteine) und Lager zusätzlich hell: 81.1 bis 81.3 gemessen, 81.5 gesehen.
+
+**Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 % von Hand.
