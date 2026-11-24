@@ -24,7 +24,7 @@ import { pruefeEigeneRechte as pruefeEigeneRechteModell } from "../../rechtemode
 import { istRecht, type RechtId } from "../../rechtemodell/katalog.js";
 import { verlangeEines } from "../../rechtemodell/tuer.js";
 
-// Plattformrollen der Abteilung (#423): anlegen, Rechte einstellen, einer Person zuweisen und entziehen. Die Abteilungsleitung (zweiter Faktor wie überall unter /admin); die Rechte der Rollen (Liste ohne Namen, anlegen, ändern, löschen) seit #663 auch der Entwickler mit zweitem Faktor, einer Person zuweisen und entziehen nur die Abteilungsleitung. Die Rolle «Abteilungsleitung» steht hier nicht: Ihre Rechte ändert nur der Entwickler, über /admin/rechte/abteilungsleitung.
+// Plattformrollen der Abteilung (#423): anlegen, Rechte einstellen, einer Person zuweisen und entziehen. Die Abteilungsleitung (zweiter Faktor wie überall unter /admin); die Rechte der Rollen (Liste ohne Namen, anlegen, ändern, löschen) seit #663 auch der Entwickler mit zweitem Faktor, einer Person zuweisen und entziehen ebenso (er hat seit #722 jedes Recht, auch «Rechte und Rollen vergeben»). Die Rolle «Abteilungsleitung» steht hier nicht: Ihre Rechte ändert nur der Entwickler, über /admin/rechte/abteilungsleitung.
 // Der Entwickler ist nie hier: Ihn vergibt und entzieht nur die Kommandozeile. Die festen Rechte von Entwickler und Abteilungsleitung stehen im Code und nicht in der Datenbank, sie lassen sich darum nicht ändern.
 // Eine Rolle gibt nur Rechte des Katalogs (plattform.ts); weiter als die eigenen Rechte reicht keine Vergabe
 
@@ -91,10 +91,10 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
     return rolle;
   }
 
-  // Rollen und ihre Rechte vergeben ist fest (rechte.verwalten): die Abteilungsleitung (#650); die Rechte der Rollen stellt seit #663 auch der Entwickler ein
+  // Rollen und ihre Rechte vergeben ist fest (rechte.verwalten): die Abteilungsleitung (#650) und der Entwickler, der jedes Recht hat (#722)
   const tuer = (person: Person) =>
     verlangeEines(db, person, ["rechte.verwalten", "rechte.abteilungsleitung"]);
-  // Rollen zuweisen und entziehen: nur die Abteilungsleitung. Der Entwickler weist keiner Person Rechte zu, auch sich selbst nicht
+  // Rollen zuweisen und entziehen: wer «Rechte und Rollen vergeben» hat, die Abteilungsleitung und der Entwickler (#722); Eskalationsschutz: nur Rechte, die die Person selbst hat
   const nurAbteilungsleitung = (person: Person) =>
     verlange(db, person, "rechte.verwalten");
 
@@ -133,7 +133,7 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
       const person = c.get("person");
       await tuer(person);
       const mitNamen = await darf(db, person, "rechte.verwalten");
-      // Zwei Abfragen für die ganze Liste: Rollen mit ihren Rechten, dann alle Vergaben (ohne Namen für den Entwickler: keine Abfrage)
+      // Zwei Abfragen für die ganze Liste: Rollen mit ihren Rechten, dann alle Vergaben (ohne Namen, wer «Rechte und Rollen vergeben» nicht hat: keine Abfrage)
       const [rollen, vergaben] = await Promise.all([
         db
           .select({

@@ -36,7 +36,7 @@ export interface RechtSpalten {
 }
 
 // Dieselbe Frage wie RechteSatz.hat, als Bedingung für eine Abfrage, die ohnehin über eine Liste läuft (Seitenlisten, Anfragen, Räume): nie «alles laden, dann je Zeile fragen». Zwei Darstellungen derselben Regel; test/rechtemodell-sql.test.ts hält sie gegeneinander (Property-Test über alle Rechte, Personen und Objekte).
-// teil «rollen»: nur Plattform- und Gruppenrollen, das, was der Schattenbetrieb zum alten Weg hinzufügt (darf.ts)
+// teil «rollen»: nur Plattform- und Gruppenrollen und der Entwickler, das, was der Schattenbetrieb zum alten Weg hinzufügt (darf.ts)
 export function rechtSql(
   person: Pick<Person, "id" | "abteilungId" | "admin" | "rollen">,
   recht: string,
@@ -59,12 +59,13 @@ export function rechtSql(
       // Die Abteilungsleitung hat jedes vergebbare Recht, ausser der Entwickler hat es ihr weggenommen (#663)
       teile.push(sql`not ${alVerzichtetSql(person.abteilungId, recht)}`);
     }
-    if (e.entwickler) {
-      teile.push(
-        sql`exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${person.id})`,
-      );
-    }
     if (e.art === "struktur") return sql`${abteilung}`;
+  }
+  // Der Entwickler hat jedes Recht des Katalogs (Entscheid vom 24.11.2026, #722); was jede Person ohnehin hat (struktur), bekommt er nicht doppelt
+  if (e.art !== "struktur") {
+    teile.push(
+      sql`exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${person.id})`,
+    );
   }
   if (e.art !== "vergebbar") return anwenden(abteilung, teile);
 

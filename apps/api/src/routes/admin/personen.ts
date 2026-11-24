@@ -33,6 +33,7 @@ import { eingabe } from "../../eingabe.js";
 import { telefonSchema } from "../../telefon.js";
 import { keinKindKonto as keinKindKontoVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
+import { istEntwickler } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
 import {
@@ -141,6 +142,10 @@ export function erstellePersonenRouten({
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
 }) {
+  // Konten mit Rechten betreut nur, wer selbst jedes Recht hat: die Abteilungsleitung und der Entwickler (#722)
+  const betreutKontenMitRechten = async (person: Person) =>
+    person.admin || (await istEntwickler(db, person));
+
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
   async function ladeZiel(person: Person, id: string) {
     const [ziel] = await db
@@ -157,14 +162,16 @@ export function erstellePersonenRouten({
     await verlange(db, person, "personen.verwalten", {
       abteilungId: person.abteilungId,
     });
-    // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst
-    if (ziel.admin && !person.admin) throw new HTTPException(403);
+    // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst, dazu der Entwickler (#722)
+    if (ziel.admin && !(await betreutKontenMitRechten(person))) {
+      throw new HTTPException(403);
+    }
     return ziel;
   }
 
   // Zurücksetzen, aktivieren, deaktivieren und löschen übernehmen oder sperren ein Konto: Hat es Rechte (Rolle in einer Gruppe, Plattformrolle, Entwickler, Sonderrecht), betreut es nur die Abteilungsleitung, sonst gäbe «Personen verwalten» jedes Recht der Abteilung (#650, SR-10)
   async function schuetzeKonto(person: Person, id: string) {
-    if (person.admin) return;
+    if (await betreutKontenMitRechten(person)) return;
     if ((await geschuetzteKonten(db, person.abteilungId, [id])).has(id)) {
       throw new HTTPException(403);
     }
@@ -418,7 +425,9 @@ export function erstellePersonenRouten({
         )
         .map((p) => p.id);
       const geschuetzt =
-        sicht === "voll" && !person.admin && offeneStartpasswoerter.length > 0
+        sicht === "voll" &&
+        !(await betreutKontenMitRechten(person)) &&
+        offeneStartpasswoerter.length > 0
           ? await geschuetzteKonten(db, abteilungId, offeneStartpasswoerter)
           : new Set<string>();
       // Nie email, banReason, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors: Der Rollen-Editor braucht nur das hier
@@ -790,7 +799,7 @@ export function erstellePersonenRouten({
       const person = c.get("person");
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
-      // Konto löschen ist fest (konto.loeschen): nur die Abteilungsleitung (#650)
+      // Konto löschen ist fest (konto.loeschen): Abteilungsleitung und Entwickler (#650, #722); das eigene Konto nie
       await verlange(db, person, "konto.loeschen");
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       try {

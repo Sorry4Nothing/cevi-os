@@ -134,7 +134,7 @@ export const abteilungsleitungRolle = (al) => ({
   gesperrt: al.aenderbar !== true,
 });
 
-// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen. gesperrt: Der Entwickler liest sie nur (er ändert nur die Zeile «Abteilungsleitung»)
+// Globale Rolle der API ({ rechte: ["a"], vorgabe, personen }) in die Form der Gruppenrolle bringen. gesperrt: Die Person liest sie nur (wer «Rechte und Rollen vergeben» nicht hat)
 export const globaleRolle = (r, gesperrt = false) => ({
   id: r.id,
   art: "global",
@@ -387,16 +387,15 @@ export function werDarf({ eintrag, admin, globale, gruppen }) {
       fest: true,
     });
   }
-  if (eintrag.entwickler) {
-    zeilen.push({
-      art: "entwickler",
-      titel: "Entwickler",
-      geltung: "alle",
-      personen: null,
-      fest: true,
-      hinweis: "Die Rolle setzt nur der Server.",
-    });
-  }
+  // Der Entwickler hat jedes Recht (#722), nie eingestellt: Die Rolle setzt nur der Server
+  zeilen.push({
+    art: "entwickler",
+    titel: "Entwickler",
+    geltung: "alle",
+    personen: null,
+    fest: true,
+    hinweis: "Die Rolle setzt nur der Server.",
+  });
   for (const r of globale) {
     if (r.abteilungsleitung) continue;
     const z = r.rechte.find((x) => x.recht === eintrag.id);

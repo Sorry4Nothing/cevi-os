@@ -17,6 +17,7 @@ import {
 import { setzeRechteModus } from "../src/rechtemodell/modus.js";
 import { ladeRechteSatz } from "../src/rechtemodell/satz.js";
 import { rechtSql } from "../src/rechtemodell/sql.js";
+import { legeWebmasterAn } from "../src/plattform.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -28,7 +29,7 @@ import {
   type Welt,
 } from "./hilfen/personas.js";
 
-// Die Rechte der Abteilungsleitung (#663): Sie sind eine einstellbare Systemrolle, die nur der Entwickler ändert. Die Abteilungsleitung ändert ihre eigenen Rechte nie; der Entwickler sieht «Rollen und Rechte» ohne Namen von Personen und erreicht keine Personendaten.
+// Die Rechte der Abteilungsleitung (#663): Sie sind eine einstellbare Systemrolle, die nur der Entwickler ändert. Die Abteilungsleitung ändert ihre eigenen Rechte nie; der Entwickler hat seit #722 jedes Recht und sieht und ändert alles, auch Namen von Personen.
 
 bereiteAuthTestsVor();
 
@@ -127,7 +128,6 @@ describe("Standard: die Abteilungsleitung hat alles Vergebbare", () => {
       art: "fest",
       risiko: "fest",
       nurEntwickler: true,
-      entwickler: true,
     });
     expect(k.ich).toEqual({
       rechteVerwalten: true,
@@ -230,7 +230,7 @@ describe("Die Abteilungsleitung ändert ihre eigenen Rechte nie", () => {
   });
 });
 
-describe("Der Entwickler: Zugang zu «Rollen und Rechte», keine Personendaten", () => {
+describe("Der Entwickler: hat jedes Recht, auch «Rechte und Rollen vergeben» (#722)", () => {
   test("ohne zweiten Faktor: 403 ZWEITER_FAKTOR_FEHLT, lesend und schreibend", async () => {
     for (const [methode, pfad, body] of [
       ["GET", `${BASIS}/katalog`],
@@ -245,14 +245,16 @@ describe("Der Entwickler: Zugang zu «Rollen und Rechte», keine Personendaten",
     }
   });
 
-  test("mit zweitem Faktor liest er Katalog, Gruppen, Rollen und Änderungen", async () => {
+  test("mit zweitem Faktor liest er Katalog, Gruppen, Rollen und Änderungen und darf die Rechte der Rollen und der Abteilungsleitung ändern", async () => {
     const katalog = await json(
       await anfrage(entwickler, "GET", `${BASIS}/katalog`),
     );
     expect(katalog.ich).toEqual({
-      rechteVerwalten: false,
+      rechteVerwalten: true,
       abteilungsleitungAendern: true,
     });
+    // Der Katalog nennt den Entwickler nicht mehr je Recht: Er hat jedes
+    expect(katalog.rechte.every((r: any) => !("entwickler" in r))).toBe(true);
     for (const pfad of ["/gruppen", "/rollen", "/aenderungen"]) {
       const a = await anfrage(entwickler, "GET", `${BASIS}${pfad}`);
       expect(a.status, pfad).toBe(200);
@@ -267,7 +269,7 @@ describe("Der Entwickler: Zugang zu «Rollen und Rechte», keine Personendaten",
     expect(alt.status).toBe(200);
   });
 
-  test("er sieht keine Namen: Rollen ohne Personen, Verlauf ohne Namen der Akteure", async () => {
+  test("er sieht die Rollen mit den Namen der Personen und den Verlauf mit den Namen der Akteure", async () => {
     // Die Abteilungsleitung legt eine Rolle an und weist sie einer Person zu
     const neu = await json(
       await anfrage(al, "POST", `${BASIS}/rollen`, {
@@ -281,98 +283,116 @@ describe("Der Entwickler: Zugang zu «Rollen und Rechte», keine Personendaten",
       `/api/v1/admin/plattform/rollen/${neu.id}/personen/${eltern.id}`,
     );
     expect(zu.status).toBe(204);
-    const sichtAl = (await rollen(al)).rollen.find((r: any) => r.id === neu.id);
-    expect(sichtAl.personen).toHaveLength(1);
     const sichtEntwickler = (await rollen(entwickler)).rollen.find(
       (r: any) => r.id === neu.id,
     );
-    expect(sichtEntwickler.personen).toEqual([]);
+    expect(sichtEntwickler.personen).toHaveLength(1);
+    expect(sichtEntwickler.personen[0].id).toBe(eltern.id);
     const liste = await json(
       await anfrage(entwickler, "GET", "/api/v1/admin/plattform/rollen"),
     );
-    expect(liste.rollen.find((r: any) => r.id === neu.id).personen).toEqual([]);
+    expect(
+      liste.rollen.find((r: any) => r.id === neu.id).personen,
+    ).toHaveLength(1);
     const verlauf = await json(
       await anfrage(entwickler, "GET", `${BASIS}/aenderungen`),
     );
     expect(verlauf.aenderungen.length).toBeGreaterThan(0);
-    expect(verlauf.aenderungen.every((z: any) => z.akteur === null)).toBe(true);
-    // Die Abteilungsleitung sieht die Namen
-    const sichtVerlauf = await json(
-      await anfrage(al, "GET", `${BASIS}/aenderungen`),
-    );
-    expect(sichtVerlauf.aenderungen.some((z: any) => z.akteur !== null)).toBe(
-      true,
-    );
+    expect(verlauf.aenderungen.some((z: any) => z.akteur !== null)).toBe(true);
   });
 
-  test("Personen zuordnen und «Was darf wer?» bleiben bei der Abteilungsleitung: 403", async () => {
-    const rolle = (await rollen(al)).rollen[0];
-    for (const [methode, pfad] of [
-      ["GET", `${BASIS}/personen/${eltern.id}`],
-      [
-        "PUT",
-        `/api/v1/admin/plattform/rollen/${rolle.id}/personen/${eltern.id}`,
-      ],
-      [
-        "DELETE",
-        `/api/v1/admin/plattform/rollen/${rolle.id}/personen/${eltern.id}`,
-      ],
-      ["GET", `${BASIS}/zuordnungen`],
-    ] as const) {
-      const a = await anfrage(entwickler, methode, pfad);
-      expect(a.status, `${methode} ${pfad}`).toBe(403);
-    }
+  test("er weist Personen eine Rolle zu und entzieht sie, auf beiden Wegen, und liest «Was darf wer?»", async () => {
+    const rolle = await json(
+      await anfrage(entwickler, "POST", `${BASIS}/rollen`, {
+        name: `Zuweisung ${randomUUID().slice(0, 6)}`,
+        rechte: ["medien.verwalten"],
+      }),
+    );
+    const pfad = `/api/v1/admin/plattform/rollen/${rolle.id}/personen/${eltern.id}`;
+    expect((await anfrage(entwickler, "PUT", pfad)).status).toBe(204);
+    const was = await json(
+      await anfrage(entwickler, "GET", `${BASIS}/personen/${eltern.id}`),
+    );
+    expect(
+      was.rechte.find((r: any) => r.recht === "medien.verwalten"),
+    ).toBeDefined();
+    expect((await anfrage(entwickler, "DELETE", pfad)).status).toBe(204);
+    expect(
+      (await anfrage(entwickler, "GET", `${BASIS}/zuordnungen`)).status,
+    ).toBe(200);
+    expect(
+      (await anfrage(entwickler, "DELETE", `${BASIS}/rollen/${rolle.id}`))
+        .status,
+    ).toBe(204);
   });
 
-  test("er erreicht keine Personen-, Kinder-, Lager- und Anmeldedaten und keine anderen Verwaltungsrouten", async () => {
-    for (const pfad of [
-      "/api/v1/admin/personen",
-      "/api/v1/admin/kinder",
-      "/api/v1/admin/lager",
-      "/api/v1/admin/tags",
-      "/api/v1/admin/zeitregeln",
-      "/api/v1/admin/bearbeiter",
-      "/api/v1/admin/system",
-    ]) {
-      const a = await anfrage(entwickler, "GET", pfad);
-      expect(a.status, pfad).toBe(403);
-    }
-    const satz = await ladeRechteSatz(db, person(entwickler, false));
-    for (const recht of [
-      "rechte.verwalten",
+  test("er legt Rollen an, ändert und löscht ihre Rechte, auch die der vorgegebenen Rolle «Webmaster»; umbenennen und löschen lässt sich diese nicht", async () => {
+    // Die Testwelt hat keine Rolle «Webmaster»; sie entsteht wie in der Produktion mit der Abteilung
+    await legeWebmasterAn(db, welt.testabteilungId);
+    const webmaster = (await rollen(entwickler)).rollen.find(
+      (r: any) => r.vorgabe,
+    );
+    expect(webmaster).toBeDefined();
+    const gut = await anfrage(
+      entwickler,
+      "PATCH",
+      `${BASIS}/rollen/${webmaster.id}`,
+      {
+        version: webmaster.version,
+        rechte: ["seiten.bearbeiten", "medien.verwalten", "personen.sehen"],
+      },
+    );
+    expect(gut.status).toBe(200);
+    const danach = (await rollen(entwickler)).rollen.find(
+      (r: any) => r.id === webmaster.id,
+    );
+    expect(danach.rechte).toEqual([
+      "seiten.bearbeiten",
+      "medien.verwalten",
       "personen.sehen",
-      "personen.verwalten",
-      "kinder.sehen",
-      "kinder.verwalten",
-      "lager.verwalten",
-      "anlass.anmeldungen_sehen",
-      "konto.loeschen",
-    ]) {
-      expect(satz.hat(recht), recht).toBe(false);
-    }
-    expect(satz.hat("rechte.abteilungsleitung")).toBe(true);
+    ]);
+    // Zurück auf den Stand davor, damit die Rolle für die übrigen Tests bleibt, was sie war
+    const zurueck = await anfrage(
+      entwickler,
+      "PATCH",
+      `${BASIS}/rollen/${webmaster.id}`,
+      { version: danach.version, rechte: webmaster.rechte },
+    );
+    expect(zurueck.status).toBe(200);
+    const weg = await anfrage(
+      entwickler,
+      "DELETE",
+      `${BASIS}/rollen/${webmaster.id}`,
+    );
+    expect(weg.status).toBe(409);
+    expect(await json(weg)).toMatchObject({ code: "ROLLE_VORGEGEBEN" });
   });
 
-  test("seine Rechte an anderen Rollen enden bei seinen eigenen: Website ja, Personen nein (Eskalationsschutz)", async () => {
+  test("seine Rechte an anderen Rollen reichen so weit wie seine eigenen: jedes Recht, auch Personen und Kinder", async () => {
     const name = `Entwurf ${randomUUID().slice(0, 6)}`;
     const gut = await anfrage(entwickler, "POST", `${BASIS}/rollen`, {
       name,
-      rechte: ["seiten.bearbeiten", "medien.verwalten"],
+      rechte: ["seiten.bearbeiten", "personen.verwalten"],
     });
     expect(gut.status).toBe(201);
     const id = (await json(gut)).id;
-    const schlecht = await anfrage(entwickler, "POST", `${BASIS}/rollen`, {
-      name: `${name} 2`,
-      rechte: ["personen.verwalten"],
-    });
-    expect(schlecht.status).toBe(403);
     const patch = await anfrage(entwickler, "PATCH", `${BASIS}/rollen/${id}`, {
       version: 1,
       rechte: ["seiten.bearbeiten", "kinder.sehen"],
     });
-    expect(patch.status).toBe(403);
+    expect(patch.status).toBe(200);
     const weg = await anfrage(entwickler, "DELETE", `${BASIS}/rollen/${id}`);
     expect(weg.status).toBe(204);
+  });
+
+  test("RechteSatz: er hat jedes Recht des Katalogs, abteilungsweit; ein Objekt einer fremden Abteilung gibt ihm nichts", async () => {
+    const satz = await ladeRechteSatz(db, person(entwickler, false));
+    for (const recht of RECHT_IDS) {
+      expect(satz.hat(recht), recht).toBe(true);
+    }
+    expect(satz.hat("personen.verwalten", { abteilungId: randomUUID() })).toBe(
+      false,
+    );
   });
 });
 
