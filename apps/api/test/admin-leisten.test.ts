@@ -66,9 +66,32 @@ describe("Leisten der Verwaltung", () => {
     );
   });
 
-  test("schmal bleibt die Logozeile eine Zeile: nur Symbole, «Abmelden» als Symbol", () => {
-    expect(css).toMatch(/\.abmelden-text,\s+\.palette-knopf-text/);
+  test("das Profil im Kopf hat Rand, Pillenform, Höhe und Zeigen wie «Suchen» und der Umschalter", () => {
+    const konto = /\n\.konto \{([^}]*)\}/.exec(css)![1]!;
+    expect(konto).toContain("border: 1px solid var(--outline)");
+    expect(konto).toContain("border-radius: var(--r-full)");
+    expect(konto).toContain("min-height: 2.75rem");
+    expect(konto).toContain("box-sizing: border-box");
+    // Zeigen und geöffnet: blau gefüllt wie «Suchen»
+    expect(css).toMatch(
+      /\.konto:hover,\s*\.konto-menue\[open\] > \.konto \{[^}]*border-color: var\(--secondary\);[^}]*background: var\(--secondary\);[^}]*color: var\(--on-secondary\)/,
+    );
+    expect(css).toMatch(
+      /\.logozeile \.knopf:hover \{[^}]*border-color: var\(--secondary\);[^}]*background: var\(--secondary\)/,
+    );
+    // Erzwungene Farben: geöffnet mit kräftigem Rand wie der gedrückte Umschalter
+    expect(css).toMatch(
+      /@media \(forced-colors: active\) \{[^@]*\.konto-menue\[open\] > \.konto \{\s*border: 3px solid Highlight/,
+    );
+  });
+
+  test("schmal bleibt die Logozeile eine Zeile: nur Symbole; das Konto-Menü bleibt als Bild erreichbar", () => {
+    expect(css).toMatch(/\.palette-knopf-text,\s+\.palette-kuerzel/);
     expect(css).not.toMatch(/\.logozeile \.breite \{[^}]*flex-wrap: wrap/);
-    expect(lies("rahmen.js")).toContain('class: "abmelden-text"');
+    // Bis 1100 px weichen Name, Rolle und Pfeil dem Platz; das Bild (44 px) bleibt der Knopf des Menüs
+    expect(css).toMatch(
+      /@media \(max-width: 1100px\) \{[^@]*\.konto-text \{[^}]*clip-path: inset\(50%\)/,
+    );
+    expect(lies("rahmen.js")).toContain('class: "konto-menue"');
   });
 });
