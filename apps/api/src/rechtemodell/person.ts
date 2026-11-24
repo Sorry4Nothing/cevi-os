@@ -1,7 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { istAbteilungsleitungSql } from "../admins.js";
-import { rolle, stufe, user } from "../db/schema.js";
+import { plattformEntwickler, rolle, stufe, user } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 
 // Die Person einer Abteilung als Person-Objekt, wie personAusSitzung es aus der Sitzung baut: für «Was darf wer?» (die Rechte einer anderen Person). Fremde und unbekannte Personen sind undefined (die Route antwortet 404). Zwei Abfragen
@@ -16,6 +16,7 @@ export async function ladePerson(
       name: user.name,
       twoFactorEnabled: user.twoFactorEnabled,
       abteilungsleitung: istAbteilungsleitungSql(user.id),
+      entwickler: sql<boolean>`exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${user.id})`,
     })
     .from(user)
     .where(and(eq(user.id, userId), eq(user.abteilungId, abteilungId)));
@@ -32,7 +33,8 @@ export async function ladePerson(
     id: konto.id,
     name: konto.name,
     abteilungId,
-    admin: konto.abteilungsleitung,
+    abteilungsleitung: konto.abteilungsleitung,
+    entwickler: konto.entwickler,
     zweiterFaktor: konto.twoFactorEnabled === true,
     rollen,
   };

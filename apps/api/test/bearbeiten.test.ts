@@ -116,7 +116,8 @@ async function personVon(konto: PersonaKonto): Promise<Person> {
   return {
     id: konto.id!,
     abteilungId: u.abteilungId,
-    admin: al !== undefined,
+    abteilungsleitung: al !== undefined,
+    entwickler: false,
     zweiterFaktor: true,
     rollen,
   };
@@ -211,7 +212,7 @@ describe("darfBearbeiten: Rollen", () => {
         })
       ).status,
     ).toBe(403);
-    expect((await personVon(webmaster)).admin).toBe(false);
+    expect((await personVon(webmaster)).abteilungsleitung).toBe(false);
   });
 
   test("Das Recht «Seiten bearbeiten» entscheidet; Veröffentlichen ist ein eigenes Recht", async () => {

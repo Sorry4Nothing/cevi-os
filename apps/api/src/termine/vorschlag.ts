@@ -13,7 +13,7 @@ export const MAX_TAGS = 20;
 
 // Annahme A9 (vom Nutzer zu bestätigen): die Abteilungsleitung, Personen mit einer Rolle als Stufenleitung oder Leitung und Personen mit einem Tag vom Typ funktion oder team. Rollen und Abteilungsleitung stehen schon in der Sitzung; nur sonst fragt es die Datenbank (eine Abfrage)
 export async function darfVorschlagen(db: Db, person: Person) {
-  if (person.admin || person.rollen.length > 0) return true;
+  if (person.abteilungsleitung || person.rollen.length > 0) return true;
   const [treffer] = await db
     .select({ eins: sql`1` })
     .from(personTag)

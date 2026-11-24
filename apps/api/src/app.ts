@@ -324,7 +324,7 @@ export function erstelleApp({
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       // Gleich nach der Sitzung, vor jeder Route: Wartung und Sperre gelten für alles dahinter
-      .use("/api/v1/*", erstelleSchalterPruefung({ db, zustand: schalter }))
+      .use("/api/v1/*", erstelleSchalterPruefung({ zustand: schalter }))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route(
         "/api/v1/plattform",

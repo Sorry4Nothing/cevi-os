@@ -16,7 +16,7 @@ import { chatStatus, lager, lagerMitglied } from "../../db/schema.js";
 import { lagerAnsicht } from "../../lager/ansicht.js";
 import { darf, lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 import { LAGER_RECHTE } from "../../lager/rechte-katalog.js";
-import { sichtbareNachrichten } from "../../rechte.js";
+import { sichtbareNachrichten, siehtAlles } from "../../rechte.js";
 
 // Lager der Person (#364). Wer kein Mitglied ist, bekommt das Lager weder in der Liste noch einzeln (404); die Abteilungsleitung sieht jedes Lager der Abteilung
 export function erstelleLagerKernRouten({ db }: { db: Db }) {
@@ -37,15 +37,17 @@ export function erstelleLagerKernRouten({ db }: { db: Db }) {
           .where(
             and(
               eq(lager.abteilungId, person.abteilungId),
-              // Ohne Mitgliedschaft nur die Abteilungsleitung
-              person.admin ? undefined : isNotNull(lagerMitglied.personId),
+              // Ohne Mitgliedschaft nur die Abteilungsleitung und der Entwickler
+              siehtAlles(person)
+                ? undefined
+                : isNotNull(lagerMitglied.personId),
             ),
           )
           .orderBy(desc(lager.von), asc(lager.id));
         return c.json({
           lager: zeilen.map((z) => ({
             ...lagerAnsicht(z.lager),
-            rolle: person.admin ? "lagerleitung" : z.rolle,
+            rolle: siehtAlles(person) ? "lagerleitung" : z.rolle,
           })),
         });
       })
@@ -70,7 +72,9 @@ export function erstelleLagerKernRouten({ db }: { db: Db }) {
             .where(
               and(
                 eq(lager.abteilungId, person.abteilungId),
-                person.admin ? undefined : isNotNull(lagerMitglied.personId),
+                siehtAlles(person)
+                  ? undefined
+                  : isNotNull(lagerMitglied.personId),
               ),
             )
             .orderBy(desc(lager.von), asc(lager.id)),

@@ -116,7 +116,7 @@ interface Steckbrief {
   name: string;
   benutzername: string;
   demo?: true;
-  admin?: true;
+  abteilungsleitung?: true;
   zweiterFaktor?: true;
   rollen?: readonly (readonly ["A" | "B", "leitung" | "stufenleitung"])[];
   elternVon?: readonly ("A" | "B" | "Demo")[];
@@ -128,13 +128,13 @@ const STECKBRIEFE: Record<Exclude<Persona, "ohneLogin">, Steckbrief> = {
   admin: {
     name: "Abteilungsleitung",
     benutzername: "admin",
-    admin: true,
+    abteilungsleitung: true,
     zweiterFaktor: true,
   },
   adminOhneZweitenFaktor: {
     name: "Abteilungsleitung ohne zweiten Faktor",
     benutzername: "admin.ohne",
-    admin: true,
+    abteilungsleitung: true,
   },
   slA: { name: "SL A", benutzername: "sl.a", rollen: [["A", "stufenleitung"]] },
   slB: { name: "SL B", benutzername: "sl.b", rollen: [["B", "stufenleitung"]] },
@@ -178,7 +178,7 @@ const STECKBRIEFE: Record<Exclude<Persona, "ohneLogin">, Steckbrief> = {
     name: "Abteilungsleitung der Demo-Abteilung",
     benutzername: "demo.admin",
     demo: true,
-    admin: true,
+    abteilungsleitung: true,
     zweiterFaktor: true,
   },
   demoEltern: {
@@ -270,7 +270,7 @@ export async function legePersonaAn(
         ? normalisiereStartpasswort(startpasswort)
         : PASSWORT,
       name: steckbrief.name,
-      role: steckbrief.admin ? "admin" : "user",
+      role: steckbrief.abteilungsleitung ? "admin" : "user",
       data: {
         username: benutzername,
         abteilungId,
@@ -283,7 +283,7 @@ export async function legePersonaAn(
   });
 
   // Die Abteilungsleitung ist eine Zeile in abteilungsleitung_person (#720); role = 'admin' oben ist nur der Spiegel
-  if (steckbrief.admin) {
+  if (steckbrief.abteilungsleitung) {
     await db.insert(schema.abteilungsleitungPerson).values({ userId: user.id });
   }
 

@@ -47,7 +47,13 @@ const objekt = pgTable("sicht_objekt", {
 let welt: Welt;
 let personen: Record<
   Persona,
-  { id: string; abteilungId: string; admin: boolean; tagIds: string[] } | null
+  {
+    id: string;
+    abteilungId: string;
+    abteilungsleitung: boolean;
+    entwickler: boolean;
+    tagIds: string[];
+  } | null
 >;
 let tags: { t1: string; t2: string; t3: string; demo: string };
 let objekte: {
@@ -117,7 +123,8 @@ beforeAll(async () => {
         const person = {
           id: konto.id,
           abteilungId: konto.abteilungId,
-          admin: u !== undefined,
+          abteilungsleitung: u !== undefined,
+          entwickler: false,
         };
         return [p, { ...person, tagIds: await ladeTagIds(db, person) }];
       }),
