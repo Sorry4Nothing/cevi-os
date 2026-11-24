@@ -135,6 +135,37 @@ describe("GET /api/v1/website/konto", () => {
   });
 });
 
+describe("Konto-Menü im Website-Kopf: Rand wie «Anmelden» und der Umschalter (#669)", () => {
+  const css = readFileSync(
+    new URL("../public/website/kopf.css", import.meta.url),
+    "utf8",
+  );
+  const regel = (selektor: string) =>
+    new RegExp(`\\n${selektor} \\{([^}]*)\\}`).exec(css)![1]!;
+
+  test("der Knopf hat Rand, Pillenform und Höhe wie «Anmelden»", () => {
+    const anmelden = regel("\\.anmelden");
+    const knopf = regel("\\.konto-knopf");
+    for (const teil of [
+      "border: 1px solid var(--outline)",
+      "border-radius: var(--r-full)",
+      "min-height: 2.75rem",
+    ]) {
+      expect(anmelden).toContain(teil);
+      expect(knopf).toContain(teil);
+    }
+  });
+
+  test("Zeigen und geöffnet wie «Anmelden» beim Zeigen: blau gefüllt", () => {
+    expect(css).toMatch(
+      /\.konto-knopf:hover,\s*\.konto-menue\[open\] > \.konto-knopf \{[^}]*border-color: var\(--secondary\);[^}]*background: var\(--secondary\);[^}]*color: var\(--on-secondary\)/,
+    );
+    expect(css).toMatch(
+      /\.anmelden:hover \{[^}]*border-color: var\(--secondary\);[^}]*background: var\(--secondary\)/,
+    );
+  });
+});
+
 describe("Kopf: Vorlage im statischen HTML (#669)", () => {
   const k: Kontext = {
     abteilung: "Cevi Test",
