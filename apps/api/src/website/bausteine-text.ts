@@ -10,7 +10,7 @@ import {
 } from "./bausteine-basis.js";
 import type { Baustein } from "./bausteine.js";
 
-// Bausteine «Text und Gestaltung» (#741): Hinweisbox, Zitat, Fragen und Antworten, zwei Spalten, Bild und Text, Tabelle, Schritte und Checkliste.
+// Bausteine «Text und Gestaltung» (#741): Hinweisbox, Zitat, Fragen und Antworten, zwei Spalten, Bild neben Text, Tabelle, Schritte und Checkliste.
 // Je ein strenges Schema, kein HTML, kein Skript. Der Alt-Text liegt am Medium wie bei jedem Baustein. Renderer: bausteine-text-rendern.ts, Stil: Abschnitt «Text und Gestaltung» in public/website/website.css.
 
 // Obergrenzen (shortcut: Werte geschätzt, bei Bedarf anheben; sie schützen Speicher, Renderer und den Editor)
@@ -20,7 +20,7 @@ export const MAX_FRAGEN = 30;
 export const MAX_FRAGE = 200;
 export const MAX_ANTWORT_ZEICHEN = 3000;
 export const MAX_SPALTE_ZEICHEN = 5000;
-export const MAX_BILDTEXT_ZEICHEN = 3000;
+export const MAX_BILDNEBEN_ZEICHEN = 3000;
 export const MAX_TABELLE_SPALTEN = 6;
 export const MAX_TABELLE_ZEILEN = 40;
 export const MAX_ZELLE = 120;
@@ -105,12 +105,12 @@ export const textBausteine = [
     }),
   ),
   baustein(
-    "bildtext",
+    "bildneben",
     z.strictObject({
       mediumId,
       seite: z.enum(BILD_SEITEN),
       titel: kurztext(100).optional(),
-      inhalt: kurzerText(MAX_BILDTEXT_ZEICHEN),
+      inhalt: kurzerText(MAX_BILDNEBEN_ZEICHEN),
       link: z
         .strictObject({ beschriftung: kurztext(60), ziel: linkAlle })
         .optional(),
@@ -203,7 +203,7 @@ export function textVerweise(
       text(b.daten.links.inhalt);
       text(b.daten.rechts.inhalt);
       break;
-    case "bildtext":
+    case "bildneben":
       medien.add(b.daten.mediumId);
       text(b.daten.inhalt);
       ziel(b.daten.link?.ziel);

@@ -18,7 +18,7 @@ export const TEXT_TYPEN = [
   "zitat",
   "fragen",
   "spalten",
-  "bildtext",
+  "bildneben",
   "tabelle",
   "schritte",
   "checkliste",
@@ -31,7 +31,7 @@ export const istTextBaustein = (b: Baustein): b is TextBaustein =>
 
 // Diese Bausteine brauchen die ganze Breite des Abschnitts statt der rechten Spalte neben dem Titel
 export const istBreitText = (b: Baustein): boolean =>
-  b.typ === "spalten" || b.typ === "bildtext" || b.typ === "tabelle";
+  b.typ === "spalten" || b.typ === "bildneben" || b.typ === "tabelle";
 
 // Wie der Stand in rendern.ts: letzte.ebene ist die Ebene der letzten Überschrift, schalter zählt die Schaltflächen (nur die erste ist rot), anker die vergebenen IDs
 type Stand = { ebene: number; schalter: number; anker: Set<string> };
@@ -200,8 +200,8 @@ export function rendereTextBaustein(
         ),
       );
     // Fehlt das Bild (gelöscht, kein Bild), steht der Text allein
-    case "bildtext": {
-      const bild = bildKnoten(b.daten.mediumId, daten, "bt-foto");
+    case "bildneben": {
+      const bild = bildKnoten(b.daten.mediumId, daten, "bn-foto");
       const knopf = b.daten.link
         ? verlinke(
             b.daten.link.ziel,
@@ -212,12 +212,12 @@ export function rendereTextBaustein(
       return el(
         "div",
         {
-          class: `bildtext bildtext--${b.daten.seite}${bild ? "" : " bildtext--ohne-bild"}`,
+          class: `bildneben bildneben--${b.daten.seite}${bild ? "" : " bildneben--ohne-bild"}`,
         },
-        ...(bild ? [el("figure", { class: "bt-bild" }, bild)] : []),
+        ...(bild ? [el("figure", { class: "bn-bild" }, bild)] : []),
         el(
           "div",
-          { class: "bt-text" },
+          { class: "bn-text" },
           ...(b.daten.titel
             ? [el(`h${ebene}`, { class: "titel" }, b.daten.titel)]
             : []),

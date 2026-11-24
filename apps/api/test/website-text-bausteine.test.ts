@@ -64,7 +64,7 @@ const BEISPIELE = {
     links: { titel: "Links", inhalt: [absatz("a")] },
     rechts: { inhalt: [absatz("b")] },
   },
-  bildtext: {
+  bildneben: {
     mediumId: id(),
     seite: "rechts",
     titel: "Draussen",
@@ -235,25 +235,25 @@ describe("Schema der Bausteine «Text und Gestaltung»", () => {
     });
   });
 
-  describe("Bild und Text", () => {
+  describe("Bild neben Text", () => {
     test("Bild nötig, Seite aus der Liste, Link nur mit beiden Angaben und erlaubtem Ziel", () => {
-      const ok = BEISPIELE.bildtext;
+      const ok = BEISPIELE.bildneben;
       expect(
-        fehler(b("bildtext", { ...ok, mediumId: undefined })),
+        fehler(b("bildneben", { ...ok, mediumId: undefined })),
       ).not.toBeNull();
-      expect(fehler(b("bildtext", { ...ok, seite: "oben" }))).not.toBeNull();
+      expect(fehler(b("bildneben", { ...ok, seite: "oben" }))).not.toBeNull();
       expect(
-        fehler(b("bildtext", { ...ok, link: { beschriftung: "Mehr" } })),
+        fehler(b("bildneben", { ...ok, link: { beschriftung: "Mehr" } })),
       ).not.toBeNull();
       expect(
         fehler(
-          b("bildtext", {
+          b("bildneben", {
             ...ok,
             link: { beschriftung: "Mehr", ziel: "javascript:alert(1)" },
           }),
         ),
       ).not.toBeNull();
-      expect(fehler(b("bildtext", { ...ok, link: undefined }))).toBeNull();
+      expect(fehler(b("bildneben", { ...ok, link: undefined }))).toBeNull();
     });
   });
 
@@ -358,11 +358,11 @@ describe("Schema der Bausteine «Text und Gestaltung»", () => {
 describe("Verweise der Bausteine «Text und Gestaltung»", () => {
   test("Medien und Seiten, auf die sie zeigen, kommen in die Verweisprüfung", () => {
     const zitatBild = id();
-    const bildtextBild = id();
+    const bildnebenBild = id();
     const d = gueltig(
       b("zitat", { text: "x", bild: zitatBild }),
-      b("bildtext", {
-        mediumId: bildtextBild,
+      b("bildneben", {
+        mediumId: bildnebenBild,
         seite: "links",
         inhalt: [absatz("Text", { link: "/lager" })],
         link: { beschriftung: "Mehr", ziel: "/ueber-uns#team" },
@@ -385,7 +385,7 @@ describe("Verweise der Bausteine «Text und Gestaltung»", () => {
       }),
     );
     const v = sammleVerweise(d);
-    expect(new Set(v.medien)).toEqual(new Set([zitatBild, bildtextBild]));
+    expect(new Set(v.medien)).toEqual(new Set([zitatBild, bildnebenBild]));
     expect(new Set(v.seiten)).toEqual(
       new Set([
         "/lager",
@@ -561,7 +561,7 @@ describe("Renderer der Bausteine «Text und Gestaltung»", () => {
     expect(html).toMatch(/sektion--breit/);
   });
 
-  test("Bild und Text: Seite als Klasse, Alt-Text vom Medium, ohne Medium steht der Text allein, nur die erste Schaltfläche der Seite ist rot", () => {
+  test("Bild neben Text: Seite als Klasse, Alt-Text vom Medium, ohne Medium steht der Text allein, nur die erste Schaltfläche der Seite ist rot", () => {
     const m1 = id();
     const m2 = id();
     const daten = mitBild(m1, "Zelt im Wald");
@@ -570,7 +570,7 @@ describe("Renderer der Bausteine «Text und Gestaltung»", () => {
       (daten.medien as Map<string, unknown>).get(m1),
     );
     const bt = (mediumId: string, seiteWahl: string) =>
-      b("bildtext", {
+      b("bildneben", {
         mediumId,
         seite: seiteWahl,
         titel: "Titel",
@@ -581,8 +581,8 @@ describe("Renderer der Bausteine «Text und Gestaltung»", () => {
       dok(h2("Draussen"), bt(m1, "rechts"), bt(m2, "links")),
       daten,
     );
-    expect(html).toContain("bildtext bildtext--rechts");
-    expect(html).toContain("bildtext bildtext--links");
+    expect(html).toContain("bildneben bildneben--rechts");
+    expect(html).toContain("bildneben bildneben--links");
     expect(html).toContain('alt="Zelt im Wald"');
     expect(html).toContain('<h3 class="titel">Titel</h3>');
     expect(html).toContain('class="btn p gross"');
@@ -590,7 +590,7 @@ describe("Renderer der Bausteine «Text und Gestaltung»", () => {
     expect((html.match(/class="btn p gross"/g) ?? []).length).toBe(1);
 
     const ohne = seite(dok(h2("Draussen"), bt(id(), "links")));
-    expect(ohne).toContain("bildtext--ohne-bild");
+    expect(ohne).toContain("bildneben--ohne-bild");
     expect(ohne).not.toContain("<figure");
     expect(ohne).toContain("<p>Text</p>");
   });
@@ -851,8 +851,8 @@ describe("Stil und Editor", () => {
       ".fragen",
       ".frage summary",
       ".zwei-spalten",
-      ".bildtext--rechts",
-      ".bildtext--ohne-bild",
+      ".bildneben--rechts",
+      ".bildneben--ohne-bild",
       ".tabelle-rahmen",
       ".texttabelle .tab-zahl",
       ".schritte",
@@ -953,9 +953,7 @@ describe("Editor: Katalog und Prüfung der Bausteine «Text und Gestaltung»", a
     "%s: das Beispiel besteht die Prüfung des Editors und die des Servers, ein neuer, leerer Baustein nicht",
     (typ) => {
       const e = meine.find((x) => x.typ === typ)!;
-      // Ein Bild gehört nicht in ein Beispiel (die Vorschau zeigt den Text allein); für die Prüfungen steht ein beliebiges
-      const roh = JSON.parse(JSON.stringify(e.beispiel!()));
-      const beispiel = typ === "bildtext" ? { ...roh, mediumId: id() } : roh;
+      const beispiel = JSON.parse(JSON.stringify(e.beispiel!()));
       expect(editor.TYPEN[typ]!.pruefe(beispiel, k)).toEqual([]);
       expect(editor.TYPEN[typ]!.kurz(beispiel, k)).not.toBe("");
       expect(fehler(b(typ, beispiel))).toBeNull();
@@ -970,11 +968,9 @@ describe("Editor: Katalog und Prüfung der Bausteine «Text und Gestaltung»", a
   test("das Beispiel zeigt in der Vorschau etwas, auch ohne Bild und ohne Daten", () => {
     for (const e of meine) {
       const d = JSON.parse(JSON.stringify(e.beispiel!()));
-      const html = seite(
-        dok(b(e.typ, e.typ === "bildtext" ? { ...d, mediumId: id() } : d)),
-      );
+      const html = seite(dok(b(e.typ, d)));
       expect(html, e.typ).toMatch(
-        /hinweisbox|zitat|fragen|zwei-spalten|bildtext|tabelle|schritte|checkliste/,
+        /hinweisbox|zitat|fragen|zwei-spalten|bildneben|tabelle|schritte|checkliste/,
       );
     }
   });
@@ -995,13 +991,13 @@ describe("Editor: Katalog und Prüfung der Bausteine «Text und Gestaltung»", a
     }
   });
 
-  test("Bilder des Zitats und von «Bild und Text» werden mit den Angaben der Medien abgerufen", () => {
+  test("Bilder des Zitats und von «Bild neben Text» werden mit den Angaben der Medien abgerufen", () => {
     const a = id();
     const c = id();
     const ids = editor.medienIds({
       bausteine: [
         { typ: "zitat", daten: { text: "x", bild: a } },
-        { typ: "bildtext", daten: { mediumId: c } },
+        { typ: "bildneben", daten: { mediumId: c } },
       ],
     });
     expect(new Set(ids)).toEqual(new Set([a, c]));

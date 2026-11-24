@@ -19,14 +19,14 @@ import {
   zaehleZeichen,
 } from "./website-richtext.js";
 
-// Bausteine «Text und Gestaltung» (#741) im Editor: Hinweisbox, Zitat, Fragen und Antworten, zwei Spalten, Bild und Text, Tabelle, Schritte, Checkliste.
+// Bausteine «Text und Gestaltung» (#741) im Editor: Hinweisbox, Zitat, Fragen und Antworten, zwei Spalten, Bild neben Text, Tabelle, Schritte, Checkliste.
 // Typen und Katalogeinträge hängt website-felder.js an TYPEN und KATALOG; die Hilfen (eingabe, listenForm, bildWahl …) kommen von dort. Nichts hier läuft beim Laden: Alles wird erst beim Zeichnen eines Formulars gebraucht.
 // Obergrenzen wie in src/website/bausteine-text.ts.
 
 const MAX_HINWEISBOX = 1000;
 const MAX_ANTWORT = 3000;
 const MAX_SPALTE = 5000;
-const MAX_BILDTEXT = 3000;
+const MAX_BILDNEBEN = 3000;
 const MAX_BLOECKE = 12;
 const MAX_FRAGEN = 30;
 const MAX_SPALTEN_TABELLE = 6;
@@ -95,6 +95,9 @@ const textAnfang = (bloecke, n = 80) =>
     n,
   );
 
+// Beispiele für die Vorschau im Katalog: feste IDs, die der Server durch Platzhalterbilder ersetzt (nie echte Medien)
+const bspBild = (nr) =>
+  `00000000-0000-4000-8000-${String(nr).padStart(12, "0")}`;
 const absatz = (text) => ({ typ: "absatz", inhalt: [{ text }] });
 const punkte = (...eintraege) => ({
   typ: "liste",
@@ -268,13 +271,13 @@ export const TEXT_TYPEN = {
         ),
       ),
   },
-  bildtext: {
-    name: "Bild und Text",
+  bildneben: {
+    name: "Bild neben Text",
     kurz: (d) => d.titel || textAnfang(d.inhalt, 60),
     pruefe: (d, k) => {
       const fehler = [
         ...(d.mediumId ? [] : [["daten.mediumId", "fehlt."]]),
-        ...pruefeText(d.inhalt, "daten.inhalt", MAX_BILDTEXT),
+        ...pruefeText(d.inhalt, "daten.inhalt", MAX_BILDNEBEN),
         ...pruefeLinkPaar(
           { beschriftung: d.link?.beschriftung, ziel: d.link?.ziel },
           "daten.link",
@@ -301,7 +304,7 @@ export const TEXT_TYPEN = {
         optional: true,
       }),
       textFeld(k, b, reg, b.daten, "inhalt", "daten.inhalt", "Text", {
-        max: MAX_BILDTEXT,
+        max: MAX_BILDNEBEN,
       }),
       teilEingabe(
         k,
@@ -547,7 +550,7 @@ export const TEXT_TYPEN = {
   },
 };
 
-// Katalog «Baustein hinzufügen»: gruppe ordnet ihn ein, beispiel liefert die Daten für die Vorschau (echter Renderer, ohne Bild)
+// Katalog «Baustein hinzufügen»: gruppe ordnet ihn ein, beispiel liefert die Daten für die Vorschau (echter Renderer, Bilder als Platzhalter)
 export const TEXT_KATALOG = [
   {
     typ: "hinweisbox",
@@ -573,6 +576,7 @@ export const TEXT_KATALOG = [
       text: "Im Lager habe ich Freunde gefunden, die bis heute zu mir halten.",
       person: "Mika",
       funktion: "Leitung Jungschar",
+      bild: bspBild(61),
     }),
   },
   {
@@ -627,12 +631,13 @@ export const TEXT_KATALOG = [
     }),
   },
   {
-    typ: "bildtext",
+    typ: "bildneben",
     gruppe: "Bilder und Medien",
     beschreibung:
       "Ein Bild neben einem Text, links oder rechts, auf Wunsch mit Schaltfläche.",
     neu: () => ({ seite: "links", inhalt: [] }),
     beispiel: () => ({
+      mediumId: bspBild(62),
       seite: "links",
       titel: "Draussen zu Hause",
       inhalt: [

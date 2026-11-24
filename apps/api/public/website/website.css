@@ -2668,7 +2668,7 @@ dialog.lichtkasten {
   outline-color: var(--on-secondary);
 }
 
-/* ===== Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, zwei Spalten, Bild und Text, Tabelle, Schritte, Checkliste =====
+/* ===== Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, zwei Spalten, Bild neben Text, Tabelle, Schritte, Checkliste =====
    Nur Tokens, Tag und Nacht, Fokus wie überall. Die Zeichen entstehen aus Rahmen und Schrift (kein Bild, kein SVG): Das Skript für geschützte Bausteine kennt kein SVG. Bewegung nur ohne «Bewegung reduzieren» */
 
 /* Hinweisbox: Kasten mit dem Wort der Art (Info, Tipp, Wichtig, Achtung), einem Zeichen und einer Kante; die Farbe kommt dazu, trägt aber nichts allein */
@@ -2905,24 +2905,24 @@ dialog.lichtkasten {
   }
 }
 
-/* Bild und Text: Im Markup steht das Bild zuerst (am Handy oben); «rechts» stellt es ab 48 em rechts neben den Text, ohne die Reihenfolge für Tastatur und Screenreader zu ändern */
-.bildtext {
+/* Bild neben Text: Im Markup steht das Bild zuerst (am Handy oben); «rechts» stellt es ab 48 em rechts neben den Text, ohne die Reihenfolge für Tastatur und Screenreader zu ändern */
+.bildneben {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: center;
   gap: 1.5rem;
 }
 
-.bt-bild {
+.bn-bild {
   margin: 0;
 }
 
 /* Mehrere Bild-Text-Blöcke hintereinander brauchen mehr Luft als zwei Absätze */
-.bildtext + .bildtext {
+.bildneben + .bildneben {
   margin-top: clamp(1.5rem, 4vw, 3.5rem);
 }
 
-.bt-foto {
+.bn-foto {
   width: 100%;
   max-height: 34rem;
   border-radius: var(--r-md);
@@ -2930,7 +2930,7 @@ dialog.lichtkasten {
   background: var(--surface-container-high);
 }
 
-.bt-text .titel {
+.bn-text .titel {
   margin-bottom: 0.75rem;
   font-size: clamp(1.5rem, 1.2rem + 1vw, 2.125rem);
   line-height: 1.15;
@@ -2939,35 +2939,35 @@ dialog.lichtkasten {
   text-wrap: balance;
 }
 
-.bt-text .knopf {
+.bn-text .knopf {
   margin-top: 1.25rem;
 }
 
 @media (min-width: 48em) {
-  .bildtext {
+  .bildneben {
     grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
     gap: 2rem var(--spalt);
   }
 
-  .bildtext--rechts {
+  .bildneben--rechts {
     grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
   }
 
-  .bildtext--rechts .bt-bild {
+  .bildneben--rechts .bn-bild {
     grid-column: 2;
     grid-row: 1;
   }
 
-  .bildtext--rechts .bt-text {
+  .bildneben--rechts .bn-text {
     grid-column: 1;
     grid-row: 1;
   }
 
-  .bildtext--ohne-bild {
+  .bildneben--ohne-bild {
     grid-template-columns: minmax(0, 1fr);
   }
 
-  .bildtext--ohne-bild .bt-text {
+  .bildneben--ohne-bild .bn-text {
     grid-column: 1;
   }
 }
