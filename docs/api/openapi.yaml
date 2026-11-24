@@ -5266,9 +5266,11 @@ paths:
       operationId: loescheAdminPerson
       summary: Person löschen
       description: |
-        Nur die Abteilungsleitung (festes Recht `konto.loeschen`), nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
+        Verlangt das Recht `konto.loeschen` («erweitert», vergebbar seit #771: Entwickler und Abteilungsleitung haben es, einer Rolle oder Person gibt es der Rechte-Editor) und den zweiten Faktor; «Personen verwalten» ist nicht nötig. Nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
+        Der Schutz gilt unabhängig vom Recht: Konten von Entwicklern löscht nur ein Entwickler, Konten der Abteilungsleitung nur die Abteilungsleitung oder ein Entwickler (403 mit Code `KONTO_GESCHUETZT`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 ohne das Recht, ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) oder bei einem geschützten Konto (`KONTO_GESCHUETZT`). 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
         - Verwaltung
       parameters:
@@ -5282,7 +5284,11 @@ paths:
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
+          description: Das Recht `konto.loeschen` fehlt (`KEINE_BERECHTIGUNG`), der zweite Faktor fehlt (`ZWEITER_FAKTOR_FEHLT`), oder das Konto ist geschützt (`KONTO_GESCHUETZT`, Text «Dieses Konto darf nur ein Entwickler löschen.» oder «Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen.»).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":

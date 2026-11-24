@@ -8,6 +8,7 @@
 - Die **Abteilungsleitung** ist eine Rolle, die vergeben wird (Tabelle `abteilungsleitung_person`), keine Administration. Ihre Rechte stellt der Entwickler ein.
 - In jeder Abteilung bleibt mindestens eine aktive Person mit Abteilungsleitung oder Entwickler (`LETZTE_ABTEILUNGSLEITUNG`, 409).
 - Die Apps passen sich der API an: kein Alias, kein Altfeld `admin`.
+- **Konto löschen ist ein Recht wie jedes andere (#771, Entscheid vom 24.11.2026).** `konto.loeschen` ist «erweitert» und vergebbar: Entwickler und Abteilungsleitung haben es (die Abteilungsleitung einstellbar), eine Rolle oder Person bekommt es im Rechte-Editor. Es hängt nicht mehr an «Personen verwalten». Die Route schützt unabhängig vom Recht: das eigene Konto nie, Konten von Entwicklern nur durch einen Entwickler, Konten der Abteilungsleitung nur durch Abteilungsleitung oder Entwickler (403 `KONTO_GESCHUETZT`), die letzte Abteilungsleitung bleibt (409 `LETZTE_ABTEILUNGSLEITUNG`). Die Verwaltung zeigt den Knopf bei vorhandenem Recht und bei geschützten Konten den Grund. Keine Migration: Rechte sind der Code-Katalog, bestehende Zuweisungen und Abzüge bleiben.
 
 ## Das Modell nachher
 

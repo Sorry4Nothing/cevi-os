@@ -1,3 +1,4 @@
+import { bestaetigungAmOrt } from "./aktionen.js";
 import { anfrage, fehlertext } from "./api.js";
 import {
   ankreuzen,
@@ -18,7 +19,7 @@ import { formularRaster } from "./formularraster.js";
 import { melde } from "./melden.js";
 import { entferneFehler, feldFehler, pruefHinweis } from "./liste-hilfen.js";
 import { suchWahl } from "./personen-wahl.js";
-import { siehtAlles } from "./sicht.js";
+import { istEntwickler, siehtAlles } from "./sicht.js";
 import { zweistufig } from "./rueckgaengig.js";
 import { typName } from "./tags-detail.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
@@ -392,6 +393,47 @@ function umschalten(person, ctx, neu, fertig) {
     fehlertext,
     danach: neu,
   });
+}
+
+// Endgültig löschen (Recht konto.loeschen): kein Toast mit «Rückgängig», sondern die Karte am Ort mit dem Namen zum Eintippen. Fehler bleiben in der Karte, dort entscheidet die Person (#769)
+function kontoLoeschenKarte(person, ctx, neu, fertig) {
+  return bestaetigungAmOrt({
+    text: "Konto löschen",
+    symbol: "papierkorb",
+    klein: true,
+    frage: `Konto von ${person.name} endgültig löschen?`,
+    folge:
+      "Das Konto, die Anmeldung, die Chats und die Verknüpfungen zu Gruppen und Rollen sind danach weg. Einträge im Änderungsprotokoll bleiben. Zum Zurücknehmen deaktiviere die Person stattdessen.",
+    bestaetigenText: "Endgültig löschen",
+    erwartet: person.name,
+    ausfuehren: async () => {
+      await anfrage("DELETE", `/api/v1/admin/personen/${person.id}`);
+      const geladen = neu();
+      fertig();
+      // Die Zeile der Person gibt es nicht mehr: Nach dem Neuladen geht der Fokus zur Überschrift
+      nachLaden(geladen, () => document.querySelector("h1")?.focus());
+      ctx.melde(`Konto von ${person.name} gelöscht.`);
+    },
+    fehlertext: (f) => `Nicht gelöscht. ${fehlertext(f)}`,
+  }).wurzel;
+}
+
+// «Konto löschen» zeigt, wer das Recht «konto.loeschen» hat (ein Recht wie jedes andere, #771). Ein Konto über der Person ist geschützt: Konten von Entwicklern löscht nur ein Entwickler, Konten der Abteilungsleitung nur Abteilungsleitung oder Entwickler. Dann steht der Grund statt des Knopfs. Der Server prüft beides (403 KONTO_GESCHUETZT)
+function kontoLoeschenAktion(person, ctx, neu, schliesse) {
+  // Die Rechte stammen aus GET /api/v1/ich und berücksichtigen, was der Entwickler der Abteilungsleitung genommen hat; die Abteilungsleitung hat es nicht «immer»
+  if (!ctx?.ich?.rechte?.some((r) => r.recht === "konto.loeschen")) return null;
+  const grund =
+    person.entwickler && !istEntwickler(ctx.ich)
+      ? "Dieses Konto darf nur ein Entwickler löschen."
+      : person.abteilungsleitung && !siehtAlles(ctx.ich)
+        ? "Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen."
+        : null;
+  return kontoAktion(
+    "Konto löschen",
+    grund ??
+      "Löscht Konto und Anmeldung endgültig, auch die Chats und die Verknüpfungen zu Gruppen und Rollen. Das geht nicht rückgängig; zum Zurücknehmen deaktivierst du die Person stattdessen.",
+    grund ? null : kontoLoeschenKarte(person, ctx, neu, schliesse),
+  );
 }
 
 function faktorZuruecksetzen(person, ctx, neu, fertig) {
@@ -1098,6 +1140,7 @@ function kontoAbschnitt(person, { eigenes, ctx, neu, beiFokus, schliesse }) {
                   },
                 }),
               ),
+          kontoLoeschenAktion(person, ctx, neu, schliesse),
         ],
   );
 }

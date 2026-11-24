@@ -236,7 +236,10 @@ describe("Gruppenrollen je Gruppe", () => {
         name: "A",
         rechte: [{ recht: "seiten.anlegen_loeschen", geltung: "eigene" }],
       },
-      { name: "A", rechte: [{ recht: "konto.loeschen", geltung: "alle" }] },
+      {
+        name: "A",
+        rechte: [{ recht: "kinder.konto_verwalten", geltung: "alle" }],
+      },
       { name: "A", rechte: [{ recht: "rechte.verwalten", geltung: "alle" }] },
       {
         name: "A",
@@ -699,7 +702,7 @@ describe("Globale Rollen", () => {
       (
         await anfrage(admin, "POST", "/rollen", {
           name: "Falsch",
-          rechte: ["konto.loeschen"],
+          rechte: ["kinder.konto_verwalten"],
         })
       ).status,
     ).toBe(400);

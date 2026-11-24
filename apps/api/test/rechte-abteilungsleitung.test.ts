@@ -115,7 +115,9 @@ describe("Standard: die Abteilungsleitung hat alles Vergebbare", () => {
     expect(k.rechte).toEqual(VERGEBBARE_RECHTE);
     // Fest bleibt, was Aussperren verhindert; das Recht des Entwicklers gehört nicht dazu
     expect(k.fest).toContain("rechte.verwalten");
-    expect(k.fest).toContain("konto.loeschen");
+    // Konten löschen ist seit #771 vergebbar: Die Abteilungsleitung hat es als Standard, der Entwickler kann es ihr nehmen
+    expect(k.fest).not.toContain("konto.loeschen");
+    expect(k.rechte).toContain("konto.loeschen");
     expect(k.fest).not.toContain("rechte.abteilungsleitung");
     expect(k.fest).not.toContain("protokoll.lesen");
     expect(k.aenderbar).toBe(false);
@@ -447,7 +449,8 @@ describe("Der Entwickler ändert die Rechte der Abteilungsleitung", () => {
       );
       const satz = await ladeRechteSatz(db, person(al, true));
       expect(satz.hat("rechte.verwalten")).toBe(true);
-      expect(satz.hat("konto.loeschen")).toBe(true);
+      // Auch «Konten löschen» ist vergebbar und mit dem Rest weg (#771)
+      expect(satz.hat("konto.loeschen")).toBe(false);
       expect(satz.hat("personen.verwalten")).toBe(false);
       expect(satz.hat("rechte.abteilungsleitung")).toBe(false);
     } finally {
