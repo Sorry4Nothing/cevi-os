@@ -217,6 +217,12 @@ describe("Rollen und Rechte: Oberfläche", () => {
     expect(lies("rechte.css")).toMatch(/\.rr-segment \{[^}]*min-height: 44px/);
   });
 
+  test("die scrollende Matrix ist Bezugsrahmen für .nur-leser: keine leere Fläche unter der Seite (#723)", () => {
+    expect(lies("rechte.css")).toMatch(
+      /\.rr-matrix-huelle \{[^}]*position: relative[^}]*overflow: auto/s,
+    );
+  });
+
   test("Karten für schmale Bildschirme und die Matrix teilen sich einen Entwurf", () => {
     const matrix = lies("rechte-matrix.js");
     expect(matrix).toContain("baueKarten");
