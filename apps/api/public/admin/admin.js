@@ -335,6 +335,16 @@ function zeigeSperre(text, grund = SPERRE_2FA) {
   });
 }
 
+// Das Konto hat den zweiten Faktor, diese Sitzung aber keinen Code geprüft (#721). Die Anmeldung hier fragt immer nach dem Code, so eine Sitzung stammt also nicht aus ihr (die der App haben nie Zugang zur Verwaltung). Nachholen geht nicht, die API lehnt es ab: abmelden und neu anmelden, dann folgt der Code
+async function neuAnmeldenMitCode() {
+  try {
+    await anfrage("POST", "/api/auth/sign-out", {});
+  } catch {
+    // Die neue Anmeldung ersetzt das Cookie ohnehin
+  }
+  zeigeLogin("Für die Verwaltung braucht es den Code. Melde dich neu an.");
+}
+
 // Beim Start ist «keine Sitzung» der Normalfall; nach einer Anmeldung ist es ein Fehler
 async function pruefeKonto(nachAnmeldung = true) {
   const sitzung = await anfrage("GET", "/api/auth/get-session");
@@ -359,6 +369,10 @@ async function pruefeKonto(nachAnmeldung = true) {
       zeigeEinrichtung();
       return;
     }
+    if (sitzung.session?.zweiterFaktorGeprueft !== true) {
+      await neuAnmeldenMitCode();
+      return;
+    }
     zugang = mitDarf(
       { redigieren: true, bereiche: ["website"], verwalten: true, rechte: [] },
       true,
@@ -372,6 +386,10 @@ async function pruefeKonto(nachAnmeldung = true) {
       // Ein Recht, das den zweiten Faktor verlangt, aber kein Faktor (#715)
       if (f instanceof ApiFehler && f.code === "ZWEITER_FAKTOR_FEHLT") {
         zeigeEinrichtung();
+        return;
+      }
+      if (f instanceof ApiFehler && f.code === "ZWEITER_FAKTOR_SITZUNG") {
+        await neuAnmeldenMitCode();
         return;
       }
       throw f;

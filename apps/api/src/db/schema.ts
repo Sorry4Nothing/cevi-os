@@ -119,6 +119,10 @@ export const session = pgTable(
       .references(() => user.id, { onDelete: "cascade" }),
     // Bleibt leer, es gibt keine Identitätsübernahme; better-auth verlangt die Spalte
     impersonatedBy: text("impersonated_by"),
+    // Wahr nur, wenn diese Sitzung mit dem Code des zweiten Faktors begann (verify-totp, verify-backup-code, #721). Die Anmeldung der App kommt ohne Code zu einer Sitzung: Sie bleibt falsch und öffnet weder die Verwaltung noch Rechte mit «erweitert»
+    zweiterFaktorGeprueft: boolean("zweiter_faktor_geprueft")
+      .notNull()
+      .default(false),
   },
   (t) => [
     index("session_user_id_idx").on(t.userId),

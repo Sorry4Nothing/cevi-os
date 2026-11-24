@@ -5,7 +5,6 @@ import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
-import { legeWebmasterAn } from "../src/plattform.js";
 import { ladeSeiten } from "../src/seiten.js";
 import {
   bereiteAuthTestsVor,
@@ -14,6 +13,7 @@ import {
   zufallsIp,
 } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
+import { webmasterRolle as holeWebmasterRolle } from "./hilfen/webmaster.js";
 import {
   erstelleWelt,
   legePersonaAn,
@@ -45,13 +45,9 @@ let admin: PersonaKonto;
 let webmasterRolle: string;
 beforeAll(async () => {
   welt = await erstelleWelt(db, auth);
-  await legeWebmasterAn(db, welt.testabteilungId);
   admin = await legePersonaAn(welt, "admin");
-  const [rolle] = await db
-    .select({ id: schema.plattformRolle.id })
-    .from(schema.plattformRolle)
-    .where(eq(schema.plattformRolle.schluessel, "webmaster"));
-  webmasterRolle = rolle.id;
+  // Je Abteilung: Die Rolle einer anderen Testdatei im selben Lauf wäre die falsche
+  webmasterRolle = await holeWebmasterRolle(db, welt.testabteilungId);
 });
 
 const anfrage = (

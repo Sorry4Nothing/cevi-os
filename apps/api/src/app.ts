@@ -469,6 +469,7 @@ export function erstelleApp({
           return c.json(
             zweiterFaktorFehlt(
               "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+              c.get("person"),
             ),
             403,
           );

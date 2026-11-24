@@ -296,6 +296,9 @@ export function rechteFehlerText(f, fallback) {
   if (code === "ZWEITER_FAKTOR_FEHLT") {
     return "Für die Rechte braucht es zuerst den zweiten Faktor. Richte ihn in «Mein Konto» ein.";
   }
+  if (code === "ZWEITER_FAKTOR_SITZUNG") {
+    return "Diese Sitzung hat den Code nicht geprüft. Melde dich neu an und gib den Code ein.";
+  }
   if (f?.status === 403) {
     return "Das kannst du nicht vergeben: Du hast dieses Recht selbst nicht, oder nicht für alle Objekte. Wer Rechte vergibt, hat sie selbst.";
   }
