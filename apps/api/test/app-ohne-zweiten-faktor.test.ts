@@ -249,6 +249,42 @@ describe("Was die App-Sitzung darf", () => {
   });
 });
 
+describe("Der Entwickler braucht für die Verwaltung den zweiten Faktor wie die Abteilungsleitung (#735)", () => {
+  const entwickler = async (persona: Persona) => {
+    const konto = await neu(persona);
+    await db.insert(schema.plattformEntwickler).values({ userId: konto.id! });
+    return konto;
+  };
+
+  test("ohne Faktor: 403 ZWEITER_FAKTOR_FEHLT unter /api/v1/admin/* und /api/v1/redaktion", async () => {
+    const konto = await entwickler("elternA");
+    const cookie = cookiesAus(await alsBrowser(konto));
+    for (const pfad of ["/api/v1/admin/personen", "/api/v1/redaktion/ich"]) {
+      const antwort = await get(pfad, cookie, WEB_ORIGIN);
+      expect(antwort.status, pfad).toBe(403);
+      expect(await antwort.json(), pfad).toMatchObject({
+        code: "ZWEITER_FAKTOR_FEHLT",
+      });
+    }
+  });
+
+  test("mit Faktor und geprüfter Sitzung: 200; in der App-Sitzung ZWEITER_FAKTOR_SITZUNG", async () => {
+    const konto = await richteFaktorEin(await entwickler("elternA"));
+    const geprueft = await get(
+      "/api/v1/admin/personen",
+      konto.headers.cookie,
+      WEB_ORIGIN,
+    );
+    expect(geprueft.status).toBe(200);
+    const app = await get(
+      "/api/v1/admin/personen",
+      cookiesAus(await alsApp(konto)),
+    );
+    expect(app.status).toBe(403);
+    expect(await app.json()).toMatchObject({ code: "ZWEITER_FAKTOR_SITZUNG" });
+  });
+});
+
 // Einrichten wie die Verwaltung (enable, erster Code): das Cookie der neuen, geprüften Sitzung
 async function richteFaktorEin(konto: PersonaKonto): Promise<PersonaKonto> {
   const anmeldung = await alsBrowser(konto);

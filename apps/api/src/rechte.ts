@@ -160,12 +160,12 @@ export function personAusSitzung(
   });
 }
 
-// Verwaltungsrouten erst mit zweitem Faktor, geprüft in der Sitzung (person.zweiterFaktor, #721): Eine App-Sitzung ohne Code kommt nicht hinein, auch bei einem Konto mit Faktor (403 ZWEITER_FAKTOR_SITZUNG). Eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
+// Verwaltungsrouten erst mit zweitem Faktor für die Abteilungsleitung und den Entwickler (Entscheid vom 24.11.2026), geprüft in der Sitzung (person.zweiterFaktor, #721): Eine App-Sitzung ohne Code kommt nicht hinein, auch bei einem Konto mit Faktor (403 ZWEITER_FAKTOR_SITZUNG). Eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route
 export const zweiterFaktorPflicht = createMiddleware<{
   Variables: { person: Person };
 }>(async (c, next) => {
   const person = c.get("person");
-  if (person.abteilungsleitung && !person.zweiterFaktor) {
+  if (siehtAlles(person) && !person.zweiterFaktor) {
     return c.json(
       zweiterFaktorFehlt(
         "Für die Verwaltung braucht es zuerst einen zweiten Faktor.",
