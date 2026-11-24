@@ -27,7 +27,7 @@ export function telefonZiel(nummer: string): string {
 }
 
 // Ein Link nur, wenn die Adresse eine erlaubte Art hat; sonst fehlt er (nie ein Link ohne Ziel)
-const linkKnoten = (
+export const linkKnoten = (
   ziel: string,
   innen: HtmlKnoten[],
   klasse?: string,

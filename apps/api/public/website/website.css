@@ -2667,3 +2667,458 @@ dialog.lichtkasten {
 .fakten.karte :focus-visible {
   outline-color: var(--on-secondary);
 }
+
+/* ===== Einstieg und Handlung (#743): Kopfbereich, Inhaltsverzeichnis, Weiterführende Links, Kontaktleiste, Weitersagen, Brotkrumen, Seitenwechsel ===== */
+
+/* Kopfbereich: ein Bild mit der blauen Fahne wie auf der Startseite, ohne Bild ein blaues Band über die ganze Breite */
+.sektion--kopfbereich {
+  padding: 0;
+  background: var(--surface-container-low);
+}
+
+.kopfbereich--bild {
+  position: relative;
+  overflow-x: clip;
+}
+
+.kopfbereich--bild .titelbild img {
+  height: clamp(15rem, 36vw, 36rem);
+}
+
+.kopf-kasten {
+  position: relative;
+  margin-top: calc(-1 * clamp(3rem, 7vw, 7rem));
+  padding-bottom: clamp(1.5rem, 3vw, 3rem);
+}
+
+.kopfbereich h2 {
+  color: var(--on-secondary);
+  font-size: clamp(2.125rem, 1.4rem + 3vw, 4.25rem);
+  line-height: 1.02;
+  font-weight: 800;
+  letter-spacing: -0.025em;
+  text-wrap: balance;
+}
+
+.kopf-untertitel {
+  max-width: 40rem;
+  margin-top: 1rem;
+  color: var(--on-secondary);
+  font-size: clamp(1.125rem, 1rem + 0.5vw, 1.375rem);
+  line-height: 1.5;
+}
+
+.kopfbereich .knopfreihe {
+  margin-top: clamp(1.25rem, 2.5vw, 2.25rem);
+}
+
+.kopfbereich--band {
+  padding-block: clamp(2.5rem, 1.5rem + 4.5vw, 5.5rem);
+  background: var(--secondary);
+  color: var(--on-secondary);
+}
+
+.kopfbereich--band :focus-visible {
+  outline-color: var(--on-secondary);
+}
+
+.kopfbereich--band .btn.s {
+  border-color: var(--on-secondary-muted);
+  color: var(--on-secondary);
+}
+
+.kopfbereich--band .btn.s:hover {
+  background: var(--on-secondary);
+  color: var(--secondary);
+}
+
+/* Inhaltsverzeichnis: Sprunglinks zu den Abschnitten, als Liste mit Linien oder als Knöpfe nebeneinander */
+.verzeichnis {
+  max-width: 40rem;
+}
+
+.verzeichnis-titel {
+  margin-bottom: 0.75rem;
+  color: var(--on-surface-variant);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.verzeichnis a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.verzeichnis a:hover {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+}
+
+.verzeichnis--liste ul {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.verzeichnis--liste li {
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+/* Der Pfeil zeigt nach unten: Der Link springt weiter unten auf der Seite */
+.verzeichnis--liste a::after {
+  flex: none;
+  width: 0.925em;
+  height: 0.6em;
+  margin-left: auto;
+  background: currentcolor;
+  clip-path: polygon(
+    0 41.7%,
+    59.5% 41.7%,
+    59.5% 0,
+    100% 50%,
+    59.5% 100%,
+    59.5% 58.3%,
+    0 58.3%
+  );
+  content: "";
+  transform: rotate(90deg);
+}
+
+.verzeichnis--knoepfe ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.verzeichnis--knoepfe a {
+  padding: 0 1.25rem;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-full);
+  color: var(--on-surface);
+}
+
+.verzeichnis--knoepfe a:hover {
+  background: var(--surface-container);
+}
+
+/* Weiterführende Links: die ganze Karte oder Zeile ist der Link; der Pfeil zeigt nach rechts, bei einer fremden Seite nach oben rechts */
+.weiter {
+  display: grid;
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+}
+
+.weiter--karten {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+}
+
+.weiter-link {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  height: 100%;
+  min-height: 2.75rem;
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+.weiter-link:hover {
+  border-color: var(--outline);
+  text-decoration: none;
+}
+
+.weiter .weiter-link[rel~="noopener"]::after {
+  display: none;
+}
+
+.weiter-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.weiter-titel {
+  color: var(--titel);
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.weiter-link:hover .weiter-titel {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+.weiter-beschreibung {
+  color: var(--on-surface-variant);
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.weiter-pfeil {
+  display: inline-flex;
+  flex: none;
+  color: var(--accent);
+}
+
+.weiter-link--extern .weiter-pfeil {
+  transform: rotate(-45deg);
+}
+
+.weiter--liste {
+  gap: 0;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.weiter--liste li {
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.weiter--liste .weiter-link {
+  height: auto;
+  padding: 1rem 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .weiter-pfeil,
+  .seitenwechsel-pfeil {
+    transition: transform var(--dauer) var(--kurve);
+  }
+
+  .weiter-link:hover .weiter-pfeil {
+    transform: translateX(0.25rem);
+  }
+
+  .weiter-link--extern:hover .weiter-pfeil {
+    transform: rotate(-45deg) translateX(0.25rem);
+  }
+
+  .seitenwechsel-link--weiter:hover .seitenwechsel-pfeil {
+    transform: translateX(0.25rem);
+  }
+
+  .seitenwechsel-link--zurueck:hover .seitenwechsel-pfeil {
+    transform: scaleX(-1) translateX(0.25rem);
+  }
+}
+
+/* Kontaktleiste: eine schmale Karte, Angaben nebeneinander, am Handy untereinander */
+.kontaktleiste {
+  padding: 1.25rem 1.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  font-style: normal;
+}
+
+.leiste-titel {
+  margin-bottom: 0.5rem;
+  color: var(--titel);
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 800;
+}
+
+.kontaktleiste ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 2.5rem;
+}
+
+.leiste-zeile {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 2.75rem;
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+a.leiste-zeile:hover .leiste-wert {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+.leiste-symbol {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.leiste-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.leiste-art {
+  color: var(--on-surface-variant);
+  font-size: 0.9375rem;
+}
+
+.leiste-wert {
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+/* Weitersagen: ein Knopf mit Rand, der Symbol und Text zusammen trägt */
+.weitersagen .btn .i {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+/* Brotkrumen: der Weg zur Seite, die letzte Stufe ist die Seite selbst */
+.brotkrumen ol {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.5rem;
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.brotkrumen li {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.brotkrumen li + li::before {
+  margin-right: 0.5rem;
+  color: var(--on-surface-variant);
+  content: "›" / "";
+}
+
+.brotkrumen a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 600;
+}
+
+.brotkrumen [aria-current="page"] {
+  font-weight: 700;
+}
+
+/* Seitenwechsel: Vorherige und Nächste Seite als zwei grosse Ziele */
+.seitenwechsel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+}
+
+.seitenwechsel-link {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  min-height: 4.5rem;
+  padding: 1rem 1.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+a.seitenwechsel-link:hover {
+  border-color: var(--outline);
+  text-decoration: none;
+}
+
+.seitenwechsel-link--weiter {
+  grid-column: 2;
+  flex-direction: row-reverse;
+  justify-content: space-between;
+  text-align: right;
+}
+
+.seitenwechsel-link--zurueck {
+  grid-column: 1;
+}
+
+.seitenwechsel-link--zurueck .seitenwechsel-pfeil {
+  transform: scaleX(-1);
+}
+
+.seitenwechsel-pfeil {
+  display: inline-flex;
+  flex: none;
+  color: var(--accent);
+}
+
+.seitenwechsel-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.seitenwechsel-richtung {
+  color: var(--on-surface-variant);
+  font-size: 0.9375rem;
+}
+
+.seitenwechsel-titel {
+  color: var(--titel);
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+a.seitenwechsel-link:hover .seitenwechsel-titel {
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 0.2em;
+}
+
+@media (max-width: 40em) {
+  .seitenwechsel {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .seitenwechsel-link--weiter,
+  .seitenwechsel-link--zurueck {
+    grid-column: auto;
+  }
+}
+
+/* Erzwungene Farben: Karten und Knöpfe behalten ihren Rand */
+@media (forced-colors: active) {
+  .weiter-link,
+  .seitenwechsel-link,
+  .kontaktleiste,
+  .verzeichnis--knoepfe a {
+    border: 1px solid CanvasText;
+  }
+
+  .kopfbereich--band {
+    border-block: 1px solid CanvasText;
+  }
+}
+
+/* Beispiel in der Vorschau: Einträge ohne Link sehen aus wie Links, damit die Vorschau das Aussehen zeigt */
+.verzeichnis .beispiel {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  font-weight: 600;
+}

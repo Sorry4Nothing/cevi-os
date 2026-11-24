@@ -111,6 +111,14 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
       case "hinweis":
         ziel(b.daten.link?.ziel);
         break;
+      // Einstieg und Handlung (#743)
+      case "kopfbereich":
+        if (b.daten.bild) medien.add(b.daten.bild);
+        b.daten.schaltflaechen?.forEach((s) => ziel(s.ziel));
+        break;
+      case "weiterfuehrend":
+        b.daten.eintraege.forEach((e) => ziel(e.ziel));
+        break;
       case "eckdaten":
         b.daten.eintraege.forEach((e) => ziel(e.link));
         break;

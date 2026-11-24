@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
+import { handlungSchemas } from "./bausteine-handlung.js";
 import { sichtbarkeitSchema } from "../sichtbarkeit.js";
 
 // Bausteinkatalog Version 1 der Website (#349): ein strenges Schema je Typ, kein HTML.
@@ -52,7 +53,7 @@ export const MAX_TERMINE = 10;
 // Steuerzeichen (auch NUL, das jsonb nicht speichert) gehören in keinen Text; Zeilenumbrüche entstehen durch Absätze
 const STEUERZEICHEN = /\p{Cc}/u;
 const sauber = (s: string) => !STEUERZEICHEN.test(s);
-const kurztext = (max: number) =>
+export const kurztext = (max: number) =>
   z.string().trim().min(1).max(max).refine(sauber);
 
 // Links: nur diese Arten, je Baustein eine Auswahl. Ein Ziel ohne Schema (`javascript:`, `data:`, `//host`, `http:`) passt nie
@@ -96,7 +97,7 @@ export function linkArt(ziel: string): LinkArt | null {
   );
 }
 
-const link = (...erlaubt: LinkArt[]) =>
+export const link = (...erlaubt: LinkArt[]) =>
   z
     .string()
     .max(MAX_LINK_LAENGE)
@@ -105,7 +106,7 @@ const link = (...erlaubt: LinkArt[]) =>
       return art !== null && erlaubt.includes(art);
     });
 
-const linkAlle = link("https", "seite", "mailto", "tel");
+export const linkAlle = link("https", "seite", "mailto", "tel");
 
 // Rich Text als Knoten: Absatz oder Liste (flach, keine Verschachtelung), darin Abschnitte mit den Marken fett, kursiv und Link
 const abschnitt = z.strictObject({
@@ -155,7 +156,10 @@ const bildEintrag = z.strictObject({
 });
 
 // id: stabile ID, damit Editor und Versionen einen Baustein wiedererkennen; sichtbarkeit: fehlt sie oder steht «erbt», gilt die der Seite
-function baustein<T extends string, D extends z.ZodType>(typ: T, daten: D) {
+export function baustein<T extends string, D extends z.ZodType>(
+  typ: T,
+  daten: D,
+) {
   return z.strictObject({
     id: z.uuid(),
     typ: z.literal(typ),
@@ -362,6 +366,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein("laden", z.strictObject({})),
   // Fotoalben (#690): die Alben der Abteilung aus Flickr, nur für angemeldete Personen. Der Baustein hat keine eigenen Daten und steht als Behälter im HTML; das Skript holt Alben und Bilder von unserem Server (GET /api/v1/fotos/alben), der sie bei Flickr abholt. Welche Alben erscheinen, stellt die Verwaltung unter «Website, Fotos» ein
   baustein("fotoalben", z.strictObject({})),
+  // Einstieg und Handlung (#743): Schemas in bausteine-handlung.ts
+  ...handlungSchemas({ baustein, kurztext, link, linkAlle }),
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

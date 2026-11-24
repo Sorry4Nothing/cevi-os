@@ -3,6 +3,11 @@ import { pruefeLink } from "../link-pruefung.js";
 import { linkArt, type Baustein, type TextBlock } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
 import {
+  istHandlungsBaustein,
+  rendereHandlungsBaustein,
+  type SeitenInfo,
+} from "./handlung.js";
+import {
   istInhaltsBaustein,
   personenListe,
   rendereInhaltsBaustein,
@@ -375,13 +380,34 @@ function anker(text: string, vergeben: Set<string>): string | null {
   return id;
 }
 
-// Stand beim Rendern einer Seite; anker: vergebene IDs («inhalt» und «h1» gehören dem Rahmen)
-type Stand = { ebene: number; schalter: number; anker: Set<string> };
-const neuerStand = (): Stand => ({
-  ebene: 1,
-  schalter: 0,
-  anker: new Set(["inhalt", "h1"]),
-});
+// Stand beim Rendern einer Seite; anker: vergebene IDs («inhalt» und «h1» gehören dem Rahmen);
+// verzeichnis: die Überschriften der Ebene 2 mit ihrem Anker, vorab gesammelt für das Inhaltsverzeichnis (#743; es kann vor ihnen stehen); seite: was die Seite über sich weiss (Weitersagen, Brotkrumen, Seitenwechsel)
+type Stand = {
+  ebene: number;
+  schalter: number;
+  anker: Set<string>;
+  verzeichnis: { text: string; id: string }[];
+  seite?: SeitenInfo;
+};
+function neuerStand(dok: Seitendokument, seite?: SeitenInfo): Stand {
+  const stand: Stand = {
+    ebene: 1,
+    schalter: 0,
+    anker: new Set(["inhalt", "h1"]),
+    verzeichnis: [],
+    ...(seite && { seite }),
+  };
+  // Dieselben Anker in derselben Reihenfolge wie beim Rendern der Überschriften: nur Überschriften, die im HTML stehen (öffentlich)
+  const vergeben = new Set(stand.anker);
+  for (const b of dok.bausteine) {
+    if (b.typ !== "ueberschrift" || b.daten.ebene !== 2 || !istOeffentlich(b)) {
+      continue;
+    }
+    const id = anker(b.daten.text, vergeben);
+    if (id) stand.verzeichnis.push({ text: b.daten.text, id });
+  }
+  return stand;
+}
 
 // Die Tafel «auf einen Blick»: Samstagsangaben der Stufen und Eckdaten sehen gleich aus
 const faktenTafel = (fakten: Fakt[]): HtmlKnoten =>
@@ -434,6 +460,9 @@ function rendereBaustein(
 ): HtmlKnoten | null {
   if (istInhaltsBaustein(b)) {
     return rendereInhaltsBaustein(b, daten, letzte);
+  }
+  if (istHandlungsBaustein(b)) {
+    return rendereHandlungsBaustein(b, daten, letzte);
   }
   if (b.typ === "laden") {
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
@@ -896,8 +925,9 @@ function rendereEintraege(
   seiteId: string,
   daten: Daten,
   pfad?: string,
+  seite?: SeitenInfo,
 ): Eintrag[] {
-  const letzte = neuerStand();
+  const letzte = neuerStand(dok, seite);
   return dok.bausteine.map((b) => ({
     b,
     knoten: istOeffentlich(b)
@@ -993,7 +1023,7 @@ export function rendereGeschuetzte(
   daten: Daten,
   erlaubt: (b: Baustein) => boolean,
 ): { id: string; knoten: HtmlKnoten }[] {
-  const letzte = neuerStand();
+  const letzte = neuerStand(dok);
   const ergebnis: { id: string; knoten: HtmlKnoten }[] = [];
   for (const b of dok.bausteine) {
     if (!erlaubt(b)) continue;
@@ -1058,6 +1088,7 @@ const EIGENER_ABSCHNITT = new Set<Baustein["typ"]>([
   "aufruf",
   "kontaktkarte",
   "terminliste",
+  "kopfbereich",
 ]);
 // Nach einer Überschrift mit Bildkarten, Galerie oder Karussell steht der Inhalt unter dem Titel über die ganze Breite; sonst Titel links, Inhalt rechts.
 // Merkmale und Listen sind Zeilen und stehen wie Text rechts neben dem Titel
@@ -1112,6 +1143,19 @@ function rendereAbschnitte(eintraege: Eintrag[]): string {
     .map((g, i) => {
       const erster = g.eintraege[0]!;
       const typ = erster.b.typ;
+      // Der Kopfbereich (#743) geht über die ganze Breite: Bild und Kasten oder ein Band, ohne Spalte darum
+      if (g.eigen && typ === "kopfbereich") {
+        const knoten = g.eintraege.map((e) => ({
+          ...e,
+          knoten:
+            e.knoten &&
+            (i < EIFRIGE_ABSCHNITTE ? eifrig(e.knoten, false) : e.knoten),
+        }));
+        vor = { ton: "toenung", zeilen: false };
+        return `<section class="sektion sektion--kopfbereich">
+${alsHtml(knoten)}
+</section>`;
+      }
       if (g.eigen && (typ === "hinweis" || typ === "aufruf")) {
         vor = { ton: "toenung", zeilen: false };
         return `<section class="sektion sektion--${typ}">
@@ -1291,7 +1335,12 @@ ${fuss(k)}
 }
 
 export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
-  const eintraege = rendereEintraege(s.dokument, s.id, k.daten, s.pfad);
+  const eintraege = rendereEintraege(s.dokument, s.id, k.daten, s.pfad, {
+    titel: s.dokument.titel,
+    pfad: s.pfad,
+    basisUrl: k.basisUrl,
+    navigation: k.navigation,
+  });
   // Das erste Bild der Seite ist ihr Titelbild und geht bis zum Fensterrand
   const erstes = eintraege[0];
   const titelbild =
