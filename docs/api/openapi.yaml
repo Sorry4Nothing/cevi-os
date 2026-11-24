@@ -3752,8 +3752,11 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Das Profil der angemeldeten Person: Anzeigename, Benutzername, Schalter, Kennzeichen der Abteilungsleitung,
+        Das Profil der angemeldeten Person: Anzeigename, Benutzername, Schalter, die Rollen `abteilungsleitung` und `entwickler`,
         Stand des zweiten Faktors, Stufenrollen, die zugehörigen Stufen und die aktiven Kinder (nur Eltern haben welche).
+        **Die Rollen stehen nur hier.** Die Apps und die Verwaltung lesen `abteilungsleitung` und `entwickler` aus dieser Antwort und nie `role` aus
+        `get-session` von better-auth; `role` ist nur ein Spiegel und entfällt später. Das Feld `admin` gibt es nicht mehr, ohne Alias.
+
         Nie enthalten sind E-Mail, Bremsfelder, Sperrstatus, Ablauf des Startpassworts sowie Geheimnisse
         und Codes des zweiten Faktors.
 
@@ -5070,7 +5073,7 @@ paths:
       operationId: legeAdminPersonAn
       summary: Person anlegen und Startpasswort erhalten
       description: |
-        Wer `personen.verwalten` hat (mit zweitem Faktor; #650). `admin: true` und Stufenrollen in `rollen` setzt nur die Abteilungsleitung (`rechte.verwalten`): Rechte vergibt sie allein. `elternteilVon` braucht `kinder.verwalten` in der Stufe jedes Kindes. Legt ein Konto in der eigenen Abteilung an, mit den angegebenen Stufenrollen und Verknüpfungen zu Kindern. Das Konto muss das Startpasswort beim ersten Login ändern und es ist 7 Tage gültig.
+        Wer `personen.verwalten` hat (mit zweitem Faktor; #650). `abteilungsleitung: true` und Stufenrollen in `rollen` setzt nur die Abteilungsleitung (`rechte.verwalten`): Rechte vergibt sie allein. `elternteilVon` braucht `kinder.verwalten` in der Stufe jedes Kindes. Legt ein Konto in der eigenen Abteilung an, mit den angegebenen Stufenrollen und Verknüpfungen zu Kindern. Das Konto muss das Startpasswort beim ersten Login ändern und es ist 7 Tage gültig.
 
         Das Startpasswort steht nur in dieser 201-Antwort. Es wird nicht gespeichert und lässt sich nicht erneut abrufen; ein neues erzeugt `POST /api/v1/admin/personen/{id}/startpasswort`. Die Antwort kommt erst nach dem Commit; scheitert das Anlegen, gibt es kein Startpasswort. Eine Person der Abteilungsleitung-Anlegen oder eine vergebene Rolle «stufenleitung» löst einen Push an die anderen Personen der Abteilungsleitung aus.
 
@@ -5113,11 +5116,11 @@ paths:
       operationId: aendereAdminPerson
       summary: Name, Recht der Abteilungsleitung, Stufenrollen und Kinder einer Person ändern
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst; `admin` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst; `abteilungsleitung` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Ziel in der eigenen Abteilung (404), dann Recht der Abteilungsleitung (403), dann Stufen- und Kind-IDs (400).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremden bzw. unbekannten Stufen- und Kind-IDs. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `LETZTE_ABTEILUNGSLEITUNG`, wenn `admin: false` der Abteilung die letzte aktive Person mit Abteilungsleitung oder Entwickler nähme (ein Entwickler bleibt stehen, auch wenn ihm die Abteilungsleitung entzogen wird).
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremden bzw. unbekannten Stufen- und Kind-IDs. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `LETZTE_ABTEILUNGSLEITUNG`, wenn `abteilungsleitung: false` der Abteilung die letzte aktive Person mit Abteilungsleitung oder Entwickler nähme (ein Entwickler bleibt stehen, auch wenn ihm die Abteilungsleitung entzogen wird).
       tags:
         - Verwaltung
       parameters:
@@ -26231,7 +26234,7 @@ components:
           type:
             - string
             - "null"
-          description: Rolle der Person bei better-auth; `admin` für die Abteilungsleitung.
+          description: "Spiegel der Rolle in better-auth (Übergang, entfällt in einem späteren Release). Nicht lesen: Die Abteilungsleitung und der Entwickler stehen in `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`)."
           example: admin
         twoFactorEnabled:
           type:
@@ -26450,7 +26453,7 @@ components:
             - stufenleitung
           description: |
             `stufenleitung` (SL) erfüllt auch alle Rechte von `leitung` derselben Stufe. die Abteilungsleitung ist keine Stufenrolle,
-            sondern das Feld `admin`.
+            sondern das Feld `abteilungsleitung` in `GET /api/v1/ich`.
     IchStufe:
       type: object
       required:
@@ -26513,7 +26516,8 @@ components:
         - bildUrl
         - pushChat
         - pushProgramme
-        - admin
+        - abteilungsleitung
+        - entwickler
         - zweiterFaktor
         - rollen
         - rechte
@@ -26564,8 +26568,12 @@ components:
         pushAnmeldungen:
           type: boolean
           description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
-        admin:
+        abteilungsleitung:
           type: boolean
+          description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier und nie aus `role` von better-auth.
+        entwickler:
+          type: boolean
+          description: Ob das Konto ein Entwickler ist (es steht in `plattform_entwickler`, vergeben nur per CLI). Der Entwickler hat jedes Recht des Katalogs; die Verwaltung zeigt damit ihre Oberfläche, die Prüfung bleibt auf dem Server.
         zweiterFaktor:
           type: boolean
           description: Ob das Konto den zweiten Faktor eingerichtet hat. Die Abteilungsleitung braucht ihn für `/api/v1/admin`. Sagt nichts über die Sitzung. Eine App-Sitzung hat den Code nie geprüft (Verwaltung und Rechte mit «erweitert» antworten dann 403 `ZWEITER_FAKTOR_SITZUNG`).
@@ -27567,7 +27575,8 @@ components:
         - bildUrl
         - telefon
         - benutzername
-        - admin
+        - abteilungsleitung
+        - entwickler
         - zweiterFaktor
         - deaktiviert
         - mussPasswortAendern
@@ -27602,8 +27611,12 @@ components:
             - string
             - "null"
           description: Kleingeschrieben gespeichert.
-        admin:
+        abteilungsleitung:
           type: boolean
+          description: Ob die Person zur Abteilungsleitung gehört. Ersetzt das Feld `admin`, ohne Alias.
+        entwickler:
+          type: boolean
+          description: Ob die Person ein Entwickler ist (nur lesen; vergeben wird die Rolle per CLI).
         zweiterFaktor:
           type: boolean
           description: Ob die Person einen zweiten Faktor eingerichtet hat.
@@ -27703,7 +27716,7 @@ components:
         - vorname
         - nachname
         - benutzername
-        - admin
+        - abteilungsleitung
         - rollen
         - elternteilVon
       additionalProperties: false
@@ -27733,8 +27746,9 @@ components:
           pattern: ^[A-Za-z0-9._-]+$
           description: Gross-/Kleinschreibung wird nicht unterschieden; gespeichert wird kleingeschrieben.
           example: anna.muster
-        admin:
+        abteilungsleitung:
           type: boolean
+          description: Ob das neue Konto zur Abteilungsleitung gehört. Setzt nur, wer `rechte.verwalten` hat. Das frühere Feld `admin` ergibt 400.
         rollen:
           type: array
           maxItems: 50
@@ -27798,9 +27812,9 @@ components:
             - string
             - "null"
           description: Eine Nummer speichert nur, wer nach der Änderung eine Rolle `stufenleitung` hat (sonst 400); leer oder `null` entfernt sie, das geht immer. Ändert sich der Wert, schreibt die API `telefon_geaendert` ins Audit-Log, ohne die Nummer.
-        admin:
+        abteilungsleitung:
           type: boolean
-          description: "`false` ergibt 409 `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung sonst keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe."
+          description: "Nimmt das Konto in die Abteilungsleitung auf (`true`) oder aus ihr heraus. Das frühere Feld `admin` ergibt 400. `false` ergibt 409 `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung sonst keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe."
         rollen:
           type: array
           maxItems: 50

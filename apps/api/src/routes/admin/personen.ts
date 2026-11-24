@@ -20,6 +20,7 @@ import {
   kind,
   kindEltern,
   personTag,
+  plattformEntwickler,
   profilbild,
   rolle,
   stufe,
@@ -122,7 +123,7 @@ const anlegenSchema = z.strictObject({
   ceviName: ceviNameFeld.optional(),
   telefon: telefonSchema.optional(),
   benutzername: benutzernameFeld,
-  admin: z.boolean(),
+  abteilungsleitung: z.boolean(),
   rollen: rollenFeld,
   elternteilVon: elternteilVonFeld,
 });
@@ -131,7 +132,7 @@ const aendernSchema = z.strictObject({
   name: text(201).optional(),
   ceviName: ceviNameFeld.nullable().optional(),
   telefon: telefonSchema.optional(),
-  admin: z.boolean().optional(),
+  abteilungsleitung: z.boolean().optional(),
   rollen: rollenFeld.optional(),
   elternteilVon: elternteilVonFeld.optional(),
 });
@@ -152,7 +153,10 @@ export function erstellePersonenRouten({
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
   async function ladeZiel(person: Person, id: string) {
     const [ziel] = await db
-      .select({ id: user.id, admin: istAbteilungsleitungSql(user.id) })
+      .select({
+        id: user.id,
+        abteilungsleitung: istAbteilungsleitungSql(user.id),
+      })
       .from(user)
       .where(
         and(
@@ -166,7 +170,7 @@ export function erstellePersonenRouten({
       abteilungId: person.abteilungId,
     });
     // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst, dazu der Entwickler (#722)
-    if (ziel.admin && !(await betreutKontenMitRechten(person))) {
+    if (ziel.abteilungsleitung && !(await betreutKontenMitRechten(person))) {
       throw new HTTPException(403);
     }
     return ziel;
@@ -212,7 +216,7 @@ export function erstellePersonenRouten({
     aenderung: z.infer<typeof aendernSchema>,
   ) {
     if (
-      aenderung.admin === undefined &&
+      aenderung.abteilungsleitung === undefined &&
       aenderung.rollen === undefined &&
       aenderung.elternteilVon === undefined
     ) {
@@ -220,7 +224,7 @@ export function erstellePersonenRouten({
     }
     const [[bisher], rollen, eltern] = await Promise.all([
       db
-        .select({ admin: istAbteilungsleitungSql(user.id) })
+        .select({ abteilungsleitung: istAbteilungsleitungSql(user.id) })
         .from(user)
         .where(eq(user.id, id)),
       db
@@ -233,7 +237,8 @@ export function erstellePersonenRouten({
         .where(eq(kindEltern.userId, id)),
     ]);
     const adminGeaendert =
-      aenderung.admin !== undefined && bisher.admin !== aenderung.admin;
+      aenderung.abteilungsleitung !== undefined &&
+      bisher.abteilungsleitung !== aenderung.abteilungsleitung;
     const alt = new Map(rollen.map((r) => [r.stufeId, r.typ]));
     const rollenGeaendert =
       aenderung.rollen !== undefined &&
@@ -352,7 +357,8 @@ export function erstellePersonenRouten({
               ceviName: user.ceviName,
               telefon: user.telefon,
               benutzername: user.username,
-              admin: istAbteilungsleitungSql(user.id),
+              abteilungsleitung: istAbteilungsleitungSql(user.id),
+              entwickler: sql<boolean>`exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${user.id})`,
               twoFactorEnabled: user.twoFactorEnabled,
               banned: user.banned,
               mussPasswortAendern: user.mussPasswortAendern,
@@ -446,7 +452,8 @@ export function erstellePersonenRouten({
           bildUrl: p.bildUrl,
           telefon: p.telefon,
           benutzername: p.benutzername,
-          admin: p.admin,
+          abteilungsleitung: p.abteilungsleitung,
+          entwickler: p.entwickler,
           zweiterFaktor: p.twoFactorEnabled === true,
           deaktiviert: p.banned === true,
           mussPasswortAendern: p.mussPasswortAendern,
@@ -484,7 +491,7 @@ export function erstellePersonenRouten({
       });
       const eingaben = c.req.valid("json");
       // Die Abteilungsleitung und die Stufenrollen sind Rechte: Sie vergibt nur, wer Rechte vergeben darf (#650)
-      if (eingaben.admin || eingaben.rollen.length > 0) {
+      if (eingaben.abteilungsleitung || eingaben.rollen.length > 0) {
         await verlange(db, person, "rechte.verwalten");
       }
       await pruefeIds(person, eingaben.rollen, eingaben.elternteilVon);
@@ -542,7 +549,7 @@ export function erstellePersonenRouten({
         }
         try {
           await db.transaction(async (tx) => {
-            if (aenderung.admin === false) {
+            if (aenderung.abteilungsleitung === false) {
               await sperreLetzteAbteilungsleitung(
                 tx,
                 person.abteilungId,
@@ -576,11 +583,14 @@ export function erstellePersonenRouten({
                 };
               }
             }
-            if (aenderung.admin !== undefined) {
+            if (aenderung.abteilungsleitung !== undefined) {
               // Die Tabelle ist die Quelle, user.role der Spiegel für den Übergang (#720)
-              felder.role = aenderung.admin ? "admin" : "user";
-              const bisherAdmin = await istAbteilungsleitung(tx, id);
-              if (aenderung.admin) {
+              felder.role = aenderung.abteilungsleitung ? "admin" : "user";
+              const bisherAbteilungsleitung = await istAbteilungsleitung(
+                tx,
+                id,
+              );
+              if (aenderung.abteilungsleitung) {
                 await tx
                   .insert(abteilungsleitungPerson)
                   .values({ userId: id })
@@ -590,8 +600,8 @@ export function erstellePersonenRouten({
                   .delete(abteilungsleitungPerson)
                   .where(eq(abteilungsleitungPerson.userId, id));
               }
-              if (bisherAdmin !== aenderung.admin) {
-                details.admin = aenderung.admin;
+              if (bisherAbteilungsleitung !== aenderung.abteilungsleitung) {
+                details.abteilungsleitung = aenderung.abteilungsleitung;
               }
             }
             if (Object.keys(felder).length > 0) {
@@ -694,7 +704,10 @@ export function erstellePersonenRouten({
           throw fehler;
         }
         // Wird der zweite Faktor mit dieser Änderung Pflicht und fehlt er, meldet sich die Person neu an und sieht die Einrichtung (#715)
-        if (aenderung.admin === true || aenderung.rollen !== undefined) {
+        if (
+          aenderung.abteilungsleitung === true ||
+          aenderung.rollen !== undefined
+        ) {
           await beendeSitzungenBeiNeuerPflicht(db, person.abteilungId, [id]);
         }
         // Die Website zeigt oder vergisst die Person nach ihrer Rolle und ihrem Namen beim nächsten Abgleich (#610)

@@ -23,7 +23,7 @@ export interface NeuePerson {
   ceviName?: string | null;
   telefon?: string | null;
   benutzername: string;
-  admin: boolean;
+  abteilungsleitung: boolean;
   rollen: readonly { stufeId: string; typ: "leitung" | "stufenleitung" }[];
   elternteilVon: readonly string[];
   startpasswort: string;
@@ -46,7 +46,7 @@ export async function legePersonAn(
       password: normalisiereStartpasswort(eingaben.startpasswort),
       name: `${eingaben.vorname} ${eingaben.nachname}`,
       // Spiegel (#720): Die Abteilungsleitung steht in abteilungsleitung_person, role schreibt der Übergang weiter
-      role: eingaben.admin ? "admin" : "user",
+      role: eingaben.abteilungsleitung ? "admin" : "user",
       data: {
         username: eingaben.benutzername,
         ceviName: eingaben.ceviName ?? undefined,
@@ -61,7 +61,7 @@ export async function legePersonAn(
       .set({ telefon: eingaben.telefon })
       .where(eq(schema.user.id, neu.id));
   }
-  if (eingaben.admin) {
+  if (eingaben.abteilungsleitung) {
     await tx.insert(abteilungsleitungPerson).values({ userId: neu.id });
   }
   if (eingaben.rollen.length > 0) {
@@ -84,7 +84,7 @@ export async function legePersonAn(
     zielTyp: "person",
     zielId: neu.id,
     details: {
-      admin: eingaben.admin,
+      abteilungsleitung: eingaben.abteilungsleitung,
       rollen: eingaben.rollen,
       elternteilVon: eingaben.elternteilVon,
     },

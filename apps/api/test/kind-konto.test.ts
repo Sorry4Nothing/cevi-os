@@ -330,7 +330,7 @@ describe("POST /api/v1/admin/kinder/:id/konto", () => {
     expect(ich.status).toBe(200);
     const profil = await lesen<Record<string, unknown>>(ich);
     expect(profil.mussPasswortAendern).toBe(true);
-    expect(profil.admin).toBe(false);
+    expect(profil.abteilungsleitung).toBe(false);
     expect(profil.rollen).toEqual([]);
     const programme = await app.request(`/api/v1/programme?${FENSTER}`, {
       headers,
@@ -523,7 +523,7 @@ describe("Liste der Kinder: Zugang", () => {
       admin,
       "PATCH",
       `/api/v1/admin/personen/${kontoId}`,
-      { admin: true },
+      { abteilungsleitung: true },
     );
     expect(aendern.status).toBe(404);
     const rolle = await anfrage(
@@ -594,12 +594,12 @@ describe("Was das Konto eines Kindes sieht", () => {
       headers: konto1.headers,
     });
     const profil = await lesen<{
-      admin: boolean;
+      abteilungsleitung: boolean;
       rollen: unknown[];
       kinder: { id: string }[];
       teilnehmer: { kindId: string; stufeId: string; chat: string };
     }>(antwort);
-    expect(profil.admin).toBe(false);
+    expect(profil.abteilungsleitung).toBe(false);
     expect(profil.rollen).toEqual([]);
     expect(profil.kinder.map((k) => k.id)).toEqual([kind1]);
     expect(profil.teilnehmer).toMatchObject({

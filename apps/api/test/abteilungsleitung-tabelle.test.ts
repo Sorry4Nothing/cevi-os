@@ -55,7 +55,8 @@ afterEach(() => ausgabe.mockRestore());
 const ichAdmin = async (konto: PersonaKonto) => {
   const antwort = await app.request("/api/v1/ich", { headers: konto.headers });
   expect(antwort.status).toBe(200);
-  return ((await antwort.json()) as { admin: boolean }).admin;
+  return ((await antwort.json()) as { abteilungsleitung: boolean })
+    .abteilungsleitung;
 };
 const tabelle = (id: string) =>
   db
@@ -114,11 +115,11 @@ describe("PATCH /api/v1/admin/personen/:id schreibt Tabelle und Spiegel", () => 
     const eigene = await erstelleWelt(db, auth);
     const akteur = await legePersonaAn(eigene, "admin");
     const ziel = await legePersonaAn(eigene, "slA");
-    const patch = (admin: boolean) =>
+    const patch = (abteilungsleitung: boolean) =>
       app.request(`/api/v1/admin/personen/${ziel.id}`, {
         method: "PATCH",
         headers: { ...akteur.headers, "content-type": "application/json" },
-        body: JSON.stringify({ admin }),
+        body: JSON.stringify({ abteilungsleitung }),
       });
 
     expect((await patch(true)).status).toBe(204);
@@ -152,7 +153,7 @@ describe("PATCH /api/v1/admin/personen/:id schreibt Tabelle und Spiegel", () => 
     const antwort = await app.request(`/api/v1/admin/personen/${einzige.id}`, {
       method: "PATCH",
       headers: { ...einzige.headers, "content-type": "application/json" },
-      body: JSON.stringify({ admin: false }),
+      body: JSON.stringify({ abteilungsleitung: false }),
     });
     expect(antwort.status).toBe(409);
     expect(await antwort.json()).toMatchObject({

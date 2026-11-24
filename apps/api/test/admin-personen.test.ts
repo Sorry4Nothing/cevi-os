@@ -85,7 +85,7 @@ function anlegenBody(extra: Record<string, unknown> = {}) {
     vorname: "Vreni",
     nachname: "Muster",
     benutzername: neuerBenutzername(),
-    admin: false,
+    abteilungsleitung: false,
     rollen: [],
     elternteilVon: [],
     ...extra,
@@ -133,7 +133,7 @@ describe("POST /api/v1/admin/personen", () => {
     const roh = `Vreni-M.${randomUUID().slice(0, 8).toUpperCase()}`;
     const angelegt = await legePersonAn({
       benutzername: roh,
-      admin: true,
+      abteilungsleitung: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
       elternteilVon: [welt.kindBId],
     });
@@ -239,6 +239,7 @@ describe("POST /api/v1/admin/personen", () => {
     ["unbekanntes Kind", () => ({ elternteilVon: [randomUUID()] })],
     ["doppeltes Kind", () => ({ elternteilVon: [welt.kindAId, welt.kindAId] })],
     ["überzähliger Schlüssel", () => ({ telefon: "079" })],
+    ["das alte Feld admin (#736)", () => ({ admin: true })],
     ["Cevi-Name mit 51 Zeichen", () => ({ ceviName: "a".repeat(51) })],
     ["Benutzername mit !", () => ({ benutzername: "mit!zeichen" })],
     ["Benutzername mit 1 Zeichen", () => ({ benutzername: "a" })],
@@ -268,6 +269,25 @@ describe("POST /api/v1/admin/personen", () => {
 });
 
 describe("GET /api/v1/admin/personen", () => {
+  test("zeigt abteilungsleitung und entwickler je Person, nie admin (#736)", async () => {
+    const leitung = await legePersonAn({ abteilungsleitung: true });
+    const dev = await legePersonAn();
+    await db.insert(schema.plattformEntwickler).values({ userId: dev.id });
+    const koerper = (await (await anfrage(admin, "GET")).json()) as {
+      personen: Record<string, unknown>[];
+    };
+    const von = (id: string) => koerper.personen.find((p) => p.id === id)!;
+    expect(von(leitung.id)).toMatchObject({
+      abteilungsleitung: true,
+      entwickler: false,
+    });
+    expect(von(dev.id)).toMatchObject({
+      abteilungsleitung: false,
+      entwickler: true,
+    });
+    expect(von(leitung.id)).not.toHaveProperty("admin");
+  });
+
   test("liefert Personen mit Rollen, Stufen und Kinder der eigenen Abteilung, ohne E-Mail", async () => {
     const angelegt = await legePersonAn({
       rollen: [{ stufeId: welt.stufeBId, typ: "leitung" }],
@@ -282,12 +302,13 @@ describe("GET /api/v1/admin/personen", () => {
     };
     const person = koerper.personen.find((p) => p.id === angelegt.id)!;
     expect(Object.keys(person).sort()).toEqual([
-      "admin",
+      "abteilungsleitung",
       "benutzername",
       "bildUrl",
       "ceviName",
       "deaktiviert",
       "elternteilVon",
+      "entwickler",
       "id",
       "mussPasswortAendern",
       "name",
@@ -298,7 +319,7 @@ describe("GET /api/v1/admin/personen", () => {
       "zweiterFaktor",
     ]);
     expect(person).toMatchObject({
-      admin: false,
+      abteilungsleitung: false,
       deaktiviert: false,
       mussPasswortAendern: true,
       rollen: [{ stufeId: welt.stufeBId, typ: "leitung" }],
@@ -426,7 +447,9 @@ describe("Cevi-Name", () => {
     ).toBe(204);
     expect(await liste()).toBe("Blitz");
     // Ohne den Schlüssel bleibt er, leer löscht ihn
-    await anfrage(admin, "PATCH", `/${angelegt.id}`, { admin: false });
+    await anfrage(admin, "PATCH", `/${angelegt.id}`, {
+      abteilungsleitung: false,
+    });
     expect(await liste()).toBe("Blitz");
     await anfrage(admin, "PATCH", `/${angelegt.id}`, { ceviName: " " });
     expect(await liste()).toBeNull();
@@ -441,6 +464,15 @@ describe("Cevi-Name", () => {
 });
 
 describe("PATCH /api/v1/admin/personen/:id", () => {
+  test("das alte Feld admin gibt 400 und ändert nichts (#736)", async () => {
+    const angelegt = await legePersonAn();
+    const antwort = await anfrage(admin, "PATCH", `/${angelegt.id}`, {
+      admin: true,
+    });
+    expect(antwort.status).toBe(400);
+    expect(await istInTabelle(angelegt.id)).toBe(false);
+  });
+
   test("ändert Name, Abteilungsleitung und Listen; unveränderte kind_eltern-Zeilen behalten erstellt_am", async () => {
     const angelegt = await legePersonAn({
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
@@ -457,7 +489,7 @@ describe("PATCH /api/v1/admin/personen/:id", () => {
       );
     const antwort = await anfrage(admin, "PATCH", `/${angelegt.id}`, {
       name: "Neues Name",
-      admin: true,
+      abteilungsleitung: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
       elternteilVon: [welt.kindAId, welt.kindBId],
     });
@@ -708,7 +740,7 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
   test("der einzige Abteilungsleitung kann sich die Rolle nicht selbst nehmen", async () => {
     const { ersterAdmin } = await eigeneWelt();
     const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-      admin: false,
+      abteilungsleitung: false,
     });
     expect(antwort.status).toBe(409);
     expect(await antwort.json()).toMatchObject({
@@ -724,21 +756,27 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
 
     // Zwei die Abteilungsleitung: den anderen zurückstufen geht
     expect(
-      (await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: false }))
-        .status,
+      (
+        await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, {
+          abteilungsleitung: false,
+        })
+      ).status,
     ).toBe(204);
     // Jetzt ist ersterAdmin allein: sich selbst zurückstufen gibt 409
     expect(
       (
         await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-          admin: false,
+          abteilungsleitung: false,
         })
       ).status,
     ).toBe(409);
     // Wieder zwei die Abteilungsleitung, aber der zweite deaktiviert: er zählt nicht
     expect(
-      (await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: true }))
-        .status,
+      (
+        await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, {
+          abteilungsleitung: true,
+        })
+      ).status,
     ).toBe(204);
     expect(
       (await anfrage(ersterAdmin, "POST", `/${zweiter.id}/deaktivieren`))
@@ -747,7 +785,7 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
     expect(
       (
         await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-          admin: false,
+          abteilungsleitung: false,
         })
       ).status,
     ).toBe(409);
@@ -776,8 +814,12 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
     const zweiter = await legePersonaAn(eigene, "admin");
 
     const antworten = await Promise.all([
-      anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: false }),
-      anfrage(zweiter, "PATCH", `/${ersterAdmin.id}`, { admin: false }),
+      anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, {
+        abteilungsleitung: false,
+      }),
+      anfrage(zweiter, "PATCH", `/${ersterAdmin.id}`, {
+        abteilungsleitung: false,
+      }),
     ]);
     const status = antworten.map((a) => a.status).sort((a, b) => a - b);
     // 403, wenn die Sitzung des Verlierers die Rolle erst nach dem fremden Commit las
@@ -801,7 +843,7 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
     const entwickler = await legeEntwicklerAn(eigene);
     const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-      admin: false,
+      abteilungsleitung: false,
     });
     expect(antwort.status).toBe(204);
     expect(await istInTabelle(ersterAdmin.id!)).toBe(false);
@@ -814,7 +856,7 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
       .insert(schema.plattformEntwickler)
       .values({ userId: ersterAdmin.id! });
     const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-      admin: false,
+      abteilungsleitung: false,
     });
     expect(antwort.status).toBe(204);
     expect(await aktiveIds(eigene.testabteilungId)).toEqual([ersterAdmin.id]);
@@ -828,7 +870,7 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
         .status,
     ).toBe(204);
     const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-      admin: false,
+      abteilungsleitung: false,
     });
     expect(antwort.status).toBe(409);
     expect(await antwort.json()).toMatchObject({
@@ -845,7 +887,7 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
     expect(
       (
         await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-          admin: false,
+          abteilungsleitung: false,
         })
       ).status,
     ).toBe(409);

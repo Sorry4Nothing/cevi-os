@@ -278,7 +278,7 @@ describe("Rechtewechsel beendet Sitzungen nur, wenn der Faktor Pflicht wird und 
         admin,
         "PATCH",
         `/api/v1/admin/personen/${konto.id}`,
-        { admin: true },
+        { abteilungsleitung: true },
       );
       expect(antwort.status).toBe(204);
     }
@@ -289,7 +289,7 @@ describe("Rechtewechsel beendet Sitzungen nur, wenn der Faktor Pflicht wird und 
     expect(
       (
         await anfrage(admin, "PATCH", `/api/v1/admin/personen/${weg.id}`, {
-          admin: false,
+          abteilungsleitung: false,
         })
       ).status,
     ).toBe(204);

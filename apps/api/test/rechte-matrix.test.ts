@@ -594,7 +594,7 @@ const MATRIX: Record<string, Zeile> = {
       vorname: "Matrix",
       nachname: "Person",
       benutzername: `matrix.${randomUUID().slice(0, 8)}`,
-      admin: false,
+      abteilungsleitung: false,
       rollen: [],
       elternteilVon: [],
     }),
