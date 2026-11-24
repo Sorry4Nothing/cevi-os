@@ -2,9 +2,9 @@
 
 Erzeugt aus den Rechte-Matrizen (`apps/api/test/rechte-matrix.test.ts`, `apps/api/test/lager/matrix/*.ts`, `apps/api/test/termine/matrix/*.ts`) und `docs/api/openapi.yaml`; nicht von Hand ändern. Neu erzeugen: siehe [postman.md](postman.md).
 
-Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 nicht angemeldet, 403 angemeldet ohne Recht, 404 das Objekt gehört einer anderen Stufe oder Abteilung und ist unsichtbar. Die Personas beschreibt `apps/api/test/hilfen/personas.ts`.
+Je Route steht, welche Persona welchen Status bekommt. 2xx heisst erlaubt, 401 nicht angemeldet, 403 angemeldet ohne Recht, 404 das Objekt gehört einer anderen Stufe oder Abteilung und ist unsichtbar. Die Personas beschreibt `apps/api/test/hilfen/personas.ts`. Die Personas `admin`, `adminOhneZweitenFaktor` und `demoAdmin` sind Konten der Abteilungsleitung; die Schlüssel behalten ihren alten Namen, damit die Matrizen unverändert bleiben (es gibt keine Rolle «Admin» mehr).
 
-Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Rolle im Lager steht in der Spalte (abteilungsleitung ohne Zeile in `lager_mitglied`, lagerleitung, leitung, team, lesen; ohneMitgliedschaft ist ein Konto der Abteilung ohne Rolle, fremdeAbteilung die Lagerleitung einer anderen Abteilung), die Zuordnung zu den Personas steht in `apps/api/test/lager/matrix.ts`. Antwortet ein abgeschlossenes Lager anders (Schreiben: 409), steht das in einer zweiten Zeile. Die Abschnitte «Termine» nennen die Personas der Termine (`apps/api/test/termine/matrix.ts`).
+Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Rolle im Lager steht in der Spalte (abteilungsleitung ohne Zeile in `lager_mitglied`, lagerleitung, leitung, team, lesen; ohneMitgliedschaft ist ein Konto der Abteilung ohne Rolle, fremdeAbteilung die Lagerleitung einer anderen Abteilung), die Zuordnung zu den Personas steht in `apps/api/test/lager/matrix.ts`. Antwortet ein abgeschlossenes Lager anders (Schreiben: 409), steht das in einer zweiten Zeile. Die Abschnitte «Termine» nennen die Personas der Termine (`apps/api/test/termine/matrix.ts`). Die Anmeldung der Personas in der Matrix läuft wie im Browser (mit Code, wo ein zweiter Faktor besteht). Die App meldet sich mit `Origin: cevi-os://` an und bekommt auch bei einem Konto mit zweitem Faktor eine Sitzung ohne Code (#721): Sie darf alles ausser `/api/v1/admin/*` und Rechten mit «erweitert» (403 `ZWEITER_FAKTOR_SITZUNG`); die Tests dazu stehen in `apps/api/test/app-ohne-zweiten-faktor.test.ts`.
 
 ## Seiten und Gesundheit
 
@@ -33,6 +33,10 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/tags.js`                          | Skript der Verwaltung – Bereich Tags                                                 | **200** alle      |
 | `GET /admin/konto.js`                         | Skript der Verwaltung – Seite Mein Konto                                             | **200** alle      |
 | `GET /admin/konto.css`                        | Stilvorlage der Verwaltung – Seite Mein Konto                                        | **200** alle      |
+| `GET /admin/qr.js`                            | Skript der Verwaltung – QR-Code zeichnen                                             | **200** alle      |
+| `GET /admin/zweiter-faktor-einrichten.js`     | Skript der Verwaltung – Zweiten Faktor einrichten                                    | **200** alle      |
+| `GET /admin/zweiter-faktor.css`               | Stilvorlage der Verwaltung – Zweiten Faktor einrichten                               | **200** alle      |
+| `GET /admin/sicht.js`                         | Skript der Verwaltung – Wer die Person ist                                           | **200** alle      |
 | `GET /admin/zuschneiden.js`                   | Skript der Verwaltung – Bild zuschneiden                                             | **200** alle      |
 | `GET /admin/zuschneiden.css`                  | Stilvorlage der Verwaltung – Bild zuschneiden                                        | **200** alle      |
 | `GET /admin/uebersicht.js`                    | Skript der Verwaltung – Bereich Übersicht                                            | **200** alle      |
@@ -135,7 +139,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `POST /api/auth/revoke-sessions`               | Überall abmelden (alle Sitzungen beenden)        | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin |
 | `POST /api/auth/two-factor/verify-totp`        | TOTP-Code prüfen (Anmeldung oder Einrichtung)    | **400** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, mussPasswortAendern, demoEltern<br>**401** admin, elternB, deaktiviert, ohneLogin, demoAdmin |
 | `POST /api/auth/two-factor/verify-backup-code` | Ersatzcode prüfen (Anmeldung ohne Authenticator) | **400** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, mussPasswortAendern, demoEltern<br>**401** admin, elternB, deaktiviert, ohneLogin, demoAdmin |
-| `POST /api/auth/two-factor/enable`             | Zweiten Faktor (TOTP) einrichten                 | **400** admin, adminOhneZweitenFaktor, demoAdmin<br>**404** slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, deaktiviert, ohneLogin, demoEltern |
+| `POST /api/auth/two-factor/enable`             | Zweiten Faktor (TOTP) einrichten                 | **400** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoAdmin, demoEltern<br>**404** deaktiviert, ohneLogin |
 
 ## App: ich
 

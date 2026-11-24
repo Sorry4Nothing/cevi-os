@@ -13,7 +13,7 @@ import { zweiterFaktorFehlt, type Person } from "./rechte.js";
 
 // Plattformrollen (#423). Zwei Rollen sind fest im Code und nicht einstellbar:
 //   Entwickler: jedes Recht des Katalogs; nur die Kommandozeile vergibt und entzieht (cli/entwickler.ts), Tabelle plattform_entwickler
-//   Abteilungsleitung (person.admin): jedes Recht des Katalogs in der eigenen Abteilung
+//   Abteilungsleitung (person.abteilungsleitung): jedes Recht des Katalogs in der eigenen Abteilung
 // Alle anderen Rollen (zuerst «Webmaster», eine Vorgabe je Abteilung) legt die Abteilungsleitung an und stellt ihre Rechte aus diesem Katalog ein (/api/v1/admin/plattform/rollen).
 // Weiter als die Rechte des Katalogs reicht keine Rolle; was nicht im Katalog steht, steht in rechte.ts und bearbeiten.ts (Stufenleitung, Zeilen in bearbeiter).
 
@@ -114,7 +114,7 @@ function lade(
   return gespeichert;
 }
 
-// Dieselbe Frage als SQL-Bedingung, für Abfragen, die sie ohnehin stellen (Tür der Verwaltung, Seitenlisten, Recht am Objekt): der Entwickler oder eine Rolle der Person in ihrer Abteilung, die mindestens eines der Rechte trägt. Die Abteilungsleitung entscheidet der Aufrufer vorher (person.admin).
+// Dieselbe Frage als SQL-Bedingung, für Abfragen, die sie ohnehin stellen (Tür der Verwaltung, Seitenlisten, Recht am Objekt): der Entwickler oder eine Rolle der Person in ihrer Abteilung, die mindestens eines der Rechte trägt. Die Abteilungsleitung entscheidet der Aufrufer vorher (person.abteilungsleitung).
 // Als eigener Ausdruck: Drizzle liesse in einer Auswahl mit nur einer Tabelle den Tabellennamen vor Spalten weg, die direkt im Text stehen
 export const plattformRechtSql = (
   person: Pick<Person, "id" | "abteilungId">,
@@ -132,9 +132,9 @@ export async function istEntwickler(
 // Alle Rechte der Person: jedes für Entwickler und Abteilungsleitung, sonst die ihrer Rollen (ein Name, den der Katalog nicht kennt, zählt nicht)
 export async function plattformRechteVon(
   db: Pick<Db, "select">,
-  person: Pick<Person, "id" | "abteilungId" | "admin">,
+  person: Pick<Person, "id" | "abteilungId" | "abteilungsleitung">,
 ): Promise<ReadonlySet<PlattformRecht>> {
-  if (person.admin) return ALLE;
+  if (person.abteilungsleitung) return ALLE;
   const { entwickler, namen } = await lade(db, person);
   if (entwickler) return ALLE;
   return new Set([...namen].filter(istPlattformRecht));
@@ -143,7 +143,7 @@ export async function plattformRechteVon(
 // Die Prüffunktion: Hier hängen die Routen an (die Routen der Website seit #426, Wartungsmodus #424, Informationssperre #425). Die Reihenfolge bleibt wie überall: erst das Objekt laden (404), dann dieses Recht (403); der zweite Faktor kommt aus verlangePlattformRecht oder aus person.zweiterFaktor
 export async function hatPlattformRecht(
   db: Pick<Db, "select">,
-  person: Pick<Person, "id" | "abteilungId" | "admin">,
+  person: Pick<Person, "id" | "abteilungId" | "abteilungsleitung">,
   recht: PlattformRecht,
 ) {
   return (await plattformRechteVon(db, person)).has(recht);
@@ -161,6 +161,7 @@ export function verlangePlattformRecht(db: Db, recht: PlattformRecht) {
         return c.json(
           zweiterFaktorFehlt(
             "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+            person,
           ),
           403,
         );
@@ -180,6 +181,7 @@ export function verlangeEntwickler(db: Db) {
         return c.json(
           zweiterFaktorFehlt(
             "Für den Entwickler braucht es zuerst einen zweiten Faktor.",
+            person,
           ),
           403,
         );

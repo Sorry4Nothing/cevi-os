@@ -3,11 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import {
-  aktiveAdminIds,
-  istLetzterAdmin,
-  LETZTER_ADMIN,
-} from "../../admins.js";
+import { istAbteilungsleitung, istAbteilungsleitungSql } from "../../admins.js";
 import type { erstelleAuth } from "../../auth.js";
 import { bildUrl } from "../../bild.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
@@ -19,10 +15,12 @@ import {
 } from "../../benutzername.js";
 import type { Db } from "../../db/client.js";
 import {
+  abteilungsleitungPerson,
   auditLog,
   kind,
   kindEltern,
   personTag,
+  plattformEntwickler,
   profilbild,
   rolle,
   stufe,
@@ -33,8 +31,10 @@ import { eingabe } from "../../eingabe.js";
 import { telefonSchema } from "../../telefon.js";
 import { keinKindKonto as keinKindKontoVon } from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
+import { istEntwickler } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
+import { beendeSitzungenBeiNeuerPflicht } from "../../rechtemodell/faktor-pflicht.js";
 import {
   geschuetzteKonten,
   personenSicht,
@@ -54,6 +54,11 @@ import {
   setzePasswort,
   sperreKonto,
 } from "../../konto-verwaltung.js";
+import {
+  aktiveVerwalter,
+  istLetzterVerwalter,
+  LETZTE_ABTEILUNGSLEITUNG,
+} from "../../verwalter.js";
 import { setzeZweitenFaktorZurueck } from "../../zweiter-faktor.js";
 
 // Eigene 409-Codes mit eigener Antwort: onError machte aus einer HTTPException(409) nur «FEHLER»
@@ -62,7 +67,7 @@ const KONFLIKT = {
     code: "BENUTZERNAME_VERGEBEN",
     message: "Dieser Benutzername ist schon vergeben.",
   },
-  LETZTER_ADMIN,
+  LETZTE_ABTEILUNGSLEITUNG,
   EIGENES_KONTO: {
     code: "EIGENES_KONTO",
     message:
@@ -118,7 +123,7 @@ const anlegenSchema = z.strictObject({
   ceviName: ceviNameFeld.optional(),
   telefon: telefonSchema.optional(),
   benutzername: benutzernameFeld,
-  admin: z.boolean(),
+  abteilungsleitung: z.boolean(),
   rollen: rollenFeld,
   elternteilVon: elternteilVonFeld,
 });
@@ -127,7 +132,7 @@ const aendernSchema = z.strictObject({
   name: text(201).optional(),
   ceviName: ceviNameFeld.nullable().optional(),
   telefon: telefonSchema.optional(),
-  admin: z.boolean().optional(),
+  abteilungsleitung: z.boolean().optional(),
   rollen: rollenFeld.optional(),
   elternteilVon: elternteilVonFeld.optional(),
 });
@@ -141,10 +146,17 @@ export function erstellePersonenRouten({
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
 }) {
+  // Konten mit Rechten betreut nur, wer selbst jedes Recht hat: die Abteilungsleitung und der Entwickler (#722)
+  const betreutKontenMitRechten = async (person: Person) =>
+    person.abteilungsleitung || (await istEntwickler(db, person));
+
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
   async function ladeZiel(person: Person, id: string) {
     const [ziel] = await db
-      .select({ id: user.id, admin: sql<boolean>`${user.role} = 'admin'` })
+      .select({
+        id: user.id,
+        abteilungsleitung: istAbteilungsleitungSql(user.id),
+      })
       .from(user)
       .where(
         and(
@@ -157,14 +169,16 @@ export function erstellePersonenRouten({
     await verlange(db, person, "personen.verwalten", {
       abteilungId: person.abteilungId,
     });
-    // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst
-    if (ziel.admin && !person.admin) throw new HTTPException(403);
+    // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst, dazu der Entwickler (#722)
+    if (ziel.abteilungsleitung && !(await betreutKontenMitRechten(person))) {
+      throw new HTTPException(403);
+    }
     return ziel;
   }
 
   // Zurücksetzen, aktivieren, deaktivieren und löschen übernehmen oder sperren ein Konto: Hat es Rechte (Rolle in einer Gruppe, Plattformrolle, Entwickler, Sonderrecht), betreut es nur die Abteilungsleitung, sonst gäbe «Personen verwalten» jedes Recht der Abteilung (#650, SR-10)
   async function schuetzeKonto(person: Person, id: string) {
-    if (person.admin) return;
+    if (await betreutKontenMitRechten(person)) return;
     if ((await geschuetzteKonten(db, person.abteilungId, [id])).has(id)) {
       throw new HTTPException(403);
     }
@@ -202,14 +216,17 @@ export function erstellePersonenRouten({
     aenderung: z.infer<typeof aendernSchema>,
   ) {
     if (
-      aenderung.admin === undefined &&
+      aenderung.abteilungsleitung === undefined &&
       aenderung.rollen === undefined &&
       aenderung.elternteilVon === undefined
     ) {
       return;
     }
     const [[bisher], rollen, eltern] = await Promise.all([
-      db.select({ role: user.role }).from(user).where(eq(user.id, id)),
+      db
+        .select({ abteilungsleitung: istAbteilungsleitungSql(user.id) })
+        .from(user)
+        .where(eq(user.id, id)),
       db
         .select({ stufeId: rolle.stufeId, typ: rolle.typ })
         .from(rolle)
@@ -220,8 +237,8 @@ export function erstellePersonenRouten({
         .where(eq(kindEltern.userId, id)),
     ]);
     const adminGeaendert =
-      aenderung.admin !== undefined &&
-      (bisher.role === "admin") !== aenderung.admin;
+      aenderung.abteilungsleitung !== undefined &&
+      bisher.abteilungsleitung !== aenderung.abteilungsleitung;
     const alt = new Map(rollen.map((r) => [r.stufeId, r.typ]));
     const rollenGeaendert =
       aenderung.rollen !== undefined &&
@@ -290,14 +307,16 @@ export function erstellePersonenRouten({
       details,
     });
 
-  // Ziel gelistet und keine zweite aktive ID der Abteilungsleitung: die letzte Abteilungsleitung bleibt
-  async function sperreLetztenAdmin(
+  // Die Abteilung behält mindestens eine aktive Person der Abteilungsleitung oder einen aktiven Entwickler (#731). Nur die Abteilungsleitung zu entziehen lässt einen Entwickler stehen
+  async function sperreLetzteAbteilungsleitung(
     tx: Pick<Db, "select">,
     abteilungId: string,
     zielId: string,
+    nurAbteilungsleitung = false,
   ) {
-    const admins = await aktiveAdminIds(tx, abteilungId);
-    if (istLetzterAdmin(admins, zielId)) throw new Konflikt("LETZTER_ADMIN");
+    const verwalter = await aktiveVerwalter(tx, abteilungId);
+    if (istLetzterVerwalter(verwalter, zielId, nurAbteilungsleitung))
+      throw new Konflikt("LETZTE_ABTEILUNGSLEITUNG");
   }
 
   // Neues Startpasswort setzen, alle Sitzungen beenden (Push-Tokens enden mit ihnen, #42), danach Pflichtwechsel, 7 Tage und Bremse von vorn
@@ -338,7 +357,8 @@ export function erstellePersonenRouten({
               ceviName: user.ceviName,
               telefon: user.telefon,
               benutzername: user.username,
-              role: user.role,
+              abteilungsleitung: istAbteilungsleitungSql(user.id),
+              entwickler: sql<boolean>`exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${user.id})`,
               twoFactorEnabled: user.twoFactorEnabled,
               banned: user.banned,
               mussPasswortAendern: user.mussPasswortAendern,
@@ -418,7 +438,9 @@ export function erstellePersonenRouten({
         )
         .map((p) => p.id);
       const geschuetzt =
-        sicht === "voll" && !person.admin && offeneStartpasswoerter.length > 0
+        sicht === "voll" &&
+        !(await betreutKontenMitRechten(person)) &&
+        offeneStartpasswoerter.length > 0
           ? await geschuetzteKonten(db, abteilungId, offeneStartpasswoerter)
           : new Set<string>();
       // Nie email, banReason, Bremsfelder oder Geheimnisse und Codes des zweiten Faktors: Der Rollen-Editor braucht nur das hier
@@ -430,7 +452,8 @@ export function erstellePersonenRouten({
           bildUrl: p.bildUrl,
           telefon: p.telefon,
           benutzername: p.benutzername,
-          admin: p.role === "admin",
+          abteilungsleitung: p.abteilungsleitung,
+          entwickler: p.entwickler,
           zweiterFaktor: p.twoFactorEnabled === true,
           deaktiviert: p.banned === true,
           mussPasswortAendern: p.mussPasswortAendern,
@@ -468,7 +491,7 @@ export function erstellePersonenRouten({
       });
       const eingaben = c.req.valid("json");
       // Die Abteilungsleitung und die Stufenrollen sind Rechte: Sie vergibt nur, wer Rechte vergeben darf (#650)
-      if (eingaben.admin || eingaben.rollen.length > 0) {
+      if (eingaben.abteilungsleitung || eingaben.rollen.length > 0) {
         await verlange(db, person, "rechte.verwalten");
       }
       await pruefeIds(person, eingaben.rollen, eingaben.elternteilVon);
@@ -526,8 +549,13 @@ export function erstellePersonenRouten({
         }
         try {
           await db.transaction(async (tx) => {
-            if (aenderung.admin === false) {
-              await sperreLetztenAdmin(tx, person.abteilungId, id);
+            if (aenderung.abteilungsleitung === false) {
+              await sperreLetzteAbteilungsleitung(
+                tx,
+                person.abteilungId,
+                id,
+                true,
+              );
             }
             const felder: Partial<{
               name: string;
@@ -555,14 +583,25 @@ export function erstellePersonenRouten({
                 };
               }
             }
-            if (aenderung.admin !== undefined) {
-              felder.role = aenderung.admin ? "admin" : "user";
-              const [bisher] = await tx
-                .select({ role: user.role })
-                .from(user)
-                .where(eq(user.id, id));
-              if ((bisher.role === "admin") !== aenderung.admin) {
-                details.admin = aenderung.admin;
+            if (aenderung.abteilungsleitung !== undefined) {
+              // Die Tabelle ist die Quelle, user.role der Spiegel bis Teil 10 (#720, Epic #714)
+              felder.role = aenderung.abteilungsleitung ? "admin" : "user";
+              const bisherAbteilungsleitung = await istAbteilungsleitung(
+                tx,
+                id,
+              );
+              if (aenderung.abteilungsleitung) {
+                await tx
+                  .insert(abteilungsleitungPerson)
+                  .values({ userId: id })
+                  .onConflictDoNothing();
+              } else {
+                await tx
+                  .delete(abteilungsleitungPerson)
+                  .where(eq(abteilungsleitungPerson.userId, id));
+              }
+              if (bisherAbteilungsleitung !== aenderung.abteilungsleitung) {
+                details.abteilungsleitung = aenderung.abteilungsleitung;
               }
             }
             if (Object.keys(felder).length > 0) {
@@ -664,6 +703,13 @@ export function erstellePersonenRouten({
           }
           throw fehler;
         }
+        // Wird der zweite Faktor mit dieser Änderung Pflicht und fehlt er, meldet sich die Person neu an und sieht die Einrichtung (#715)
+        if (
+          aenderung.abteilungsleitung === true ||
+          aenderung.rollen !== undefined
+        ) {
+          await beendeSitzungenBeiNeuerPflicht(db, person.abteilungId, [id]);
+        }
         // Die Website zeigt oder vergisst die Person nach ihrer Rolle und ihrem Namen beim nächsten Abgleich (#610)
         if (
           aenderung.rollen !== undefined ||
@@ -731,7 +777,7 @@ export function erstellePersonenRouten({
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       try {
         await db.transaction(async (tx) => {
-          await sperreLetztenAdmin(tx, person.abteilungId, id);
+          await sperreLetzteAbteilungsleitung(tx, person.abteilungId, id);
           // Vor banUser: Scheitert das, nimmt die Transaktion den Eintrag zurück
           await protokolliere(tx, person, "person_deaktiviert", id);
           // banUser löscht auch die Sitzungen und läuft auf eigener Verbindung; die Transaktion fasst vorher keine Zeile der Zielperson an, sonst drohte ein Deadlock
@@ -790,12 +836,12 @@ export function erstellePersonenRouten({
       const person = c.get("person");
       const { id } = c.req.valid("param");
       await ladeZiel(person, id);
-      // Konto löschen ist fest (konto.loeschen): nur die Abteilungsleitung (#650)
+      // Konto löschen ist fest (konto.loeschen): Abteilungsleitung und Entwickler (#650, #722); das eigene Konto nie
       await verlange(db, person, "konto.loeschen");
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       try {
         await db.transaction(async (tx) => {
-          await sperreLetztenAdmin(tx, person.abteilungId, id);
+          await sperreLetzteAbteilungsleitung(tx, person.abteilungId, id);
           await protokolliere(tx, person, "person_geloescht", id);
           // Ohne Fremdschlüssel: Der zweite Faktor legt die Person-ID als Wert ab; better-auth räumt sie nicht weg
           await tx.delete(verification).where(eq(verification.value, id));

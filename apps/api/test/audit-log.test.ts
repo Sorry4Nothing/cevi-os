@@ -67,7 +67,7 @@ async function legePersonAn(extra: Record<string, unknown> = {}) {
     vorname: "Vreni",
     nachname: "Muster",
     benutzername: `person.${randomUUID().slice(0, 8)}`,
-    admin: false,
+    abteilungsleitung: false,
     rollen: [],
     elternteilVon: [],
     ...extra,
@@ -99,13 +99,13 @@ const vomAdmin = (aktion: string, details: unknown = null) => ({
 
 test("Person anlegen schreibt «person_angelegt» ohne Personendaten", async () => {
   const { id } = await legePersonAn({
-    admin: true,
+    abteilungsleitung: true,
     rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
   });
   const log = await eintraege(id);
   expect(log).toEqual([
     vomAdmin("person_angelegt", {
-      admin: true,
+      abteilungsleitung: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
       elternteilVon: [],
     }),
@@ -139,7 +139,7 @@ test("Rollen ändern schreibt «rolle_geaendert» mit den geänderten Schlüssel
 
   await patch({ name: "Vreni Neu" });
   await patch({
-    admin: false,
+    abteilungsleitung: false,
     rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
     elternteilVon: [],
   });
@@ -147,11 +147,11 @@ test("Rollen ändern schreibt «rolle_geaendert» mit den geänderten Schlüssel
     "person_angelegt",
   ]);
 
-  await patch({ admin: true });
+  await patch({ abteilungsleitung: true });
   await patch({ rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }] });
   await patch({ elternteilVon: [welt.kindBId] });
   expect((await eintraege(id)).slice(1)).toEqual([
-    vomAdmin("rolle_geaendert", { admin: true }),
+    vomAdmin("rolle_geaendert", { abteilungsleitung: true }),
     vomAdmin("rolle_geaendert", {
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
     }),

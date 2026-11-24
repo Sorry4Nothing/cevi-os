@@ -19,10 +19,10 @@ beforeAll(async () => {
 
 const bereicheFuer = (person: object) =>
   (nav.sichtbareBereiche as (p: object) => unknown[])(person);
-const admin = () => bereicheFuer({ istAdmin: true, zugang: null });
+const admin = () => bereicheFuer({ abteilungsleitung: true, zugang: null });
 const stufenleitung = () =>
   bereicheFuer({
-    istAdmin: false,
+    abteilungsleitung: false,
     zugang: { bereiche: ["website"], rechte: [] },
   });
 
@@ -349,7 +349,7 @@ describe("Daten im Speicher", () => {
       bildUrl: "/api/v1/personen/p1/bild?v=1",
       telefon: "+41 44 000 00 00",
       startpasswort: "ABCD-EFGH-JKLM",
-      admin: false,
+      abteilungsleitung: false,
       zweiterFaktor: true,
       deaktiviert: false,
       mussPasswortAendern: true,

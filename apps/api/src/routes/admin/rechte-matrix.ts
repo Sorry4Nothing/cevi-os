@@ -22,6 +22,11 @@ import {
   speichereAbteilungsleitung,
 } from "../../rechtemodell/abteilungsleitung.js";
 import { darf, verlange } from "../../rechtemodell/darf.js";
+import {
+  beendeSitzungenBeiNeuerPflicht,
+  personenDerGruppenrolle,
+  personenDerPlattformRolle,
+} from "../../rechtemodell/faktor-pflicht.js";
 import { pruefeEigeneRechte } from "../../rechtemodell/eskalation.js";
 import {
   mitgliederDerRollen,
@@ -47,7 +52,7 @@ import {
   type Zuteilung,
 } from "../../rechtemodell/standard.js";
 
-// Matrix-API (#643): die Rechte der Abteilung lesen und einstellen, je Gruppe und global. Die Abteilungsleitung mit zweitem Faktor (Pfad /admin, dazu verlange «rechte.verwalten»: ein festes Recht) und seit #663 der Entwickler mit zweitem Faktor («rechte.abteilungsleitung»): Er liest alles ohne Namen von Personen, ändert die Rechte der Abteilungsleitung und, in den Grenzen seiner eigenen Rechte, die der anderen Rollen. Personen zuordnen und «Was darf wer?» bleiben bei der Abteilungsleitung. Die Rechte der Abteilungsleitung ändert nur der Entwickler, nie sie selbst. Der Server prüft alles: Abteilung (fremd = 404, vor dem 403), Katalog (ein Name oder eine Geltung ausserhalb ist 400), Eskalation (wer vergibt, hat), Version (409 bei gleichzeitiger Änderung).
+// Matrix-API (#643): die Rechte der Abteilung lesen und einstellen, je Gruppe und global. Die Abteilungsleitung mit zweitem Faktor (Pfad /admin, dazu verlange «rechte.verwalten»: ein festes Recht) und seit #663 der Entwickler mit zweitem Faktor («rechte.abteilungsleitung»): Seit #722 hat er jedes Recht, auch «Rechte und Rollen vergeben»: Er sieht Namen, ordnet Personen zu und liest «Was darf wer?» wie die Abteilungsleitung. Die Rechte der Abteilungsleitung ändert nur der Entwickler, nie sie selbst. Der Server prüft alles: Abteilung (fremd = 404, vor dem 403), Katalog (ein Name oder eine Geltung ausserhalb ist 400), Eskalation (wer vergibt, hat), Version (409 bei gleichzeitiger Änderung).
 // Die Seite «Rollen und Rechte» zeigt weiter /zuordnungen (rechte.ts) und die Plattformrollen (plattform-rollen.ts); beide bleiben, wie sie sind.
 // Nie in einer Antwort oder im Audit: Kontaktdaten. Die Namen von Personen stehen nur dort, wo die Abteilungsleitung sie ohnehin sieht (Mitglieder einer Rolle, Herkunft der Rechte einer Person).
 
@@ -162,10 +167,10 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
   // Tür der Routen: das feste Recht «Rechte und Rollen vergeben» (Abteilungsleitung) oder «Rechte der Abteilungsleitung ändern» (Entwickler); erst nach dem Laden des Objekts
   const tuer = (person: Person) =>
     verlangeEines(db, person, ["rechte.verwalten", "rechte.abteilungsleitung"]);
-  // Tür für alles mit Personen (Zuordnen, «Was darf wer?»): nur die Abteilungsleitung. Der Entwickler sieht keine Personendaten
+  // Tür für alles mit Personen (Zuordnen, «Was darf wer?»): wer «Rechte und Rollen vergeben» hat, also die Abteilungsleitung und der Entwickler (er hat jedes Recht, #722)
   const nurAbteilungsleitung = (person: Person) =>
     verlange(db, person, "rechte.verwalten");
-  // Sieht die Person Namen von Personen? Nur die Abteilungsleitung (SR-41)
+  // Sieht die Person Namen von Personen? Wer «Rechte und Rollen vergeben» hat: Abteilungsleitung und Entwickler (SR-41, Abweichung #722)
   const sieheNamen = (person: Person) => darf(db, person, "rechte.verwalten");
 
   async function ladeGruppe(person: Person, tagId: string) {
@@ -257,7 +262,6 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
               geltungen: e.geltungen,
               bezug: e.bezug ?? null,
               zweiterFaktor: e.risiko !== "normal",
-              entwickler: e.entwickler,
               nurEntwickler: e.nurEntwickler === true,
               // Rechte, die eine Gruppenrolle tragen darf (alles Vergebbare ausser dem Wartungsmodus)
               gruppenrolle:
@@ -491,6 +495,14 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
                 409,
               );
             }
+            // Verlangt ein Recht der Rolle jetzt den zweiten Faktor, melden sich die Personen ohne ihn neu an (#715)
+            if (rechte) {
+              await beendeSitzungenBeiNeuerPflicht(
+                db,
+                person.abteilungId,
+                await personenDerGruppenrolle(db, person.abteilungId, rolle.id),
+              );
+            }
             return c.json({ version: ergebnis.version });
           } catch (fehler) {
             if (pgCode(fehler) === "23505") return c.json(NAME_VERGEBEN, 409);
@@ -639,6 +651,11 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
               },
             });
           });
+          if (rolle) {
+            await beendeSitzungenBeiNeuerPflicht(db, person.abteilungId, [
+              userId,
+            ]);
+          }
           return c.body(null, 204);
         },
       )
@@ -868,6 +885,17 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
                 409,
               );
             }
+            if (rechte) {
+              await beendeSitzungenBeiNeuerPflicht(
+                db,
+                person.abteilungId,
+                await personenDerPlattformRolle(
+                  db,
+                  person.abteilungId,
+                  rolle.id,
+                ),
+              );
+            }
             return c.json({ version: ergebnis.version });
           } catch (fehler) {
             if (pgCode(fehler) === "23505") return c.json(NAME_VERGEBEN, 409);
@@ -1020,7 +1048,7 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
           .orderBy(asc(tag.typ), asc(tag.name));
         return c.json({
           person: { id: ziel.id, name: ziel.name },
-          abteilungsleitung: ziel.admin,
+          abteilungsleitung: ziel.abteilungsleitung,
           entwickler: satz.entwickler,
           gruppen,
           rechte: RECHT_IDS.flatMap((id) => {

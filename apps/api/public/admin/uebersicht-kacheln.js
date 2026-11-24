@@ -2,6 +2,7 @@
 // Vorlagen für Aufbau und Zustände (angesehen und nachgezeichnet, kein Quelltext übernommen): Kokonut UI Pro «agent-inbox» (Aufgaben als kompakte Liste nach dem, was sie von dir brauchen, mit Gruppen und Zahl), «stats-headline» und «stats-feature» (Kennzahlen in einem Band, durch feine Linien geteilt, Zahl gross, Veränderung, kleine Grafik) und «status-footer» (schmaler Streifen mit Zustand als Wort und Symbol).
 import { chip, el, icon, knopf } from "./dom.js";
 import { BEREICHE, darfSehen } from "./navigation.js";
+import { istAbteilungsleitung, istEntwickler } from "./sicht.js";
 import {
   deltaMarke,
   fmt,
@@ -41,7 +42,8 @@ export function ziel(ctx, [bereich, unter]) {
   const u = b?.unter.find((x) => x.schluessel === unter);
   if (!u) return null;
   const ok = darfSehen(u, {
-    istAdmin: ctx.ich.role === "admin",
+    abteilungsleitung: istAbteilungsleitung(ctx.ich),
+    entwickler: istEntwickler(ctx.ich),
     zugang: ctx.zugang,
   });
   // Hat der Bereich nur eine Unterseite, steht sie nicht in der Adresse (#anlaesse)

@@ -39,7 +39,8 @@ const konto = async (name: string, abteilung: string, admin = false) => {
   personen[name] = {
     id: zeile.id,
     abteilungId: abteilung,
-    admin,
+    abteilungsleitung: admin,
+    entwickler: false,
     // Der zweite Faktor zählt nur für Routen mit zweiterFaktor (#523); die Namen «…Ohne» haben ihn nicht
     zweiterFaktor: name === "lagerleitung" || (admin && name !== "adminOhne"),
     rollen: [],

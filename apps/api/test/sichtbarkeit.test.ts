@@ -47,7 +47,13 @@ const objekt = pgTable("sicht_objekt", {
 let welt: Welt;
 let personen: Record<
   Persona,
-  { id: string; abteilungId: string; admin: boolean; tagIds: string[] } | null
+  {
+    id: string;
+    abteilungId: string;
+    abteilungsleitung: boolean;
+    entwickler: boolean;
+    tagIds: string[];
+  } | null
 >;
 let tags: { t1: string; t2: string; t3: string; demo: string };
 let objekte: {
@@ -111,13 +117,14 @@ beforeAll(async () => {
         const konto = konten[p];
         if (!konto.id) return [p, null];
         const [u] = await db
-          .select({ role: schema.user.role })
-          .from(schema.user)
-          .where(eq(schema.user.id, konto.id));
+          .select({ id: schema.abteilungsleitungPerson.userId })
+          .from(schema.abteilungsleitungPerson)
+          .where(eq(schema.abteilungsleitungPerson.userId, konto.id));
         const person = {
           id: konto.id,
           abteilungId: konto.abteilungId,
-          admin: u.role === "admin",
+          abteilungsleitung: u !== undefined,
+          entwickler: false,
         };
         return [p, { ...person, tagIds: await ladeTagIds(db, person) }];
       }),

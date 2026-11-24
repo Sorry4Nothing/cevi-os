@@ -93,6 +93,14 @@ export const plattformEntwickler = pgTable("plattform_entwickler", {
   erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
 });
 
+// Die Abteilungsleitung (#720): Wer eine Zeile hat, gehört zur Abteilungsleitung seiner Abteilung (user.abteilung_id). Ihre Rechte stehen in abteilungsleitung_recht. Bis Teil 10 des Epics #714 user.role den Wert «admin» nicht mehr kennt, schreiben alle Stellen auch dorthin (Spiegel, nur zum Schreiben; gelesen wird allein diese Tabelle)
+export const abteilungsleitungPerson = pgTable("abteilungsleitung_person", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => user.id, { onDelete: "cascade" }),
+  erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+});
+
 // Gruppenrollen (#643): Rollen einer einzelnen Gruppe (Tag jedes Typs), von der Abteilungsleitung erstellt und eingestellt; ihre Rechte gelten für Objekte der Gruppe («eigene») oder der ganzen Abteilung («alle»), je nach Katalog (rechtemodell/katalog.ts). Keine Frist: Sie gelten, bis Rolle, Zuordnung oder Gruppe gelöscht sind.
 // schluessel kennzeichnet die Systemrollen jeder Gruppe (Stufe: leitung, stufenleitung; sonst verantwortlich): Sie lassen sich nicht löschen und nicht umbenennen, ihre Rechte sind einstellbar. verantwortlich ist das Kennzeichen «Verantwortliche/r» (Ziel «Verantwortliche» der Mitteilungen). Dass abteilung_id zum Tag passt, prüfen die Routen
 export const gruppenRolle = pgTable(

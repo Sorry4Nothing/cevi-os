@@ -369,7 +369,7 @@ describe("Verwaltung: keine Popups für Rückfragen (#578)", () => {
     expect(toast).not.toMatch(/li\.focus\(|wurzel\.focus\(|k\.li\.focus\(/);
     const admin = lies("admin.js");
     // Im Seitenaufbau der Verwaltung: nach dem Kopf (Leisten), vor dem Inhalt
-    const aufbau = admin.slice(admin.indexOf("function zeigeVerwaltung()"));
+    const aufbau = admin.slice(admin.indexOf("function zeigeVerwaltung("));
     expect(aufbau.indexOf("toasts.wurzel")).toBeGreaterThan(
       aufbau.indexOf("leisten.wurzel"),
     );

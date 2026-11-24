@@ -243,7 +243,7 @@ describe("Quelltext der Bereiche (#593)", () => {
 
   test("das Hinweisband steht in der Verwaltung zwischen Kopf und Inhalt und nur für die Plattform", () => {
     const admin = quelle("admin.js");
-    const aufbau = admin.slice(admin.indexOf("function zeigeVerwaltung()"));
+    const aufbau = admin.slice(admin.indexOf("function zeigeVerwaltung("));
     expect(aufbau.indexOf("hinweisband.wurzel")).toBeGreaterThan(
       aufbau.indexOf("leisten.wurzel"),
     );
