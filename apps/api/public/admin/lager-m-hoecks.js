@@ -587,6 +587,7 @@ function zeichneDetail(
       : h.anwesende.map((p) => ({
           personId: p.id,
           name: personName(p),
+          bildUrl: p.bildUrl,
           anwesend: true,
         }));
   bereich.append(
@@ -847,6 +848,7 @@ function zeichneModus(bereich, ctx, lagerId, { lager, m }, neu) {
   const liste = m.mitglieder.map((x) => ({
     personId: x.id,
     name: personName(x),
+    bildUrl: x.bildUrl,
     anwesend: x.anwesend,
   }));
   const rechts = el(

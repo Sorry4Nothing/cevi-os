@@ -18,6 +18,7 @@ import {
   druckKnopf,
 } from "./lager-m-hilfen.js";
 import { tagText, warnChips, wetterSatz } from "./lager-m-wetter.js";
+import { personZeile } from "./lager-aufgaben-gemeinsam.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { sortierListe } from "./sortieren.js";
 import { leerKarte } from "./zustaende.js";
@@ -222,7 +223,7 @@ function tagKarte(ctx, lagerId, d, mitglieder, darf, neu) {
         "p",
         {},
         el("strong", {}, "Tageschef: "),
-        seite?.tageschef ? personName(seite.tageschef) : "noch niemand",
+        personZeile(seite?.tageschef, { leer: "noch niemand" }),
       ),
       seite?.notiz
         ? el("p", { class: "lm-text" }, seite.notiz)

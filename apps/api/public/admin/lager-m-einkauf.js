@@ -25,6 +25,7 @@ import {
   personName,
   werkzeugzeile,
 } from "./lager-m-hilfen.js";
+import { personZeile } from "./lager-aufgaben-gemeinsam.js";
 import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { leerKarte } from "./zustaende.js";
 
@@ -225,7 +226,7 @@ function zeichne(ctx, lagerId, lager, daten, neuLaden) {
       el(
         "td",
         { "data-label": "Einkäufer" },
-        a.einkaeufer ? personName(a.einkaeufer) : "",
+        personZeile(a.einkaeufer, { leer: "" }),
       ),
       el(
         "td",
@@ -499,7 +500,7 @@ function zeichne(ctx, lagerId, lager, daten, neuLaden) {
               el(
                 "td",
                 { "data-label": "Einkäufer" },
-                z.einkaeufer ? personName(z.einkaeufer) : "",
+                personZeile(z.einkaeufer, { leer: "" }),
               ),
               el(
                 "td",

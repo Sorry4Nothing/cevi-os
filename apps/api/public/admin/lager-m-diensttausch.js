@@ -1,6 +1,7 @@
 import { anfrage } from "./api.js";
 import {
   auswahl,
+  avatar,
   dialogFormular,
   el,
   feld,
@@ -211,7 +212,13 @@ function zeichne(
             el(
               "th",
               { scope: "row" },
-              el("span", { class: "name" }, tauschSatz(t)),
+              el(
+                "div",
+                { class: "wer" },
+                t.vonName &&
+                  avatar(t.vonName, { hell: true, bildUrl: t.vonBildUrl }),
+                el("span", { class: "name" }, tauschSatz(t)),
+              ),
             ),
             el("td", {}, t.notiz ?? "–"),
             el("td", {}, statusChip(t.status)),

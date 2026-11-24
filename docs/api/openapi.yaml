@@ -34699,6 +34699,9 @@ components:
           format: uuid
         name:
           type: string
+        bildUrl:
+          description: "Profilbild einer Person (`LagerBildUrl`); bei Teilnehmenden `null`."
+          $ref: "#/components/schemas/LagerBildUrl"
     LagerZimmerVoll:
       description: "Ein Zimmer mit Belegung. `ueberbelegt` ist eine Warnung, keine Sperre."
       type: object
@@ -34769,6 +34772,8 @@ components:
             properties:
               name:
                 type: string
+              bildUrl:
+                $ref: "#/components/schemas/LagerBildUrl"
     LagerZimmerListe:
       description: "Die Zimmer des Lagers. Mit voller Sicht `LagerZimmerVoll` und die Zähler `offen`; das Team bekommt nur sein eigenes Zimmer (`LagerZimmerTeam`) und kein `offen`."
       type: object
