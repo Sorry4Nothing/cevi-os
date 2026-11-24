@@ -18,6 +18,10 @@ import {
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
+import {
+  OrtssucheBegrenzt,
+  type OrtssucheHolen,
+} from "../src/ortssuche/index.js";
 import { ladeSeiten } from "../src/seiten.js";
 import { erzeugeWebsite } from "../src/website/abgleich.js";
 import { dateisystemAusgabe } from "../src/website/ausgabe.js";
@@ -46,11 +50,14 @@ bereiteAuthTestsVor();
 const sql = postgres(API_URL);
 const db = erstelleDb(sql);
 const auth = erstelleTestAuth(db);
+// Eine Attrappe statt der Ortssuche des Bundes: Kein Test geht ins Netz
+const sucheAttrappe = vi.fn<OrtssucheHolen>(async () => []);
 const app = erstelleApp({
   appMinVersion: "1.2.0",
   sql,
   db,
   auth,
+  ortssuche: sucheAttrappe,
   seiten: ladeSeiten(),
 });
 afterAll(() => sql.end());
@@ -634,5 +641,117 @@ describe("Website", () => {
     html = await readFile(join(wurzel, datei), "utf8");
     expect(html).toContain("<dt>Treffpunkt</dt><dd>Pfadiheim</dd>");
     expect(html).not.toContain("Auf Google Maps ansehen");
+  });
+});
+
+describe("Adresssuche (#695)", () => {
+  const SUCHE = `${ORTE}/suche`;
+  const vorschlag = {
+    bezeichnung: "Beispielweg 4, 8000 Beispielstadt",
+    strasse: "Beispielweg 4",
+    plz: "8000",
+    ort: "Beispielstadt",
+    breite: 47.2,
+    laenge: 8.7,
+  };
+  const suche = (konto: PersonaKonto, q: string) =>
+    anfrage(konto, "GET", `${SUCHE}?q=${encodeURIComponent(q)}`);
+  beforeEach(() => {
+    sucheAttrappe.mockReset();
+    sucheAttrappe.mockResolvedValue([]);
+  });
+
+  test("Treffer: nur der Suchtext geht zum Dienst, die Antwort wird nicht zwischengespeichert", async () => {
+    sucheAttrappe.mockResolvedValue([vorschlag]);
+    const r = await suche(slA, "  Beispielweg 4  ");
+    expect(r.status).toBe(200);
+    expect(r.headers.get("cache-control")).toBe("no-store");
+    expect(await r.json()).toEqual({ vorschlaege: [vorschlag] });
+    expect(sucheAttrappe).toHaveBeenCalledTimes(1);
+    // Genau ein Argument, der Text: weder Konto noch Abteilung noch Kennung
+    expect(sucheAttrappe.mock.calls[0]).toEqual(["Beispielweg 4"]);
+  });
+
+  test("keine Treffer: 200 mit leerer Liste", async () => {
+    const r = await suche(admin, "Nirgendwoweg 99");
+    expect(r.status).toBe(200);
+    expect(await r.json()).toEqual({ vorschlaege: [] });
+  });
+
+  test("Dienst nicht erreichbar, Zeitlimit oder falsche Antwort: 503 mit Hinweis, der Suchtext steht in keinem Protokoll", async () => {
+    for (const fehler of [
+      new Error("fetch failed"),
+      new DOMException("Zeitlimit", "TimeoutError"),
+      new SyntaxError("Unexpected token"),
+    ]) {
+      sucheAttrappe.mockRejectedValueOnce(fehler);
+      const r = await suche(admin, "Geheimweg 7 Beispielstadt");
+      expect(r.status).toBe(503);
+      expect(await r.json()).toMatchObject({
+        code: "ORTSSUCHE_NICHT_ERREICHBAR",
+      });
+    }
+    expect(JSON.stringify(ausgabeLog.mock.calls)).not.toContain("Geheimweg");
+  });
+
+  test("Begrenzung des Dienstes: 429", async () => {
+    sucheAttrappe.mockRejectedValueOnce(new OrtssucheBegrenzt());
+    expect((await suche(admin, "Beispielweg")).status).toBe(429);
+  });
+
+  test("zu kurz, zu lang, zu viele Wörter, Steuerzeichen, fremde Parameter: 400, ohne Abruf", async () => {
+    for (const q of ["", "  ab ", "x".repeat(101), "a b c d e f g h i j k"]) {
+      expect((await suche(admin, q)).status, q).toBe(400);
+    }
+    expect((await suche(admin, "Beispiel\u0000weg")).status).toBe(400);
+    expect(
+      (await anfrage(admin, "GET", `${SUCHE}?q=Beispielweg&limit=100`)).status,
+    ).toBe(400);
+    expect((await anfrage(admin, "GET", SUCHE)).status).toBe(400);
+    expect(sucheAttrappe).not.toHaveBeenCalled();
+  });
+
+  test("Rechte wie bei den Orten: Eltern 403, ohne Sitzung 401", async () => {
+    expect((await suche(eltern, "Beispielweg")).status).toBe(403);
+    expect((await suche(ohneLogin, "Beispielweg")).status).toBe(401);
+    expect(sucheAttrappe).not.toHaveBeenCalled();
+  });
+
+  test("je Konto höchstens 20 Suchen je Minute, danach 429", async () => {
+    const stati: number[] = [];
+    for (let i = 0; i < 21; i++) {
+      stati.push((await suche(slB, "Beispielweg")).status);
+    }
+    expect(stati.slice(0, 20).every((s) => s === 200)).toBe(true);
+    expect(stati[20]).toBe(429);
+    // Ein anderes Konto ist nicht betroffen
+    expect((await suche(slA, "Beispielweg")).status).toBe(200);
+  });
+
+  test("ohne eingerichteten Dienst: 503 statt eines Fehlers", async () => {
+    const ohne = erstelleApp({
+      appMinVersion: "1.2.0",
+      sql,
+      db,
+      auth,
+      seiten: ladeSeiten(),
+    });
+    const r = await ohne.request(`${SUCHE}?q=Beispielweg`, {
+      headers: admin.headers,
+    });
+    expect(r.status).toBe(503);
+  });
+
+  test("ein gewählter Vorschlag wird als Koordinaten gespeichert und führt zur Karte", async () => {
+    const id = await legeAn(admin, {
+      beschreibung: vorschlag.bezeichnung,
+      standort: `${vorschlag.breite}, ${vorschlag.laenge}`,
+    });
+    const o = await eintrag(id);
+    expect(o?.standortArt).toBe("koordinaten");
+    expect(o?.beschreibung).toBe(vorschlag.bezeichnung);
+    expect(o?.kartenLink).toBe(
+      "https://www.google.com/maps/search/?api=1&query=47.2,8.7",
+    );
   });
 });

@@ -1957,6 +1957,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/lager-status.js:
+    get:
+      operationId: getAdminLagerStatusSkript
+      summary: Skript der Verwaltung – Bereich Lager, Status
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/lager-anim.css:
     get:
       operationId: getAdminLagerAnimStilvorlage
@@ -2651,6 +2666,21 @@ paths:
     get:
       operationId: getAdminOrteLogikSkript
       summary: Skript der Verwaltung – Orte der Samstagsangaben, reine Logik
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/ort-suche.js:
+    get:
+      operationId: getAdminOrtSucheSkript
+      summary: Skript der Verwaltung – Adresssuche der Orte (Kombinationsfeld)
       tags:
         - Allgemein
       security: []
@@ -24705,6 +24735,49 @@ paths:
           $ref: "#/components/responses/ZuVieleAnfragen429"
         "409":
           $ref: "#/components/responses/RedaktionOrt409"
+  /api/v1/redaktion/orte/suche:
+    get:
+      operationId: sucheRedaktionOrtAdresse
+      summary: Adresse suchen, mit Vorschlägen für einen Ort
+      description: |
+        Adresssuche für das Formular eines Orts (#695). Zu einem Suchtext (mindestens 3, höchstens 100 Zeichen, höchstens zehn Wörter, keine Steuerzeichen) antwortet der Server mit höchstens 8 Vorschlägen: Bezeichnung, Strasse, PLZ, Ort und Koordinaten (WGS84, sechs Stellen). Der Browser fragt nur diesen Server. Der Server fragt die Ortssuche des Bundes (`api3.geo.admin.ch`, ohne Schlüssel, Adressen, Postleitzahlen und Ortsnamen der Schweiz); dorthin geht nur der Suchtext, ohne Konto, Abteilung oder Kennung, ohne Weiterleitung, mit Zeitlimit von 5 Sekunden und gedeckelter Antwort. Die Antwort des Dienstes wird mit einem Schema gelesen; was nicht passt, fällt weg. Gleiche Suchen werden zehn Minuten im Arbeitsspeicher gehalten, der Dienst bekommt höchstens 30 Abrufe je Minute (Fair Use des Bundes: 40). Der Suchtext steht in keinem Protokoll. Die Antwort trägt `Cache-Control: no-store`. Nichts wird gespeichert; ein gewählter Vorschlag geht danach als `standort` («Breite, Länge») und `beschreibung` (die Adresse) an `POST` oder `PATCH` der Orte.
+
+        Recht: wie die übrigen Routen der Orte (Abteilungsleitung, jede Stufenleitung, Plattformrecht `seiten.bearbeiten` oder Sonderrecht an einer Stufenseite). Je Konto höchstens 20 Suchen je Minute.
+
+        Statuscodes: 200 bei Erfolg (auch ohne Treffer: leere Liste). 400 bei ungültigem Suchtext oder unbekanntem Parameter. 403 ohne Recht. 429 bei zu vielen Suchen (je Konto oder insgesamt). 503 mit `ORTSSUCHE_NICHT_ERREICHBAR`, wenn der Dienst nicht antwortet, zu lange braucht oder Unbrauchbares liefert; die Verwaltung lässt dann die Eingabe von Hand zu.
+
+        Datenbanklast: keine Abfrage ausser dem Recht.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: q
+          in: query
+          required: true
+          description: Der Suchtext, zum Beispiel eine Teiladresse.
+          schema:
+            type: string
+            minLength: 3
+            maxLength: 100
+      responses:
+        "200":
+          description: Vorschläge, höchstens acht.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionOrtSuche"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "503":
+          $ref: "#/components/responses/RedaktionOrtSuche503"
   /api/v1/redaktion/orte/vorschau:
     post:
       operationId: vorschauRedaktionOrtStandort
@@ -40225,6 +40298,46 @@ components:
         mitnehmen:
           type: [string, "null"]
           maxLength: 1000
+    RedaktionOrtSuche:
+      type: object
+      required:
+        - vorschlaege
+      properties:
+        vorschlaege:
+          type: array
+          maxItems: 8
+          items:
+            $ref: "#/components/schemas/RedaktionOrtVorschlag"
+    RedaktionOrtVorschlag:
+      type: object
+      required:
+        - bezeichnung
+        - strasse
+        - plz
+        - ort
+        - breite
+        - laenge
+      properties:
+        bezeichnung:
+          type: string
+          maxLength: 200
+          description: So steht der Vorschlag in der Liste und als Adresse im Ort, zum Beispiel «Beispielweg 4, 8000 Beispielstadt».
+        strasse:
+          type: [string, "null"]
+          description: Strasse mit Hausnummer; null bei Postleitzahlen und Ortsnamen.
+        plz:
+          type: [string, "null"]
+          pattern: "^[0-9]{4}$"
+        ort:
+          type: [string, "null"]
+        breite:
+          type: number
+          minimum: -90
+          maximum: 90
+        laenge:
+          type: number
+          minimum: -180
+          maximum: 180
     RedaktionOrtStandort:
       type: object
       required:
@@ -42010,6 +42123,13 @@ components:
     RedaktionOrt400:
       description: |
         Ungültige Eingabe. `ORT_STANDORT_UNGUELTIG`: der Standort ist kein Link von Google Maps, keine lesbare Adresse und keine Koordinaten, hat einen fremden Host, ein anderes Schema als `https`, Anmeldeinformationen oder ist zu lang; `message` sagt es auf Deutsch. Sonst ein 400 ohne Code.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
+    RedaktionOrtSuche503:
+      description: |
+        Die Adresssuche ist gerade nicht erreichbar (`ORTSSUCHE_NICHT_ERREICHBAR`): Der Dienst des Bundes antwortet nicht, braucht zu lange oder liefert Unbrauchbares. Der Standort lässt sich weiter von Hand eintragen.
       content:
         application/json:
           schema:
