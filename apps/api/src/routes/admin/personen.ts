@@ -3,13 +3,7 @@ import { and, asc, eq, inArray, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
-import {
-  aktiveAdminIds,
-  istAbteilungsleitung,
-  istAbteilungsleitungSql,
-  istLetzterAdmin,
-  LETZTER_ADMIN,
-} from "../../admins.js";
+import { istAbteilungsleitung, istAbteilungsleitungSql } from "../../admins.js";
 import type { erstelleAuth } from "../../auth.js";
 import { bildUrl } from "../../bild.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
@@ -58,6 +52,11 @@ import {
   setzePasswort,
   sperreKonto,
 } from "../../konto-verwaltung.js";
+import {
+  aktiveVerwalter,
+  istLetzterVerwalter,
+  LETZTE_ABTEILUNGSLEITUNG,
+} from "../../verwalter.js";
 import { setzeZweitenFaktorZurueck } from "../../zweiter-faktor.js";
 
 // Eigene 409-Codes mit eigener Antwort: onError machte aus einer HTTPException(409) nur «FEHLER»
@@ -66,7 +65,7 @@ const KONFLIKT = {
     code: "BENUTZERNAME_VERGEBEN",
     message: "Dieser Benutzername ist schon vergeben.",
   },
-  LETZTER_ADMIN,
+  LETZTE_ABTEILUNGSLEITUNG,
   EIGENES_KONTO: {
     code: "EIGENES_KONTO",
     message:
@@ -296,14 +295,16 @@ export function erstellePersonenRouten({
       details,
     });
 
-  // Ziel gelistet und keine zweite aktive ID der Abteilungsleitung: die letzte Abteilungsleitung bleibt
-  async function sperreLetztenAdmin(
+  // Die Abteilung behält mindestens eine aktive Person der Abteilungsleitung oder einen aktiven Entwickler (#731). Nur die Abteilungsleitung zu entziehen lässt einen Entwickler stehen
+  async function sperreLetzteAbteilungsleitung(
     tx: Pick<Db, "select">,
     abteilungId: string,
     zielId: string,
+    nurAbteilungsleitung = false,
   ) {
-    const admins = await aktiveAdminIds(tx, abteilungId);
-    if (istLetzterAdmin(admins, zielId)) throw new Konflikt("LETZTER_ADMIN");
+    const verwalter = await aktiveVerwalter(tx, abteilungId);
+    if (istLetzterVerwalter(verwalter, zielId, nurAbteilungsleitung))
+      throw new Konflikt("LETZTE_ABTEILUNGSLEITUNG");
   }
 
   // Neues Startpasswort setzen, alle Sitzungen beenden (Push-Tokens enden mit ihnen, #42), danach Pflichtwechsel, 7 Tage und Bremse von vorn
@@ -533,7 +534,12 @@ export function erstellePersonenRouten({
         try {
           await db.transaction(async (tx) => {
             if (aenderung.admin === false) {
-              await sperreLetztenAdmin(tx, person.abteilungId, id);
+              await sperreLetzteAbteilungsleitung(
+                tx,
+                person.abteilungId,
+                id,
+                true,
+              );
             }
             const felder: Partial<{
               name: string;
@@ -749,7 +755,7 @@ export function erstellePersonenRouten({
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       try {
         await db.transaction(async (tx) => {
-          await sperreLetztenAdmin(tx, person.abteilungId, id);
+          await sperreLetzteAbteilungsleitung(tx, person.abteilungId, id);
           // Vor banUser: Scheitert das, nimmt die Transaktion den Eintrag zurück
           await protokolliere(tx, person, "person_deaktiviert", id);
           // banUser löscht auch die Sitzungen und läuft auf eigener Verbindung; die Transaktion fasst vorher keine Zeile der Zielperson an, sonst drohte ein Deadlock
@@ -813,7 +819,7 @@ export function erstellePersonenRouten({
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
       try {
         await db.transaction(async (tx) => {
-          await sperreLetztenAdmin(tx, person.abteilungId, id);
+          await sperreLetzteAbteilungsleitung(tx, person.abteilungId, id);
           await protokolliere(tx, person, "person_geloescht", id);
           // Ohne Fremdschlüssel: Der zweite Faktor legt die Person-ID als Wert ab; better-auth räumt sie nicht weg
           await tx.delete(verification).where(eq(verification.value, id));

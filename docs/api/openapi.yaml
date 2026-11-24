@@ -5117,7 +5117,7 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Ziel in der eigenen Abteilung (404), dann Recht der Abteilungsleitung (403), dann Stufen- und Kind-IDs (400).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremden bzw. unbekannten Stufen- und Kind-IDs. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `LETZTER_ADMIN`, wenn `admin: false` die letzte aktive Abteilungsleitung der Abteilung entfernen würde.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder fremden bzw. unbekannten Stufen- und Kind-IDs. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `LETZTE_ABTEILUNGSLEITUNG`, wenn `admin: false` der Abteilung die letzte aktive Person mit Abteilungsleitung oder Entwickler nähme (ein Entwickler bleibt stehen, auch wenn ihm die Abteilungsleitung entzogen wird).
       tags:
         - Verwaltung
       parameters:
@@ -5141,7 +5141,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Der letzte aktive Abteilungsleitung lässt sich nicht entfernen (`LETZTER_ADMIN`).
+          description: Der Abteilung bliebe weder eine aktive Person mit Abteilungsleitung noch ein aktiver Entwickler (`LETZTE_ABTEILUNGSLEITUNG`).
           content:
             application/json:
               schema:
@@ -5156,7 +5156,7 @@ paths:
       description: |
         Nur die Abteilungsleitung (festes Recht `konto.loeschen`), nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für die letzte aktive Abteilungsleitung.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
         - Verwaltung
       parameters:
@@ -5174,7 +5174,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Eigenes Konto (`EIGENES_KONTO`) odie letzte Abteilungsleitung (`LETZTER_ADMIN`).
+          description: Eigenes Konto (`EIGENES_KONTO`) oder die letzte aktive Person mit Abteilungsleitung oder Entwickler (`LETZTE_ABTEILUNGSLEITUNG`).
           content:
             application/json:
               schema:
@@ -5230,7 +5230,7 @@ paths:
       description: |
         Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTER_ADMIN` für die letzte aktive Abteilungsleitung.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
         - Verwaltung
       parameters:
@@ -5248,7 +5248,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Eigenes Konto (`EIGENES_KONTO`) odie letzte Abteilungsleitung (`LETZTER_ADMIN`).
+          description: Eigenes Konto (`EIGENES_KONTO`) oder die letzte aktive Person mit Abteilungsleitung oder Entwickler (`LETZTE_ABTEILUNGSLEITUNG`).
           content:
             application/json:
               schema:
@@ -27503,7 +27503,7 @@ components:
           type: string
           enum:
             - BENUTZERNAME_VERGEBEN
-            - LETZTER_ADMIN
+            - LETZTE_ABTEILUNGSLEITUNG
             - EIGENES_KONTO
             - EIGENER_ZWEITER_FAKTOR
             - KEIN_ZWEITER_FAKTOR
@@ -27518,7 +27518,7 @@ components:
             - KONTO_VORHANDEN
         message:
           type: string
-          example: Die letzte Abteilungsleitung lässt sich nicht entfernen.
+          example: Die Abteilung braucht mindestens eine aktive Person der Abteilungsleitung oder einen aktiven Entwickler.
     AdminRolle:
       type: object
       description: Stufenrolle einer Person. «stufenleitung» erfüllt auch alles, was «leitung» darf.
@@ -27800,7 +27800,7 @@ components:
           description: Eine Nummer speichert nur, wer nach der Änderung eine Rolle `stufenleitung` hat (sonst 400); leer oder `null` entfernt sie, das geht immer. Ändert sich der Wert, schreibt die API `telefon_geaendert` ins Audit-Log, ohne die Nummer.
         admin:
           type: boolean
-          description: "`false` für die letzte aktive Abteilungsleitung ergibt 409 `LETZTER_ADMIN`."
+          description: "`false` ergibt 409 `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung sonst keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe."
         rollen:
           type: array
           maxItems: 50

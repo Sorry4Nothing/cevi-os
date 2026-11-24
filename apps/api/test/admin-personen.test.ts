@@ -12,7 +12,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
-import { aktiveAdminIds } from "../src/admins.js";
+import { aktiveVerwalter } from "../src/verwalter.js";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
@@ -120,6 +120,8 @@ const istInTabelle = async (id: string) =>
       .from(schema.abteilungsleitungPerson)
       .where(eq(schema.abteilungsleitungPerson.userId, id))
   ).length === 1;
+const aktiveIds = async (abteilungId: string) =>
+  (await aktiveVerwalter(db, abteilungId)).map((v) => v.id);
 const userZeile = async (id: string) =>
   (await db.select().from(schema.user).where(eq(schema.user.id, id)))[0];
 const sitzungen = (id: string) =>
@@ -693,8 +695,8 @@ describe("DELETE /api/v1/admin/personen/:id", () => {
   });
 });
 
-// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver die Abteilungsleitung ihrer Abteilung
-describe("Schutz des letzte Abteilungsleitungs", () => {
+// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver Personen der Abteilungsleitung und aktiver Entwickler ihrer Abteilung (#731)
+describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt", () => {
   async function eigeneWelt() {
     const eigene = await erstelleWelt(db, auth);
     return {
@@ -709,7 +711,9 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
       admin: false,
     });
     expect(antwort.status).toBe(409);
-    expect(await antwort.json()).toMatchObject({ code: "LETZTER_ADMIN" });
+    expect(await antwort.json()).toMatchObject({
+      code: "LETZTE_ABTEILUNGSLEITUNG",
+    });
     expect((await userZeile(ersterAdmin.id!)).role).toBe("admin");
     expect(await istInTabelle(ersterAdmin.id!)).toBe(true);
   });
@@ -764,7 +768,7 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
       [204, 401],
       [204, 409],
     ]).toContainEqual(status);
-    expect(await aktiveAdminIds(db, eigene.testabteilungId)).toHaveLength(1);
+    expect(await aktiveIds(eigene.testabteilungId)).toHaveLength(1);
   });
 
   test("gegenseitiges Zurückstufen über Promise.all lässt genau einen aktiven Abteilungsleitung übrig", async () => {
@@ -781,7 +785,87 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
       [204, 403],
       [204, 409],
     ]).toContainEqual(status);
-    expect(await aktiveAdminIds(db, eigene.testabteilungId)).toHaveLength(1);
+    expect(await aktiveIds(eigene.testabteilungId)).toHaveLength(1);
+  });
+
+  // Konto der Abteilung als Entwickler (Zeile in plattform_entwickler), sonst eine gewöhnliche Person
+  async function legeEntwicklerAn(eigene: Welt) {
+    const entwickler = await legePersonaAn(eigene, "elternA");
+    await db
+      .insert(schema.plattformEntwickler)
+      .values({ userId: entwickler.id! });
+    return entwickler;
+  }
+
+  test("ein aktiver Entwickler der Abteilung genügt: die einzige Abteilungsleitung darf zurückgestuft werden", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const entwickler = await legeEntwicklerAn(eigene);
+    const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+      admin: false,
+    });
+    expect(antwort.status).toBe(204);
+    expect(await istInTabelle(ersterAdmin.id!)).toBe(false);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([entwickler.id]);
+  });
+
+  test("wer Abteilungsleitung und Entwickler ist, behält als Entwickler die Verwaltung der Abteilung", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    await db
+      .insert(schema.plattformEntwickler)
+      .values({ userId: ersterAdmin.id! });
+    const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+      admin: false,
+    });
+    expect(antwort.status).toBe(204);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([ersterAdmin.id]);
+  });
+
+  test("ein deaktivierter Entwickler zählt nicht: danach gilt die Abteilungsleitung allein", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const entwickler = await legeEntwicklerAn(eigene);
+    expect(
+      (await anfrage(ersterAdmin, "POST", `/${entwickler.id}/deaktivieren`))
+        .status,
+    ).toBe(204);
+    const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+      admin: false,
+    });
+    expect(antwort.status).toBe(409);
+    expect(await antwort.json()).toMatchObject({
+      code: "LETZTE_ABTEILUNGSLEITUNG",
+    });
+  });
+
+  test("ein gelöschter Entwickler zählt nicht: danach gilt die Abteilungsleitung allein", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const entwickler = await legeEntwicklerAn(eigene);
+    expect(
+      (await anfrage(ersterAdmin, "DELETE", `/${entwickler.id}`)).status,
+    ).toBe(204);
+    expect(
+      (
+        await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+          admin: false,
+        })
+      ).status,
+    ).toBe(409);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([ersterAdmin.id]);
+  });
+
+  test("gegenseitiges Löschen über Promise.all lässt genau eine aktive Abteilungsleitung übrig", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const zweiter = await legePersonaAn(eigene, "admin");
+    const antworten = await Promise.all([
+      anfrage(ersterAdmin, "DELETE", `/${zweiter.id}`),
+      anfrage(zweiter, "DELETE", `/${ersterAdmin.id}`),
+    ]);
+    const status = antworten.map((a) => a.status).sort((a, b) => a - b);
+    // 401, wenn die Sitzung des Verlierers erst nach dem fremden Commit geprüft wurde
+    expect([
+      [204, 401],
+      [204, 409],
+    ]).toContainEqual(status);
+    expect(await aktiveIds(eigene.testabteilungId)).toHaveLength(1);
   });
 
   test("Deaktivierte sind für die Zählung inaktiv, banned null zählt als aktiv", async () => {
@@ -791,9 +875,7 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
       .update(schema.user)
       .set({ banned: sqlAusdruck`null` })
       .where(eq(schema.user.id, ersterAdmin.id!));
-    expect(await aktiveAdminIds(db, eigene.testabteilungId)).toEqual([
-      ersterAdmin.id,
-    ]);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([ersterAdmin.id]);
   });
 });
 

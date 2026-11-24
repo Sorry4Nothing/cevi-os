@@ -11,7 +11,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
-import { aktiveAdminIds } from "../src/admins.js";
+import { aktiveVerwalter } from "../src/verwalter.js";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
@@ -65,6 +65,9 @@ const tabelle = (id: string) =>
 const setzeRole = (id: string, role: string) =>
   db.update(schema.user).set({ role }).where(eq(schema.user.id, id));
 
+const aktiveIds = async (abteilungId: string) =>
+  (await aktiveVerwalter(db, abteilungId)).map((v) => v.id);
+
 describe("Quelle der Abteilungsleitung", () => {
   test("die Fabrik legt Tabellenzeile und Spiegel an; die Zeile genügt, role ist ohne Wirkung", async () => {
     const al = await legePersonaAn(welt, "admin");
@@ -85,9 +88,7 @@ describe("Quelle der Abteilungsleitung", () => {
     expect((await ladePerson(db, welt.testabteilungId, konto.id!))?.admin).toBe(
       false,
     );
-    expect(await aktiveAdminIds(db, welt.testabteilungId)).not.toContain(
-      konto.id,
-    );
+    expect(await aktiveIds(welt.testabteilungId)).not.toContain(konto.id);
   });
 
   test("die Zeile eines Kontos macht es zur Abteilungsleitung, ohne dass role gesetzt ist", async () => {
@@ -97,7 +98,7 @@ describe("Quelle der Abteilungsleitung", () => {
       .insert(schema.abteilungsleitungPerson)
       .values({ userId: konto.id! });
     expect(await ichAdmin(konto)).toBe(true);
-    expect(await aktiveAdminIds(db, welt.testabteilungId)).toContain(konto.id);
+    expect(await aktiveIds(welt.testabteilungId)).toContain(konto.id);
   });
 
   test("das Löschen des Kontos löscht die Zeile mit", async () => {
@@ -154,7 +155,9 @@ describe("PATCH /api/v1/admin/personen/:id schreibt Tabelle und Spiegel", () => 
       body: JSON.stringify({ admin: false }),
     });
     expect(antwort.status).toBe(409);
-    expect(await antwort.json()).toMatchObject({ code: "LETZTER_ADMIN" });
+    expect(await antwort.json()).toMatchObject({
+      code: "LETZTE_ABTEILUNGSLEITUNG",
+    });
     expect(await tabelle(einzige.id!)).toHaveLength(1);
   });
 });

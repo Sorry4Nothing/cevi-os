@@ -133,6 +133,8 @@ const CODES = {
   NETZ: "Keine Verbindung. Prüfe das Internet und versuche es nochmals.",
   ZWEITER_FAKTOR_FEHLT:
     "Dafür braucht es zuerst einen zweiten Faktor. Richte ihn unter «Mein Konto» ein.",
+  LETZTE_ABTEILUNGSLEITUNG:
+    "Die Abteilung braucht mindestens eine aktive Person der Abteilungsleitung oder einen aktiven Entwickler. Gib die Abteilungsleitung zuerst einer anderen Person.",
   ZWEITER_FAKTOR_SITZUNG:
     "Diese Sitzung hat den Code nicht geprüft. Melde dich neu an und gib den Code ein.",
   TOTP_ALREADY_ENABLED: "Der zweite Faktor ist schon eingerichtet.",

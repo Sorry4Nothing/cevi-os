@@ -166,6 +166,14 @@ Die Abteilungsleitung ist eine Zeile in `abteilungsleitung_person` (eine Zeile j
 - **Notfall:** Ist niemand mehr in der Tabelle, setzt man eine Zeile von Hand als Besitzer der Datenbank: `insert into abteilungsleitung_person (user_id) select id from "user" where username = '<benutzername>'` (und `update "user" set role = 'admin' where username = '<benutzername>'`, solange der Spiegel gilt).
 - **Rückweg:** `drizzle/rueckweg/0159_abteilungsleitung_person.sql` (`psql -1 -f`, nach dem Zurückstellen des Codes) setzt `role = 'admin'` für alle Mitglieder der Tabelle, löscht sie und die Journalzeile.
 
+## Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt (#731)
+
+Jede Abteilung behält mindestens eine **aktive** Person mit Abteilungsleitung (Zeile in `abteilungsleitung_person`) oder einen aktiven Entwickler (Zeile in `plattform_entwickler`, Konto der Abteilung). Gesperrte (`banned`) und deaktivierte Konten (`deaktiviert_am`) zählen nicht. Die Verwaltung (`src/verwalter.ts`) lehnt mit 409 `LETZTE_ABTEILUNGSLEITUNG` ab, wenn die Abteilung durch **Abteilungsleitung entziehen** (`PATCH`, `admin: false`), **Deaktivieren** oder **Löschen** keine solche Person mehr hätte. Ein Entwickler, dem nur die Abteilungsleitung entzogen wird, bleibt stehen und zählt weiter. Zwei gleichzeitige Entfernungen laufen nacheinander (Sperre der Abteilungszeile, `for no key update`); die zweite zählt neu und scheitert.
+
+- **Grenze:** Die Sperre gilt nur für die Verwaltung. Die Kommandozeile (`entwickler:entziehen`) und von Hand ausgeführtes SQL prüfen sie nicht.
+- **Notfall:** Bleibt eine Abteilung doch ohne beide, vergibt man die Abteilungsleitung wie unter «Abteilungsleitung in eigener Tabelle (#720)» von Hand oder einen Entwickler mit `entwickler:vergeben`.
+- **Android und iOS:** Der frühere Code `LETZTER_ADMIN` gibt es nicht mehr (kein Alias). Die Apps passen sich an.
+
 ## Aufräumläufe der API
 
 Die API räumt selbst auf: Alle Läufe sind Zeitgeber im Prozess der API (`apps/api/src/server.ts`), es gibt keinen Cron und keinen externen Planer. Jeder Lauf startet beim Start der API sofort und danach im Takt; nach einem Deploy laufen sie also einmal sofort, was bei Löschläufen unkritisch ist (sie sind idempotent). Ins Log (journald, siehe «Logs») kommen nur der Name des Laufs und die Zahl der Zeilen, bei einem Fehler nur ein Code; ein Fehler bricht nichts ab, der nächste Lauf folgt im nächsten Takt. Es gibt keinen Alarm dafür: Wer prüfen will, ob ein Lauf läuft, sucht im Log nach dem Ereignisnamen.
