@@ -1,14 +1,17 @@
 import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { medium, seite, tag, user } from "../db/schema.js";
+import { anlass, medium, ort, seite, tag, user } from "../db/schema.js";
 import type { Baustein } from "./bausteine.js";
+import { sammleDynamischeVerweise } from "./bausteine-dynamisch.js";
 import {
   MAX_FEHLER,
   sammleVerweise,
   type DokumentFehler,
   type Seitendokument,
 } from "./dokument.js";
+import { ALT_PFLICHT } from "./medien-schema.js";
 import { ANMELDEN_PFAD, TERMINE_PFAD } from "./rendern.js";
+import { aufWebsite } from "./personen.js";
 import { adressenVon, type Knoten } from "./seiten.js";
 
 type Lesen = Pick<Db, "select">;
@@ -49,9 +52,23 @@ export async function pruefeVerweise(
   );
   const personen = await lade(klein(alle.personen), (ids) =>
     d
-      .select({ id: user.id })
+      .select({ id: user.id, aufWebsite })
       .from(user)
       .where(and(eq(user.abteilungId, abteilungId), inArray(user.id, ids))),
+  );
+  // Anlässe und Orte der Bausteine aus Cevi OS (#740): nur eigene; ein Anlass zeigt sich nur, wenn er öffentlich ist
+  const dyn = sammleDynamischeVerweise(dok.bausteine);
+  const anlaesse = await lade(dyn.anlaesse, (ids) =>
+    d
+      .select({ id: anlass.id, sichtbarkeit: anlass.sichtbarkeit })
+      .from(anlass)
+      .where(and(eq(anlass.abteilungId, abteilungId), inArray(anlass.id, ids))),
+  );
+  const orte = await lade(dyn.orte, (ids) =>
+    d
+      .select({ id: ort.id })
+      .from(ort)
+      .where(and(eq(ort.abteilungId, abteilungId), inArray(ort.id, ids))),
   );
   // Adressen der Abteilung aus dem Baum. Die Startseite «/» lässt sich hier nicht prüfen (offen, #351)
   // Die festen Seiten der Website (Termine, Anmelden) gibt es immer: Ein Link darauf ist gültig (#560)
@@ -87,8 +104,8 @@ export async function pruefeVerweise(
         fehler.push({ pfad, code: "MEDIUM_FORMAT" });
       } else if (oeffentlich && m.sichtbarkeit !== "oeffentlich") {
         fehler.push({ pfad, code: "MEDIUM_NICHT_OEFFENTLICH" });
-      } else if (b.typ === "karussell" && m.dekorativ) {
-        // Im Karussell trägt jedes Bild den Inhalt, ein Alt-Text ist Pflicht (WCAG 1.1.1)
+      } else if (ALT_PFLICHT.has(b.typ) && m.dekorativ) {
+        // Im Karussell, im Bildvergleich und in der Logo-Reihe trägt jedes Bild den Inhalt, ein Alt-Text ist Pflicht (WCAG 1.1.1)
         fehler.push({ pfad, code: "MEDIUM_ALT_FEHLT" });
       }
     }
@@ -96,7 +113,23 @@ export async function pruefeVerweise(
       if (!tags.has(id)) fehler.push({ pfad, code: "TAG_UNBEKANNT" });
     }
     for (const id of klein(v.personen)) {
-      if (!personen.has(id)) fehler.push({ pfad, code: "PERSON_UNBEKANNT" });
+      const p = personen.get(id);
+      if (!p) fehler.push({ pfad, code: "PERSON_UNBEKANNT" });
+      // Im Baustein «personen» erscheinen nur Leitende (#610): jemand ohne Rolle mit Aussenwirkung stünde nie auf der Seite
+      else if (b.typ === "personen" && !p.aufWebsite) {
+        fehler.push({ pfad, code: "PERSON_NICHT_AUF_WEBSITE" });
+      }
+    }
+    const vd = sammleDynamischeVerweise([b]);
+    for (const id of vd.anlaesse) {
+      const a = anlaesse.get(id);
+      if (!a) fehler.push({ pfad, code: "ANLASS_UNBEKANNT" });
+      else if (a.sichtbarkeit !== "oeffentlich") {
+        fehler.push({ pfad, code: "ANLASS_NICHT_OEFFENTLICH" });
+      }
+    }
+    for (const id of vd.orte) {
+      if (!orte.has(id)) fehler.push({ pfad, code: "ORT_UNBEKANNT" });
     }
     for (const s of v.seiten) {
       if (s !== "/" && !pfade.has(s))

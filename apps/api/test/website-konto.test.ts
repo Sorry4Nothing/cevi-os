@@ -305,7 +305,6 @@ function lauf(opt: {
     '[data-konto="initialen"]': initialen,
     '[data-konto="verwaltung"]': verw,
     '[data-konto="abmelden"]': [abmelden],
-    ".konto-meldung": [elem("p")],
     ".konto-ava": [ava],
     summary: [elem("summary")],
   });

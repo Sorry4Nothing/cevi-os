@@ -135,7 +135,6 @@ function zeichne(bereich, ctx, erste, neu) {
   }
 
   function zeichneDetail(a) {
-    const fehlerZone = el("div", {});
     const rueck = belegt.has(a.id) ? TEXTE.RAUM_BELEGT : null;
     const bestaetigen = knopf("Bestätigen", {
       art: "haupt",
@@ -143,7 +142,7 @@ function zeichne(bereich, ctx, erste, neu) {
       "aria-describedby": rueck ? "tm-belegt" : undefined,
       "aria-disabled": rueck ? "true" : undefined,
       onclick: () => {
-        if (!belegt.has(a.id)) bestaetige(a, bestaetigen, fehlerZone);
+        if (!belegt.has(a.id)) bestaetige(a, bestaetigen);
       },
     });
     ersetze(
@@ -156,7 +155,6 @@ function zeichne(bereich, ctx, erste, neu) {
           { class: "hinweis hinweis--warn", role: "status" },
           "Der Raum ist in dieser Zeit schon gebucht. Bestätigen ist gesperrt.",
         ),
-      fehlerZone,
       el(
         "dl",
         { class: "werte" },
@@ -193,10 +191,9 @@ function zeichne(bereich, ctx, erste, neu) {
     ziel?.focus();
   }
 
-  async function bestaetige(a, knopfNode, fehlerZone) {
+  async function bestaetige(a, knopfNode) {
     knopfNode.disabled = true;
     knopfNode.setAttribute("aria-busy", "true");
-    ersetze(fehlerZone);
     try {
       await anfrage("POST", `${BASIS}/${a.id}/entscheid`, {
         entscheid: "annehmen",
@@ -216,13 +213,11 @@ function zeichne(bereich, ctx, erste, neu) {
         neu();
         return;
       }
-      const hinweis = el(
-        "div",
-        { class: "hinweis hinweis--fehler", role: "alert", tabindex: "-1" },
+      ctx.melde(
         `Nicht bestätigt. ${meldungVon(f)} Versuche es nochmals.`,
+        "fehler",
       );
-      ersetze(fehlerZone, hinweis);
-      hinweis.focus();
+      knopfNode.focus();
       return;
     }
     entschieden(
@@ -289,12 +284,15 @@ function zeichne(bereich, ctx, erste, neu) {
       anfragen.push(...seite.anfragen);
       weitere = seite.weitere;
       naechste = seite.naechste;
-      meldung.textContent = `${zaehlwort(seite.anfragen.length, "weitere Anfrage", "weitere Anfragen")} geladen.`;
+      ctx.melde(
+        `${zaehlwort(seite.anfragen.length, "weitere Anfrage", "weitere Anfragen")} geladen.`,
+      );
       meldeZaehler();
       zeichneAlles();
     } catch (f) {
-      meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
+      ctx.melde(`${fehlertext(f)} Versuche es nochmals.`, "fehler");
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
     }

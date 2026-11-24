@@ -185,7 +185,7 @@ describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () =
     },
   );
 
-  test("POST two-factor/enable erreicht auth.handler nur mit Sitzung der Abteilungsleitung, sonst 404", async () => {
+  test("POST two-factor/enable erreicht auth.handler mit jeder Sitzung, ohne Sitzung gibt es 404", async () => {
     const normal = await anmelden((await legeAn()).benutzername);
     const admin = await anmelden((await legeAn("admin")).benutzername);
     const weitergereicht = vi.spyOn(auth, "handler");
@@ -194,20 +194,32 @@ describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () =
     expect(
       (await app.request(anfrage("two-factor/enable", { body }))).status,
     ).toBe(404);
-    expect(
-      (
-        await app.request(
-          anfrage("two-factor/enable", { cookie: normal, body }),
-        )
-      ).status,
-    ).toBe(404);
     expect(weitergereicht).not.toHaveBeenCalled();
 
-    const antwort = await app.request(
-      anfrage("two-factor/enable", { cookie: admin, body }),
+    // Jedes Konto darf ihn einrichten (#715), nicht nur die Abteilungsleitung
+    for (const cookie of [normal, admin]) {
+      weitergereicht.mockClear();
+      const antwort = await app.request(
+        anfrage("two-factor/enable", { cookie, body }),
+      );
+      expect(antwort.status).toBe(200);
+      expect(weitergereicht).toHaveBeenCalledOnce();
+    }
+  });
+
+  test("das eigene Konto eines Kindes erreicht auth.handler nicht: 404", async () => {
+    const kinderKonto = await legeAn();
+    const kinderApp = erstelleAuthRouten(
+      auth,
+      async (userId) => userId === kinderKonto.id,
     );
-    expect(antwort.status).toBe(200);
-    expect(weitergereicht).toHaveBeenCalledOnce();
+    const cookie = await anmelden(kinderKonto.benutzername);
+    const weitergereicht = vi.spyOn(auth, "handler");
+    const antwort = await kinderApp.request(
+      anfrage("two-factor/enable", { cookie, body: { password: PASSWORT } }),
+    );
+    expect(antwort.status).toBe(404);
+    expect(weitergereicht).not.toHaveBeenCalled();
   });
 });
 

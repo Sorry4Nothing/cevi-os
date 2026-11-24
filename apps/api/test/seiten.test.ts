@@ -41,7 +41,6 @@ const geladen = ladeSeiten();
 
 // Ohne Cookie («ohne Login»); seite === null heisst: Der genaue Inhalt kommt erst mit #24, hier zählt nur gültiges JSON
 test.each<[string, string, string | null]>([
-  ["/datenschutz", "text/html; charset=UTF-8", geladen.datenschutz],
   ["/konto-loeschen", "text/html; charset=UTF-8", geladen.kontoLoeschen],
   ["/support", "text/html; charset=UTF-8", geladen.support],
   ["/.well-known/apple-app-site-association", "application/json", null],
@@ -62,6 +61,13 @@ test.each<[string, string, string | null]>([
     }
   },
 );
+
+// Alte Adresse der Erklärung: die Erklärung der Abteilung ist die Seite «datenschutz-website» des Seiteneditors
+test("GET /datenschutz leitet ohne Login mit 308 auf /datenschutz-website weiter", async () => {
+  const antwort = await app.request("/datenschutz");
+  expect(antwort.status).toBe(308);
+  expect(antwort.headers.get("location")).toBe("/datenschutz-website");
+});
 
 // Verwaltung im Browser (#141)
 const admin = ladeSeiten().admin;
@@ -166,27 +172,27 @@ describe("Verwaltung unter /admin", () => {
     expect(String(admin["rahmen.js"])).toContain('"aria-pressed"');
   });
 
-  // Entscheid des Auftraggebers (#570): nur Erfolg und Info ohne Aktion vergehen; Warnung, Fehler und alles mit Aktion bleiben (docs/barrierefreiheit.md 8.2)
-  test("Rückmeldungen: Erfolg und Info ohne Aktion vergehen von selbst, alles andere bleibt", async () => {
+  // Entscheid des Auftraggebers (#570, #761): Rückmeldungen sind Toasts; Erfolg und Info 4 s, Warnung und Fehler 8 s, mit Aktion bleiben sie (docs/barrierefreiheit.md 84)
+  test("Rückmeldungen: Erfolg und Info 4 Sekunden, Warnung und Fehler 8, mit Aktion bis zum Schliessen", async () => {
     // dom.js hängt beim Laden einen Klick-Zuhörer an document: Ohne Browser genügt eine Attrappe
     vi.stubGlobal("document", { addEventListener: () => {} });
     // fluss.js hört auf popstate und pagehide (#578)
     vi.stubGlobal("window", { addEventListener: () => {} });
     // Als Text, damit tsc die Browserdatei nicht als Modul des Programms prüft
     const rahmenPfad = "../public/admin/rahmen.js";
-    const { vergehtVonSelbst } = (await import(
-      /* @vite-ignore */ rahmenPfad
-    )) as { vergehtVonSelbst: (art: string, aktion?: object) => boolean };
+    const { dauerVon } = (await import(/* @vite-ignore */ rahmenPfad)) as {
+      dauerVon: (art: string, aktion?: object) => number;
+    };
     vi.unstubAllGlobals();
-    expect(vergehtVonSelbst("ok", undefined)).toBe(true);
-    expect(vergehtVonSelbst("info", undefined)).toBe(true);
+    expect(dauerVon("ok", undefined)).toBe(4000);
+    expect(dauerVon("info", undefined)).toBe(4000);
     for (const art of ["warn", "fehler"])
-      expect(vergehtVonSelbst(art, undefined)).toBe(false);
+      expect(dauerVon(art, undefined)).toBe(8000);
     for (const art of ["ok", "info", "warn", "fehler"])
-      expect(vergehtVonSelbst(art, { text: "Beheben" })).toBe(false);
+      expect(dauerVon(art, { text: "Beheben" })).toBe(0);
   });
 
-  test("Rückmeldungen: Zeiger und Fokus halten die Zeit an, mit «Bewegung reduzieren» ohne Übergang", () => {
+  test("Rückmeldungen: Zeiger und Fokus halten die Zeit an, Esc und Knopf schliessen, mit «Bewegung reduzieren» ohne Übergang", () => {
     const rahmen = String(admin["rahmen.js"]);
     for (const ereignis of [
       "pointerenter",
@@ -197,9 +203,10 @@ describe("Verwaltung unter /admin", () => {
       expect(rahmen).toContain(`"${ereignis}"`);
     expect(rahmen).toContain("prefers-reduced-motion: reduce");
     expect(rahmen).toContain("Hinweis schliessen");
+    expect(rahmen).toContain('e.key === "Escape"');
     // Der Übergang steht nur im Zweig für erlaubte Bewegung
-    expect(String(admin["geruest.css"])).toMatch(
-      /@media \(prefers-reduced-motion: no-preference\) \{\s*\.rueckmeldung \.hinweis--geht \{\s*transition:/,
+    expect(String(admin["toast.css"])).toMatch(
+      /@media \(prefers-reduced-motion: no-preference\) \{[^@]*\.toast--geht \{\s*opacity: 0;\s*transition:/,
     );
   });
 
@@ -229,7 +236,6 @@ describe("Seiten für die Stores", () => {
   };
   const seiten = ladeSeiten(kontakt);
   const alle = Object.entries({
-    datenschutz: seiten.datenschutz,
     kontoLoeschen: seiten.kontoLoeschen,
     support: seiten.support,
   });
@@ -246,24 +252,23 @@ describe("Seiten für die Stores", () => {
   );
 
   test("die Stelle wird maskiert", () => {
-    expect(seiten.datenschutz).toContain("Cevi &lt;Beispiel&gt; &amp; Co");
-    expect(seiten.datenschutz).not.toContain("<Beispiel>");
+    const html = setzeKontakt("{{STELLE}}", kontakt);
+    expect(html).toContain("Cevi &lt;Beispiel&gt; &amp; Co");
+    expect(html).not.toContain("<Beispiel>");
   });
 
   test("die Anschrift wird eingesetzt und maskiert", () => {
-    expect(seiten.datenschutz).toContain(
+    expect(setzeKontakt("{{ADRESSE}}", kontakt)).toContain(
       "Beispielweg 1 &amp; 2, 8000 Beispielort",
     );
   });
 
   test("ohne Angaben nennen die Seiten weder Stelle noch Adresse, sagen es aber", () => {
-    expect(geladen.datenschutz).toContain("noch nicht eingetragen");
-    expect(geladen.datenschutz).toContain(
+    expect(setzeKontakt("{{ADRESSE}}", {})).toBe(
       "die Anschrift der Abteilung (noch nicht eingetragen)",
     );
-    expect(setzeKontakt("{{ADRESSE}}", {})).toContain("noch nicht eingetragen");
-    expect(geladen.datenschutz).not.toContain("mailto:");
     expect(setzeKontakt("{{STELLE}}", {})).toBe("die Abteilung");
+    expect(geladen.kontoLoeschen).not.toContain("mailto:");
   });
 
   test.each(alle)(
@@ -276,27 +281,16 @@ describe("Seiten für die Stores", () => {
       expect(html).not.toMatch(
         /<script|<img|<iframe|<link(?![^>]*href="\/(favicon\.ico|apple-touch-icon\.png)")|\ssrc\s*=|@import|url\(/i,
       );
-      // Verweise nach aussen: nur die Aufsichtsbehörde und die Standardvertragsklauseln der EU-Kommission
-      const aussen = [...html.matchAll(/href="(https?:[^"]+)"/g)].map(
-        (m) => m[1],
-      );
-      expect(
-        aussen.every((u) =>
-          [
-            "https://www.edoeb.admin.ch",
-            "https://commission.europa.eu/",
-          ].includes(u!),
-        ),
-      ).toBe(true);
+      // Keine Verweise nach aussen
+      expect(html).not.toMatch(/href="https?:/);
       expect(html).not.toContain("ß");
     },
   );
 
-  test("jede Seite verlinkt die beiden anderen", () => {
+  test("jede Seite verlinkt die Datenschutzerklärung und die andere Seite", () => {
     for (const [html, pfade] of [
-      [seiten.datenschutz, ["/konto-loeschen", "/support"]],
-      [seiten.kontoLoeschen, ["/datenschutz", "/support"]],
-      [seiten.support, ["/datenschutz", "/konto-loeschen"]],
+      [seiten.kontoLoeschen, ["/datenschutz-website", "/support"]],
+      [seiten.support, ["/datenschutz-website", "/konto-loeschen"]],
     ] as const) {
       for (const pfad of pfade) expect(html).toContain(`href="${pfad}"`);
     }
@@ -313,7 +307,6 @@ describe("Seiten für die Stores", () => {
 // Favicon überall (#581): Plattformseiten und Verwaltung zeigen dasselbe Zeichen wie die Website
 describe("Favicon der Plattformseiten und der Verwaltung", () => {
   const SEITEN = [
-    ["/datenschutz", geladen.datenschutz],
     ["/konto-loeschen", geladen.kontoLoeschen],
     ["/support", geladen.support],
     ["/admin", String(admin["index.html"])],

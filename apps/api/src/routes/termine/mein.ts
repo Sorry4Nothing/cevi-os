@@ -16,7 +16,7 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Fcm } from "../../push.js";
-import { darfLeitungAnmelden, type Person } from "../../rechte.js";
+import { darfLeitungAnmelden, siehtAlles, type Person } from "../../rechte.js";
 import { ladeAnlassInfos } from "../../termine/anlass-sicht.js";
 import {
   alleSichtTags,
@@ -147,7 +147,7 @@ export async function ladeTerminListe(
   const zeilen = await db
     .select({
       ...terminFelder(
-        art === "alle" && person.admin
+        art === "alle" && siehtAlles(person)
           ? sql`true`
           : inArray(sql`programm_tag.tag_id`, alleSichtTags(sichtTags)),
       ),

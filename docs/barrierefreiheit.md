@@ -10,8 +10,10 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Öffentliche Seiten der Website und Editor der Verwaltung (Web statt App): Abschnitt 11, im Browser geprüft.
 - Bereich «Termine» der Verwaltung (Web statt App): Abschnitt 12, im Browser geprüft.
 - Lädeli auf der Website: Abschnitt 11 («Lädeli»); Bereich «Lädeli» der Verwaltung: Abschnitt 13, im Browser geprüft.
-- Verwaltung insgesamt (Web statt App), im Browser geprüft: Toasts und zweistufige Knöpfe Abschnitt 14, Kopf, Auswahlfelder und Seiten im Fluss Abschnitt 15, Übersicht Abschnitt 16, Anmeldung, System und Mitteilungen Abschnitt 17, Website-Medien, Einstellungen und Lädeli Abschnitt 18, Personen Abschnitt 19, Lager Abschnitt 20, Seiten und Editor Abschnitt 21, Navigation, Bereichsauswahl und Befehlspalette Abschnitt 22.
+- Verwaltung insgesamt (Web statt App), im Browser geprüft: Toasts und zweistufige Knöpfe Abschnitt 14, Rückmeldungen als Toast Abschnitt 84, Kopf, Auswahlfelder und Seiten im Fluss Abschnitt 15, Übersicht Abschnitt 16, Anmeldung, System und Mitteilungen Abschnitt 17, Website-Medien, Einstellungen und Lädeli Abschnitt 18, Personen Abschnitt 19, Lager Abschnitt 20, Seiten und Editor Abschnitt 21, Navigation, Bereichsauswahl und Befehlspalette Abschnitt 22.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
+- Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 73; Rollen «Abteilungsleitung» und «Entwickler» in der Verwaltung: Abschnitt 74; beide im Browser geprüft.
+- Rückmeldungen nach einer Aktion auf der öffentlichen Website (Toasts): Abschnitt 83, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -82,7 +84,7 @@ Fokus heisst hier: das Element, das Screenreader oder Schalter gerade ausgewähl
 ## 8. Gesten und Zeit
 
 - [ ] **8.1** Jede Wisch-, Zieh- oder Mehrfingeraktion lässt sich auch mit einem Finger ohne Wischen und Ziehen auslösen, mit einem Knopf oder über ein Menü. Für Screenreader und Schalter gibt es sie zusätzlich als Aktion (`accessibilityActions` mit `onAccessibilityAction`).
-- [ ] **8.2** Ausser der App-Sperre gibt es kein Zeitlimit: Keine Eingabe läuft ab, keine Fehlermeldung, Warnung oder Rückfrage verschwindet von selbst. Ausnahme in der Web-Verwaltung (Entscheid des Auftraggebers, #570): Erfolgs- und Infomeldungen ohne Aktion («Gespeichert», «Veröffentlicht») blenden nach 6 Sekunden aus. Bedingungen: Die Meldung steht sofort und ganz in der Statusregion (`role="status"`), die Zeit hält bei Zeiger und Fokus auf der Meldung an und beginnt danach neu, «Hinweis schliessen» bleibt, mit «Bewegung reduzieren» ohne Übergang. Die Meldung bestätigt nur, was auf der Seite ohnehin sichtbar ist (Zustand, Liste); sie ist keine Voraussetzung, um weiterzuarbeiten (WCAG 2.2.1 betrifft Zeitlimits für Aufgaben, 2.2.3 ist AAA).
+- [ ] **8.2** Ausser der App-Sperre gibt es kein Zeitlimit: Keine Eingabe läuft ab, keine Rückfrage und kein Fehler in einem Feld oder Formular verschwindet von selbst. Ausnahme in der Web-Verwaltung (Entscheid des Auftraggebers, #570, erweitert in #761): Rückmeldungen nach einer Aktion sind Toasts und gehen von selbst, Erfolg und Info nach 4 Sekunden, Warnung und Fehler nach 8 Sekunden, eine Meldung mit Aktion («Nochmals versuchen») bleibt bis zum Schliessen. Bedingungen: Der Toast steht sofort und ganz in einer Live-Region (höflich, Fehler `role="alert"`), die Zeit hält bei Zeiger und Fokus an und beginnt danach neu, «Hinweis schliessen» und Esc bleiben, mit «Bewegung reduzieren» ohne Übergang. Der Toast bestätigt nur, was auf der Seite ohnehin sichtbar ist, oder nennt einen Fehler, dessen Folge eine dauerhafte Marke zeigt («Nicht gespeichert»); er ist keine Voraussetzung, um weiterzuarbeiten (WCAG 2.2.1 betrifft Zeitlimits für Aufgaben, 2.2.3 ist AAA). Abschnitt 84.
 
 ## 9. Textfelder und Login
 
@@ -172,7 +174,7 @@ Gilt für jede Seite mit Bildern und für jede Stelle, die per Skript nachlädt 
 - [ ] **11.15** Der Editor lässt sich vollständig mit der Tastatur bedienen: Seitenliste, Einstellungen, Bausteine hinzufügen, bearbeiten, verschieben, duplizieren und löschen, Vorschau, Veröffentlichen, Versionen, Medienbibliothek. Verschieben geht mit Knöpfen («Nach oben», «Nach unten») und am Griff mit der Tastatur (Leertaste nimmt auf, Pfeiltasten verschieben, Leertaste legt ab, Escape bricht ab), nie nur durch Ziehen (WCAG 2.5.7). Der Seitenbaum ist ein Baum (Abschnitt 21), die Bausteine und die Karten im Baustein sind Sortierlisten (Griff, Tastatur, Knöpfe).
 - [ ] **11.16** Jedes Bedienelement hat einen Namen, der mit dem sichtbaren Text beginnt, und eine Rolle. Der Zustand einer Seite, eines Bausteins und einer Version ist ein Wort, nie nur ein Symbol oder eine Farbe.
 - [ ] **11.17** Dialoge (Einstellungen, Rückfrage beim Löschen, Konflikt, Veröffentlichen, Hochladen) setzen den Fokus hinein, halten ihn darin und geben ihn beim Schliessen an das Element zurück, das sie geöffnet hat; Esc schliesst, wo nichts verloren geht.
-- [ ] **11.18** Nach dem Löschen eines Bausteins erscheint ein Toast mit «Rückgängig» (auch Strg+Z); Erfolgsmeldungen im Editor gehen nach 6 Sekunden von selbst, Warnungen, Fehler und Meldungen mit Aktion bleiben. Hinzufügen, Verschieben, Speichern und Veröffentlichen melden das Ergebnis in der Statusmeldung (Live-Region), ohne den Fokus zu stehlen.
+- [ ] **11.18** Nach dem Löschen eines Bausteins erscheint ein Toast mit «Rückgängig» (auch Strg+Z); Rückmeldungen im Editor sind Toasts (Abschnitt 84). Hinzufügen, Verschieben, Speichern und Veröffentlichen melden das Ergebnis als Toast (Live-Region), ohne den Fokus zu stehlen.
 - [ ] **11.19** Fehler vom Server (400 mit Feldpfad, 409 Konflikt, 413, 429, offline) stehen als Text beim betroffenen Feld und in einer Meldung, die der Screenreader ansagt; der Fokus liegt danach auf der Meldung oder dem ersten fehlerhaften Feld.
 - [ ] **11.20** Der Rich Text ist ein Textfeld mit einer kleinen Schreibweise (`**fett**`, `*kursiv*`, `[Text](Adresse)`, `- `, `1. `), kein `contenteditable`. Die Schreibweise steht als Text beim Feld, nicht nur in einem Tooltip. Eine Format-Leiste (Fett, Kursiv, Link, Liste, Nummerierung; Strg+B und Strg+I) setzt sie im Feld um; die Knöpfe sind gewöhnliche Knöpfe, der Text bleibt derselbe.
 - [ ] **11.21** Beim Hochladen ist genau eines von «Alt-Text» und «Nur Zierde» Pflicht, die Sichtbarkeit ohne Vorgabe. Die Medienbibliothek zeigt den Alt-Text-Zustand als Wort («Alt-Text vorhanden», «Alt-Text fehlt», «Nur Zierde»); die Vorschau eines Bildes ersetzt den Alt-Text nie.
@@ -240,9 +242,9 @@ Dieser Abschnitt gilt für die drei Unterseiten des Bereichs «Lädeli» unter `
 
 ## 14. Verwaltung: Toasts mit «Rückgängig» und zweistufige Knöpfe (#578)
 
-Dieser Abschnitt gilt für jede Aktion der Verwaltung, die früher eine Rückfrage hatte (`ctx.mitRueckgaengig`, `zweistufig`; Beschreibung in [verwaltung-geruest.md](verwaltung-geruest.md)). Geprüft wird im Browser am PC und am Handy, in Tag und Nacht; die Abschnitte 1 bis 6 gelten sinngemäss.
+Dieser Abschnitt gilt für jede Aktion der Verwaltung, die früher eine Rückfrage hatte (die Region trägt seit #761 auch alle Rückmeldungen, Abschnitt 84) (`ctx.mitRueckgaengig`, `zweistufig`; Beschreibung in [verwaltung-geruest.md](verwaltung-geruest.md)). Geprüft wird im Browser am PC und am Handy, in Tag und Nacht; die Abschnitte 1 bis 6 gelten sinngemäss.
 
-- [ ] **14.1** Der Toast erscheint in einer Region mit Namen («Rückgängig») gleich nach dem Kopf im Seitenaufbau, nimmt dem Fokus nichts weg und erscheint am Handy über die ganze Breite, ohne Inhalt zu verdecken, der gerade bedient wird.
+- [ ] **14.1** Der Toast erscheint in einer Region mit Namen («Meldungen») gleich nach dem Kopf im Seitenaufbau, nimmt dem Fokus nichts weg und erscheint am Handy über die ganze Breite, ohne Inhalt zu verdecken, der gerade bedient wird.
 - [ ] **14.2** Ein Screenreader sagt beim Auslösen die Aktion und die Möglichkeit zum Rückgängigmachen an («Seite gelöscht. Rückgängig mit dem Knopf oder mit Strg Z.»), beim Zurücknehmen «Rückgängig gemacht: …», beim Ausführen «Erledigt.» und bei einem Fehler den Fehlertext (`role="alert"`).
 - [ ] **14.3** «Rückgängig» ist mit der Tastatur erreichbar: über Tab (die Region steht vor dem Inhalt), über F6 und, ausserhalb von Eingabefeldern, mit Strg oder Cmd + Z. Der Knopf ist mindestens 44 Pixel hoch und hat einen sichtbaren Fokusring; Zustand und Knopf sind Wort und Unterstreichung, nie nur Farbe.
 - [ ] **14.4** Die Frist von 8 Sekunden hält an, solange der Zeiger auf dem Toast steht oder der Fokus darin liegt; ohne «Bewegung reduzieren» läuft ein Balken, mit ihr gibt es keinen Balken und keine Einblendung, die Frist gilt gleich.
@@ -1111,7 +1113,7 @@ Gilt für das Konto-Menü im Kopf der öffentlichen Website (Vorlage in `src/web
 - [ ] **56.3** Aufbau als Offenlegungsmenü: `details` mit Links («Verwaltung» nur mit Zugang zur Verwaltung, «Mein Konto» für alle zur Seite `/konto` der Website) und einem Knopf «Abmelden», jeder Eintrag mit Symbol und Wort, kein ARIA-«menu». Zustand «offen» steht in Farbe, Dreieck (gedreht) und im Zustand des `details`.
 - [ ] **56.4** Tastatur: Tab und Umschalt-Tab gehen durch das Menü, Enter und Leertaste öffnen und lösen aus, Pfeil runter und hoch gehen durch die Einträge (und öffnen vom Knopf aus), Pos1 und Ende springen, Esc schliesst und gibt den Fokus an den Knopf zurück, Verlassen mit Tab und ein Klick daneben schliessen. Der Fokus ist sichtbar (Ring 3 Pixel, 3 : 1).
 - [ ] **56.5** Alle Ziele mindestens 44 Pixel hoch (Knopf, Einträge, Profilknopf der Verwaltung, 44 × 44 Pixel als Bild).
-- [ ] **56.6** «Abmelden» zeigt «aria-busy», gibt bei einem Fehler eine Meldung als `role="status"` («Abmelden hat nicht geklappt. Versuche es nochmals.») und lädt bei Erfolg die Seite neu: Geschützte Inhalte verschwinden, der Kopf zeigt wieder «Anmelden».
+- [ ] **56.6** «Abmelden» zeigt «aria-busy», gibt bei einem Fehler einen Fehler-Toast («Abmelden hat nicht geklappt. Versuche es nochmals.») aus und lädt bei Erfolg die Seite neu: Geschützte Inhalte verschwinden, der Kopf zeigt wieder «Anmelden».
 - [ ] **56.7** Kein Aufblitzen, kein Sprung: Der Platz im Band bleibt (gleiche Höhe 44 Pixel wie «Anmelden», Name auf 6,5 rem gekürzt); wer in diesem Tab schon angemeldet war, sieht «Anmelden» gar nicht erst blitzen (Merker, nach zwei Sekunden ohne Antwort ist der Knopf wieder da). Die Tafel fährt nur unter «Bewegung nicht reduzieren» kurz ein.
 - [ ] **56.8** Hell, Dunkel und erzwungene Farben (Tafel mit Rand, Bild mit Rand); Kontrast aller Texte mindestens 4,5 : 1. 390 bis 2560 Pixel: nichts läuft über, die Tafel bleibt im Fenster.
 - [ ] **56.9** Verwaltung: Das Profil in der Logozeile (Bild, Name, Rolle) ist der Knopf eines Konto-Menüs mit demselben Aufbau wie auf der Website: «Zur Website», «Mein Konto» (`#konto`, trägt `aria-current`, solange die Seite offen ist) und «Abmelden» (`aria-busy`, bei Fehler eine Meldung als `role="status"`). Tastatur wie 56.4. Bis 1100 Pixel bleibt nur das Bild (44 × 44 Pixel) als Knopf, sein Name für Screenreader «Konto: <Name>». Das Logo führt zur Website (Name «Cevi: zur Website», Hinweis «Zur Website»), «Verwaltung» daneben zur Übersicht (44 Pixel hoch, Hinweis «Zur Übersicht der Verwaltung»). Die Leiste hat rechts nur noch Suchen, Konto-Menü, Umschalter (Reihenfolge Menü vor Umschalter wie auf der Website); die Logozeile läuft bei 390 Pixel nicht mehr über.
@@ -1205,17 +1207,20 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, erfundene Adressen; de
 
 Gilt für `/konto` (`konto.js`, `konto.css`) und ersetzt die Gestaltung aus 62.4 bis 62.6; deren Inhalt (Pflichtwechsel, Schalter, Abmelden mit Rückfrage) gilt weiter. Massstab WCAG 2.2 AA.
 
-- [ ] **65.1** Die Seite hat zwei Spalten ab 60 em Breite (links die Profilkarte, rechts die Karten), darunter eine Spalte; die Reihenfolge im Dokument ist Profil, Datenschutz (nur solange nicht gelesen), Mitteilungen, Telefon, Passwort, Hilfe, Abmelden. Jede Karte ist ein `section` mit `aria-labelledby` auf ihre Überschrift der Ebene 2; die Profilkarte trägt den Namen als Überschrift.
+- [ ] **65.1** Die Seite hat zwei Spalten ab 60 em Breite (links die Profilkarte und darunter «Abmelden», rechts die Karten), darunter eine Spalte; die Reihenfolge im Dokument ist Profil, Datenschutz (nur solange nicht gelesen), Mitteilungen, Telefon, Passwort, Hilfe, Abmelden. Jede Karte ist ein `section` mit `aria-labelledby` auf ihre Überschrift der Ebene 2; die Profilkarte trägt den Namen als Überschrift.
 - [ ] **65.2** Die Profilkarte zeigt Bild oder Initialen (das Bild hat `alt=""`, der Name steht daneben), Rollen als Liste mit Namen «Rollen», Benutzername, bei Eltern die Kinder; keine Symbole vor den Angaben. Der Hinweis «Name und Benutzername ändert die Abteilungsleitung» steht als Text.
 - [ ] **65.3** Schalter sind `button` mit `role="switch"` und `aria-checked`, benannt über `aria-labelledby` und beschrieben über `aria-describedby`; Text «Ein» oder «Aus» steht neben der Spur, der Zustand ist nie nur Farbe (Stellung des Knopfes, Text). Zielgrösse mindestens 44 x 44 px, Leertaste und Enter schalten, der Fokus bleibt nach dem Speichern auf dem Schalter. Die Spur hat im Tag und in der Nacht mindestens 3 : 1 zum Grund (Farbe `accent`).
 - [ ] **65.4** Passwortfelder haben eine sichtbare Beschriftung; das Auge im Feld ist ein Knopf mit `aria-label` («Passwort anzeigen» oder «verbergen») und `aria-pressed`, 52 px breit, mit sichtbarem Fokus; es betrifft nur sein Feld. Der Hinweis zur Länge hängt per `aria-describedby` am Feld, steht als Satz mit Symbol («Noch 7 Zeichen bis zum Minimum», «Lang genug») und als Balken (`aria-hidden`); er meldet sich nicht bei jeder Eingabe an. Es zählt nur die Länge, die Seite behauptet keine Stärke. Der Hauptknopf «Passwort speichern» steht rechtsbündig, am Handy in voller Breite.
 - [ ] **65.5** Rückmeldung nach dem Speichern: Bestätigungsband in der Karte (`role="status"`), Fehler als `role="alert"`, dazu eine Ansage in der Statusregion. Die geänderte Karte wird kurz grün hinterlegt (nur bei erlaubter Bewegung) und behält einen grünen Rand; ohne Bewegung gibt es nur den Rand. Wer als Elternteil die Nummer entfernt, sieht die Karte mit der Rückmeldung, bis die Seite neu lädt.
 - [ ] **65.6** Ladezustand: Skelett in der Form der Seite (Profilkarte links, Karten rechts), `aria-busy`, für Hilfstechnik verborgen, Ansage erst nach 700 ms.
 - [ ] **65.7** 390, 768, 1024, 1440 und 2560 px, Hell und Dunkel: kein waagrechtes Scrollen, kein Ziel unter 44 px, im 2560er Fenster bleibt der Inhalt in der Breite der Website. Erzwungene Farben: Spur, Balken und Porträt behalten eine Linie.
+- [ ] **65.8** Anordnung (#711): Der Inhalt steht in der Breite der Website (`.wrap`). Links stehen Profilkarte und «Abmelden» untereinander, rechts füllen die übrigen Karten die Zeilen lückenlos (eine einzelne Karte am Ende der Zeile wächst über die Zeile, «Mitteilungen» und «Datenschutz» stehen über die ganze Breite). Die Reihenfolge im Dokument und die Tab-Reihenfolge bleiben Profil, Datenschutz, Mitteilungen, Telefon, Passwort, Hilfe, Abmelden; nur das Raster setzt «Abmelden» um. Bei 1280, 1440, 1920 und 2560 px, auch mit wenigen Karten, bleibt keine Fläche über 250 px Höhe leer.
 
 ### Stand der Prüfung (#689)
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank mit erfundenen Demo-Konten) gesehen und bedient: 65.1 bis 65.7 bei 390, 768, 1024, 1440 und 2560 px, Hell und Dunkel (Eltern nur in Dunkel, Stufenleitung in beiden), Pflichtwechsel mit Startpasswort, Schalter mit Maus und Leertaste, Auge, Länge live, Telefon speichern und entfernen, Datenschutz, Rückfrage «Überall abmelden», sichtbarer Fokus auf Schalter und Auge, Zielgrössen gemessen (keine unter 44 px). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Kontrastmessung mit Werkzeug (nur Augenschein), 200 % Zoom per Browser-Einstellung, Windows-Hochkontrast, sehr lange Namen.
+
+Anordnung (#711) im Browser (Chromium, headless, Demo-Konto der Abteilungsleitung, Stil und Skript aus dem Zweig) bei 390, 1280, 1440, 1920 und 2560 px, Hell und Dunkel: 65.8, dazu mit entfernten Karten und entfernter Rollenzeile und mit der Karte «Datenschutz» oben, kein waagrechtes Scrollen, kein Ziel unter 44 px. **Nicht geprüft:** ein Konto mit Telefon-Karte (Eltern, Stufenleitung; Stand-in durch Kopie der Passwort-Karte, bei 1280 px bleibt darunter links eine freie Fläche von etwa 220 px), Tab-Reihenfolge von Hand, Screenreader, Hochkontrast.
 
 ## 69. Verwaltung: Lager, Navigation ohne Hochspringen und verständliche Status-Schritte (#693)
 
@@ -1288,3 +1293,262 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Tag und Nacht) geprüf
 - **Ungespeichert, Szenarien:** Mein Konto (Schalter ändern, Menü, Browser-Zurück, «Bleiben», «Verwerfen und gehen»), Seite im Fluss (Person erfassen: Menü, Browser-Zurück, «Verwerfen»), «Verwerfen» über die Speicherleiste: jeweils kein Browserdialog, Adresse bleibt beim «Bleiben», danach ist `beforeunload` nicht mehr scharf.
 - **Nicht geprüft:** Safari und Firefox; Bildschirmleser; Touch (der Hinweis `data-tipp` erscheint dort nicht, die Information steht im Namen oder im Text); jede einzelne Zeile der Seiten, die nur mit Daten erreichbar sind, die die Demo-Datenbank nicht enthält.
 - **Bleibt unvermeidlich:** der Dialog des Browsers beim Schliessen oder Neuladen des Tabs mit echten ungespeicherten Änderungen, und der Systemdialog der Dateiwahl.
+
+## 78. Website und Verwaltung: Bausteine mit Daten aus Cevi OS (#740)
+
+Gilt für die Bausteine «Nächster Anlass», «Anlässe», «Lager-Karte», «Countdown», «Treffpunkte», «Dokumente» und «Cevi in Zahlen» (`src/website/dynamisch.ts`, Stil `public/website/dynamisch.css`) und ihre Felder im Editor (`public/admin/website-felder-dynamisch.js`). Massstab WCAG 2.2 AA; die Seiten sind statisch und ohne Skript benutzbar.
+
+**Website**
+
+- [ ] **78.1** Jede Karte hat eine Überschrift (Anlass, Ort) auf der Ebene unter der letzten Überschrift der Seite, höchstens `h3`; Datum, Zeit, Ort, Anmeldeschluss und Kosten stehen als Beschreibungsliste (`dl`), das Datum als `<time datetime>`.
+- [ ] **78.2** Das Datumsfeld ist `aria-hidden`; derselbe Inhalt steht als Text in den Angaben. Der Zustand «Anmeldung offen» steht als Wort im Etikett, nicht nur als Farbe; die Art (Anlass, Lager) ebenfalls.
+- [ ] **78.3** Jeder Knopf nennt sein Ziel für Screenreader («Anmelden zu Sommerlager», `nur-sr`), auch in einer Liste mit mehreren gleichen Knöpfen; nur der erste rote Knopf der Seite ist Hauptaktion.
+- [ ] **78.4** Countdown: ein Satz im Fliesstext («Noch 12 Tage bis …»), Datum als Text daneben; kein Zähler im Browser, nichts blinkt oder wird angesagt; «Heute» und «1 Tag» stimmen in der Einzahl.
+- [ ] **78.5** Treffpunkte: der Link zur Karte steht als Verweis mit dem Zeichen für «fremde Seite» und dem Namen des Orts für Screenreader («Auf Google Maps ansehen: Pfadiheim»); keine eingebettete Karte.
+- [ ] **78.6** Dokumente: jeder Link nennt den Titel und «(externe Seite)»; Typ und Grösse stehen als Text dahinter; die Trefferfläche ist mindestens 44 Pixel hoch.
+- [ ] **78.7** «Cevi in Zahlen»: grosse Zahl mit Beschriftung im Text (Einzahl und Mehrzahl richtig), Kontrast mindestens 4,5 : 1 in Hell und Dunkel, Zahl nie allein ohne Wort.
+- [ ] **78.8** Leere Liste: «Im Moment sind keine Anlässe eingetragen.» als Zustand, nie eine leere Fläche.
+- [ ] **78.9** 390, 1280 und 1920 Pixel ohne Seitenscroll, 200 Prozent Zoom, Hell und Dunkel nur über Tokens; die Karte stapelt sich unter 47.5 em (Datum über dem Text); erzwungene Farben: Rand statt Fläche.
+
+**Verwaltung**
+
+- [ ] **78.10** Die Wahl des Anlasses ist ein Auswahlfeld mit Label; sie meldet Laden («Anlässe werden geladen …», `role="status"`), Fehler (`role="alert"` mit «Nochmals versuchen») und Leere (Hinweis, wo man den Anlass anlegt). Ein gewählter Anlass, der nicht mehr öffentlich ist, bleibt sichtbar als «Gewählter Anlass (nicht mehr öffentlich oder gelöscht)».
+- [ ] **78.11** Orte und Zahlen sind Ankreuzlisten in einer Gruppe (`fieldset`, `legend`), jede Zeile mindestens 44 Pixel hoch, das Label ist das Ziel; ein Fehler steht beim Feld.
+- [ ] **78.12** Fehler der Verweisprüfung (`ANLASS_UNBEKANNT`, `ANLASS_NICHT_OEFFENTLICH`, `ORT_UNBEKANNT`) erscheinen als Satz beim Baustein; kein Browserdialog.
+
+### Stand der Prüfung (#740)
+
+Im Browser (Chromium, Playwright) gegen die Demo-Abteilung: Seite mit allen sieben Bausteinen in der Vorschau und als erzeugte Datei bei 390, 1280 und 1920 Pixel, Hell und Dunkel. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA) und echte Geräte; Kontraste aus den Tokens der Website, nicht neu gemessen. Befunde: PR zu #740.
+
+## 72. Website: feste Seite «Datenschutz: Cevi OS, App, Verwaltung und Website» (#712)
+
+Gilt für `/datenschutz-cevi-os` (`datenschutz-cevi-os.ts`, `datenschutz.css`) und die neuen Links auf sie (Fuss, Mein Konto, `/support`, `/konto-loeschen`). Massstab WCAG 2.2 AA. Es ist eine lange Seite aus Text ohne Skript und ohne Formular.
+
+- [ ] **72.1** Genau eine Überschrift der Ebene 1 (der Seitentitel), eine der Ebene 2 («11 Zusätzlich für Cevi OS …»), acht der Ebene 3 (11.1 bis 11.8) und die Kategorien als Ebene 4; keine Ebene wird übersprungen. Der Fuss bringt seine eigenen Überschriften der Ebene 2 mit, wie auf jeder Seite.
+- [ ] **72.2** `lang="de-CH"`; Sprunglink «Zum Inhalt», `main` mit `id="inhalt"`.
+- [ ] **72.3** Die Liste «Auf dieser Seite» ist eine `nav` mit `aria-labelledby` auf ihren Titel; jeder Link führt auf eine vorhandene `id` der Überschrift (`abschnitt-11-1` bis `abschnitt-11-8`); jede Zeile ist mindestens 44 px hoch; der Fokus ist sichtbar, und die Sprungmarke verdeckt der feste Kopf nicht (`scroll-padding-top` in `kopf.css`).
+- [ ] **72.4** Links sind unterstrichen und tragen ihren Zweck im Text («Konto löschen», «Allgemeine Datenschutzerklärung des Cevi Stäfa-Hombrechtikon»); keine Farbe als einziges Zeichen. Der Link zurück steht oben und unten.
+- [ ] **72.5** Farben nur aus den Tokens der Website: Tag, Nacht und erhöhter Kontrast gelten wie auf jeder Seite (Text 4,5 : 1, Rahmen der Liste 3 : 1).
+- [ ] **72.6** Zoom 200 % und 320 px Breite: kein waagrechtes Scrollen, der Text bricht um; Zeilenlänge höchstens 70 Zeichen (`.lesetext`).
+- [ ] **72.7** Bewegung: Das Einblenden beim Scrollen ist für den langen Textblock ausgeschaltet (er stünde sonst über seine ganze Länge blass); ohne Skript und mit «Bewegung reduzieren» ändert sich nichts.
+
+### Stand der Prüfung (#712)
+
+Im Browser (Chromium, headless, die Seite aus dem Code in eine Datei erzeugt und von einem lokalen Dateiserver ausgeliefert, Abteilung mit Beispieldaten) gesehen: 72.1, 72.3, 72.5 und 72.6 bei 1440, 390 und 320 px, Hell und Dunkel (Text hell auf dunkel rund 14 : 1), kein waagrechtes Scrollen, Zielhöhe der Liste 44 px, Fokus sichtbar, alle acht Anker vorhanden; 72.2, 72.4 und 72.7 im Markup und im Stil geprüft, nicht im Browser bedient. Im Test (`website-datenschutz-cevi-os.test.ts`): Überschriftenfolge, acht Abschnitte, 42 Kategorien, Anker, Links, Maskierung. **Nicht geprüft:** Bildschirmleser, Safari und Firefox, Touch, erhöhter Kontrast mit erzwungenen Farben, 400 % Zoom.
+
+## 73. Verwaltung: Zweiten Faktor einrichten (#715)
+
+Die Seite «Zweiten Faktor einrichten» erscheint nach der Anmeldung, wenn ein Recht den zweiten Faktor verlangt und keiner eingerichtet ist (`admin.js`, `zeigeEinrichtung`). Derselbe Ablauf (`zweiter-faktor-einrichten.js`) steht freiwillig unter «Mein Konto». Er hat drei Schritte: Passwort bestätigen, Konto in der App eintragen (QR-Code oder Schlüssel, erster Code), Ersatzcodes speichern. Den QR-Code zeichnet `qr.js` im Browser als SVG, ohne Abhängigkeit und ohne Skript von Dritten.
+
+### Prüfpunkte
+
+- [ ] **73.1** Tastatur: Jeder Schritt ist ohne Maus zu bedienen; die Tabfolge geht Feld, Hauptknopf, «Abbrechen» oder «Abmelden». Nach jedem Schritt steht der Fokus auf der neuen Überschrift (`h2`, `tabindex="-1"`), damit der Bildschirmleser den Schritt ansagt. Enter im Passwortfeld geht weiter, die sechste Ziffer des Codes bestätigt von selbst.
+- [ ] **73.2** Fokus: Jedes Bedienelement trägt einen sichtbaren Fokusring (3 px), auch im dunklen Theme. Nach einem Fehler geht der Fokus ins Feld; ein Fehler ohne Feld (Netz, Server) bekommt `role="alert"` und den Fokus.
+- [ ] **73.3** Fehlermeldungen am Feld: «Das Passwort stimmt nicht», «Der Code stimmt nicht» und «Gib die sechs Ziffern aus der App ein» stehen als Text mit Symbol beim Feld (`aria-invalid`, `aria-describedby`), nie nur als Farbe. Das Formular hat `novalidate`; kein Dialog und keine Blase des Browsers.
+- [ ] **73.4** Schlüssel für den Bildschirmleser: Der Schlüssel steht in Gruppen zu vier Zeichen zum Abtippen und wird zeichenweise vorgelesen («K Q Y G, Y 2 S S, …», `nur-leser`); die sichtbare Fassung ist für den Bildschirmleser versteckt, damit er ihn nicht doppelt liest. «Schlüssel kopieren» meldet das Ergebnis in einer Statusregion, auch wenn das Kopieren nicht geht («Markiere den Schlüssel von Hand»).
+- [ ] **73.5** QR-Code mit Textalternative: Das SVG ist ein Bild (`role="img"`) mit der Beschriftung «QR-Code für die Authenticator-App. Den Schlüssel dazu findest du als Text darunter.» Der Code ist immer Schwarz auf Weiss mit Ruhezone, im hellen und im dunklen Theme, und der Schlüssel als Text steht immer dabei: Wer nicht scannen kann, kommt ohne Kamera zum Ziel.
+- [ ] **73.6** Kontrast: Text mindestens 4,5:1, Knöpfe und Rahmen mindestens 3:1, hell und dunkel. Der Fehlertext erreicht mindestens 7:1.
+- [ ] **73.7** Reflow und Schrift: Bei 320 px Breite gibt es kein waagrechtes Scrollen; die Ersatzcodes stehen unter 32 em in einer Spalte und brechen nicht mitten im Code um. Text und Schlüssel wachsen mit der Schrift.
+- [ ] **73.8** Ersatzcodes: Sie stehen als Liste «Ersatzcodes» mit «Ersatzcodes kopieren». «Zur Verwaltung» oder «Fertig» verlangt das Häkchen «Ich habe die Ersatzcodes gespeichert»; ohne Häkchen erscheint ein Hinweis beim Häkchen (`role="alert"`) und der Fokus geht dorthin. Danach sind die Codes aus der Seite gelöscht.
+- [ ] **73.9** Bewegung: Der Ablauf kommt ohne Animation aus; nichts blinkt.
+
+### Stand der Prüfung (#715)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung) mit einem Test-TOTP (RFC 6238, im Skript nachgerechnet) geprüft: Pflichtseite für ein Konto der Abteilungsleitung und für eine Person mit Webmaster-Rolle, «Mein Konto» für eine Stufenleitung, hell und dunkel, 1100 und 375 px; danach verlangt die neue Anmeldung den Code. Punkte 73.1 bis 73.3, 73.6 und 73.7 sind mit Tabfolge, berechnetem Fokusring, berechnetem Kontrast (hell mindestens 5,4:1, Fehlertext 7,9:1, dunkel 5,4:1 und 7,0:1) und der Messung der Breite bei 320 px belegt. Der QR-Code aus dem Browser wurde mit zbar und OpenCV dekodiert und gleicht dem Link der API.
+
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA (73.4, 73.5, 73.8 nur als Quelltext und Rolle), echte Authenticator-Apps auf einem Telefon, Safari und Firefox, 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.
+
+## 74. Verwaltung: Rollen «Abteilungsleitung» und «Entwickler» aus dem Konto (#737)
+
+Dieser Abschnitt gilt für die Chips und Schalter, die die Rolle zeigen: «Mein Konto» (`konto.js`), Rolle im Kopf (`navigation.js`, `rolleVon`), Personenliste und Personenblatt (`personen.js`, `personen-blatt.js`). Die Rollen kommen aus `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`) und werden über `sicht.js` gelesen. Neu sind der Chip und die Zeile «Entwickler», der Filter und die Gruppe «Entwickler» in der Personenliste und ein Hilfetext im Personenblatt. Es gibt keine neue Bedienung.
+
+### Prüfpunkte
+
+- [ ] **74.1** Die Rolle steht als Text, nie nur als Farbe: «Abteilungsleitung» und «Entwickler» sind Chips mit Beschriftung (Mein Konto, Personenkarte, Liste) und eine Textzeile unter dem Namen (Kopf, Personenblatt). Ein Konto mit beiden zeigt beide Wörter.
+- [ ] **74.2** Der Filter «Rolle» in der Personenliste hat die Optionen «Abteilungsleitung» und «Entwickler» und bleibt mit der Tastatur bedienbar; die Gruppen «Abteilungsleitung» und «Entwickler» tragen je eine Überschrift mit Zähler.
+- [ ] **74.3** Der Hilfetext im Personenblatt («Diese Person ist auch Entwickler …») steht als Absatz unter dem Schalter «Abteilungsleitung» und ist für Bildschirmleser lesbar (kein `title`, kein Tooltip). Der Schalter «Abteilungsleitung» hat sein sichtbares Label; die Rolle «Entwickler» ist nur zu lesen und hat keinen Schalter.
+- [ ] **74.4** Kontrast und Reflow der neuen Chips wie die übrigen Chips (4,5:1 Text, 3:1 Rahmen, hell und dunkel; bei 320 px brechen die Chips um).
+
+### Stand der Prüfung (#737)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung, Server auf einem lokalen Port mit dem Vertrag aus Teil 8) gesehen bei 1280 und 2560 px, hell und dunkel: Personenliste mit Filter und Chips, Personenblatt einer Person mit Rolle «Entwickler» (Hilfetext), Schalter «Abteilungsleitung» (PATCH mit `abteilungsleitung`, 204, danach der Chip in der Liste), «Mein Konto» und Übersicht für Abteilungsleitung, Entwickler, Stufenleitung und Webmaster, ein Konto ohne Zugang («Dieses Konto hat keinen Zugang zur Verwaltung»).
+
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA, Safari und Firefox, 320 px und 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.
+
+## 79. Website: Bausteine «Einstieg und Handlung» (#743)
+
+Gilt für die Bausteine `kopfbereich`, `inhaltsverzeichnis`, `weiterfuehrend`, `kontaktleiste`, `weitersagen`, `seitenwechsel` und `brotkrumen` (`handlung.ts`, Abschnitt «Einstieg und Handlung» in `website.css`) und ihre Formulare im Seiten-Editor (`website-felder-handlung.js`). Massstab WCAG 2.2 AA. Alles ohne Skript.
+
+- [ ] **79.1** Der Kopfbereich hat genau eine Überschrift der Ebene 2 (der Seitentitel bleibt die Ebene 1; die Ebene springt nie um mehr als eine). Das Bild trägt den Alt-Text des Mediums; ohne Bild entfällt es ganz.
+- [ ] **79.2** Weisse Schrift auf dem blauen Kasten und Band: Text 4,5 : 1 und mehr in Hell und Dunkel (das Blau ändert sich nicht); der Fokusring der Schaltflächen ist hell (`outline-color: var(--on-secondary)`). Nur die erste Schaltfläche der Seite ist rot.
+- [ ] **79.3** Das Inhaltsverzeichnis ist eine `nav` mit `aria-labelledby` auf ihren Titel (ein `p`, keine Überschrift, damit die Gliederung der Seite gleich bleibt). Jeder Link führt auf eine vorhandene `id` einer Überschrift der Ebene 2; jede Zeile ist mindestens 44 px hoch; der feste Kopf verdeckt das Ziel nicht (`scroll-padding-top` in `kopf.css`).
+- [ ] **79.4** Weiterführende Links: Die ganze Karte ist genau ein Link (kein Link in einem Link, keine Überschrift im Link); der Name des Links ist Titel und Kurztext; der Pfeil ist `aria-hidden`. Eine fremde Adresse trägt «(externe Seite)» für Screenreader und einen Pfeil nach oben rechts; Farbe ist nie das einzige Zeichen. Zielhöhe mindestens 44 px.
+- [ ] **79.5** Kontaktleiste: eine `address` mit Liste; Telefon und E-Mail sind Links (`tel:`, `mailto:`) mit sichtbarem Wort «Telefon», «E-Mail» davor; Symbole sind `aria-hidden`. Werte brechen um (`overflow-wrap: anywhere`), auch bei 320 px.
+- [ ] **79.6** Weitersagen ist ein Link mit sichtbarem Text und Symbol (kein Knopf ohne Wort); er öffnet das Mailprogramm, ohne Skript und ohne Dienst von aussen.
+- [ ] **79.7** Brotkrumen: `nav` mit `aria-label="Du bist hier"` und geordneter Liste; die letzte Stufe trägt `aria-current="page"` und ist kein Link; das Trennzeichen hat einen leeren Alternativtext (`content: "›" / ""`). Seitenwechsel: `nav` mit `aria-label="Weitere Seiten"`, jeder Link nennt Richtung und Titel («Nächste Seite Stufe Exodus»), `rel="prev"` und `rel="next"`; Pfeile sind `aria-hidden`.
+- [ ] **79.8** Zoom 200 % und 320 px: kein waagrechtes Scrollen; Karten und Seitenwechsel stehen untereinander. Mit `prefers-reduced-motion: reduce` bewegt sich nichts (der Pfeil rückt nur ohne diese Einstellung vor); im Modus für erzwungene Farben behalten Karten und Knöpfe ihren Rand.
+- [ ] **79.9** Formulare im Editor: Jedes Feld hat ein sichtbares Label über dem Feld, Fehler stehen am Feld (Pfad wie beim Server), die Angaben der Kontaktleiste sind Kästchen in einer Gruppe mit Legende, die Auswahl der Darstellung ist ein Segment (Radios); keine Browserdialoge. Die Hilfetexte sagen, wann ein Baustein nichts zeigt (Verzeichnis mit weniger als zwei Überschriften, Seitenwechsel ohne Nachbarn).
+
+### Stand der Prüfung (#743)
+
+Im Browser (Chromium, headless, lokale Kopie der Datenbank mit Beispieldaten, Testseite mit allen sieben Bausteinen im Menübaum, veröffentlicht und vom Abgleich erzeugt) gesehen: 79.1, 79.2, 79.3, 79.4, 79.5, 79.7 und 79.8 bei 1280, 1920 und 390 px, Hell und Dunkel, kein waagrechtes Scrollen, alle Anker vorhanden. Die Formulare des Editors wurden in der Seite geladen und gezeichnet (Module, Zyklus der Importe, Kästchen, Segment, Listen), aber nicht in der angemeldeten Verwaltung durchgeklickt. Im Test (`website-handlung.test.ts`): Schema mit Grenzen und Ablehnung, Verweise, Rendern mit Maskierung, Anker, Menübaum, `mailto`. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), Zoom 400 %, erzwungene Farben im Browser, Safari und Firefox, die angemeldete Bedienung der Formulare mit Tastatur, die Vorschau im Katalog («Baustein hinzufügen») dieses Zweigs.
+
+## 75. Verwaltung: Bausteine mit Vorschau im Katalog und im Editor (#739)
+
+Gilt für den Katalog «Baustein hinzufügen» (`katalogDialog` in `website-bausteine.js`, Einträge in `KATALOG`) und für «Vorschau zeigen» in der Bausteinliste des Editors (`website-vorschau.js`, `website-editor.js`). Beide zeigen den Baustein mit demselben Renderer wie die Website (`POST /api/v1/redaktion/bausteine/vorschau`) in einem Rahmen ohne Skript. Massstab WCAG 2.2 AA.
+
+- [ ] **75.1** Der Katalog ist eine Seite im Fluss mit Suche, Gruppenwahl (Pillen mit `aria-pressed`, «Alle» zuerst), «Einfügen»-Auswahl und den Gruppen Text, Bilder und Medien, Karten und Listen, Handlung, Personen, Dynamisch, Gestaltung, je mit einer Überschrift der Ebene 3 und einer Liste von Kacheln. Jede Kachel hat einen Namen und einen Satz als Text; die Vorschau ist nur Bild (`inert`, `aria-hidden`), nie die einzige Information.
+- [ ] **75.2** Tastatur: Tab erreicht genau eine Kachel (roving tabindex), Pfeiltasten wandern durch die sichtbaren Kacheln (links und rechts einzeln, oben und unten über die Zeile, Pos1 und Ende), Enter oder Leertaste fügt den Baustein ein (der Editor des Bausteins öffnet sich), Escape schliesst den Katalog. Aus der Suche führt Pfeil nach unten oder Enter zur ersten Kachel. Der Fokus bleibt sichtbar: Ring 3 px um die ganze Kachel (Farbe `--akzent`: Tag rgb(1, 57, 116), rund 11 : 1 auf Weiss; Nacht rgb(157, 192, 234)), nie nur am Text.
+- [ ] **75.3** Die Eingabe in der Suche filtert sofort (Name, Beschreibung und Gruppe); die Zahl der Treffer steht in einer Statusregion; ohne Treffer erscheint «Keinen Baustein gefunden.» mit «Suche zurücksetzen». Eine Gruppe ohne sichtbare Kachel verschwindet samt Überschrift.
+- [ ] **75.4** Laden: Jede Kachel zeigt sofort ein Skelett in der Form einer Seite; die Statusregion sagt «Vorschauen laden …» und «Die Vorschauen sind geladen.». Scheitert das Laden, steht ein Hinweis mit «Nochmals versuchen» und dem Satz «Du kannst trotzdem einen Baustein wählen.»; jede Kachel bleibt wählbar («Keine Vorschau»).
+- [ ] **75.5** Hell und Dunkel: Die Verwaltung folgt dem Farbschema, die Vorschau bleibt immer hell, weil so die meisten Besucher die Seite sehen; der Satz unter der Suche sagt es («so wie die Website ihn zeigt (hell)»). Der Text der Kachel (`--text`, `--leise`) und der Rahmen kommen aus den Tokens der Verwaltung.
+- [ ] **75.6** Bildschirmgrössen: Die Kachel ist 300 px breit (260 px bis 480 px Fensterbreite) und zeigt die Website 1100 px breit verkleinert; Raster mit so vielen Spalten, wie passen; kein waagrechtes Scrollen bei 390 px.
+- [ ] **75.7** Bewegung: Nur der Wechsel von Hintergrund und Rand beim Darüberfahren (0,15 s) steht in `@media (prefers-reduced-motion: no-preference)`; das Skelett pulsiert nur dort (`komponenten.css`). Das Karussell und andere Bewegung der Website laufen in der Vorschau nie (kein Skript).
+- [ ] **75.8** Editor: «Vorschau zeigen» steht in jeder Zeile der Bausteinliste, ist ein Knopf mit `aria-expanded` und `aria-controls`, der Name nennt den Baustein («Vorschau zeigen: Karten»). Die Vorschau klappt unter der Zeile auf, zeigt die aktuellen Eingaben des Entwurfs auch ungespeichert und bleibt beim Neuzeichnen der Liste offen. Der Rahmen hat einen Namen («Vorschau: Karten»); der Satz darunter nennt Grenzen (hell, Breite der Spalte, Links und Bewegung ohne Funktion). Links in der Vorschau haben kein Ziel und sind kein Tabstopp.
+- [ ] **75.9** Zustände der Vorschau im Editor: lädt (Skelett, `aria-busy`, Statusregion), geladen, «Noch nichts zu zeigen. Fülle den Baustein aus, dann erscheint die Vorschau.» (Baustein ungültig), «Dieser Baustein zeigt auf der Website noch nichts …» (leer), Fehler mit «Nochmals versuchen» (offline, zu viele Anfragen, kein Recht).
+- [ ] **75.10** Sicherheit der Vorschau: Rahmen mit `sandbox="allow-same-origin"` (nie `allow-scripts`), `srcdoc`, eigene CSP in der Seite ohne Skript und ohne Verbindungen; kein `innerHTML` in der Verwaltung; HTML entsteht nur im Renderer aus Daten, die das Schema des Bausteins geprüft hat.
+
+### Stand der Prüfung (#739)
+
+Im Browser (Chromium, headless, Kopie der Datenbank, Seite mit erfundenen Texten, `RECHTE_MODELL=neu`) bei 1280, 2560 und 390 px, Tag und Nacht, dazu 1280 px mit «Bewegung reduzieren»: 27 Kacheln in 7 Gruppen, direkt nach dem Öffnen 27 Skelette, danach 27 Rahmen mit Vorschau (keine «Keine Vorschau»); eine Kachel ist per Tab erreichbar; Suche nach «karte» zeigt 9 Treffer, «zzzz» den Leerzustand, «Suche zurücksetzen» und die Gruppe «Personen» (4 Kacheln) wirken; Pfeil nach unten aus der Suche, Pfeiltasten und Enter fügen ein (der Editor des Bausteins öffnet sich), Escape schliesst; Fokusring 3 px in Tag und Nacht; kein waagrechtes Scrollen bei 390 px; keine Fehler und keine CSP-Meldungen in der Konsole. Im Editor: 7 Knöpfe «Vorschau zeigen», die Vorschau klappt auf und zeigt die echte Karten-Darstellung der Website. Im Test (`admin-website-vorschau.test.ts`, `redaktion-bausteine-vorschau.test.ts`): jeder Katalogeintrag hat `gruppe` und `beispiel`, das Beispiel erfüllt das Schema und der Renderer zeigt etwas; Platzhalter statt Datenbank; Recht, Grenzen und Rate-Limit der Route. **Nicht geprüft:** Bildschirmleser (NVDA, VoiceOver, TalkBack), 200 % und 400 % Zoom, echtes Touch-Gerät, Safari und Firefox, erhöhter Kontrast mit erzwungenen Farben.
+
+## 76. Website und Verwaltung: Bilder und Medien (#742)
+
+Gilt für die Bausteine «Bildraster», «Bild mit Text», «Bildvergleich», «Logo-Reihe», «Breites Bild», «Bildstreifen», «Bilderpaket» und für die Videokarte des Bausteins «Link zu Video» (`src/website/medien-bausteine.ts`, `public/website/medien.css`, `vergleich.js`, Grossansicht `lichtkasten.js`) sowie ihre Felder im Editor (`public/admin/website-felder-medien.js`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
+
+**Website**
+
+- [ ] **76.1** Der Alt-Text liegt nur am Medium. Im Bildvergleich und in der Logo-Reihe verlangt der Server ihn (`MEDIUM_ALT_FEHLT`): ein Logo ist ohne Namen ein Link ohne Namen, ein Vergleich ohne Beschreibung kein Vergleich. In Raster, Streifen, breitem Bild und Bild mit Text darf ein Bild als Zierde markiert sein (leerer Alt-Text). Wiederholt der Alt-Text nur den Titel daneben (Vorschaubild von Paket und Video), bleibt er leer.
+- [ ] **76.2** Der Titel auf dem Bild und der Titel des Bilderpakets sind Überschriften eine Ebene unter der letzten Überschrift der Seite (höchstens Ebene 3), nie ein fetter Absatz. Die Reihenfolge im Quelltext ist die Lesereihenfolge: Bild, Titel, Text, Link.
+- [ ] **76.3** Text auf einem Bild liegt auf einem dunklen Verlauf, der mit dem Text wächst: Weiss auf mindestens 86 % Schwarz (15,5 : 1 über einem reinweissen Foto), beim Text über dem ganzen Bild auf 62 % (6,2 : 1). Der Fokusring ist dort weiss. Mit erzwungenen Farben (`forced-colors`) tritt eine Fläche des Systems an die Stelle des Verlaufs.
+- [ ] **76.4** Tastatur: Jedes Bild eines Rasters, Streifens und das breite Bild sind Links zur Grossansicht (Tab, Enter; Esc schliesst, der Fokus geht zurück aufs Bild, Pfeiltasten blättern in der Folge des Rasters oder Streifens). Logos mit Link und die Videokarte sind je ein Tabstopp mit dem Namen des Ziels. Der Bildstreifen scrollt mit der Tastatur über die Links seiner Bilder; er ist eine Gruppe mit Namen und Zahl («Bildstreifen mit 12 Bildern»).
+- [ ] **76.5** Bildvergleich: Der Schieber ist ein echtes `input type="range"` mit Namen («Schieber: Früher und Heute vergleichen») und Wert für Screenreader («60 Prozent Früher, 40 Prozent Heute»); Pfeiltasten bewegen um 5 %, Pos1 und Ende gehen an den Rand, ein Klick oder Ziehen setzt die Kante (2.5.7: kein Ziehen ist nötig). Die Linie und der Knopf sind unsichtbar für Screenreader; der Fokus zeigt sich am Knopf (Ring 3 Pixel). Ohne Skript stehen beide Bilder mit ihrer Bezeichnung nebeneinander oder untereinander und tragen dieselbe Information.
+- [ ] **76.6** Bewegung: Nichts bewegt sich von selbst. Die Farbe der Logos in Graustufen kommt beim Zeigen und mit Fokus zurück, ein weicher Übergang nur unter «Bewegung nicht reduzieren»; Einblenden beim Scrollen folgt den Regeln der Website.
+- [ ] **76.7** Zielgrössen mindestens 44 Pixel: Logo-Kachel 6,5 rem hoch, Knöpfe «Bilder ansehen und herunterladen» und im Bild mit Text mindestens 3 rem, Videokarte als ganze Fläche; Abstand der Kacheln mindestens 0,75 rem.
+- [ ] **76.8** Fremde Ziele (Logo, Videokarte, Bilderpaket) tragen für Screenreader «(externe Seite)»; das sichtbare Zeichen «fremde Seite» entfällt bei Logo und Videokarte, weil die Fläche ein Bild ist, und die Videokarte nennt das Ziel als Text («Video auf video.example.org»). Es gibt keine eingebettete Wiedergabe, kein automatisches Abspielen und keinen Dienst von Dritten.
+- [ ] **76.9** Layout: Der Platz jedes Bildes steht vor dem Laden fest (Breite und Höhe der Datei, Seitenverhältnis oder feste Höhe), also kein Layoutsprung. Reflow bei 320 px und 200 % Zoom: Raster und Streifen brechen auf eine bis zwei Spalten, lange Unterschriften und Titel brechen um (`overflow-wrap`), nichts weitet die Seite waagrecht.
+- [ ] **76.10** Farben nur aus den Tokens der Website, Tag und Nacht; ausgenommen sind Weiss und Schwarz auf Bildern. Logos stehen auf einer hellen Kachel, auch in der Nacht (Logos sind für hellen Grund gezeichnet). Die Seite braucht keine Skripte oder Bilder von Dritten, die Meta-CSP bleibt unverändert.
+- [ ] **76.11** Fotos von Kindern: Das Bilderpaket verknüpft nur; ob und wer die Dateien im SharePoint öffnen darf, stellt die Abteilung dort ein (Handbuch 7.3). Das Vorschaubild folgt der Freigabe des Mediums (öffentlich nur mit Einwilligung).
+
+**Verwaltung**
+
+- [ ] **76.12** Jedes Feld hat ein sichtbares Label und, wo nötig, einen Hilfetext; Fehler stehen am Feld (`aria-describedby`), die Prüfung vor «Übernehmen» meldet fehlende Bilder, zu wenige Bilder und fehlende Alt-Texte mit dem Pfad des Feldes; die Fehler des Servers (`MEDIUM_*`, `SEITE_UNBEKANNT`) erscheinen im selben Weg.
+- [ ] **76.13** Die Bildwahl ist die der übrigen Bausteine (Bibliothek im Fluss, kein Browserdialog); Listen von Bildern haben «Hinzufügen», «Entfernen» und die Reihenfolge per Griff, Tastatur und Knöpfen (2.5.7).
+
+### Stand der Prüfung (#742)
+
+Im Browser (Chromium, headless, Playwright, Kopie der Demo-Datenbank mit ihren Bildern, eine Testseite mit allen neuen Bausteinen veröffentlicht und die erzeugte Datei geprüft) bei 1280, 1920 und 390 px, Hell und Dunkel gesehen: 76.3, 76.5 (Tastatur, Maus, Namen und Wert), 76.7, 76.9 und 76.10; Grossansicht aus Raster, Streifen und breitem Bild mit Folge, Esc und Fokus zurück; geschützte Bausteine nach der Anmeldung nachgeladen (Gruppe mit Namen, Schieber, Grossansicht); kein Seitenscroll, keine Fehler in der Konsole ausser dem erwarteten 401 ohne Sitzung, keine Verstösse gegen die CSP; Felder im Editor für alle Bausteine geöffnet. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), echtes Touch-Gerät (Wischen am Schieber und im Streifen), Safari und Firefox, Kontrastwerte mit einem Messwerkzeug (die Werte in 76.3 sind gerechnet), 200 % Zoom am Gerät, erzwungene Farben am Gerät.
+
+## 77. Website und Verwaltung: Bausteine «Text und Gestaltung» (#741)
+
+Gilt für die Bausteine `hinweisbox`, `zitat`, `fragen`, `spalten`, `bildneben`, `tabelle`, `schritte` und `checkliste` auf der Website (`src/website/bausteine-text-rendern.ts`, Abschnitt «Text und Gestaltung» in `public/website/website.css`) und für ihre Felder im Seiten-Editor (`public/admin/website-felder-text.js`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss. Kein Skript: Die Aufklappliste ist das Element `details`.
+
+### Prüfpunkte
+
+- [ ] **77.1** Hinweisbox: Das Wort der Art («Info», «Tipp», «Wichtig», «Achtung») steht immer im Kasten; das Zeichen ist `aria-hidden`, die Farbe nur Zugabe (WCAG 1.4.1). Text auf Grund mindestens 4.5:1 in Tag und Nacht (gemessen, niedrigster Wert 5.41:1); «Achtung» ist ein Dreieck, die anderen sind rund. Bei hohem Kontrast des Systems behält das Dreieck seine Farbe.
+- [ ] **77.2** Zitat: `figure` mit `blockquote` und `figcaption`; Anführungszeichen «…» im Text. Das runde Foto hat einen leeren Alt-Text, wenn dieser nur den Namen daneben wiederholt; sonst steht der des Mediums. Im Editor weist ein Hinweis darauf hin, dass Namen von Kindern nur mit Einwilligung der Eltern stehen.
+- [ ] **77.3** Fragen und Antworten: `details` und `summary`, mit Enter und Leertaste zu öffnen und zu schliessen, der Fokusring (3 px) ist sichtbar, die Zeile ist mindestens 56 px hoch. Nichts ist von Anfang an offen. Der Pfeil dreht nur bei erlaubter Bewegung; bei «Bewegung reduzieren» wechselt er ohne Übergang. Jede Frage hat einen Anker in der Adresse; er führt zur Frage (öffnet sie nicht).
+- [ ] **77.4** Zwei Spalten und Bild neben Text: Die Reihenfolge im Markup ist die Lesereihenfolge (Bild zuerst, linke Spalte vor der rechten); «rechts» ändert nur die Anordnung ab 48 em. Am Handy stehen die Teile untereinander (Reflow ab 320 px). Der Alt-Text liegt am Medium; fehlt das Bild, steht der Text allein. Titel liegen eine Ebene unter der letzten Überschrift, höchstens Ebene 3.
+- [ ] **77.5** Tabelle: `caption` mit der Beschriftung, `th scope="col"` für die Kopfzeile und `th scope="row"` für den Zeilenkopf, nie Zellen als Überschriften. Die scrollbare Fläche ist `role="region"` mit Namen (Beschriftung oder «Tabelle») und `tabindex="0"`; der Fokusring ist sichtbar (WCAG 2.1.1, 2.4.7). Bei 390 px scrollt die Tabelle in ihrer Fläche, die Seite nicht (WCAG 1.4.10, Tabellen sind ausgenommen). Zahlenspalten stehen rechtsbündig, Ziffern gleich breit.
+- [ ] **77.6** Schritte: geordnete Liste (`ol`, `role="list"`, weil Safari sonst die Liste nicht nennt); die Zahl im Kreis kommt aus einem Zähler mit leerer Alternative, der Screenreader liest sie nicht doppelt. Ein Link im Schritt ist ein Verweis mit mindestens 44 px Höhe und Pfeil.
+- [ ] **77.7** Checkliste: Liste mit `role="list"`; die Zeichen (Haken, leeres Kästchen) sind `aria-hidden`, der Punkt steht als Text. Haken und Kästchen unterscheiden sich in der Form, nicht nur in der Farbe. Gedruckt behalten die Zeichen ihre Form.
+- [ ] **77.8** Nacht und Kontrast: Alle Paare aus Tokens, in Tag und Nacht mindestens 4.5:1 für Text und 3:1 für Zeichen und Kanten; Fokusringe wie überall (3 px, `--focus`).
+- [ ] **77.9** Editor: Jedes Feld hat eine sichtbare Beschriftung; Fehler stehen am Feld und in der Zusammenfassung oben mit Sprungmarken (WCAG 3.3.1, 3.3.3). Die Art der Hinweisbox, die Seite des Bildes und die Zeichen der Checkliste sind Segmente (Radiogruppe mit Pfeiltasten). Zellen einer Tabelle heissen wie ihre Spalte (die Beschriftung folgt dem Kopf), nach «Spalte hinzufügen» steht der Fokus im neuen Feld. Kein Browserdialog, kein `innerHTML`.
+- [ ] **77.10** Geschützte Bausteine: Nach der Anmeldung laden dieselben Elemente und Attribute (`knoten.js`); Tabelle, Aufklappliste und Zitat bleiben bedienbar.
+
+### Stand der Prüfung (#741)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, erfundene Texte, Bilder aus der Demo-Medienbibliothek) bei 1280, 1920 und 390 px, hell und dunkel: Eine Seite mit allen acht Bausteinen (in jeder Art der Hinweisbox, beide Darstellungen der Checkliste, Bild links und rechts, Tabelle mit Zeilenkopf und Zahlenspalten) wurde im Editor Baustein für Baustein angelegt, gespeichert und veröffentlicht; die erzeugte Seite wurde angesehen. Tastatur: Enter und Leertaste öffnen und schliessen die Fragen, der Fokusring der Fragen und der Tabellenfläche ist sichtbar (3 px), die Tabellenfläche ist nach vier Tabs erreichbar. Überschriftenfolge: H1, H2, H3 ohne Sprung. Kein seitliches Scrollen der Seite bei 390 px. Der Server lehnte einen Link auf eine Seite ab, die es nicht gibt (Meldung am Baustein). Per Test: Schema mit allen Grenzen und Ablehnungen, Verweise, Maskierung (kein Markup aus Daten), kein Skript und kein `style`, jedes Element und Attribut der Renderer passiert `knoten.js`. **Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), 200 % und 400 % Zoom, echtes Touch-Gerät, Firefox und Safari (das Verhalten von `details` bei einem Anker in der Adresse ist dort unbestätigt), hoher Kontrast des Systems (nur die Regel ist gesetzt).
+
+## 80. Verwaltung: Person direkt wählen im Seiten-Editor (#755)
+
+Gilt für die Auswahl «Person» in den Bausteinen «Personen», «Kontaktperson» und «Kontaktkarte» (`personWahl` in `website-felder.js`). Massstab WCAG 2.2 AA.
+
+- [ ] **80.1** (abgelöst durch 82.1) Die Auswahl ist ein beschriftetes Feld «Person» (sichtbares Label über dem Feld, `select` mit der Auswahlliste der Verwaltung); sie hat keinen Gruppenschritt mehr. Jeder Eintrag nennt Cevi-Name, Funktion und Gruppe («Sancho (Stufenleitung, Imperius)»), damit zwei gleiche Namen unterscheidbar sind; die Gruppe steht im Text, weil die Auswahlliste keine Gruppenköpfe kennt.
+- [ ] **80.2** Der Hilfetext («Nur Leitende erscheinen auf der Website. Kinder und andere Personen stehen hier nicht zur Auswahl.») hängt per `aria-describedby` am Feld.
+- [ ] **80.3** Zustände: «Personen werden geladen …» (`role="status"`), Fehler mit `role="alert"` und Knopf «Erneut laden», leere Liste («Niemand zur Auswahl»). Eine Person, die nicht mehr zur Auswahl steht, bleibt als «Bisherige Person (nicht mehr wählbar)» gewählt und trägt einen Hinweis in Worten (`role="status"`, nicht nur Farbe).
+- [ ] **80.4** Tastatur: Tab erreicht das Feld, Enter öffnet die Liste, Pfeiltasten und Enter wählen, Escape schliesst. Nach «Person hinzufügen» liegt der Fokus auf der Auswahl der neuen Person (die Liste ist dann schon geladen).
+- [ ] **80.5** Ein Fehler des Servers (`PERSON_NICHT_AUF_WEBSITE`, `PERSON_UNBEKANNT`) steht in Worten am Baustein, mit Sprungmarke zum Feld.
+- [ ] **80.6** 390 px: kein seitliches Scrollen. Bekannte Schwäche: In den Karten der Listen im Blatt (Person 1, Person 2 …) ist die Auswahl schmal (rund 100 px), der gewählte Name wird im Feld gekürzt; die geöffnete Liste umbricht ganze Einträge. Gilt für alle Listenformulare, nicht nur hier. (Seit #760 behoben, siehe 82.10.)
+
+### Stand der Prüfung (#755)
+
+Im Browser (Chromium, headless, Kopie der Vorschau-Datenbank, Konto der Abteilungsleitung mit zweitem Faktor) bei 1280 und 390 px: Baustein «Personen» angelegt, Person per Tastatur gewählt, gespeichert; Eltern ohne Rolle erscheinen nicht in der Liste; nach Entzug der Rolle zeigt das Blatt den Hinweis und der Server lehnt das Speichern am Baustein ab. **Nicht geprüft:** Screenreader, Dunkel und hoher Kontrast, 200 % und 400 % Zoom, Touch, Firefox und Safari, Veröffentlichen mit einer entzogenen Rolle (nur Speichern geprüft; dieselbe Verweisprüfung).
+
+## 81. Verwaltung: keine leeren Flächen, Höhe aus dem verfügbaren Platz (#756)
+
+Gilt für jede Ansicht der Verwaltung unter `public/admin`, besonders für Bereiche mit eigenen Scrollspalten (Editor einer Seite, `formularraster--scroll`, Lager-Navigation, Tagesliste der Termine). Das Dokument ist nie höher als sein Inhalt: Scrollen und Bild-ab landen nicht in leerer Fläche, und Bildschirmleser und Tastatur finden keinen Bereich, der nichts enthält (WCAG 2.4.3, 1.4.10).
+
+### Prüfpunkte
+
+- [ ] **81.1** Das Dokument ragt nie über `main.inhalt` hinaus: Absolut gesetzte, unsichtbare Knoten (`.nur-leser`, Live-Regionen) haben einen Versatz (`top: 0; left: 0`) oder einen Bezugsrahmen (`position: relative`) und verlängern die Seite nicht (Messung: `scrollHeight` des Dokuments minus Unterkante von `main.inhalt` ist 0).
+- [ ] **81.2** Höhen kommen aus dem verfügbaren Platz: Ein Scrollbereich nutzt `var(--scroll-hoehe)` (Fenster minus haftende Leiste minus Abstand) oder rechnet `var(--leiste-hoehe)` ein. Nie `vh` minus eine geschätzte Kopfhöhe (wie `8.25rem`) und nie `min-height` in Fensterhöhe. Der Test `admin-keine-leere-flaeche.test.ts` lässt `vh`/`dvh` im CSS nur mit Token oder auf der Liste mit Grund zu.
+- [ ] **81.3** Am Seitenende füllt jede Scrollspalte das Fenster unter der Leiste, ohne dass die Oberkante unter der haftenden Leiste verschwindet; ein haftender Bereich (`position: sticky`) setzt `top` auf `calc(var(--leiste-hoehe) + 1rem)`.
+- [ ] **81.4** Innen bleibt Platz für den Fokusring (`padding: 4px` im Scrollbereich), die erste und letzte Zeile sind mit der Tastatur erreichbar, `scrollbar-gutter: stable` hält die Breite; nichts springt beim Wechsel der Ansicht.
+- [ ] **81.5** Unter 1100 px bleibt die Ansicht einspaltig und scrollt als eine Seite.
+
+### Stand der Prüfung (#756)
+
+Im Browser (Chromium, headless, Playwright, Kopie der Demo-Datenbank, Entwickler-Konto, eigener Dev-Server) bei 1280 x 720, 390 x 844, 2560 x 1440, 3774 x 2020 (Zoom 100 % und 150 %), dunkel; Editor der Seite «Datenschutz» (66 Bausteine) und Lager zusätzlich hell: 81.1 bis 81.3 gemessen, 81.5 gesehen.
+
+**Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 % von Hand.
+
+## 82. Verwaltung: Personenwahl mit Foto und Leitungsteam im Seiten-Editor (#760)
+
+Gilt für die Auswahl «Person» in den Bausteinen «Personen», «Kontaktperson» und «Kontaktkarte» und für die Anzeige unter der Gruppenwahl des Bausteins «Leitungsteam» (`public/admin/website-personenwahl.js`, Stil `website.css`, Klassen `pw-`). Ersetzt die Auswahl aus 80.1. Massstab WCAG 2.2 AA.
+
+- [ ] **82.1** Die Auswahl ist ein Kombinationsfeld nach WAI-ARIA (APG «Combobox with listbox popup»): ein beschriftetes `input` («Person», sichtbares Label) mit `role="combobox"`, `aria-expanded`, `aria-controls` und `aria-activedescendant`; die Liste hat `role="listbox"`, jede Zeile `role="option"` mit `aria-selected`. Der Fokus bleibt im Feld. Der Hilfetext hängt per `aria-describedby` am Feld.
+- [ ] **82.2** Jede Zeile zeigt Foto (40 px, rund), Cevi-Name und «Funktion, Gruppe». Das Foto ist dekorativ (`alt=""`, Kreis `aria-hidden`); der Name steht als Text daneben und ist die Beschriftung der Zeile. Ohne Foto steht ein Kreis mit Initialen (wie auf der Website); lädt das Bild nicht, bleiben die Initialen, ohne kaputten Rahmen. Der Haken zeigt die gewählte Zeile (nicht nur die Farbe).
+- [ ] **82.3** Die Bilder laden einzeln und erst, wenn die Zeile sichtbar wird (`loading="lazy"`), über `GET /api/v1/redaktion/personen/:id/bild`, nur für Personen, die auf der Website erscheinen dürfen. Die Liste der Personen enthält nur den Pfad (`bildUrl`), keine weiteren Personendaten. Das gewählte Feld zeigt das Foto der gewählten Person.
+- [ ] **82.4** Tastatur: Pfeile öffnen und bewegen (Pos1 und Ende im schreibgeschützten Feld), Enter oder Leertaste wählen, Escape schliesst nur die Liste (nicht das Blatt dahinter) und stellt die bisherige Person wieder ein, Tab schliesst. Enter schickt nie ein Formular ab.
+- [ ] **82.5** Bis 8 Personen ist das Feld schreibgeschützt: Tippen springt zum nächsten Namen mit diesem Anfang. Ab 9 Personen ist es ein Suchfeld («Name suchen»): Tippen filtert nach Name, Funktion und Gruppe, ohne Akzente (zoe findet Zoë). Keine Treffer: «Keine Person gefunden.» in der Liste. Eine Statusregion (`role="status"`) sagt die Zahl der Personen und die Wahl an.
+- [ ] **82.6** Die Liste klappt nach oben, wenn unten der Platz fehlt, und schiebt sich in schmalen Feldern ins Fenster (nie über den Rand hinaus). Keine Höhe in Fensterhöhe (`vh`); die Liste scrollt selbst, nicht die Hülle.
+- [ ] **82.7** Eine Person, die nicht mehr zur Auswahl steht, bleibt als «Bisherige Person (nicht mehr wählbar)» gewählt und trägt den Hinweis in Worten (siehe 80.3). «Kontaktkarte» bietet «Keine Person» als erste Zeile.
+- [ ] **82.8** Leitungsteam: Unter der Gruppenwahl steht in einer Statusregion (`role="status"`, `aria-live="polite"`), wer erscheint, in der Reihenfolge der Website: «Zeigt 4 Personen der Gruppe Pilami: Stufenleitung: Anna, Ben; Leitung: Clara, Dani.» Dazu eine kleine Reihe von Fotos oder Initialen (`aria-hidden`; die Namen stehen im Satz). Eine Gruppe ohne Leitende sagt: «In dieser Gruppe gibt es keine Leitenden, der Baustein bleibt leer.» Beim Wechsel der Gruppe bleibt der alte Inhalt stehen, bis der neue da ist; ein Fehler steht in Worten mit Knopf «Erneut laden». Server und Website nehmen dieselbe Abfrage (`stufenteamZeilen`).
+- [ ] **82.9** Die Zeile in der Bausteinliste sagt, was erscheint: «Gruppe Pilami · 4 Personen» (die Zahl, sobald der Stand geladen ist), «3 Personen · Anna, Ben, Clara», der Name bei «Kontaktperson» und «Kontaktkarte».
+- [ ] **82.10** 390 px: Die Pfeile der Listenkarten im Blatt stehen unter dem Eintrag, damit das Feld die Breite bekommt (löst 80.6); in einem schmalen Feld ist das Foto 32 px. Kein seitliches Scrollen. Fokusring 3 px, erzwungene Farben (`forced-colors`): aktive Zeile mit `Highlight`-Rand.
+
+### Stand der Prüfung (#760)
+
+Im Browser (Chromium, headless, Playwright, Kopie der Demo-Datenbank, Konto des Entwicklers mit zweitem Faktor, eigener Dev-Server) bei 1280 und 390 px, hell und dunkel: Baustein «Personen» (11 Leitende, Suchfeld): Öffnen per Klick und Pfeiltaste, Filtern («li» ergibt drei Personen), Wählen per Enter, Escape, Foto und Initialen in Liste und Feld, Liste ohne Treffer. Mit auf fünf Personen gekürzter Antwort (Abfangen im Browser): schreibgeschütztes Feld, Tippen springt, Pos1 und Ende, «Keine Person» in der Kontaktkarte. Baustein «Leitungsteam»: Gruppenwechsel, Satz und Fotoreihe, Zeile in der Bausteinliste nach «Übernehmen». Messung der Anfragen: Beim Laden der Seite und bei geschlossener Liste keine Bildanfrage, bei offener Liste eine je Person mit Bild. axe-core (WCAG 2.2 AA und Best Practice) bei geöffneter Liste und beim Leitungsteam in den vier Fällen: keine Verstösse gegen Kontrast, Rollen und Namen; offen bleibt «heading-order» der bestehenden Überschrift «Person 1» in der Listenkarte (nicht aus #760). Per Test: Pfade der Bilder, 404 für Kinder, Eltern, fremde Abteilungen und Konten ohne Rolle, Reihenfolge und Auswahl des Leitungsteams wie auf der Website.
+
+**Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), Zoom 200 % und 400 % von Hand, hoher Kontrast und `forced-colors` im Browser, Touch, Firefox und Safari, Teams mit mehr als 12 Personen in der Fotoreihe.
+
+## 83. Website: Rückmeldungen als Toast (#762)
+
+Gilt für jede Aktion auf der öffentlichen Website: Anmelden, Abmelden, Mein Konto (Passwort, Telefon, Mitteilungen, Datenschutz), Anlass-Anmeldung, Antwort auf einen Termin, Kalender-Link, Terminvorschlag und Lädeli. Das Ergebnis erscheint als Toast an einer festen Stelle (`website/toast.js`, Stil `website.css`, Regel in `docs/website-design.md`, «Rückmeldungen»). Massstab WCAG 2.2.1 (Zeitbegrenzung), 4.1.3 (Statusmeldungen), 2.1.1, 2.4.3, 1.4.3, 1.4.10, 2.5.8.
+
+### Prüfpunkte
+
+- [ ] **83.1** Erfolg, ein nicht blockierender Fehler und eine Info erscheinen als Toast, nie als Kasten oder Absatz im Inhalt, der stehen bleibt. Der Toast steht überall an derselben Stelle (unten in der Mitte, am Handy über die Breite) und sieht überall gleich aus. Der Test `website-toasts.test.ts` hält neue Kästen draussen.
+- [ ] **83.2** Inline bleiben: Feldfehler am Feld (`aria-describedby`, `aria-invalid`), die Fehlerzusammenfassung beim Absenden, Lade- und Leerzustände, dauerhafte Seitenzustände («Du bist angemeldet.», Pflicht-Passwortwechsel, Anmeldeschluss), Meldungen, die der Warenkorb selbst auslöst, und Fehler mit eigener Aktion («Nochmals versuchen»).
+- [ ] **83.3** Erfolg und Info gehen nach 4 Sekunden, ein Fehler nach 8 Sekunden von selbst. Solange der Zeiger auf dem Toast steht oder der Fokus darin liegt, läuft die Zeit nicht (WCAG 2.2.1); danach läuft der Rest. «Schliessen» (mindestens 44 × 44 px, Name «Schliessen») und Esc schliessen jederzeit.
+- [ ] **83.4** Ansage (WCAG 4.1.3): Erfolg und Info in einer Region mit `aria-live="polite"`, Fehler in einer mit `aria-live="assertive"`, beide stehen schon im Dokument, bevor ein Toast dazukommt. Der Toast nimmt dem Fokus nichts weg; die Region steht im Seitenaufbau gleich vor dem Inhalt, Tab erreicht den Knopf «Schliessen» nach dem Kopf. Nach dem Schliessen kehrt der Fokus dorthin zurück, wo die Person herkam.
+- [ ] **83.5** Höchstens 3 Toasts stehen zugleich (der älteste weicht), derselbe Text wird nicht verdoppelt. Am Handy (390 px) verdeckt der Toast keinen Knopf, den die Person gerade bedient (Lädeli-Knopf unten rechts: der Toast steht darüber); in einem geöffneten Dialog (Warenkorb, Artikel, Bestellübersicht) steht er oben im Dialog und bleibt bedienbar, auch wenn der Dialog sich neu zeichnet; er deckt dort kurz den Kopf des Dialogs ab (bekannte Einschränkung, «Schliessen» und Esc genügen).
+- [ ] **83.6** Nach «Anmelden» und «Abmelden», die die Seite wechseln, erscheint «Angemeldet.» oder «Abgemeldet.» auf der neuen Seite. Seiten ohne Aktion laden `toast.js` nicht.
+- [ ] **83.7** Kontrast Tag und Nacht (Tokens): Erfolg und Info 10.4:1 und 16.6:1, Fehler 6.8:1 und 7.5:1; Art nie nur über die Farbe (Haken, Kreis, Dreieck mit Text); bei erzwungenen Farben hat der Toast einen Rand. Mit «Bewegung reduzieren» keine Einblendung, die Zeiten gelten gleich.
+- [ ] **83.8** Texte: kurze Sätze mit Zustand oder Verb («Angemeldet.», «Passwort geändert.», «Bestellung gesendet.»), ein Fehler sagt, was zu tun ist; keine Emojis, Schweizer Schreibweise.
+
+### Stand der Prüfung (#762)
+
+Im Browser (Chromium headless, Playwright, Kopie der Demo-Datenbank, eigener Dev-Server mit Proxy für die erzeugten Seiten, Konto ohne Rolle) bei 390 x 844 und 1280 x 900, hell und dunkel, je ein voller Lauf: Anmelden falsch (inline, kein Toast), ohne Netz (Fehler-Toast), erfolgreich («Angemeldet.» auf der nächsten Seite, 83.6), Abmelden im Kopf («Abgemeldet.» nach dem Neuladen), Passwort ändern (Toast; Feldfehler inline), Anlass-Anmeldung und Abmeldung, Kalender-Link erzeugen und kopieren, Lädeli (Bestellung gesendet und storniert, im Dialog; Abmelden ohne Netz; Bestellen ohne Netz im Dialog, auch nach dem Neuzeichnen). Tastatur und Zeiger: Fokus auf «Schliessen» hält den Fehler-Toast länger als 8 s, Esc schliesst, der Zeiger hält die Zeit an, der Erfolg geht nach 4 s. Kontraste gerechnet (83.7). Screenshots nur im Scratchpad.
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA: die Ansage ist über `aria-live` gebaut, nicht gehört), Safari und Firefox, Zoom 200 % und 400 %, «Bewegung reduzieren» von Hand (der Stil ist im Test geprüft), erzwungene Farben, Telefon-Karte und Mitteilungen in «Mein Konto» (keine Stufenleitung und keine App-Schalter im Testkonto), Antwort auf einen Termin und Terminvorschlag (Stil und Texte im Test, nicht im Browser).
+
+## 84. Verwaltung: Rückmeldungen nach Aktionen als Toast (#761)
+
+Gilt für jede Ansicht unter `public/admin`: Das Ergebnis einer Aktion (Erfolg, nicht blockierender Fehler, Info wie «Link kopiert.») ist ein Toast an einer festen Stelle (unten links, am Handy über die ganze Breite), nie ein Kasten im Inhalt. Regel, Bauteil und Liste der Ausnahmen: [verwaltung-geruest.md](verwaltung-geruest.md), «Rückmeldungen: Toast oder inline»; die Leitplanke ist `test/admin-toasts.test.ts`.
+
+### Prüfpunkte
+
+- [ ] **84.1** Jede Aktion, die etwas speichert, löscht, kopiert, hochlädt oder sendet, meldet ihr Ergebnis als Toast in derselben Region; es gibt keinen Absatz, Kasten oder Banner im Inhalt, der das Ergebnis zeigt und stehen bleibt. Die Texte sind kurz, im Perfekt oder Zustand («Gespeichert.», «Link kopiert.»), ohne Emoji.
+- [ ] **84.2** Erfolg und Info verschwinden nach 4 Sekunden, Warnung und Fehler nach 8 Sekunden; ein Toast mit Aktion («Nochmals versuchen») bleibt bis zum Schliessen. Zeiger auf dem Toast und Tastaturfokus darin halten die Zeit an, nach dem Verlassen läuft sie neu (WCAG 2.2.1).
+- [ ] **84.3** Jeder Toast hat einen Schliessen-Knopf («Hinweis schliessen», mindestens 44 Pixel, sichtbarer Fokusring); Esc schliesst den Toast mit Fokus oder unter dem Zeiger; F6 setzt den Fokus auf den ersten Knopf der Region, Tab erreicht sie vor dem Inhalt.
+- [ ] **84.4** Ein Screenreader hört Erfolg, Info und Warnung höflich (`aria-live="polite"`) und nur einen Fehler sofort (`role="alert"`), genau einmal (WCAG 4.1.3). Der Toast stiehlt den Fokus nie.
+- [ ] **84.5** Höchstens drei Rückmeldungen sind zugleich sichtbar; dieselbe Meldung ersetzt sich, statt sich zu stapeln. Eine Meldung überlebt den Wechsel der Ansicht (Speichern, dann Weiterleitung).
+- [ ] **84.6** Mit «Bewegung reduzieren» gibt es kein Einblenden und kein Ausblenden. Am Handy (390 Pixel) steht der Toast über die ganze Breite im Fenster, ohne waagrechtes Scrollen und ohne den bedienten Inhalt dauerhaft zu verdecken (er geht von selbst oder per Esc). Tag und Nacht aus den Tokens; die Art zeigt ein Symbol (Haken, Info, Warndreieck), nie nur Farbe.
+- [ ] **84.7** Inline bleiben nur: Feldfehler am Feld (`aria-describedby`), Fehlerzusammenfassung eines offenen Formulars, Lade-, Leer- und Fehlerzustände der Ansicht, dauerhafte Zustände der Seite (Marke «Nicht gespeichert», Banner, Berechtigungshinweise, Verbindungsstatus, Fortschritt) und Meldungen, die eine Entscheidung verlangen (Konflikt, Rückfrage). Ein Fehler, der nach 8 Sekunden weg ist, hat eine dauerhafte Marke daneben, wenn Eingaben nicht gespeichert sind.
+
+### Stand der Prüfung (#761)
+
+**STAND**

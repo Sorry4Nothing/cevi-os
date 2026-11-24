@@ -247,7 +247,9 @@
 }
 
 .rr-matrix-huelle {
-  max-height: calc(100vh - 9rem);
+  /* Bezugsrahmen für .nur-leser (absolut), sonst läuft jede unsichtbare Marke über die Hülle hinaus und verlängert die Seite um die Höhe der ganzen Matrix */
+  position: relative;
+  max-height: var(--scroll-hoehe);
   overflow: auto;
   background: var(--karte);
   border: 1px solid var(--rand-leise);

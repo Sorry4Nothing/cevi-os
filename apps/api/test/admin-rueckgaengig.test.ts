@@ -356,7 +356,7 @@ describe("Verwaltung: keine Popups für Rückfragen (#578)", () => {
 
   test("Toast: Region nach dem Kopf, kein Fokusraub, Strg und Cmd Z, F6, Statusregion", () => {
     const rahmen = lies("rahmen.js");
-    expect(rahmen).toContain('"aria-label": "Rückgängig"');
+    expect(rahmen).toContain('"aria-label": "Meldungen"');
     expect(rahmen).toContain('"aria-live": "polite"');
     expect(rahmen).toContain('e.key === "F6"');
     expect(rahmen).toMatch(/e\.ctrlKey \|\| e\.metaKey/);
@@ -369,7 +369,7 @@ describe("Verwaltung: keine Popups für Rückfragen (#578)", () => {
     expect(toast).not.toMatch(/li\.focus\(|wurzel\.focus\(|k\.li\.focus\(/);
     const admin = lies("admin.js");
     // Im Seitenaufbau der Verwaltung: nach dem Kopf (Leisten), vor dem Inhalt
-    const aufbau = admin.slice(admin.indexOf("function zeigeVerwaltung()"));
+    const aufbau = admin.slice(admin.indexOf("function zeigeVerwaltung("));
     expect(aufbau.indexOf("toasts.wurzel")).toBeGreaterThan(
       aufbau.indexOf("leisten.wurzel"),
     );

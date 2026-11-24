@@ -251,7 +251,7 @@ function personDetail(z, daten, person) {
       el(
         "p",
         { class: "hinweis" },
-        "Entwickler: hat die Rechte für Website und Plattform.",
+        "Entwickler: hat jedes Recht. Das lässt sich nicht einschränken.",
       ),
     braucht &&
       !person.zweiterFaktor &&
@@ -415,14 +415,14 @@ function zeigeRecht(ort, z, rechtId) {
     return;
   }
   ergebnis.append(skelett());
-  const admin = z.personen
-    .filter((p) => p.admin && !p.deaktiviert)
+  const abteilungsleitung = z.personen
+    .filter((p) => p.abteilungsleitung && !p.deaktiviert)
     .map((p) => ({ id: p.id, name: p.name }));
   ladeAlleGruppenrollen(z).then(
     (gruppen) => {
       const zeilen = werDarf({
         eintrag,
-        admin,
+        abteilungsleitung,
         globale: z.globale,
         gruppen,
       });
@@ -586,7 +586,9 @@ function zeigeVerlauf(ort, z) {
       status.textContent =
         liste.children.length === 0 ? "Es wurde noch nichts geändert." : "";
     } catch (f) {
-      status.textContent = text(f);
+      // Ältere Einträge nachladen gescheitert: Toast; ohne Einträge steht der Fehler als Zustand der Ansicht da
+      if (liste.children.length === 0) status.textContent = text(f);
+      else z.ctx.melde(text(f), "fehler");
     } finally {
       laedt = false;
       mehr.disabled = false;

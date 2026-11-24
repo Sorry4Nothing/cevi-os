@@ -7,11 +7,14 @@ import { el, feld, icon, knopf, neueId } from "./dom.js";
 import { speicherLeiste } from "./kalenderhilfen.js";
 import { sk } from "./lader.js";
 import { feldFehler } from "./liste-hilfen.js";
+import { melde } from "./melden.js";
 import { rolleVon } from "./navigation.js";
 import { setzeKontoBild } from "./rahmen.js";
 import { zweiStufig } from "./rueckgaengig.js";
+import { istAbteilungsleitung, istEntwickler, siehtAlles } from "./sicht.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
 import { zuschneiden } from "./zuschneiden.js";
+import { erstelleEinrichtung } from "./zweiter-faktor-einrichten.js";
 
 const BILD_MAX_BYTES = 5 * 1024 * 1024;
 const BILD_ARTEN = ["image/jpeg", "image/png", "image/webp"];
@@ -63,12 +66,12 @@ const PASSWORT_FEHLER = {
 // ===== Reine Funktionen (getestet in test/admin-konto.test.ts) =====
 
 // Chips der Rollen im Klartext: Abteilungsleitung, Entwickler, je Stufe «Stufenleitung Artemis», Website-Redaktion. Die Rechte entscheidet der Server, das hier ist nur die Anzeige
-// profil: Antwort von GET /api/v1/ich; zugang: Antwort von GET /api/v1/redaktion/ich
-export function rollenChips({ profil, zugang, entwickler = false }) {
+// profil: Antwort von GET /api/v1/ich (abteilungsleitung, entwickler, rollen, stufen); zugang: Antwort von GET /api/v1/redaktion/ich
+export function rollenChips({ profil, zugang }) {
   const stufenName = new Map(profil.stufen.map((s) => [s.id, s.name]));
   const chips = [];
-  if (profil.admin) chips.push({ text: "Abteilungsleitung" });
-  if (entwickler) chips.push({ text: "Entwickler" });
+  if (istAbteilungsleitung(profil)) chips.push({ text: "Abteilungsleitung" });
+  if (istEntwickler(profil)) chips.push({ text: "Entwickler" });
   for (const r of profil.rollen) {
     const stufe = stufenName.get(r.stufeId);
     if (stufe && ROLLEN_NAME[r.typ]) {
@@ -76,7 +79,7 @@ export function rollenChips({ profil, zugang, entwickler = false }) {
     }
   }
   const rechte = zugang?.rechte ?? [];
-  if (!profil.admin && rechte.length > 0) {
+  if (!siehtAlles(profil) && rechte.length > 0) {
     chips.push({
       text: rechte.some((r) => !r.startsWith("wartungsmodus."))
         ? "Website-Redaktion"
@@ -234,19 +237,16 @@ function abschnitt(titel, text, ...inhalt) {
   };
 }
 
-// Meldung im Abschnitt (Erfolg oder Fehler), nie nur Farbe: Symbol kommt aus dem CSS des Hinweises
+// Fehlerzusammenfassung des Formulars (bleibt offen), nie nur Farbe: Symbol kommt aus dem CSS des Hinweises. Erfolg kommt als Toast.
 function meldungsfeld() {
   const wurzel = el("div", { class: "kt-meldung" });
   return {
     wurzel,
-    zeige(art, text) {
+    zeige(text) {
       wurzel.replaceChildren(
         el(
           "p",
-          {
-            class: `hinweis hinweis--${art}`,
-            role: art === "fehler" ? "alert" : "status",
-          },
+          { class: "hinweis hinweis--fehler", role: "alert" },
           el("span", {}, text),
         ),
       );
@@ -268,8 +268,8 @@ function zeichne(bereich, ctx, profil) {
   let stand = profil;
   const istStufenleitung = profil.rollen.some((r) => r.typ === "stufenleitung");
   const rolle = rolleVon({
-    istAdmin: profil.admin,
-    entwickler: ctx.entwickler,
+    abteilungsleitung: istAbteilungsleitung(profil),
+    entwickler: istEntwickler(profil),
     zugang: ctx.zugang,
     profil,
   });
@@ -415,11 +415,15 @@ function zeichne(bereich, ctx, profil) {
     },
   });
 
-  const chips = rollenChips({
-    profil,
-    zugang: ctx.zugang,
-    entwickler: ctx.entwickler,
-  });
+  const chips = rollenChips({ profil, zugang: ctx.zugang });
+  // Der Kennwert «Zweiter Faktor» ändert sich, sobald der Ablauf in der Sicherheit fertig ist (#715)
+  const faktorKennwert = el("div", { class: "kt-kennwert" });
+  const zeichneFaktorKennwert = (an) =>
+    faktorKennwert.replaceChildren(
+      el("dt", {}, "Zweiter Faktor"),
+      el("dd", {}, icon(an ? "schild" : "minus"), an ? "Aktiv" : "Aus"),
+    );
+  zeichneFaktorKennwert(profil.zweiterFaktor === true);
   const kennwert = (label, wert, symbol) =>
     el(
       "div",
@@ -470,11 +474,7 @@ function zeichne(bereich, ctx, profil) {
         "dl",
         { class: "kt-kennwerte" },
         kennwert("Konto", "Aktiv", "haken"),
-        kennwert(
-          "Zweiter Faktor",
-          profil.zweiterFaktor ? "Aktiv" : "Aus",
-          profil.zweiterFaktor ? "schild" : "minus",
-        ),
+        faktorKennwert,
       ),
       el("div", { class: "kt-bildblock" }, bildAktionen, bildStatus, datei),
     ),
@@ -493,7 +493,7 @@ function zeichne(bereich, ctx, profil) {
     f.eingabe.classList.add("kt-lesen");
     return f;
   };
-  const wer = profil.admin
+  const wer = siehtAlles(profil)
     ? "Ändere ihn unter «Personen»."
     : "Ihn ändert die Abteilungsleitung.";
   const name = lesefeld(
@@ -716,7 +716,7 @@ function zeichne(bereich, ctx, profil) {
         telefon.wurzel,
       ),
       pushGruppe,
-      profil.admin &&
+      siehtAlles(profil) &&
         el(
           "p",
           { class: "hilfe" },
@@ -737,7 +737,7 @@ function zeichne(bereich, ctx, profil) {
     el(
       "div",
       { class: "kt-stapel" },
-      zweiterFaktorBlock(profil),
+      zweiterFaktorBlock(profil, zeichneFaktorKennwert),
       sitzungenBlock(ctx),
     ),
   );
@@ -767,11 +767,25 @@ function zeichne(bereich, ctx, profil) {
         el(
           "li",
           {},
-          el("a", { href: "/datenschutz" }, "Datenschutzerklärung"),
+          el("a", { href: "/datenschutz-website" }, "Datenschutzerklärung"),
           el(
             "span",
             { class: "leise" },
             " Was die Abteilung speichert und warum.",
+          ),
+        ),
+        el(
+          "li",
+          {},
+          el(
+            "a",
+            { href: "/datenschutz-cevi-os" },
+            "Datenschutz: Cevi OS, App, Verwaltung und Website",
+          ),
+          el(
+            "span",
+            { class: "leise" },
+            " Was Cevi OS bearbeitet, wer es sieht und wie lange es bleibt.",
           ),
         ),
         el(
@@ -878,8 +892,7 @@ function passwortBlock() {
       neu.eingabe.value = "";
       zeigen.checked = false;
       zeigen.dispatchEvent(new window.Event("change"));
-      meldung.zeige(
-        "ok",
+      melde(
         "Dein Passwort ist geändert. Auf allen anderen Geräten bist du abgemeldet.",
       );
     } catch (f) {
@@ -889,7 +902,7 @@ function passwortBlock() {
         feldFehler(ziel, bekannt[1]);
         ziel.eingabe.focus();
       } else {
-        meldung.zeige("fehler", fehlertext(f));
+        meldung.zeige(fehlertext(f));
       }
     } finally {
       senden.disabled = false;
@@ -899,38 +912,51 @@ function passwortBlock() {
   return el("div", { class: "kt-gruppe" }, el("h3", {}, "Passwort"), formular);
 }
 
-// Zweiter Faktor: nur der Stand. Einrichten kann ihn nur die Abteilungsleitung (Route two-factor/enable), Zurücksetzen macht sie für andere unter «Personen»
-function zweiterFaktorBlock(profil) {
-  const an = profil.zweiterFaktor;
-  return el(
-    "div",
-    { class: "kt-gruppe" },
-    el("h3", {}, "Zweiter Faktor"),
-    el(
-      "p",
-      {},
+// Zweiter Faktor (#715): der Stand und, solange er fehlt, der Ablauf zum Einrichten (derselbe wie auf der Pflichtseite). Ausschalten und neue Ersatzcodes gibt es nicht; Zurücksetzen macht die Abteilungsleitung für andere unter «Personen»
+function zweiterFaktorBlock(profil, beiStand) {
+  const wurzel = el("div", { class: "kt-gruppe" });
+  const zeichneStand = (an) => {
+    beiStand(an);
+    const einrichten = knopf("Zweiten Faktor einrichten", {
+      symbol: "schluessel",
+      onclick: () => {
+        const ablauf = erstelleEinrichtung({
+          beiAbbruch: () => zeichneStand(false),
+          beiFertig: () => zeichneStand(true),
+          fertigText: "Fertig",
+        });
+        wurzel.replaceChildren(el("h3", {}, "Zweiter Faktor"), ablauf.wurzel);
+        ablauf.fokus();
+      },
+    });
+    wurzel.replaceChildren(
+      el("h3", {}, "Zweiter Faktor"),
       el(
-        "span",
-        { class: an ? "chip chip--ok" : "chip" },
-        icon(an ? "haken" : "minus"),
-        an ? "Aktiv" : "Nicht eingerichtet",
+        "p",
+        {},
+        el(
+          "span",
+          { class: an ? "chip chip--ok" : "chip" },
+          icon(an ? "haken" : "minus"),
+          an ? "Aktiv" : "Nicht eingerichtet",
+        ),
       ),
-    ),
-    el(
-      "p",
-      { class: "hilfe" },
-      an
-        ? "Beim Anmelden fragt die Verwaltung nach dem Code aus deiner Authenticator-App. Hast du dein Gerät verloren, setzt die Abteilungsleitung den zweiten Faktor für dich zurück."
-        : profil.admin
-          ? "Für die Verwaltung braucht die Abteilungsleitung einen zweiten Faktor."
-          : "Für dein Konto gibt es keinen zweiten Faktor. Einrichten lässt er sich nur für Konten der Abteilungsleitung.",
-    ),
-  );
+      el(
+        "p",
+        { class: "hilfe" },
+        an
+          ? "Beim Anmelden in der Verwaltung fragt das System nach dem Code aus deiner Authenticator-App. Hast du dein Gerät verloren, setzt die Abteilungsleitung den zweiten Faktor für dich zurück."
+          : "Der zweite Faktor schützt dein Konto: Beim Anmelden in der Verwaltung gibst du zusätzlich einen Code aus einer Authenticator-App ein. Für manche Rechte ist er Pflicht. Die Website und die Apps fragen nie danach.",
+      ),
+      !an && el("div", { class: "kt-aktionen" }, einrichten),
+    );
+  };
+  zeichneStand(profil.zweiterFaktor === true);
+  return wurzel;
 }
 
 // Überall abmelden: beendet alle Sitzungen, auch diese; eine Liste der Geräte gibt die API nicht her
 function sitzungenBlock(ctx) {
-  const meldung = meldungsfeld();
   const knopfEl = knopf("Auf allen Geräten abmelden", { symbol: "abmelden" });
   zweiStufig(knopfEl, {
     frage: "Wirklich überall abmelden?",
@@ -943,7 +969,7 @@ function sitzungenBlock(ctx) {
       } catch (f) {
         knopfEl.disabled = false;
         knopfEl.removeAttribute("aria-busy");
-        meldung.zeige("fehler", fehlertext(f));
+        ctx.melde(fehlertext(f), "fehler");
       }
     },
   });
@@ -957,6 +983,5 @@ function sitzungenBlock(ctx) {
       "Eine Sitzung bleibt bis zu 90 Tage gültig und verlängert sich mit der Nutzung. Mit dem Knopf beendest du alle, auch diese. Eine Liste der Geräte gibt es nicht.",
     ),
     el("div", { class: "kt-aktionen" }, knopfEl),
-    meldung.wurzel,
   );
 }

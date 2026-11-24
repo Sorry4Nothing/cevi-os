@@ -15,8 +15,10 @@ import {
 } from "./dom.js";
 import { oeffneFluss } from "./fluss.js";
 import { formularRaster } from "./formularraster.js";
+import { melde } from "./melden.js";
 import { entferneFehler, feldFehler, pruefHinweis } from "./liste-hilfen.js";
 import { suchWahl } from "./personen-wahl.js";
+import { siehtAlles } from "./sicht.js";
 import { zweistufig } from "./rueckgaengig.js";
 import { typName } from "./tags-detail.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
@@ -33,10 +35,11 @@ const ROLLEN = [
 export const rolleName = (roh) =>
   ROLLEN.find(([w]) => w === roh)?.[1] ?? roh ?? "";
 
-// Die Rollen einer Person im System, so wie die API sie kennt: Abteilungsleitung, Stufenrolle (Leitung), Elternteil
+// Die Rollen einer Person im System, so wie die API sie kennt: Abteilungsleitung, Entwickler, Stufenrolle (Leitung), Elternteil
 export function systemRollen(person) {
   return [
-    person.admin && "Abteilungsleitung",
+    person.abteilungsleitung && "Abteilungsleitung",
+    person.entwickler && "Entwickler",
     person.rollen.some((r) => r.typ === "stufenleitung")
       ? "Stufenleitung"
       : person.rollen.length > 0 && "Leitung",
@@ -90,7 +93,6 @@ export function rollenFelder(stufen, rollen) {
     stufen.find((s) => s.id === id)?.name ?? "Unbekannte Stufe";
   const wurzel = el("div", { class: "pe-stufenzuweisung" });
   const aktiv = () => stufen.filter((s) => zugewiesen.get(s.id)?.weg === false);
-  const meldung = el("p", { class: "klein leise", role: "status" });
   const hinweis = el("p", { class: "hilfe" });
   const aendere = () =>
     wurzel.dispatchEvent(new Event("change", { bubbles: true }));
@@ -163,7 +165,10 @@ export function rollenFelder(stufen, rollen) {
               else if (!rollen.some((r) => r.stufeId === s.id)) {
                 zugewiesen.delete(s.id);
               } else z.weg = true;
-              meldung.textContent = `${s.name}: ${z.weg || !zugewiesen.has(s.id) ? "wird entfernt" : "bleibt"}.`;
+              melde(
+                `${s.name}: ${z.weg || !zugewiesen.has(s.id) ? "wird entfernt" : "bleibt"}.`,
+                "info",
+              );
               zeichne(s.id);
               aendere();
             },
@@ -202,7 +207,10 @@ export function rollenFelder(stufen, rollen) {
           return;
         }
         zugewiesen.set(id, { typ, weg: false });
-        meldung.textContent = `${stufenName(id)} ist hinzugefügt. Sie gilt mit «Speichern».`;
+        melde(
+          `${stufenName(id)} ist hinzugefügt. Sie gilt mit «Speichern».`,
+          "info",
+        );
         zeichne(id, "rolle");
         aendere();
       },
@@ -231,7 +239,6 @@ export function rollenFelder(stufen, rollen) {
               hinzufuegen,
             )
           : el("p", { class: "hilfe" }, "Die Person hat schon alle Stufen."),
-      meldung,
       hinweis,
     );
     zeigeHinweis();
@@ -591,9 +598,8 @@ function profilKarte(person, { nameVon, ctx, neu }) {
     name.textContent = n.name || "Neue Person";
     zusatz.textContent = n.ceviName;
   };
-  // Entfernen dürfen Abteilungsleitung und Entwickler (der Server prüft beides); diese Seite sieht nur die Abteilungsleitung, also genügt hier ihre Rolle. Eine Stelle für die Anzeige
-  const kannBildEntfernen = () =>
-    ctx?.ich?.role === "admin" && !!person?.bildUrl;
+  // Entfernen dürfen Abteilungsleitung und Entwickler (der Server prüft beides). Eine Stelle für die Anzeige
+  const kannBildEntfernen = () => siehtAlles(ctx?.ich) && !!person?.bildUrl;
   const hilfe = el("p", { class: "hilfe" });
   const entfernen = el("div", { class: "pe-bild-aktion" });
   const zeichneHilfe = () => {
@@ -702,9 +708,9 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         required: true,
       });
   const telefon = telefonFeld(person?.telefon);
-  const admin = ankreuzen({
+  const abteilungsleitung = ankreuzen({
     label: "Abteilungsleitung",
-    gewaehlt: person?.admin ?? false,
+    gewaehlt: person?.abteilungsleitung ?? false,
   });
   const rollen = rollenFelder(daten.stufen, person?.rollen ?? []);
   const kinder = kinderFelder(
@@ -782,7 +788,13 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
     karte(
       "Rechte und Rollen",
       "Die Abteilungsleitung braucht einen zweiten Faktor, bevor sie die Verwaltung öffnen kann. Die Rolle in einer Stufe bestimmt, was die Person in dieser Stufe sieht.",
-      admin.wurzel,
+      abteilungsleitung.wurzel,
+      person?.entwickler &&
+        el(
+          "p",
+          { class: "hilfe" },
+          "Diese Person ist auch Entwickler. Die Rolle «Entwickler» lässt sich hier nur ansehen: Sie vergibt, wer Zugang zum Server hat, auf der Kommandozeile.",
+        ),
       rollen.wurzel,
     ),
     tags
@@ -891,7 +903,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           ceviName: ceviName.eingabe.value,
           telefon: tel,
           benutzername: benutzername.eingabe.value.trim(),
-          admin: admin.eingabe.checked,
+          abteilungsleitung: abteilungsleitung.eingabe.checked,
           rollen: rollen.wert(),
           elternteilVon: kinder.wert(),
         });
@@ -907,7 +919,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         name: name.eingabe.value.trim(),
         ceviName: ceviName.eingabe.value,
         telefon: tel,
-        admin: admin.eingabe.checked,
+        abteilungsleitung: abteilungsleitung.eingabe.checked,
         rollen: rollen.wert(),
         elternteilVon: kinder.wert(),
       });

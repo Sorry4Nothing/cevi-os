@@ -1,0 +1,72 @@
+/* Datenschutz: Cevi OS, App, Verwaltung und Website (#712, src/website/datenschutz-cevi-os.ts). Nur diese Seite lädt die Datei.
+   Der Fliesstext kommt aus website.css (.text, .lesetext); hier stehen nur die Abstände der Überschriften, die Liste «Auf dieser Seite» und der Abstand der Listen-Einträge.
+   Farben nur aus den Tokens von website.css (Tag, Nacht und mehr Kontrast gelten damit mit). Keine Schrift, kein Bild, kein Skript von aussen. */
+
+.datenschutz h2,
+.datenschutz h3,
+.datenschutz h4 {
+  text-wrap: balance;
+}
+
+.datenschutz h2 {
+  margin-top: 3rem;
+}
+
+.datenschutz h3 {
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.datenschutz h4 {
+  margin-top: 2rem;
+}
+
+/* Unter einer Überschrift beginnt der Text näher als zwischen zwei Absätzen */
+.datenschutz h2 + *,
+.datenschutz h3 + *,
+.datenschutz h4 + * {
+  margin-top: 0.75rem;
+}
+
+.datenschutz li + li {
+  margin-top: 0.5rem;
+}
+
+/* Die Liste der Abschnitte: eine ruhige Fläche, jeder Link eine Zeile mit Zielgrösse 44 px (Checkliste Barrierefreiheit) */
+.datenschutz-inhalt {
+  margin-top: 1.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: 12px;
+  background: var(--surface-container-low);
+}
+
+.datenschutz .datenschutz-inhalt ul {
+  margin-top: 0.25rem;
+  padding-left: 0;
+  list-style: none;
+}
+
+.datenschutz-inhalt li + li {
+  margin-top: 0;
+}
+
+.datenschutz-inhalt a {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+}
+
+.datenschutz-zurueck {
+  margin-top: 0;
+}
+
+.datenschutz-zurueck:last-child {
+  margin-top: 3rem;
+}
+
+/* Der ganze Text ist ein einziges langes Feld: Das Einblenden beim Scrollen (website.css, view()) liefe über die Länge der Seite und liesse den Anfang blass stehen */
+.sektion-rumpf > .datenschutz {
+  animation: none;
+}

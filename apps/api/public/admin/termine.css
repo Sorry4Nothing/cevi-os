@@ -516,8 +516,8 @@ th[aria-sort] .tm-sortknopf {
 @media (min-width: 70.0625rem) {
   .tm-tagesliste {
     position: sticky;
-    top: 8rem;
-    max-height: calc(100vh - 10rem);
+    top: calc(var(--leiste-hoehe) + 1rem);
+    max-height: calc(100dvh - var(--leiste-hoehe) - 2rem);
     overflow: auto;
   }
 }

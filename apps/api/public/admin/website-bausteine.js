@@ -12,6 +12,7 @@ import {
 import { schliesseOffenePanels, unteransicht } from "./website-unteransicht.js";
 import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
 import {
+  GRUPPEN,
   KATALOG,
   MAX_BAUSTEINE,
   TYPEN,
@@ -20,6 +21,12 @@ import {
   typName,
 } from "./website-felder.js";
 import { symbol } from "./website-symbole.js";
+import {
+  fehlerText,
+  ladeVorschauen,
+  vorschauRahmen,
+  vorschauSkelett,
+} from "./website-vorschau.js";
 import { sk } from "./lader.js";
 
 // Baustein hinzufügen (E3), Baustein bearbeiten (E4) und Bild wählen. Schnittstelle zum Editor: der Kontext k aus website-editor.js.
@@ -28,6 +35,17 @@ const API = "/api/v1/redaktion";
 const kopie = (wert) => JSON.parse(JSON.stringify(wert));
 
 // --- E3: Baustein hinzufügen ------------------------------------------------------------------------------------------
+
+// Kacheln mit Vorschau (#739): Jeder Eintrag des Katalogs zeigt sich mit seinen Beispieldaten, gerendert wie auf der Website (website-vorschau.js).
+// Tastatur: Pfeiltasten wandern durch die Kacheln (Tab springt nur hinein und hinaus), Enter oder Leertaste fügt ein, Escape schliesst, aus der Suche führt Pfeil nach unten oder Enter zur ersten Kachel
+const TASTEN = new Set([
+  "ArrowRight",
+  "ArrowLeft",
+  "ArrowDown",
+  "ArrowUp",
+  "Home",
+  "End",
+]);
 
 export function katalogDialog(k) {
   if (k.dok.bausteine.length >= MAX_BAUSTEINE) {
@@ -61,6 +79,8 @@ export function katalogDialog(k) {
   );
   ort.value = String(n);
   const zaehler = el("p", { class: "nur-leser", role: "status" });
+  const ladeStatus = el("p", { class: "nur-leser", role: "status" });
+  const fehlerPlatz = el("div", { class: "ws-katalog-fehler" });
   const keine = el(
     "div",
     { class: "zustand", role: "status", hidden: true },
@@ -68,63 +88,253 @@ export function katalogDialog(k) {
     el(
       "p",
       { class: "leise" },
-      "Prüfe die Schreibweise. Karten und Videos gibt es nur als Link.",
+      "Prüfe die Schreibweise oder wähle eine andere Gruppe. Karten und Videos gibt es nur als Link.",
     ),
+    knopf("Suche zurücksetzen", {
+      klein: true,
+      onclick: () => {
+        suche.value = "";
+        gruppeFilter = null;
+        aktualisiere();
+        suche.focus();
+      },
+    }),
   );
   let dlg = null;
-  const eintraege = KATALOG.map((e) => ({
-    li: el(
-      "li",
-      {},
+  let gruppeFilter = null;
+  let aktuell = null;
+
+  const waehle = (e) => {
+    const pos = Number(ort.value);
+    dlg.dialog.addEventListener(
+      "close",
+      () =>
+        bearbeitenBlatt(
+          k,
+          {
+            id: globalThis.crypto.randomUUID(),
+            typ: e.typ,
+            daten: e.neu(),
+            sichtbarkeit: "erbt",
+          },
+          pos,
+          { neu: true },
+        ),
+      { once: true },
+    );
+    dlg.schliesse();
+  };
+
+  const eintraege = KATALOG.map((e) => {
+    const bild = el(
+      "div",
+      { class: "ws-kachel-bild", inert: true, "aria-hidden": "true" },
+      vorschauSkelett(),
+    );
+    const knopfEl = el(
+      "button",
+      {
+        type: "button",
+        class: "ws-kachel-knopf",
+        tabindex: "-1",
+        onclick: () => waehle(e),
+        onfocus: () => setzeAktuell(knopfEl),
+        onkeydown: (ereignis) => taste(ereignis, knopfEl),
+      },
+      el("strong", {}, e.name),
+      el("span", {}, e.beschreibung),
+    );
+    return {
+      e,
+      bild,
+      knopf: knopfEl,
+      // Ein Eintrag ohne Beispiel zeigt «Keine Vorschau», bleibt aber wählbar
+      beispiel: e.beispiel
+        ? {
+            id: globalThis.crypto.randomUUID(),
+            typ: e.typ,
+            daten: e.beispiel(),
+            sichtbarkeit: "erbt",
+          }
+        : null,
+      li: el("li", { class: "ws-kachel" }, bild, knopfEl),
+      text: `${e.name} ${e.beschreibung} ${e.gruppe ?? ""}`.toLowerCase(),
+    };
+  });
+
+  // Gruppen in der Reihenfolge von GRUPPEN; ein Eintrag ohne bekannte Gruppe steht unter «Weitere»
+  const gruppen = [...GRUPPEN, "Weitere"]
+    .map((name) => ({
+      name,
+      eintraege: eintraege.filter(
+        (x) => (GRUPPEN.includes(x.e.gruppe) ? x.e.gruppe : "Weitere") === name,
+      ),
+    }))
+    .filter((g) => g.eintraege.length > 0)
+    .map((g) => {
+      const id = neueId("katalog-gruppe");
+      return {
+        ...g,
+        wurzel: el(
+          "section",
+          { class: "ws-katalog-gruppe", "aria-labelledby": id },
+          el("h3", { id }, g.name),
+          el(
+            "ul",
+            { class: "ws-katalog", role: "list" },
+            g.eintraege.map((x) => x.li),
+          ),
+        ),
+      };
+    });
+
+  const sichtbareKnoepfe = () =>
+    eintraege.filter((x) => !x.li.hidden).map((x) => x.knopf);
+
+  // Nur eine Kachel ist per Tab erreichbar (roving tabindex): Tab führt hinein und wieder hinaus
+  function setzeAktuell(knopfEl) {
+    if (aktuell && aktuell !== knopfEl) aktuell.tabIndex = -1;
+    aktuell = knopfEl;
+    knopfEl.tabIndex = 0;
+  }
+
+  // Die Kachel, auf die eine Pfeiltaste zeigt; oben und unten über die Zeile der Kachel (die Spaltenzahl ändert sich mit der Breite)
+  function ziel(von, taste) {
+    const liste = sichtbareKnoepfe();
+    const i = liste.indexOf(von);
+    if (taste === "Home") return liste[0];
+    if (taste === "End") return liste.at(-1);
+    if (taste === "ArrowRight") return liste[Math.min(i + 1, liste.length - 1)];
+    if (taste === "ArrowLeft") return liste[Math.max(i - 1, 0)];
+    const r = von.closest("li").getBoundingClientRect();
+    const richtung = taste === "ArrowDown" ? 1 : -1;
+    const andere = liste
+      .map((b) => ({ b, r: b.closest("li").getBoundingClientRect() }))
+      .filter((x) =>
+        richtung > 0 ? x.r.top > r.top + 4 : x.r.top < r.top - 4,
+      );
+    if (andere.length === 0) return von;
+    const naechsteZeile = andere.reduce((m, x) =>
+      Math.abs(x.r.top - r.top) < Math.abs(m.r.top - r.top) ? x : m,
+    ).r.top;
+    return andere
+      .filter((x) => Math.abs(x.r.top - naechsteZeile) < 4)
+      .reduce((m, x) =>
+        Math.abs(x.r.left - r.left) < Math.abs(m.r.left - r.left) ? x : m,
+      ).b;
+  }
+
+  function taste(ereignis, von) {
+    if (!TASTEN.has(ereignis.key) || ereignis.altKey || ereignis.ctrlKey) {
+      return;
+    }
+    ereignis.preventDefault();
+    const nach = ziel(von, ereignis.key);
+    nach.focus();
+    nach.scrollIntoView({ block: "nearest" });
+  }
+
+  const gruppenwahl = el(
+    "div",
+    { class: "pillen", role: "group", "aria-label": "Gruppe" },
+    [null, ...gruppen.map((g) => g.name)].map((name) =>
       el(
         "button",
         {
           type: "button",
-          class: "wahlkarte ws-katalogkarte",
+          class: "pille",
+          "aria-pressed": String(name === null),
+          "data-gruppe": name ?? "",
           onclick: () => {
-            const pos = Number(ort.value);
-            dlg.dialog.addEventListener(
-              "close",
-              () =>
-                bearbeitenBlatt(
-                  k,
-                  {
-                    id: globalThis.crypto.randomUUID(),
-                    typ: e.typ,
-                    daten: e.neu(),
-                    sichtbarkeit: "erbt",
-                  },
-                  pos,
-                  { neu: true },
-                ),
-              { once: true },
-            );
-            dlg.schliesse();
+            gruppeFilter = name;
+            aktualisiere();
           },
         },
-        el("div", {}, el("strong", {}, e.name), el("span", {}, e.beschreibung)),
+        name ?? "Alle",
       ),
     ),
-    text: `${e.name} ${e.beschreibung}`.toLowerCase(),
-  }));
-  const raster = el(
-    "ul",
-    { class: "ws-katalog" },
-    eintraege.map((x) => x.li),
   );
-  suche.addEventListener("input", () => {
+
+  function aktualisiere() {
     const frage = suche.value.trim().toLowerCase();
     let treffer = 0;
     for (const x of eintraege) {
-      x.li.hidden = !x.text.includes(frage);
+      x.li.hidden =
+        !x.text.includes(frage) ||
+        (gruppeFilter !== null && x.e.gruppe !== gruppeFilter);
       if (!x.li.hidden) treffer++;
     }
+    for (const g of gruppen) {
+      g.wurzel.hidden = g.eintraege.every((x) => x.li.hidden);
+    }
+    for (const b of gruppenwahl.querySelectorAll("button")) {
+      b.setAttribute(
+        "aria-pressed",
+        String((b.dataset.gruppe || null) === gruppeFilter),
+      );
+    }
     keine.hidden = treffer > 0;
-    raster.hidden = treffer === 0;
-    zaehler.textContent = frage
-      ? anzahlText(treffer, "1 Baustein passt", "Bausteine passen")
-      : "";
+    // Die erste sichtbare Kachel ist der Einstieg per Tab
+    const erste = sichtbareKnoepfe()[0];
+    if (aktuell && aktuell !== erste) aktuell.tabIndex = -1;
+    aktuell = erste ?? null;
+    if (erste) erste.tabIndex = 0;
+    zaehler.textContent =
+      frage || gruppeFilter !== null
+        ? anzahlText(treffer, "1 Baustein passt", "Bausteine passen")
+        : "";
+  }
+  suche.addEventListener("input", aktualisiere);
+  suche.addEventListener("keydown", (ereignis) => {
+    if (ereignis.key === "ArrowDown" || ereignis.key === "Enter") {
+      const erste = sichtbareKnoepfe()[0];
+      if (erste) {
+        ereignis.preventDefault();
+        erste.focus();
+      }
+    }
   });
+
+  // Die Vorschauen kommen in einer Anfrage; bis dahin stehen Skelette, und jede Kachel ist schon wählbar
+  const zeigeVorschau = (x, v) => {
+    x.bild.replaceChildren(
+      v?.html
+        ? vorschauRahmen(v.html, { titel: `Vorschau: ${x.e.name}` })
+        : el("p", { class: "ws-kachel-leer" }, "Keine Vorschau"),
+    );
+  };
+  async function ladeAlle() {
+    fehlerPlatz.replaceChildren();
+    ladeStatus.textContent = "Vorschauen laden …";
+    const mit = eintraege.filter((x) => x.beispiel);
+    for (const x of eintraege) {
+      if (!x.beispiel) zeigeVorschau(x, null);
+    }
+    try {
+      const liste = await ladeVorschauen(mit.map((x) => x.beispiel));
+      if (!dlg?.dialog.isConnected) return;
+      mit.forEach((x, i) => zeigeVorschau(x, liste[i]));
+      ladeStatus.textContent = "Die Vorschauen sind geladen.";
+    } catch (f) {
+      if (!dlg?.dialog.isConnected) return;
+      for (const x of mit) zeigeVorschau(x, null);
+      ladeStatus.textContent = "";
+      fehlerPlatz.replaceChildren(
+        band(
+          "warn",
+          `${fehlerText(f)} Du kannst trotzdem einen Baustein wählen.`,
+          knopf("Nochmals versuchen", {
+            klein: true,
+            onclick: () => {
+              for (const x of mit) x.bild.replaceChildren(vorschauSkelett());
+              void ladeAlle();
+            },
+          }),
+        ),
+      );
+    }
+  }
+
   dlg = fenster({
     titel: "Baustein hinzufügen",
     breit: true,
@@ -147,13 +357,23 @@ export function katalogDialog(k) {
             ort,
           ),
       ),
+      gruppenwahl,
+      el(
+        "p",
+        { class: "klein leise" },
+        "Jede Kachel zeigt den Baustein mit Beispielinhalt, so wie die Website ihn zeigt (hell). Pfeiltasten wählen, Enter fügt ein.",
+      ),
       zaehler,
+      ladeStatus,
+      fehlerPlatz,
       keine,
-      raster,
+      ...gruppen.map((g) => g.wurzel),
     ],
     fuss: [knopf("Abbrechen", { onclick: () => dlg.schliesse() })],
     fokus: suche,
   });
+  aktualisiere();
+  void ladeAlle();
 }
 
 // --- E4: Baustein bearbeiten ------------------------------------------------------------------------------------------
@@ -172,6 +392,8 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
     tags: k.tags,
     tagNamen: k.tagNamen,
     personNamen: k.personNamen,
+    personen: k.personen,
+    teams: k.teams,
     medien: k.medien,
     kannAlt: k.kannAlt,
     waehleBild: (beiWahl) => bildDialog(k, beiWahl, { in: blatt }),

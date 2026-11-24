@@ -563,7 +563,7 @@ export function erstelleKinderRouten({
                 nachname: ziel.nachname,
                 ceviName: ziel.ceviName,
                 benutzername: eingaben.benutzername,
-                admin: false,
+                abteilungsleitung: false,
                 rollen: [],
                 elternteilVon: [],
                 startpasswort,

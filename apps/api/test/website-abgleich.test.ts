@@ -170,8 +170,8 @@ describe("Was ausgeliefert wird", () => {
     });
 
     const e = await lauf();
-    // Sieben Dateien der öffentlichen Seiten, dazu die Anmeldeseite, der Datenplan (termine.json, #564) und je eine Hülle für die zwei ganz geschützten Seiten
-    expect(e).toEqual({ geschrieben: 19, geloescht: 0, fehler: 0 });
+    // Sieben Dateien der öffentlichen Seiten, dazu die Anmeldeseite, die Datenschutzseite für Cevi OS (#712), der Datenplan (termine.json, #564) und je eine Hülle für die zwei ganz geschützten Seiten
+    expect(e).toEqual({ geschrieben: 20, geloescht: 0, fehler: 0 });
 
     const dateien = await alle();
     expect(Object.keys(dateien).sort()).toEqual([
@@ -180,6 +180,7 @@ describe("Was ausgeliefert wird", () => {
       "anlass/anmeldung/index.html",
       "anlass/index.html",
       "anmelden/index.html",
+      "datenschutz-cevi-os/index.html",
       "gruppe/index.html",
       "index.html",
       "intern/index.html",
@@ -649,6 +650,7 @@ describe("Was ausgeliefert wird", () => {
       "anlass/anmeldung/index.html",
       "anlass/index.html",
       "anmelden/index.html",
+      "datenschutz-cevi-os/index.html",
       "konto/index.html",
       "ordner/api/index.html",
       "ordner/index.html",
@@ -820,7 +822,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     await seite({ adresse: "unter", inhalt: dok("Unter") });
     const merker = new Map<string, string>();
-    expect((await lauf({ merker })).geschrieben).toBe(16);
+    expect((await lauf({ merker })).geschrieben).toBe(17);
     const vorher = await hash(id);
     // Eigene Ausgabe, die jeden Schreibversuch zählt
     const schreibt = vi.spyOn(ausgabe, "schreibe");
@@ -831,8 +833,8 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     });
     // Auch ohne Merker (neuer Prozess): Seiten tragen den Hash in der Datenbank, nur die Gesamtdateien schreibt der erste Lauf einmal neu
     const nachNeustart = await lauf();
-    expect(nachNeustart.geschrieben).toBe(14);
-    expect(schreibt).toHaveBeenCalledTimes(14);
+    expect(nachNeustart.geschrieben).toBe(15);
+    expect(schreibt).toHaveBeenCalledTimes(15);
     expect(await hash(id)).toEqual(vorher);
   });
 
@@ -886,6 +888,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
       "anmelden/index.html",
       "b/index.html",
       "d/index.html",
+      "datenschutz-cevi-os/index.html",
       "konto/index.html",
       "notiz.txt",
       "robots.txt",
@@ -928,6 +931,7 @@ describe("Hash, Idempotenz und Aufräumen", () => {
       "anlass/anmeldung/index.html",
       "anlass/index.html",
       "anmelden/index.html",
+      "datenschutz-cevi-os/index.html",
       "konto/index.html",
       "robots.txt",
       "sitemap.xml",
@@ -1411,5 +1415,23 @@ describe("Personen mit Profilbild nach Rolle (#560, #610)", () => {
     expect(html).toContain(
       '<span class="name">Flink</span><span class="funktion">Co-Leitung</span>',
     );
+  });
+
+  test("Leitungsteam einer Stufe ohne Leitende bleibt leer und zeigt nicht die Mitglieder ohne Stufenrolle (#760)", async () => {
+    const stufe = await tagNeu("stufe", "Biber");
+    const ohne = await person("Clara Geheim", { ceviName: "Nebel" });
+    await rolle(ohne, stufe, null);
+    await seite({
+      adresse: "team",
+      inhalt: dok("Team", {
+        id: randomUUID(),
+        typ: "leitungsteam",
+        daten: { tagId: stufe },
+      }),
+    });
+    await lauf();
+    const html = await lies("team/index.html");
+    expect(html).not.toContain("Nebel");
+    expect(html).not.toContain('class="team"');
   });
 });

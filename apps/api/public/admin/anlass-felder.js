@@ -96,7 +96,6 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
   let bearbeite = null;
 
   const status = el("p", { class: "nur-leser", role: "status" });
-  const meldungen = el("div", {});
   const liste = el("div", {});
   const editor = el("div", {});
   const hinweisGesundheit = el(
@@ -112,7 +111,6 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
       geaendert = false;
       bearbeite = null;
       ersetze(editor);
-      ersetze(meldungen);
       leiste.verstecke();
       sage("");
       zeichneListe();
@@ -446,7 +444,6 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
     geaendert = false;
     leiste.verstecke();
     sage("");
-    ersetze(meldungen);
     ersetze(editor);
     bearbeite = null;
     zeichneListe();
@@ -458,17 +455,13 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
   }
 
   function zeigeFehler(text) {
-    const hinweis = el(
-      "div",
-      { class: "hinweis hinweis--fehler", role: "alert", tabindex: "-1" },
+    ctx.melde(
       `Nicht gespeichert. ${text} Deine Felder sind noch da, speichere nochmals.`,
+      "fehler",
     );
-    ersetze(meldungen, hinweis);
-    hinweis.focus();
   }
 
   async function speichern() {
-    ersetze(meldungen);
     if (bearbeite !== null || editor.firstChild) {
       zeigeFehler("Du bearbeitest gerade ein Feld. Übernimm es oder brich ab.");
       return;
@@ -597,7 +590,6 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
         ).map((t) => chip(t, "ok")),
       ),
     ),
-    meldungen,
     liste,
     editor,
     hinweisGesundheit,

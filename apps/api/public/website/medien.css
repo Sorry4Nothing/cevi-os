@@ -1,0 +1,605 @@
+/* Bilder und Medien (#742): Bildraster, Bild mit Text, Bildvergleich, Logo-Reihe, breites Bild, Bildstreifen, Bilderpaket und die Videokarte.
+   Die Website lädt die Datei nur auf Seiten mit einem dieser Bausteine. Farben, Radien, Dauer und Kurve kommen aus den Tokens; fest stehen nur Weiss und Schwarz auf Bildern, weil ein Foto in Tag und Nacht gleich aussieht.
+   Nirgends ein style-Attribut (die CSP erlaubt keines): Abstufungen sind Klassen, Werte des Skripts gehen über eine Eigenschaft (--v-pos). Der Platz jedes Bildes steht fest, bevor es lädt (Breite und Höhe der Datei, Seitenverhältnis, feste Höhe). */
+
+/* ===== Bildraster: Bilder in einheitlichem Format. Ohne Skript öffnet ein Bild die Datei, mit Skript die Grossansicht ===== */
+.bildraster {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.bildraster figure {
+  margin: 0;
+}
+
+.bildraster img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+  object-fit: cover;
+}
+
+.bildraster--quadrat img {
+  aspect-ratio: 1;
+}
+
+.bildraster--hoch img {
+  aspect-ratio: 3 / 4;
+}
+
+/* Zwei Spalten sind grosse Bilder: am Handy eine, sonst wären die Unterschriften zu eng */
+@media (max-width: 30em) {
+  .bildraster--2 {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (min-width: 47.5625em) {
+  .bildraster--3 {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .bildraster--4 {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ===== Bild mit Text: Titel und Text liegen auf einem dunklen Verlauf, der mit dem Text wächst. So reicht der Kontrast auch bei einem hellen Foto und bei langem Text ===== */
+.bildtext {
+  --bt-text: #fff;
+  --bt-grund: rgb(0 0 0 / 86%);
+  position: relative;
+  display: grid;
+  min-height: 16rem;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+  aspect-ratio: 16 / 9;
+  color: var(--bt-text);
+}
+
+/* Das Bild liegt hinter dem Text und gibt der Fläche keine Höhe: Sie wächst mit dem Text, mindestens bis 16 : 9 */
+.bildtext > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.bildtext-text {
+  position: relative;
+  z-index: 1;
+  align-self: end;
+  /* Oben läuft der Verlauf aus, darunter steht der Text auf fast schwarzem Grund */
+  padding: clamp(3rem, 8vw, 6rem) clamp(1.25rem, 3vw, 2.5rem)
+    clamp(1.25rem, 3vw, 2.25rem);
+  background: linear-gradient(
+    to top,
+    var(--bt-grund) 0%,
+    var(--bt-grund) 65%,
+    transparent 100%
+  );
+}
+
+.bildtext--mitte .bildtext-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  align-self: stretch;
+  justify-content: center;
+  background: rgb(0 0 0 / 62%);
+}
+
+.bildtext-text .titel,
+.bildtext-text p {
+  max-width: 40rem;
+  margin: 0;
+  color: var(--bt-text);
+  overflow-wrap: anywhere;
+}
+
+.bildtext-text .titel {
+  font-size: clamp(1.5rem, 1.1rem + 1.6vw, 2.5rem);
+  line-height: 1.12;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.bildtext-text p:not(.titel) {
+  margin-top: 0.75rem;
+  font-size: 1.125rem;
+  line-height: 1.55;
+}
+
+.bildtext-text .btn {
+  margin-top: 1.25rem;
+}
+
+/* Der Fokusring ist auf dem dunklen Verlauf weiss */
+.bildtext :focus-visible {
+  outline-color: var(--bt-text);
+}
+
+/* ===== Breites Bild: begrenzte Höhe, der Fokus wählt den Ausschnitt ===== */
+.panorama {
+  margin: 0;
+  --pano-x: 50%;
+  --pano-y: 50%;
+}
+
+.panorama--niedrig {
+  --pano-hoehe: clamp(11rem, 20vw, 20rem);
+}
+
+.panorama--mittel {
+  --pano-hoehe: clamp(14rem, 32vw, 32rem);
+}
+
+.panorama--hoch {
+  --pano-hoehe: clamp(18rem, 44vw, 44rem);
+}
+
+.panorama--x-links {
+  --pano-x: 0%;
+}
+
+.panorama--x-rechts {
+  --pano-x: 100%;
+}
+
+.panorama--y-oben {
+  --pano-y: 0%;
+}
+
+.panorama--y-unten {
+  --pano-y: 100%;
+}
+
+.panorama img {
+  display: block;
+  width: 100%;
+  height: var(--pano-hoehe);
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+  object-fit: cover;
+  object-position: var(--pano-x) var(--pano-y);
+}
+
+/* ===== Bildstreifen: ein Band zum Scrollen und Wischen. Es bewegt sich nie von selbst; das nächste Bild schaut rechts heraus ===== */
+.bildstreifen {
+  container-type: inline-size;
+}
+
+.streifen {
+  /* Der Scrollbereich hält auch den verborgenen Text («Bild gross ansehen») fest: Sonst weitete er die Seite */
+  position: relative;
+  display: flex;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0 0 0.75rem;
+  overflow-x: auto;
+  list-style: none;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+}
+
+.streifen > li {
+  flex: none;
+  scroll-snap-align: start;
+}
+
+.streifen figure {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-width: none;
+  margin: 0;
+}
+
+/* Gleiche Höhe, eigenes Format; sehr breite Bilder werden beschnitten, damit das nächste sichtbar bleibt */
+.streifen img {
+  width: auto;
+  min-width: min(9rem, 60cqi);
+  max-width: 88cqi;
+  height: clamp(11rem, 30cqi, 22rem);
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+  object-fit: cover;
+}
+
+/* Die Unterschrift ist so breit wie ihr Bild und macht den Streifen nicht breiter */
+.streifen figcaption {
+  width: 0;
+  min-width: 100%;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ===== Logo-Reihe: jedes Logo auf einer hellen Kachel, auch in der Nacht (Logos sind für hellen Grund gezeichnet) ===== */
+.logoreihe {
+  --logo-kachel: #fff;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  gap: clamp(0.75rem, 1.5vw, 1.25rem);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.logo-kachel {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 6.5rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--logo-kachel);
+  color: inherit;
+  text-decoration: none;
+}
+
+.logo-kachel img {
+  width: auto;
+  max-width: 100%;
+  height: auto;
+  max-height: 100%;
+  border-radius: 0;
+  object-fit: contain;
+}
+
+/* Der Pfeil für fremde Seiten steht schon im Namen des Links («externe Seite») */
+a.logo-kachel[rel~="noopener"]::after {
+  display: none;
+}
+
+a.logo-kachel:hover {
+  border-color: var(--accent);
+}
+
+/* Graustufen: Sponsoren stehen ruhig nebeneinander; beim Zeigen und mit Fokus kommt die Farbe zurück */
+.logoreihe--grau img {
+  filter: grayscale(1);
+}
+
+.logoreihe--grau a.logo-kachel:hover img,
+.logoreihe--grau a.logo-kachel:focus-visible img {
+  filter: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .logoreihe--grau img {
+    transition: filter var(--dauer) var(--kurve);
+  }
+}
+
+/* ===== Bildvergleich: ohne Skript stehen beide Bilder mit ihrer Bezeichnung nebeneinander oder untereinander. Mit Skript (vergleich.js, Klasse v-aktiv) liegt «Vorher» über «Nachher» und ein Schieber zieht die Kante ===== */
+.vergleich {
+  margin: 0;
+}
+
+.vergleich-bilder {
+  --v-pos: 50%;
+  display: grid;
+  gap: 1rem;
+}
+
+@media (min-width: 47.5625em) {
+  .vergleich-bilder {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.vergleich-bilder figure {
+  margin: 0;
+}
+
+.vergleich-bilder img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: var(--r-md);
+  background: var(--surface-container-high);
+}
+
+.vergleich-text {
+  margin-top: 0.75rem;
+}
+
+.vergleich.v-aktiv .vergleich-bilder {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--r-md);
+  touch-action: pan-y;
+}
+
+.vergleich.v-aktiv .vergleich-bilder img {
+  border-radius: 0;
+}
+
+/* «Vorher» liegt über «Nachher» und ist rechts vom Schieber abgeschnitten */
+.vergleich.v-aktiv .v-vorher {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 calc(100% - var(--v-pos)) 0 0);
+}
+
+.vergleich.v-aktiv .v-vorher img {
+  height: 100%;
+  object-fit: cover;
+}
+
+.vergleich.v-aktiv .vergleich-bilder figcaption {
+  position: absolute;
+  bottom: 0.75rem;
+  margin: 0;
+  padding: 0.25rem 0.875rem;
+  border-radius: var(--r-full);
+  background: rgb(0 0 0 / 74%);
+  color: #fff;
+  font-size: 0.9375rem;
+  line-height: 1.5rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.vergleich.v-aktiv .v-vorher figcaption {
+  left: 0.75rem;
+}
+
+.vergleich.v-aktiv .v-nachher figcaption {
+  right: 0.75rem;
+}
+
+/* Der Schieber ist ein echtes Bereichsfeld über dem ganzen Bild, unsichtbar; Linie und Knopf zeichnet das Skript dazu */
+.v-regler {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+
+.v-griff {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--v-pos);
+  z-index: 1;
+  width: 3px;
+  margin-left: -1.5px;
+  background: #fff;
+  box-shadow: 0 0 0 1px rgb(0 0 0 / 40%);
+  pointer-events: none;
+}
+
+.v-knopf {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 2.75rem;
+  height: 2.75rem;
+  translate: -50% -50%;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 74%);
+}
+
+/* Zwei Dreiecke zeigen die Richtung */
+.v-knopf::before,
+.v-knopf::after {
+  position: absolute;
+  top: 50%;
+  translate: 0 -50%;
+  border: 0.4rem solid transparent;
+  content: "";
+}
+
+.v-knopf::before {
+  left: 0.25rem;
+  border-right-color: #fff;
+}
+
+.v-knopf::after {
+  right: 0.25rem;
+  border-left-color: #fff;
+}
+
+.v-regler:focus-visible ~ .v-griff .v-knopf {
+  outline: 3px solid var(--focus);
+  outline-offset: 3px;
+}
+
+/* ===== Bilderpaket: Vorschaubild, Titel, Angaben und ein Link zu den Dateien ===== */
+.paket {
+  display: grid;
+  gap: 1.25rem 1.5rem;
+  align-items: start;
+  padding: 1.25rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--karte);
+}
+
+@media (min-width: 40.0625em) {
+  .paket--bild {
+    grid-template-columns: minmax(0, 13rem) minmax(0, 1fr);
+  }
+}
+
+.paket-bild img {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-radius: var(--r-sm);
+  background: var(--surface-container-high);
+  object-fit: cover;
+}
+
+.paket-text .titel {
+  margin: 0;
+  font-size: 1.375rem;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.paket-text p {
+  margin: 0.5rem 0 0;
+}
+
+.paket-info {
+  color: var(--on-surface-variant);
+}
+
+.paket-text .btn {
+  margin-top: 1.25rem;
+}
+
+/* ===== Video: eine Karte, die auf die Seite des Videos führt. Sie spielt nichts ab ===== */
+.video {
+  margin: 0;
+}
+
+a.videokarte {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem 1.25rem;
+  align-items: center;
+  max-width: 46rem;
+  padding: 0.75rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  color: var(--on-surface);
+  text-decoration: none;
+}
+
+@media (min-width: 40.0625em) {
+  a.videokarte {
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+  }
+}
+
+a.videokarte:hover {
+  border-color: var(--accent);
+}
+
+/* Der Pfeil für fremde Seiten steht schon im Namen des Links («externe Seite») */
+a.videokarte[rel~="noopener"]::after {
+  display: none;
+}
+
+.video-bild {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  border-radius: var(--r-sm);
+  background: var(--surface-container-high);
+  aspect-ratio: 16 / 9;
+}
+
+.video-bild img {
+  width: 100%;
+  height: 100%;
+  border-radius: 0;
+  object-fit: cover;
+}
+
+.video-start {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3.25rem;
+  height: 3.25rem;
+  translate: -50% -50%;
+  border: 3px solid #fff;
+  border-radius: 50%;
+  background: rgb(0 0 0 / 70%);
+}
+
+.video-start::after {
+  position: absolute;
+  inset: 0.7rem 0.6rem 0.7rem 0.95rem;
+  background: #fff;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+  content: "";
+}
+
+.video-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.video-text strong {
+  font-size: 1.125rem;
+  line-height: 1.3;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.video-quelle {
+  color: var(--on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a.videokarte {
+    transition: border-color var(--dauer) var(--kurve);
+  }
+}
+
+/* Erzwungene Farben: Die Verläufe und Flächen auf Bildern entfallen, darum bekommen Text, Knopf und Zeichen den Grund des Systems */
+@media (forced-colors: active) {
+  .bildtext-text {
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .bildtext-text .titel,
+  .bildtext-text p {
+    color: CanvasText;
+  }
+
+  .video-start,
+  .v-knopf {
+    border-color: CanvasText;
+    background: Canvas;
+  }
+
+  .video-start::after {
+    background: CanvasText;
+  }
+
+  .v-griff {
+    background: CanvasText;
+  }
+
+  .v-knopf::before {
+    border-right-color: CanvasText;
+  }
+
+  .v-knopf::after {
+    border-left-color: CanvasText;
+  }
+
+  .vergleich.v-aktiv .vergleich-bilder figcaption {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+}

@@ -53,7 +53,6 @@ const zeitpunkt = (iso) =>
 function einstellungen(ctx, daten) {
   const zustand = new Map(daten.arten.map((a) => [a.art, a.aktiv]));
   const liste = el("ul", { class: "lg-liste" });
-  const status = el("p", { class: "nur-leser", role: "status" });
   for (const a of daten.arten) {
     const labelId = `lg-bn-${a.art}`;
     const schalter = el("button", {
@@ -71,7 +70,7 @@ function einstellungen(ctx, daten) {
           });
           zustand.set(a.art, neu);
           schalter.setAttribute("aria-checked", String(neu));
-          status.textContent = `${ARTEN[a.art] ?? a.art}: ${neu ? "an" : "aus"}.`;
+          ctx.melde(`${ARTEN[a.art] ?? a.art}: ${neu ? "an" : "aus"}.`);
         } catch (f) {
           ctx.melde(meldung(f), "fehler");
         } finally {
@@ -98,7 +97,6 @@ function einstellungen(ctx, daten) {
       "Die Schalter gelten für alle deine Lager, für die Liste und für Push.",
     ),
     liste,
-    status,
   );
 }
 

@@ -1,4 +1,4 @@
-/* Toasts mit «Rückgängig» (#578, Logik: rueckgaengig.js, Darstellung: rahmen.js). Unten links gestapelt, am Handy über die ganze Breite. Farben aus tokens.css: Fläche --inverse-surface, Text --inverse-on-surface (Tag 10.4:1, Nacht 16.6:1), Fehler in --error-container mit --on-error-container (6.8:1 und 7.5:1). «Rückgängig» ist ein fetter, unterstrichener Textknopf in der Textfarbe: Zustand nie nur über Farbe. */
+/* Toasts (#578, #761): «Rückgängig» (Logik: rueckgaengig.js) und alle Rückmeldungen nach Aktionen (ctx.melde), Darstellung: rahmen.js. Eine feste Stelle unten links, gestapelt, am Handy über die ganze Breite. Erfolg und Info 4 s, Warnung und Fehler 8 s, Zeiger und Fokus halten die Zeit an. Farben aus tokens.css: Fläche --inverse-surface, Text --inverse-on-surface (Tag 10.4:1, Nacht 16.6:1), Fehler in --error-container mit --on-error-container (6.8:1 und 7.5:1). «Rückgängig» ist ein fetter, unterstrichener Textknopf in der Textfarbe: Zustand nie nur über Farbe. */
 
 .toasts {
   position: fixed;
@@ -100,18 +100,55 @@
   background: rgb(255 255 255 / 14%);
 }
 
-/* Fehler: bleibt stehen, bis die Person ihn schliesst */
-.toast--fehler {
+/* Rückmeldungen: ein Symbol vor dem Text, damit die Art nie nur an der Farbe hängt (Haken, Info, Warndreieck) */
+.toast--ok::before,
+.toast--info::before,
+.toast--warn::before,
+.toast--fehler::before {
+  content: "";
+  flex: none;
+  width: 1.375rem;
+  height: 1.375rem;
+  margin-left: 0.5rem;
+  background: currentcolor;
+  -webkit-mask: var(--ic-info) center / contain no-repeat;
+  mask: var(--ic-info) center / contain no-repeat;
+}
+
+.toast--ok::before {
+  -webkit-mask-image: var(--ic-ok);
+  mask-image: var(--ic-ok);
+}
+
+.toast--warn::before,
+.toast--fehler::before {
+  -webkit-mask-image: var(--ic-warn);
+  mask-image: var(--ic-warn);
+}
+
+/* Luft über und unter dem Text, wenn er umbricht */
+.toast--ok > .toast-text,
+.toast--info > .toast-text,
+.toast--warn > .toast-text,
+.toast--fehler > .toast-text {
+  padding: 0.5rem 0;
+}
+
+/* Fehler und Warnung: länger sichtbar (8 s), schliessbar */
+.toast--fehler,
+.toast--warn {
   border: 1px solid var(--on-error-container);
   background: var(--error-container);
   color: var(--on-error-container);
 }
 
-.toast--fehler :focus-visible {
+.toast--fehler :focus-visible,
+.toast--warn :focus-visible {
   outline-color: var(--on-error-container);
 }
 
-.toast--fehler .knopf--rund:hover {
+.toast--fehler .knopf--rund:hover,
+.toast--warn .knopf--rund:hover {
   background: rgb(0 0 0 / 8%);
 }
 
@@ -140,6 +177,12 @@
 @media (prefers-reduced-motion: no-preference) {
   .toast {
     animation: toast-ein var(--dauer) var(--kurve);
+  }
+
+  /* Ausblenden vor dem Entfernen (200 ms, AUSBLENDEN_MS in rahmen.js); mit «Bewegung reduzieren» verschwindet der Toast ohne Übergang */
+  .toast--geht {
+    opacity: 0;
+    transition: opacity 0.2s ease-in;
   }
 
   .toast--wartet .toast-balken {

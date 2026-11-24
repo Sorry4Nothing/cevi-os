@@ -1,7 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { readFileSync } from "node:fs";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
 import { afterAll, expect, test, vi } from "vitest";
 import { erstelleDb } from "../src/db/client.js";
@@ -33,7 +33,11 @@ const UMGEBUNG = {
 };
 
 // Direkt die Datei statt npm run (kein npm.cmd-Umweg, wie #73); die Attrappe ersetzt fetch im Kindprozess
-function starte(argumente: string[], umgebung: Record<string, string> = {}) {
+function starte(
+  argumente: string[],
+  umgebung: Record<string, string> = {},
+  skript = "src/cli/konto-anlegen.ts",
+) {
   return spawnSync(
     process.execPath,
     [
@@ -41,7 +45,7 @@ function starte(argumente: string[], umgebung: Record<string, string> = {}) {
       "tsx",
       "--import",
       "./test/hilfen/hibp-attrappe.ts",
-      "src/cli/admin-anlegen.ts",
+      skript,
       ...argumente,
     ],
     {
@@ -84,6 +88,14 @@ async function meldeAn(benutzername: string, passwort: string) {
   return sitzung?.user.id;
 }
 
+async function istInTabelle(userId: string) {
+  const zeilen = await db
+    .select()
+    .from(schema.abteilungsleitungPerson)
+    .where(eq(schema.abteilungsleitungPerson.userId, userId));
+  return zeilen.length === 1;
+}
+
 async function benutzerMitNamen(benutzername: string) {
   return db
     .select()
@@ -109,6 +121,8 @@ test("die CLI legt Abteilung und Abteilungsleitung an, und die Anmeldung mit dem
     " Wolke ",
     "--neue-abteilung",
     abteilungsname,
+    "--rolle",
+    "abteilungsleitung",
   ]);
   expect(ergebnis.stderr).toBe("");
   expect(ergebnis.status).toBe(0);
@@ -127,6 +141,8 @@ test("die CLI legt Abteilung und Abteilungsleitung an, und die Anmeldung mit dem
   abteilungA = { name: abteilungsname, id: abteilung.id };
 
   const [benutzer] = await benutzerMitNamen(benutzername);
+  // Quelle ist die Tabelle, role der Spiegel (#720)
+  expect(await istInTabelle(benutzer.id)).toBe(true);
   expect(benutzer.role).toBe("admin");
   expect(benutzer.ceviName).toBe("Wolke");
   expect(benutzer.abteilungId).toBe(abteilung.id);
@@ -156,7 +172,7 @@ test("die CLI legt Abteilung und Abteilungsleitung an, und die Anmeldung mit dem
     akteurId: "cli",
     aktion: "person_angelegt",
     zielTyp: "person",
-    details: null,
+    details: { rolle: "abteilungsleitung" },
   });
 
   expect(await meldeAn(benutzername, startpasswort)).toBe(benutzer.id);
@@ -171,11 +187,14 @@ test("die CLI legt in einer bestehenden Abteilung einen weiteren Abteilungsleitu
     "Testperson CLI",
     "--abteilung",
     abteilungA.name,
+    "--rolle",
+    "abteilungsleitung",
   ]);
   expect(ergebnis.stderr).toBe("");
   expect(ergebnis.status).toBe(0);
   const startpasswort = startpasswortAus(ergebnis.stdout);
   const [benutzer] = await benutzerMitNamen(benutzername);
+  expect(await istInTabelle(benutzer.id)).toBe(true);
   expect(benutzer.role).toBe("admin");
   expect(benutzer.abteilungId).toBe(abteilungA.id);
   expect(await meldeAn(benutzername, startpasswort)).toBe(benutzer.id);
@@ -196,6 +215,8 @@ test.each([
       "Testperson CLI",
       "--neue-abteilung",
       neuerAbteilungsname(),
+      "--rolle",
+      "keine",
       ...zusatz,
     ]);
     expect(ergebnis.status).toBe(1);
@@ -217,10 +238,12 @@ test("eine unbekannte Abteilung bricht ab, ohne etwas anzulegen", async () => {
     "Testperson CLI",
     "--abteilung",
     abteilungsname,
+    "--rolle",
+    "keine",
   ]);
   expect(ergebnis.status).toBe(1);
   expect(ergebnis.stderr).toContain(
-    `Abteilungsleitung nicht angelegt: Keine eindeutige Abteilung «${abteilungsname}».`,
+    `Konto nicht angelegt: Keine eindeutige Abteilung «${abteilungsname}».`,
   );
   expect(await benutzerMitNamen(benutzername)).toHaveLength(0);
 });
@@ -234,10 +257,12 @@ test("eine schon vorhandene Abteilung bricht «--neue-abteilung» ab", async () 
     "Testperson CLI",
     "--neue-abteilung",
     abteilungA.name,
+    "--rolle",
+    "keine",
   ]);
   expect(ergebnis.status).toBe(1);
   expect(ergebnis.stderr).toContain(
-    `Abteilungsleitung nicht angelegt: Abteilung «${abteilungA.name}» gibt es schon.`,
+    `Konto nicht angelegt: Abteilung «${abteilungA.name}» gibt es schon.`,
   );
   expect(await benutzerMitNamen(benutzername)).toHaveLength(0);
   // Die Abteilung aus dem ersten Test bleibt die einzige mit diesem Namen
@@ -263,11 +288,13 @@ test("ist HIBP nicht erreichbar, bleibt kein halber Benutzer und kein Audit-Eint
       "Testperson CLI",
       "--abteilung",
       abteilungsname,
+      "--rolle",
+      "abteilungsleitung",
     ],
     { HIBP_ATTRAPPE: "fehler" },
   );
   expect(ergebnis.status).toBe(1);
-  expect(ergebnis.stderr).toContain("Abteilungsleitung nicht angelegt:");
+  expect(ergebnis.stderr).toContain("Konto nicht angelegt:");
   expect(ergebnis.stdout + ergebnis.stderr).not.toContain("Startpasswort:");
   // createUser legt den User vor der HIBP-Prüfung an (#14); die Transaktion nimmt ihn samt Audit-Eintrag zurück
   expect(await benutzerMitNamen(benutzername)).toHaveLength(0);
@@ -288,6 +315,8 @@ test("ist HIBP nicht erreichbar, entsteht auch keine neue Abteilung", async () =
       "Testperson CLI",
       "--neue-abteilung",
       abteilungsname,
+      "--rolle",
+      "abteilungsleitung",
     ],
     { HIBP_ATTRAPPE: "fehler" },
   );
@@ -299,11 +328,198 @@ test("ist HIBP nicht erreichbar, entsteht auch keine neue Abteilung", async () =
   expect(abteilungen).toHaveLength(0);
 });
 
-test("«admin:anlegen» in package.json startet genau diese Datei", () => {
+async function auditZeilen(zielId: string, aktion: string) {
+  return db
+    .select()
+    .from(schema.auditLog)
+    .where(
+      and(
+        eq(schema.auditLog.zielId, zielId),
+        eq(schema.auditLog.aktion, aktion),
+      ),
+    );
+}
+
+test("--rolle entwickler legt Konto mit Zeile in plattform_entwickler und Audit an, role bleibt user", async () => {
+  const benutzername = neuerBenutzername();
+  const ergebnis = starte([
+    "--benutzername",
+    benutzername,
+    "--name",
+    "Testperson CLI",
+    "--abteilung",
+    abteilungA.name,
+    "--rolle",
+    "entwickler",
+  ]);
+  expect(ergebnis.stderr).toBe("");
+  expect(ergebnis.status).toBe(0);
+  expect(ergebnis.stdout.split("\n")).toContain(
+    `Entwickler «${benutzername}» angelegt.`,
+  );
+  const startpasswort = startpasswortAus(ergebnis.stdout);
+  const [benutzer] = await benutzerMitNamen(benutzername);
+  expect(benutzer.role).toBe("user");
+  expect(await istInTabelle(benutzer.id)).toBe(false);
+  const entwickler = await db
+    .select()
+    .from(schema.plattformEntwickler)
+    .where(eq(schema.plattformEntwickler.userId, benutzer.id));
+  expect(entwickler).toHaveLength(1);
+  const angelegt = await auditZeilen(benutzer.id, "person_angelegt");
+  expect(angelegt).toHaveLength(1);
+  expect(angelegt[0]).toMatchObject({
+    akteurId: "cli",
+    details: { rolle: "entwickler" },
+  });
+  const vergeben = await auditZeilen(benutzer.id, "entwickler_vergeben");
+  expect(vergeben).toHaveLength(1);
+  expect(vergeben[0].akteurId).toBe("cli");
+  expect(await meldeAn(benutzername, startpasswort)).toBe(benutzer.id);
+});
+
+test("--rolle keine legt ein Konto ohne Rolle an", async () => {
+  const benutzername = neuerBenutzername();
+  const ergebnis = starte([
+    "--benutzername",
+    benutzername,
+    "--name",
+    "Testperson CLI",
+    "--abteilung",
+    abteilungA.name,
+    "--rolle",
+    "keine",
+  ]);
+  expect(ergebnis.stderr).toBe("");
+  expect(ergebnis.status).toBe(0);
+  expect(ergebnis.stdout.split("\n")).toContain(
+    `Konto «${benutzername}» angelegt.`,
+  );
+  expect(ergebnis.stdout).not.toContain("zweiten Faktor");
+  startpasswortAus(ergebnis.stdout);
+  const [benutzer] = await benutzerMitNamen(benutzername);
+  expect(benutzer.role).toBe("user");
+  expect(await istInTabelle(benutzer.id)).toBe(false);
+  const entwickler = await db
+    .select()
+    .from(schema.plattformEntwickler)
+    .where(eq(schema.plattformEntwickler.userId, benutzer.id));
+  expect(entwickler).toHaveLength(0);
+  const angelegt = await auditZeilen(benutzer.id, "person_angelegt");
+  expect(angelegt[0].details).toEqual({ rolle: "keine" });
+});
+
+test.each([
+  ["ohne --rolle", []],
+  ["mit unbekannter Rolle", ["--rolle", "admin"]],
+])(
+  "ein Aufruf %s zeigt die Verwendung und legt nichts an",
+  async (_t, rolle) => {
+    const benutzername = neuerBenutzername();
+    const ergebnis = starte([
+      "--benutzername",
+      benutzername,
+      "--name",
+      "Testperson CLI",
+      "--abteilung",
+      abteilungA.name,
+      ...rolle,
+    ]);
+    expect(ergebnis.status).toBe(1);
+    expect(ergebnis.stderr).toContain("Verwendung:");
+    expect(ergebnis.stdout + ergebnis.stderr).not.toContain("Startpasswort:");
+    expect(await benutzerMitNamen(benutzername)).toHaveLength(0);
+  },
+);
+
+test("ein ungültiger Benutzername bricht ab, ohne Konto, Abteilung oder Audit-Eintrag", async () => {
+  const abteilungsname = neuerAbteilungsname();
+  const ergebnis = starte([
+    "--benutzername",
+    "ungültig name!",
+    "--name",
+    "Testperson CLI",
+    "--neue-abteilung",
+    abteilungsname,
+    "--rolle",
+    "abteilungsleitung",
+  ]);
+  expect(ergebnis.status).toBe(1);
+  expect(ergebnis.stderr).toContain("Konto nicht angelegt:");
+  expect(ergebnis.stdout + ergebnis.stderr).not.toContain("Startpasswort:");
+  expect(await benutzerMitNamen("ungültig name!")).toHaveLength(0);
+  // Die Transaktion nimmt auch die neue Abteilung zurück
+  const abteilungen = await db
+    .select()
+    .from(schema.abteilung)
+    .where(eq(schema.abteilung.name, abteilungsname));
+  expect(abteilungen).toHaveLength(0);
+});
+
+test("ein zweiter Aufruf mit demselben Benutzernamen bricht ab und lässt das Konto unverändert", async () => {
+  const benutzername = neuerBenutzername();
+  const aufruf = (rolle: string, name: string) =>
+    starte([
+      "--benutzername",
+      benutzername,
+      "--name",
+      name,
+      "--abteilung",
+      abteilungA.name,
+      "--rolle",
+      rolle,
+    ]);
+  expect(aufruf("keine", "Erste Person").status).toBe(0);
+  const zweiter = aufruf("abteilungsleitung", "Zweite Person");
+  expect(zweiter.status).toBe(1);
+  expect(zweiter.stderr).toContain(
+    `Konto nicht angelegt: Benutzername «${benutzername}» ist schon vergeben.`,
+  );
+  expect(zweiter.stdout + zweiter.stderr).not.toContain("Startpasswort:");
+  const konten = await benutzerMitNamen(benutzername);
+  expect(konten).toHaveLength(1);
+  expect(konten[0].name).toBe("Erste Person");
+  expect(await istInTabelle(konten[0].id)).toBe(false);
+});
+
+test("«admin:anlegen» ist ein Alias: Warnung auf stderr, legt die Abteilungsleitung an, auch bei anderer --rolle", async () => {
+  const benutzername = neuerBenutzername();
+  const ergebnis = starte(
+    [
+      "--benutzername",
+      benutzername,
+      "--name",
+      "Testperson CLI",
+      "--abteilung",
+      abteilungA.name,
+      "--rolle",
+      "keine",
+    ],
+    {},
+    "src/cli/admin-anlegen.ts",
+  );
+  expect(ergebnis.status, ergebnis.stderr).toBe(0);
+  expect(ergebnis.stderr).toContain("«admin:anlegen» ist veraltet");
+  expect(ergebnis.stdout.split("\n")).toContain(
+    `Abteilungsleitung «${benutzername}» angelegt.`,
+  );
+  startpasswortAus(ergebnis.stdout);
+  const [benutzer] = await benutzerMitNamen(benutzername);
+  expect(await istInTabelle(benutzer.id)).toBe(true);
+  expect(benutzer.role).toBe("admin");
+});
+
+test("die Skripte in package.json starten die Dateien der CLI", () => {
   const paket = JSON.parse(
     readFileSync(new URL("../package.json", import.meta.url), "utf8"),
   ) as { scripts: Record<string, string> };
-  expect(paket.scripts["admin:anlegen"]).toBe(
-    "tsx --env-file-if-exists=.env src/cli/admin-anlegen.ts",
+  const tsx = "tsx --env-file-if-exists=.env src/cli/";
+  expect(paket.scripts["admin:anlegen"]).toBe(`${tsx}admin-anlegen.ts`);
+  expect(paket.scripts["konto:anlegen"]).toBe(`${tsx}konto-anlegen.ts`);
+  expect(paket.scripts["abteilungsleitung:vergeben"]).toBe(
+    `${tsx}abteilungsleitung.ts vergeben`,
+  );
+  expect(paket.scripts["abteilungsleitung:entziehen"]).toBe(
+    `${tsx}abteilungsleitung.ts entziehen`,
   );
 });

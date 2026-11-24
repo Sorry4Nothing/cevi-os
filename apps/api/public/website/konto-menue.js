@@ -90,11 +90,11 @@ function fuelle(menue, daten) {
 }
 
 // «Abmelden»: derselbe Aufruf wie in der Verwaltung (POST /api/auth/sign-out, der Server prüft den Origin). Danach lädt die Seite neu: Geschützte Inhalte verschwinden, der Kopf zeigt wieder «Anmelden»
-async function abmelden(knopf, meldung) {
+// Der Ausgang ist ein Toast (toast.js, #762); er wird erst geladen, wenn er gebraucht wird
+async function abmelden(knopf) {
   if (knopf.getAttribute("aria-disabled") === "true") return;
   knopf.setAttribute("aria-disabled", "true");
   knopf.setAttribute("aria-busy", "true");
-  meldung.textContent = "";
   let ok = false;
   try {
     const r = await fetch("/api/auth/sign-out", {
@@ -109,12 +109,24 @@ async function abmelden(knopf, meldung) {
   }
   if (ok) {
     merke(false);
+    try {
+      (await import("./toast.js")).merkeToast("Abgemeldet.");
+    } catch {
+      // Ohne den Toast lädt die Seite trotzdem neu
+    }
     window.location.reload();
     return;
   }
   knopf.removeAttribute("aria-disabled");
   knopf.removeAttribute("aria-busy");
-  meldung.textContent = "Abmelden hat nicht geklappt. Versuche es nochmals.";
+  try {
+    (await import("./toast.js")).toast(
+      "Abmelden hat nicht geklappt. Versuche es nochmals.",
+      "fehler",
+    );
+  } catch {
+    // Kein Netz für das Modul: Der Knopf ist wieder frei, die Person versucht es nochmals
+  }
 }
 
 // Tastatur am Computer: Pfeile gehen durch Verwaltung, Mein Konto und Abmelden, Esc schliesst und gibt den Fokus zurück, ein Klick daneben und das Verlassen mit Tab schliessen
@@ -158,8 +170,7 @@ function baueMenue(daten, imMenue) {
   const menue = vorlage.content.firstElementChild.cloneNode(true);
   fuelle(menue, daten);
   const knopf = menue.querySelector('[data-konto="abmelden"]');
-  const meldung = menue.querySelector(".konto-meldung");
-  knopf.addEventListener("click", () => abmelden(knopf, meldung));
+  knopf.addEventListener("click", () => abmelden(knopf));
   if (imMenue) {
     // Im Menü am Handy steht die Liste ausgeklappt und ohne Knopf zum Zuklappen (kopf.css)
     menue.open = true;
@@ -185,6 +196,13 @@ async function start() {
   }
   zeigeAnmelden();
   return daten;
+}
+
+// Ein Toast wartet von der Seite davor (Angemeldet, Abgemeldet): Das Modul zeigt ihn beim Laden. Der Schlüssel steht auch in toast.js (MERKER)
+try {
+  if (window.sessionStorage.getItem("cevi-toast")) import("./toast.js");
+} catch {
+  // Kein Speicher: nichts zu zeigen
 }
 
 if (vorlage && knoepfe.length > 0) {

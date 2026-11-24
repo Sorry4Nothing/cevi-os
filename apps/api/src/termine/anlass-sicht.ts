@@ -1,8 +1,7 @@
 import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { anlass, programm } from "../db/schema.js";
-import type { Person } from "../rechte.js";
-import { sichtbarkeitFilter } from "../sichtbarkeit.js";
+import { sichtbarkeitFilter, type SichtPerson } from "../sichtbarkeit.js";
 
 // Sicht und Frist eines Anlasses (#443): wer ihn sehen und sich anmelden darf und ob die Anmeldung offen ist. Die Abfragen der Routen und von «Mein Kalender» (#435) benutzen dieselben Ausdrücke.
 
@@ -13,9 +12,7 @@ export const terminVorbei = sql<boolean>`coalesce(${programm.ende}, (${programm.
 export const anmeldungOffenSql = sql<boolean>`(${anlass.anmeldungOffen} and (${anlass.frist} is null or ${anlass.frist} > now()) and ${programm.status} <> 'abgesagt' and not ${terminVorbei})`;
 
 // Wer den Anlass sehen darf, darf sich anmelden. Die Regeln der Sichtbarkeit (sichtbarkeit.ts) gelten für die eigenen Tags; dazu sehen Eltern einen Anlass mit Tags auch, wenn ein Tag die Stufe eines ihrer aktiven Kinder ist (Annahme A1 wie in «Mein Kalender»). Braucht anlass im FROM
-export function anlassSichtbar(
-  person: Pick<Person, "id" | "abteilungId" | "admin">,
-): SQL {
+export function anlassSichtbar(person: SichtPerson): SQL {
   const eigene = sichtbarkeitFilter(person, {
     abteilungId: anlass.abteilungId,
     sichtbarkeit: anlass.sichtbarkeit,
@@ -34,7 +31,7 @@ export type AnlassInfo = {
 // Der Anlass zu jedem Termin der Seite («Mein Kalender», #435), wenn die Person ihn sehen darf: eine Abfrage für alle Termine. «angemeldet» heisst: Die Person selbst oder eines ihrer Kinder ist angemeldet
 export async function ladeAnlassInfos(
   db: Db,
-  person: Pick<Person, "id" | "abteilungId" | "admin">,
+  person: SichtPerson,
   programmIds: string[],
 ) {
   const karte = new Map<string, AnlassInfo>();

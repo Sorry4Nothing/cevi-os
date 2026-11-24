@@ -14,6 +14,12 @@
   --nav-hoehe: calc(3rem + 2px);
   --unter-hoehe: calc(2.75rem + 1px);
   --leiste-hoehe: var(--nav-hoehe);
+  /* Fussabstand von .inhalt (admin.css) */
+  --inhalt-unten: 4rem;
+  /* Höhe eines Scrollbereichs, der am Seitenende das Fenster unter der haftenden Leiste füllt (#756): Fenster minus Leiste, 1 rem Abstand oben und der Fussabstand von .inhalt, nie eine geschätzte Kopfhöhe */
+  --scroll-hoehe: calc(
+    100dvh - var(--leiste-hoehe) - 1rem - var(--inhalt-unten)
+  );
 }
 
 @media (min-width: 106em) {
@@ -327,16 +333,6 @@ a.bereichname:hover {
 .konto-liste [aria-disabled="true"] {
   cursor: progress;
   opacity: 0.6;
-}
-
-.konto-meldung {
-  padding: 0.5rem 0.75rem 0.25rem;
-  color: var(--on-error-container);
-  font-size: 0.9375rem;
-}
-
-.konto-meldung:empty {
-  display: none;
 }
 
 @media (forced-colors: active) {
@@ -732,7 +728,9 @@ a.bereichname:hover {
 
   .bereichswahl-innen {
     min-height: 0;
-    max-height: calc(100dvh - 8.5rem);
+    max-height: calc(
+      100dvh - var(--logozeile-hoehe) - var(--leiste-hoehe) - 0.5rem
+    );
     overflow-y: auto;
     overscroll-behavior: contain;
   }
@@ -1305,32 +1303,6 @@ a.bereichname:hover {
 .zustand-satz {
   font-size: 1.125rem;
   font-weight: 700;
-}
-
-/* Rückmeldungen: gestapelt, jede mit «Hinweis schliessen». Erfolg und Info gehen nach 6 Sekunden von selbst (rahmen.js), Warnung und Fehler bleiben */
-
-.rueckmeldung .hinweis--geht {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .rueckmeldung .hinweis--geht {
-    transition: opacity 0.3s ease-in;
-  }
-}
-
-.rueckmeldung {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.rueckmeldung .hinweis {
-  padding-right: 8px;
-}
-
-.rueckmeldung .hinweis > span {
-  flex: 1;
 }
 
 .hinweis--info {

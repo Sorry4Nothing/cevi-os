@@ -1,4 +1,4 @@
-/* Gemeinsamer Stil der Seiten /datenschutz, /konto-loeschen und /support; seiten.ts setzt ihn in <style> ein. Keine Schriften, Bilder oder Skripte von aussen. */
+/* Gemeinsamer Stil der Seiten /konto-loeschen und /support; seiten.ts setzt ihn in <style> ein. Keine Schriften, Bilder oder Skripte von aussen. */
 :root {
   color-scheme: light dark;
   --flaeche: #ffffff;

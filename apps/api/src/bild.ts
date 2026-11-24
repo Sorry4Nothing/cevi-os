@@ -24,6 +24,11 @@ export const bildUrl = sql<
   string | null
 >`case when ${profilbild.userId} is null then null else '/api/v1/personen/' || ${profilbild.userId} || '/bild?v=' || (extract(epoch from ${profilbild.geaendertAm}) * 1000)::bigint end`;
 
+// Wie bildUrl, für den Editor der Website: Das Bild ruft er über die Redaktions-Route ab (nur Personen, die auf der Website erscheinen dürfen); setzt einen Join auf profilbild voraus
+export const redaktionBildUrl = sql<
+  string | null
+>`case when ${profilbild.userId} is null then null else '/api/v1/redaktion/personen/' || ${profilbild.userId} || '/bild?v=' || (extract(epoch from ${profilbild.geaendertAm}) * 1000)::bigint end`;
+
 // Wie bildUrl, für das Logo einer Stufe; setzt einen Join auf stufenlogo voraus
 export const logoUrl = sql<
   string | null

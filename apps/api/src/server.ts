@@ -62,6 +62,7 @@ import {
   starteWebsiteAbgleich,
   synchronisiereWebsite,
 } from "./website/abgleich.js";
+import { ladeDynamischeBausteine } from "./website/dynamisch-daten.js";
 import { ladeStufenfakten } from "./website/stufenfakten.js";
 import { ladeAnlassSeiten, ladeTerminlisten } from "./website/termine-liste.js";
 import { dateisystemAusgabe } from "./website/ausgabe.js";
@@ -333,6 +334,7 @@ if (
             ladeTerminlisten,
             ladeAnlassSeiten,
             ladeLadenDaten,
+            ladeDynamischeBausteine,
           ],
           kontakt: {
             adresse: konfiguration.VERANTWORTLICHE_ADRESSE,

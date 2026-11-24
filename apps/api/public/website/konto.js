@@ -6,7 +6,6 @@
 import {
   api,
   baue,
-  bandView,
   fehlerView,
   h,
   icon,
@@ -17,6 +16,7 @@ import {
   sk,
   zustandView,
 } from "./tm.js";
+import { merkeToast, toast } from "./toast.js";
 
 export const PASSWORT_MIN = 12;
 export const PASSWORT_MAX = 128;
@@ -151,7 +151,7 @@ export const istStufenleitung = (p) =>
 export function rollenText(p) {
   const stufe = (id) => p.stufen.find((s) => s.id === id)?.name ?? "";
   const aus = [
-    ...(p.admin ? ["Abteilungsleitung"] : []),
+    ...(p.abteilungsleitung ? ["Abteilungsleitung"] : []),
     ...p.rollen.map((r) =>
       `${r.typ === "stufenleitung" ? "Stufenleitung" : "Leitung"} ${stufe(r.stufeId)}`.trim(),
     ),
@@ -196,16 +196,6 @@ const karte = (id, titel, lead, hervor, ...inhalt) =>
     ),
     inhalt,
   );
-
-const meldung = (m) =>
-  m
-    ? bandView({
-        art: m.art,
-        symbol: m.art === "ok" ? "haken" : "warnung",
-        titel: m.text,
-        rolle: m.art === "ok" ? "status" : "alert",
-      })
-    : null;
 
 // «Lua Demo» → «LD»; nur Buchstaben, höchstens zwei
 export const initialen = (name) =>
@@ -347,7 +337,6 @@ export function passwortKarte(s) {
       ? "Du hast ein Startpasswort. Wähle zuerst ein eigenes. Danach kannst du die Seite nutzen."
       : "Auf allen anderen Geräten wirst du dabei abgemeldet.",
     s.markiert === "pw",
-    meldung(pw.meldung),
     h(
       "form",
       { class: "formular", novalidate: true, id: "kt-pw-form" },
@@ -398,7 +387,6 @@ export function datenschutzKarte(s) {
     "Datenschutz",
     "Bevor du weitermachst: Lies, wie die Abteilung mit Daten umgeht. Das Lesen ist keine Einwilligung. Du bestätigst nur, dass du es kennst.",
     false,
-    meldung(s.ds.meldung),
     h(
       "div",
       { class: "kto-aktion kto-aktion--zwei" },
@@ -406,7 +394,7 @@ export function datenschutzKarte(s) {
         "a",
         {
           class: "btn s",
-          href: "/datenschutz",
+          href: "/datenschutz-website",
           target: "_blank",
           rel: "noopener",
         },
@@ -431,9 +419,8 @@ export function telefonKarte(s) {
   const p = s.profil;
   const sl = istStufenleitung(p);
   const t = s.tel;
-  // Wer keine Nummer hat und keine speichern darf, braucht den Abschnitt nicht; direkt nach dem Entfernen bleibt die Karte mit der Rückmeldung stehen
-  if (!sl && !p.telefon && !t.meldung) return null;
-  const entfernt = !sl && !p.telefon;
+  // Wer keine Nummer hat und keine speichern darf, braucht den Abschnitt nicht (auch direkt nach dem Entfernen: der Toast meldet es)
+  if (!sl && !p.telefon) return null;
   const knopf = (beschriftung, extra = {}) =>
     h(
       "button",
@@ -451,53 +438,48 @@ export function telefonKarte(s) {
     "Telefon",
     sl
       ? "Eltern deiner Stufe sehen die Nummer und können dich anrufen."
-      : entfernt
-        ? null
-        : "Deine Nummer ist gespeichert. Du kannst sie nur entfernen.",
+      : "Deine Nummer ist gespeichert. Du kannst sie nur entfernen.",
     s.markiert === "tel",
-    meldung(t.meldung),
-    entfernt
-      ? null
-      : h(
-          "form",
-          { class: "formular", novalidate: true, id: "kt-tel-form" },
-          sl
-            ? feld("kt-tel", "Telefonnummer", {
-                fehler: t.fehler,
-                hilfe: h(
-                  "p",
-                  { class: "hilfe", id: "kt-tel-h" },
-                  "Zum Beispiel 079 123 45 67.",
-                ),
-                control: h("input", {
-                  class: "eingabe",
-                  id: "kt-tel",
-                  type: "text",
-                  inputmode: "tel",
-                  autocomplete: "tel",
-                  value: t.wert,
-                  "data-name": "tel",
-                  "aria-describedby": beschr("kt-tel", t.fehler, true),
-                  "aria-invalid": t.fehler ? "true" : null,
-                  ...(t.senden && { readonly: true }),
-                }),
-              })
-            : h("p", { class: "kto-nummer" }, p.telefon),
-          h(
-            "div",
-            { class: "kto-aktion" },
-            sl
-              ? knopf(
-                  t.wert === "" && p.telefon
-                    ? "Nummer entfernen"
-                    : "Nummer speichern",
-                )
-              : knopf("Nummer entfernen", {
-                  "data-aktion": "tel-weg",
-                  type: "button",
-                }),
-          ),
-        ),
+    h(
+      "form",
+      { class: "formular", novalidate: true, id: "kt-tel-form" },
+      sl
+        ? feld("kt-tel", "Telefonnummer", {
+            fehler: t.fehler,
+            hilfe: h(
+              "p",
+              { class: "hilfe", id: "kt-tel-h" },
+              "Zum Beispiel 079 123 45 67.",
+            ),
+            control: h("input", {
+              class: "eingabe",
+              id: "kt-tel",
+              type: "text",
+              inputmode: "tel",
+              autocomplete: "tel",
+              value: t.wert,
+              "data-name": "tel",
+              "aria-describedby": beschr("kt-tel", t.fehler, true),
+              "aria-invalid": t.fehler ? "true" : null,
+              ...(t.senden && { readonly: true }),
+            }),
+          })
+        : h("p", { class: "kto-nummer" }, p.telefon),
+      h(
+        "div",
+        { class: "kto-aktion" },
+        sl
+          ? knopf(
+              t.wert === "" && p.telefon
+                ? "Nummer entfernen"
+                : "Nummer speichern",
+            )
+          : knopf("Nummer entfernen", {
+              "data-aktion": "tel-weg",
+              type: "button",
+            }),
+      ),
+    ),
   );
 }
 
@@ -533,7 +515,6 @@ export function mitteilungenKarte(s) {
     "Mitteilungen in der App",
     "Diese Schalter gelten für die Cevi-OS-App auf deinem Handy. Im Browser gibt es keine Mitteilungen.",
     s.markiert === "push",
-    meldung(s.push.meldung),
     h(
       "ul",
       { class: "kto-zeilen" },
@@ -579,7 +560,11 @@ export function hilfeKarte(s) {
       "ul",
       { class: "linkliste" },
       [
-        ["/datenschutz", "Datenschutzerklärung"],
+        ["/datenschutz-website", "Datenschutzerklärung"],
+        [
+          "/datenschutz-cevi-os",
+          "Datenschutz: Cevi OS, App, Verwaltung und Website",
+        ],
         ["/termine/", "Kalender abonnieren"],
         ["/support", "Hilfe und Kontakt"],
         ["/konto-loeschen", "Konto löschen"],
@@ -597,7 +582,6 @@ export function abmeldenKarte(s) {
     "Abmelden",
     "Auf diesem Gerät oder überall.",
     false,
-    meldung(a.meldung),
     h(
       "div",
       { class: "kto-aktion kto-aktion--zwei" },
@@ -663,12 +647,13 @@ export function kontoView(s) {
       telefonKarte(s),
       passwortKarte(s),
       hilfeKarte(s),
-      abmeldenKarte(s),
     ),
+    // Eigener Block nach den Karten (Reihenfolge im Dokument), im Raster unter der Profilkarte
+    h("div", { class: "kto-ende" }, abmeldenKarte(s)),
   );
 }
 
-// Skelett in der Form der Seite: links die Profilkarte, rechts vier Karten
+// Skelett in der Form der Seite: links die Profilkarte und eine Karte darunter, rechts drei Karten
 export function ladeView() {
   const karteSk = h(
     "div",
@@ -688,6 +673,7 @@ export function ladeView() {
       ),
     ),
     h("div", { class: "kto-rechts" }, karteSk, karteSk, karteSk),
+    h("div", { class: "kto-ende" }, karteSk),
   );
 }
 
@@ -718,18 +704,16 @@ function neuerStand(profil) {
       zeigen_neu: false,
       senden: false,
       fehler: {},
-      meldung: null,
     },
     markiert: null,
     tel: {
       wert: profil.telefon ?? "",
       fehler: null,
       senden: false,
-      meldung: null,
     },
-    push: { senden: false, meldung: null },
-    ds: { senden: false, meldung: null },
-    abmelden: { bestaetigen: false, senden: false, meldung: null },
+    push: { senden: false },
+    ds: { senden: false },
+    abmelden: { bestaetigen: false, senden: false },
   };
 }
 
@@ -767,7 +751,6 @@ function start(doc, wurzel) {
       neu: s.pw.neu,
       pflicht: s.pflicht,
     });
-    s.pw.meldung = null;
     s.pw.fehler = {};
     if (fehl) {
       s.pw.fehler[fehl[0]] = fehl[1];
@@ -793,21 +776,16 @@ function start(doc, wurzel) {
       zeichne(`kt-pw-${f.feld}`);
       melde(doc, f.text);
     } else if (f) {
-      s.pw.meldung = { art: "fe", text: f.band };
       zeichne();
-      melde(doc, f.band);
+      toast(f.band, "fehler");
     } else if (s.pflicht) {
       // Jetzt geht der Rest: Profil neu laden
       await lade();
-      melde(doc, "Dein Passwort ist gespeichert.");
+      toast("Passwort gespeichert.");
     } else {
-      s.pw.meldung = {
-        art: "ok",
-        text: "Dein Passwort ist geändert. Auf den anderen Geräten bist du abgemeldet.",
-      };
       s.markiert = "pw";
       zeichne();
-      melde(doc, s.pw.meldung.text);
+      toast("Passwort geändert. Auf den anderen Geräten bist du abgemeldet.");
     }
   }
 
@@ -819,7 +797,6 @@ function start(doc, wurzel) {
       original: s.profil.telefon,
       istStufenleitung: istStufenleitung(s.profil),
     });
-    s.tel.meldung = null;
     s.tel.fehler = pr.fehler;
     if (pr.fehler) {
       zeichne("kt-tel");
@@ -836,32 +813,28 @@ function start(doc, wurzel) {
     if (r.status === 204) {
       s.profil.telefon = pr.wert === "" ? null : pr.wert;
       s.tel.wert = pr.wert;
-      s.tel.meldung = {
-        art: "ok",
-        text:
-          pr.wert === ""
-            ? "Die Nummer ist entfernt."
-            : "Die Nummer ist gespeichert.",
-      };
       s.markiert = "tel";
-    } else {
-      s.tel.meldung = {
-        art: "fe",
-        text:
-          r.status === 403
-            ? "Eine Nummer speichern nur Stufenleitungen."
-            : "Das hat nicht geklappt. Versuche es nochmals.",
-      };
+      zeichne();
+      // Nach dem Entfernen fällt die Karte weg und mit ihr der Knopf: Der Fokus geht zum Inhalt
+      if (!istStufenleitung(s.profil) && !s.profil.telefon) {
+        doc.getElementById("inhalt")?.focus();
+      }
+      toast(pr.wert === "" ? "Nummer entfernt." : "Nummer gespeichert.");
+      return;
     }
     zeichne();
-    melde(doc, s.tel.meldung.text);
+    toast(
+      r.status === 403
+        ? "Eine Nummer speichern nur Stufenleitungen."
+        : "Das hat nicht geklappt. Versuche es nochmals.",
+      "fehler",
+    );
   }
 
   async function schalte(schluessel, wert) {
     if (s.push.senden || s.profil[schluessel] === wert) return;
     s.markiert = null;
     s.push.senden = true;
-    s.push.meldung = null;
     zeichne();
     const r = await api("/ich", {
       methode: "PATCH",
@@ -870,39 +843,30 @@ function start(doc, wurzel) {
     s.push.senden = false;
     if (r.status === 204) {
       s.profil[schluessel] = wert;
-      s.push.meldung = { art: "ok", text: "Gespeichert." };
       s.markiert = "push";
-    } else {
-      s.push.meldung = {
-        art: "fe",
-        text: "Das hat nicht geklappt. Der Schalter ist unverändert.",
-      };
     }
     zeichne();
     doc
       .querySelector(`[data-aktion="push"][data-schluessel="${schluessel}"]`)
       ?.focus();
-    melde(doc, s.push.meldung.text);
+    if (r.status === 204) toast("Gespeichert.");
+    else
+      toast("Das hat nicht geklappt. Der Schalter ist unverändert.", "fehler");
   }
 
   async function nehmeKenntnis() {
     if (s.ds.senden) return;
     s.ds.senden = true;
-    s.ds.meldung = null;
     zeichne();
     const r = await api("/ich/datenschutz", { methode: "POST" });
     s.ds.senden = false;
     if (r.status === 204) {
       s.profil.datenschutzGelesenAm = new Date().toISOString();
       zeichne();
-      melde(doc, "Danke. Deine Kenntnisnahme ist gespeichert.");
+      toast("Danke. Kenntnisnahme gespeichert.");
     } else {
-      s.ds.meldung = {
-        art: "fe",
-        text: "Das hat nicht geklappt. Versuche es nochmals.",
-      };
       zeichne();
-      melde(doc, s.ds.meldung.text);
+      toast("Das hat nicht geklappt. Versuche es nochmals.", "fehler");
     }
   }
 
@@ -911,7 +875,6 @@ function start(doc, wurzel) {
     const a = s.abmelden;
     if (a.senden) return;
     a.senden = true;
-    a.meldung = null;
     zeichne();
     const r = await api(
       alle ? "/api/auth/revoke-sessions" : "/api/auth/sign-out",
@@ -920,16 +883,13 @@ function start(doc, wurzel) {
     a.senden = false;
     // 401: Es gab schon keine Sitzung mehr
     if (r.status === 200 || r.status === 401) {
+      merkeToast("Abgemeldet.");
       doc.location.assign("/anmelden");
       return;
     }
     a.bestaetigen = false;
-    a.meldung = {
-      art: "fe",
-      text: "Abmelden hat nicht geklappt. Versuche es nochmals.",
-    };
     zeichne();
-    melde(doc, a.meldung.text);
+    toast("Abmelden hat nicht geklappt. Versuche es nochmals.", "fehler");
   }
 
   wurzel.addEventListener("input", (e) => {

@@ -30,7 +30,7 @@ import {
 } from "../../ortssuche/index.js";
 import { hatPlattformRecht } from "../../plattform.js";
 import { verlange } from "../../rechtemodell/darf.js";
-import type { Person } from "../../rechte.js";
+import { siehtAlles, type Person } from "../../rechte.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import {
   heuteZuerich,
@@ -162,7 +162,10 @@ export const standortAntwort = (s: Standort) => ({
 
 // Wer mindestens eine Stufenseite bearbeiten darf, pflegt die Orte. Eine Abfrage höchstens; Abteilungsleitung und Stufenleitung brauchen keine
 export async function darfOrteVerwalten(db: Db, person: Person) {
-  if (person.admin || person.rollen.some((r) => r.typ === "stufenleitung")) {
+  if (
+    siehtAlles(person) ||
+    person.rollen.some((r) => r.typ === "stufenleitung")
+  ) {
     return true;
   }
   if (await hatPlattformRecht(db, person, "seiten.bearbeiten")) return true;

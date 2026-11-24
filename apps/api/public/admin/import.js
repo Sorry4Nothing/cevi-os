@@ -777,13 +777,6 @@ function zeichne(bereich, ctx, stufen, neu) {
   function zeigeErgebnis(ergebnis) {
     const leitende = ergebnis.leitende;
     importiert = { kinder: ergebnis.kinder, leitende: leitende.length };
-    const rueck = el("p", { class: "hilfe", role: "status" });
-    const rueckmeldung = (text) => {
-      rueck.textContent = "";
-      setTimeout(() => {
-        rueck.textContent = text;
-      }, 50);
-    };
     const alsText = () =>
       leitende
         .map((p) => [p.name, p.benutzername, p.startpasswort].join("\t"))
@@ -826,10 +819,11 @@ function zeichne(bereich, ctx, stufen, neu) {
             onclick: async () => {
               try {
                 await navigator.clipboard.writeText(alsText());
-                rueckmeldung("Kopiert.");
+                ctx.melde("Kopiert.");
               } catch {
-                rueckmeldung(
+                ctx.melde(
                   "Kopieren ist nicht möglich. Speichere die Liste als CSV.",
+                  "fehler",
                 );
               }
             },
@@ -838,11 +832,10 @@ function zeichne(bereich, ctx, stufen, neu) {
             symbol: "ablage",
             onclick: () => {
               speichere(leitende);
-              rueckmeldung("Die Datei wird gespeichert.");
+              ctx.melde("Die Datei wird gespeichert.", "info");
             },
           }),
         ),
-        rueck,
         liste,
       );
     } else {

@@ -10,12 +10,14 @@ import type { Kontakt } from "../../website/rendern.js";
 import type { MedienHandler } from "../medien.js";
 import type { OrtssucheHolen } from "../../ortssuche/index.js";
 import { erstelleAuswahlRouten } from "./auswahl.js";
+import { erstelleBausteineVorschauRouten } from "./bausteine-vorschau.js";
 import { erstelleEckdatenRouten } from "./eckdaten.js";
 import { erstelleWebsiteEinstellungsRouten } from "./einstellungen.js";
 import { erstelleEditorIchRouten } from "./ich.js";
 import { erstelleEditorMedienRouten } from "./medien.js";
 import { erstelleOrteRouten } from "./orte.js";
 import { erstelleSeitenRouten } from "./seiten.js";
+import { erstelleTeamRouten } from "./team.js";
 import { erstelleSeitenInhaltRouten } from "./seiten-inhalt.js";
 import { erstelleVorlagenRouten } from "./vorlagen.js";
 import { erstelleWeiterleitungsRouten } from "./weiterleitungen.js";
@@ -44,6 +46,7 @@ export function erstelleEditorRouten({
         return c.json(
           zweiterFaktorFehlt(
             "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+            person,
           ),
           403,
         );
@@ -54,10 +57,12 @@ export function erstelleEditorRouten({
     .route("/website", erstelleWebsiteEinstellungsRouten({ db }))
     .route("/seiten", erstelleSeitenRouten({ db }))
     .route("/seiten", erstelleSeitenInhaltRouten({ db, kontakt }))
+    .route("/bausteine", erstelleBausteineVorschauRouten({ db, kontakt }))
     .route("/stufen", erstelleEckdatenRouten({ db }))
     .route("/orte", erstelleOrteRouten({ db, ortssuche }))
     .route("/medien", erstelleEditorMedienRouten({ db, handler: medien }))
     .route("/", erstelleAuswahlRouten({ db }))
+    .route("/", erstelleTeamRouten({ db }))
     .route("/", erstelleVorlagenRouten({ db }))
     .route("/weiterleitungen", erstelleWeiterleitungsRouten({ db }));
 }

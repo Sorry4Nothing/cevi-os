@@ -34,7 +34,7 @@ services:
       MEDIEN_S3_ZUGANGSSCHLUESSEL:
       MEDIEN_S3_GEHEIMSCHLUESSEL:
       MEDIEN_S3_PFADSTIL:
-      # Verantwortliche Stelle, Anschrift und Kontakt der Seiten /datenschutz, /konto-loeschen und /support: ohne Wert gelten die Vorgaben im Code, ein Wert in deploy/.env überschreibt sie
+      # Verantwortliche Stelle, Anschrift und Kontakt der Seiten /konto-loeschen und /support: ohne Wert gelten die Vorgaben im Code, ein Wert in deploy/.env überschreibt sie
       VERANTWORTLICHE_STELLE:
       VERANTWORTLICHE_ADRESSE:
       KONTAKT_EMAIL:

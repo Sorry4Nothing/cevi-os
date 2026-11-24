@@ -219,7 +219,7 @@ const profil = (extra: Record<string, unknown> = {}) => ({
   telefon: null,
   pushChat: true,
   pushProgramme: false,
-  admin: false,
+  abteilungsleitung: false,
   rollen: [],
   stufen: [{ id: "s1", name: "Artemis", kuerzel: "A" }],
   kinder: [],
@@ -329,7 +329,7 @@ describe("Mein Konto (#671)", () => {
     expect(
       konto.rollenText(
         profil({
-          admin: true,
+          abteilungsleitung: true,
           rollen: [{ stufeId: "s1", typ: "stufenleitung" }],
           kinder: [{ id: "k", vorname: "Nils", nachname: "M", stufeId: "s1" }],
         }),
@@ -449,6 +449,7 @@ describe("Mein Konto (#671)", () => {
     const gelesen = html(konto.kontoView(stand(profil())));
     expect(gelesen).toContain("kto-links");
     expect(gelesen).toContain("kto-rechts");
+    expect(gelesen).toContain("kto-ende");
     expect(gelesen).toContain("kto-profil");
     expect(gelesen).not.toContain("Zur Kenntnis genommen");
     // Der Tag der Kenntnisnahme steht in «Datenschutz und Hilfe»
@@ -457,7 +458,7 @@ describe("Mein Konto (#671)", () => {
       konto.kontoView(stand(profil({ datenschutzGelesenAm: null }))),
     );
     expect(offen).toContain("Zur Kenntnis genommen");
-    expect(offen).toContain('href="/datenschutz"');
+    expect(offen).toContain('href="/datenschutz-website"');
   });
 
   test("Karte nach dem Speichern: die geänderte Karte ist hervorgehoben", () => {
@@ -482,21 +483,8 @@ describe("Mein Konto (#671)", () => {
     expect(eltern).toContain("079 123 45 67");
     expect(eltern).toContain('data-aktion="tel-weg"');
     expect(eltern).not.toContain("<input");
-    // Direkt nach dem Entfernen bleibt die Karte mit der Rückmeldung, ohne Formular
-    const weg = html(
-      konto.telefonKarte(
-        stand(profil(), {
-          tel: {
-            wert: "",
-            fehler: null,
-            senden: false,
-            meldung: { art: "ok", text: "Die Nummer ist entfernt." },
-          },
-        }),
-      ),
-    );
-    expect(weg).toContain("Die Nummer ist entfernt.");
-    expect(weg).not.toContain("<form");
+    // Nach dem Entfernen fällt die Karte weg; der Toast meldet es (#762)
+    expect(konto.telefonKarte(stand(profil({ telefon: null })))).toBeNull();
     const sl = profil({ rollen: [{ stufeId: "s1", typ: "stufenleitung" }] });
     const h = html(konto.telefonKarte(stand(sl)));
     expect(h).toContain("Nummer speichern");
@@ -546,7 +534,7 @@ describe("Mein Konto (#671)", () => {
     expect(frage).toContain('data-aktion="alle-nein"');
     const hilfe = html(konto.hilfeKarte(stand(profil())));
     for (const ziel of [
-      "/datenschutz",
+      "/datenschutz-website",
       "/support",
       "/konto-loeschen",
       "/termine/",
@@ -566,6 +554,7 @@ describe("Mein Konto (#671)", () => {
     expect(lade).toContain('aria-busy="true"');
     expect(lade).toContain("kto-links");
     expect(lade).toContain("kto-rechts");
+    expect(lade).toContain("kto-ende");
     // Ein Skelett ist für Hilfstechnik verborgen
     expect(lade).toContain('aria-hidden="true"');
   });

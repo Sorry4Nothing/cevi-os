@@ -121,6 +121,9 @@ main:focus {
 
 .nur-leser {
   position: absolute;
+  /* Ohne Versatz bliebe die Marke an ihrer Stelle im Fluss: In einem Scrollbereich ohne Bezugsrahmen verlängerte sie das ganze Dokument (leere Fläche, #723, #756) */
+  top: 0;
+  left: 0;
   width: 1px;
   height: 1px;
   overflow: hidden;
@@ -244,7 +247,7 @@ main:focus {
   max-width: var(--seitenbreite);
   min-width: 0;
   margin: 0 auto;
-  padding: 2.5rem var(--seitenrand) 4rem;
+  padding: 2.5rem var(--seitenrand) var(--inhalt-unten);
 }
 
 .rahmen {
@@ -274,14 +277,6 @@ main:focus {
 
 .kopf-aktion:empty {
   display: none;
-}
-
-/* Die Live-Region bleibt im Baum, auch wenn sie leer ist; leer nimmt sie keinen Platz */
-.rueckmeldung:empty {
-  height: 0;
-  margin-top: -24px;
-  padding: 0;
-  overflow: hidden;
 }
 
 #bereich {

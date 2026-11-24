@@ -47,8 +47,8 @@
 
 .mn-offen {
   position: sticky;
-  top: 16px;
-  max-height: calc(100vh - 32px);
+  top: calc(var(--leiste-hoehe) + 1rem);
+  max-height: calc(100dvh - var(--leiste-hoehe) - 2rem);
   overflow-y: auto;
 }
 

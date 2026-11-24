@@ -570,7 +570,7 @@ Seit März 2024 unverändert (INP ersetzte FID). Für eingeloggte Verwaltung zä
 ## 2.7 Web-Komponenten-Regeln
 
 - **Modale** sparsam, nur kurze fokussierte Aufgaben; nie Modal auf Modal; immer sichtbares Schliessen (X) und `Esc`.
-- **Toasts:** nur Unkritisches, ≥ 5 s, pausieren bei Hover/Fokus, nicht einziger Weg zu einer Aktion (ausser Rückgängig).
+- **Toasts:** nur Unkritisches, ≥ 5 s, pausieren bei Hover/Fokus, nicht einziger Weg zu einer Aktion (ausser Rückgängig). Cevi OS weicht ab: Erfolg 4 s, Fehler 8 s (Teil 9).
 - **Tooltips** nur ergänzend, per Tastatur erreichbar.
 - **Auswahl:** < 5 Optionen Radio/Segmented; > 15 mit Suche.
 - **Datum:** Format sichtbar (TT.MM.JJJJ), Kalender *und* Tippen.
@@ -1036,7 +1036,8 @@ Quelle: die Repos `Sorry4Nothing/cevi-os` (Backend + Web-Verwaltung `/admin`), `
 - **Beide Apps nur Hochformat** (Entscheid, bewusste Abweichung von Checkliste 5.8).
 - **«Die App zeigt nur, was die API erlaubt»:** fehlt eine Aktion in der API-Antwort, fehlt der Button – er wird **nicht** ausgegraut (geht der allgemeinen Regel in 2.6 vor).
 - **Jede Aktion antwortet sofort** (Ladekreis im Knopf, Text bleibt, kein zweiter Tipp, Screenreader hört z. B. «Wird gespeichert»); Overlay über der App erst nach 250 ms und nie bei Hintergrundanfragen; Hinweis nach 4 s, dass es länger dauert.
-- **Fehler, Warnungen und Rückfragen verschwinden nie von selbst** (Checkliste 8.2); sie bleiben, bis sie geschlossen oder behoben sind (geht 2.7/3.5 vor). Ausnahme Web-Verwaltung (Entscheid des Auftraggebers, November 2026): Erfolgs- und Infomeldungen ohne Aktion blenden nach 6 Sekunden aus, mit Pause bei Zeiger und Fokus, Schliessen-Knopf und Statusregion. In den Apps gilt weiter: keine selbst verschwindenden Meldungen.
+- **Fehler, Warnungen und Rückfragen verschwinden nie von selbst** (Checkliste 8.2); sie bleiben, bis sie geschlossen oder behoben sind (geht 2.7/3.5 vor). Ausnahme Web-Verwaltung (Entscheid des Auftraggebers, November 2026, #761): Rückmeldungen nach einer Aktion sind **Toasts** an einer festen Stelle (unten links), Erfolg und Info nach 4 Sekunden, nicht blockierende Fehler und Warnungen nach 8 Sekunden, eine Meldung mit Aktion bleibt bis zum Schliessen; Pause bei Zeiger und Fokus, Schliessen-Knopf, Esc, Statusregion (höflich, nur Fehler als `alert`), höchstens drei zugleich (geht 2.7 «≥ 5 s» vor). **Bleibt inline:** Feldfehler am Feld, Fehlerzusammenfassung eines offenen Formulars, Lade-/Leer-/Fehlerzustände der Ansicht, dauerhafte Zustände (Marke «Nicht gespeichert», Banner, Berechtigungshinweise, Verbindungsstatus) und Meldungen, die eine Entscheidung verlangen. In den Apps gilt weiter: keine selbst verschwindenden Meldungen.
+- **Keine leeren Flächen (Web-Verwaltung, #756):** Die Höhe eines Bereichs kommt aus dem verfügbaren Platz, nie aus «vh minus geschätzter Kopfhöhe» und nie als Mindesthöhe in Fensterhöhe. Scrollbereiche nutzen `--scroll-hoehe` (Fenster minus haftende Leiste), haftende Bereiche setzen `top` unter die Leiste; unsichtbare absolut gesetzte Knoten (`.nur-leser`) bekommen einen Versatz oder einen Bezugsrahmen. Prüfen bei 1280 x 720, 2560 x 1440 und 3774 x 2020 (Zoom 100 % und 150 %): Dokumenthöhe gleich Inhaltshöhe. Android und iOS: Listen und Bildschirme füllen den Platz oder enden mit dem Inhalt, keine festen Höhen als Reserve.
 - **Kein Feld «Passwort wiederholen»** (Checkliste 9.7); Passwort-Auge mit Ansage des Zustands.
 - **Neue Interaktionsmuster (Dialog, Sheet, Popup) nicht ungefragt einführen.** Wo der Entwurf mehr zeigt als API oder Issue, gilt das Issue.
 - **Sprache:** nur Deutsch, Schweizer Schreibweise, «du», kurze Sätze, Buttons sind Verben, keine Emojis, Anführungszeichen «». Code/Bezeichner englisch, Texte und Doku deutsch.

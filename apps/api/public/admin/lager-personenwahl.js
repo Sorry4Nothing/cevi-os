@@ -1,9 +1,10 @@
 import { auswahl, avatar, el, icon, knopf, neueId } from "./dom.js";
 import { ROLLEN } from "./lager-gemeinsam.js";
+import { melde } from "./melden.js";
 
 // Personen für ein Lager wählen (#592): Suchfeld, Personen mit Gesicht zum Ankreuzen, die Gewählten als Chips zum Entfernen, eine Rolle für alle Gewählten, ein Knopf «Hinzufügen». Mehrere Personen auf einmal. Die Liste der Personen lädt der Aufrufer (eine Abfrage); gespeichert wird in beiHinzufuegen.
 // personen: [{ id, name, ceviName? }]; ausgeschlossen: Set der Personen, die schon dabei sind
-// beiHinzufuegen(liste, rolle): darf ein Promise liefern und werfen; danach ist die Wahl leer
+// beiHinzufuegen(liste, rolle): darf ein Promise liefern und werfen; danach ist die Wahl leer. Liefert es false, hat der Aufrufer schon selbst gemeldet
 // Der Name der Rolle im Knopf und im Hinweis kommt aus ROLLEN; Lagerleitung darf immer alles
 export function personenWahl({
   titel = "Personen hinzufügen",
@@ -147,15 +148,17 @@ export function personenWahl({
     hinzu.disabled = true;
     hinzu.setAttribute("aria-busy", "true");
     try {
-      await beiHinzufuegen(wahl, wer);
+      const selbst = await beiHinzufuegen(wahl, wer);
       for (const p of wahl) ausgeschlossen.add(p.id);
       gewaehlt.clear();
       suche.value = "";
       zeichne();
-      status.textContent = `${wahl.length === 1 ? "1 Person" : `${wahl.length} Personen`} als ${rollenName(wer)} hinzugefügt.`;
+      if (selbst !== false)
+        melde(
+          `${wahl.length === 1 ? "1 Person" : `${wahl.length} Personen`} als ${rollenName(wer)} hinzugefügt.`,
+        );
     } catch (f) {
-      fehler.textContent = fehlertext(f);
-      fehler.hidden = false;
+      melde(fehlertext(f), "fehler");
     } finally {
       hinzu.disabled = false;
       hinzu.removeAttribute("aria-busy");

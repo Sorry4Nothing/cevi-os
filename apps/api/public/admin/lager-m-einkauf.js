@@ -675,8 +675,7 @@ function zeichne(ctx, lagerId, lager, daten, neuLaden) {
       ctx.melde(`«${name}» steht auf der Liste.`);
       neuLaden();
     } catch (f) {
-      schnellFehler.textContent = meldung(f);
-      schnellFehler.hidden = false;
+      ctx.melde(meldung(f), "fehler");
     }
   };
   for (const f of [schnellName, schnellMenge, schnellEinheit])

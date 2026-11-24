@@ -1,5 +1,5 @@
 // Welche Daten Cevi OS bearbeitet: jede Spalte der Datenbank mit ihrer Kategorie, dazu Zweck und Frist je Kategorie.
-// Ein Test hält diese Datei, das Drizzle-Schema und public/datenschutz.html zusammen (test/datenkategorien.test.ts).
+// Ein Test hält diese Datei und das Drizzle-Schema zusammen (test/datenkategorien.test.ts).
 // Die Angaben für Apple «App Privacy» und Google «Data safety» stammen aus derselben Datei; sie sind ein Vorschlag und werden vor dem Store-Eintrag gegen die aktuellen Formulare geprüft.
 
 export type Kategorie = {
@@ -831,6 +831,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "user_agent",
       "user_id",
       "impersonated_by",
+      "zweiter_faktor_geprueft",
     ],
   },
   stufe: {
@@ -1497,6 +1498,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     rollen: ["user_id", "rolle_id", "erstellt_am"],
   },
   plattform_entwickler: {
+    rollen: ["user_id", "erstellt_am"],
+  },
+  abteilungsleitung_person: {
     rollen: ["user_id", "erstellt_am"],
   },
   abteilungsleitung_recht: {

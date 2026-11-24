@@ -1,13 +1,5 @@
 import { createHash } from "node:crypto";
-import {
-  and,
-  eq,
-  inArray,
-  isNotNull,
-  isNull,
-  ne,
-  sql as roh,
-} from "drizzle-orm";
+import { and, eq, inArray, isNotNull, ne, sql as roh } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { verbindeDatenbank } from "../datenbank.js";
 import { erstelleDb, type Db } from "../db/client.js";
@@ -22,6 +14,7 @@ import {
 } from "../db/schema.js";
 import { fehlerCode } from "../kalender/fehler.js";
 import { log } from "../log.js";
+import { setzeSeitenpfade } from "./dynamisch-daten.js";
 import { istAusgabePfad, type Ausgabe } from "./ausgabe.js";
 import {
   pruefeDokument,
@@ -29,7 +22,13 @@ import {
   type Seitendokument,
 } from "./dokument.js";
 import { aufWebsiteEreignis } from "./ereignisse.js";
-import { ladeWebsitePersonen, PERSON_DATEI, personenIn } from "./personen.js";
+import {
+  ladeWebsitePersonen,
+  PERSON_DATEI,
+  personenIn,
+  sichtbarePerson,
+  teamZeilen,
+} from "./personen.js";
 import {
   keineDaten,
   rendereAnmeldung,
@@ -60,6 +59,10 @@ import {
   zeichenVersion,
   type ZeichenDateien,
 } from "./zeichen.js";
+import {
+  DATENSCHUTZ_CEVI_OS_DATEI,
+  rendereDatenschutzCeviOs,
+} from "./datenschutz-cevi-os.js";
 import {
   DATENPLAN_DATEI,
   rendereDatenplan,
@@ -147,13 +150,6 @@ type Zeile = {
   veroeffentlichteVersionId: string | null;
   ausgabeHash: string | null;
 };
-
-// Cevi-Name und Funktion, nie der Name im Konto: Wer keinen Cevi-Namen hat, erscheint nicht
-const sichtbarePerson = and(
-  isNull(user.deaktiviertAm),
-  roh`${user.banned} is not true`,
-  isNotNull(user.ceviName),
-);
 
 // Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke).
 // Die Fassung für den dunklen Modus (#558) kommt in derselben Abfrage mit; für sie gelten dieselben Bedingungen, sonst fehlt sie
@@ -341,25 +337,14 @@ export async function ladeDaten(
         ),
       );
     stufenIds.push(...tags.filter((t) => t.typ === "stufe").map((t) => t.id));
-    const mitglieder = await db
-      .select({
-        tagId: personTag.tagId,
-        name: user.ceviName,
-        funktion: personTag.rolle,
-      })
-      .from(personTag)
-      .innerJoin(user, eq(user.id, personTag.userId))
-      .where(
-        and(
-          inArray(
-            personTag.tagId,
+    const mitglieder =
+      tags.length > 0
+        ? await teamZeilen(
+            db,
+            abteilungId,
             tags.map((t) => t.id),
-          ),
-          eq(user.abteilungId, abteilungId),
-          sichtbarePerson,
-        ),
-      )
-      .orderBy(roh`${personTag.prioritaet} asc nulls last`, user.ceviName);
+          )
+        : [];
     for (const t of tags) {
       teams.set(t.id, {
         name: t.name,
@@ -594,6 +579,8 @@ export async function erzeugeWebsite(
       if (pfad) t.seitePfad = pfad;
     }
   }
+  // Dasselbe für die Anlässe der Bausteine aus Cevi OS (#740)
+  setzeSeitenpfade(daten.dynamisch, (id) => sichtbar.get(id)?.pfad);
   // Impressum und Datenschutz stehen im Fuss, nicht in der Leiste; ohne Seite «Datenschutz» führt der Fuss auf die Erklärung der Plattform, ein Impressum nennt er nur, wenn es die Seite gibt
   const fusspfad = (adresse: string) =>
     [...sichtbar.values()].find((z) => z.pfad === `/${adresse}`)?.pfad;
@@ -645,6 +632,7 @@ export async function erzeugeWebsite(
     STYLESHEET,
     ANMELDUNG,
     ...TERMINE_DATEIEN,
+    DATENSCHUTZ_CEVI_OS_DATEI,
     DATENPLAN_DATEI,
     ...Object.keys(opt.skripte ?? {}).map((n) => `website/${n}`),
     ...(zeichen ? ZEICHEN_DATEIEN : []),
@@ -720,6 +708,8 @@ export async function erzeugeWebsite(
     [STYLESHEET, opt.stylesheet],
     [ANMELDUNG, rendereAnmeldung(kontext)],
     ...rendereTermineSeiten(kontext),
+    // Die feste Datenschutzseite für Cevi OS (#712): Text im Code, keine Datenbank
+    rendereDatenschutzCeviOs(kontext),
     // Der öffentliche Datenplan (#564) als Datei: Die Seite «Termine» liest sie im Browser
     rendereDatenplan(kontext),
     ...Object.entries(opt.skripte ?? {}).map(

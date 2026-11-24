@@ -1,4 +1,4 @@
-import { anfrage, fehlertext } from "./api.js";
+import { fehlertext } from "./api.js";
 import { el, feld, knopf, neueId, tag } from "./dom.js";
 import { loescheFeldFehler } from "./website-dialoge.js";
 import {
@@ -9,14 +9,31 @@ import {
 } from "./website-richtext.js";
 import { sk } from "./lader.js";
 import { sortierListe } from "./sortieren.js";
+import { medienTypen, MEDIEN_KATALOG } from "./website-felder-medien.js";
 import { symbol } from "./website-symbole.js";
+import { KATALOG_HANDLUNG, TYPEN_HANDLUNG } from "./website-felder-handlung.js";
+import {
+  TEXT_FELDNAMEN,
+  TEXT_KATALOG,
+  TEXT_TYPEN,
+} from "./website-felder-text.js";
+import {
+  ladePersonen,
+  personenAuswahl,
+  teamAnzeige,
+  PERSON_HILFE,
+} from "./website-personenwahl.js";
+import {
+  dynamischeBausteine,
+  FELDNAMEN_DYNAMISCH,
+  VERWEIS_TEXTE_DYNAMISCH,
+} from "./website-felder-dynamisch.js";
 
 // Felder und Typen der Bausteine (Boards E3 und E4). Ein Baustein hat einen Typ mit Name, Kurztext für die Liste, Prüfung und Formular.
 // Das Formular arbeitet auf einer Kopie des Bausteins (b) im Seitenblatt «Baustein bearbeiten»; erst «Übernehmen» schreibt ins Dokument.
 // k ist der Kontext des Formulars: { tags, tagNamen, personNamen, medien (Map), waehleBild(fn), aendere(), formNeu(b, fokus), kannAlt, altAenderung(mediumId, text) }
 // reg(pfad, wurzel, ziel) meldet ein Feld an die Fehlerliste an (Pfad wie beim Server ohne «bausteine.<n>.», zum Beispiel «daten.text»).
 
-const API = "/api/v1/redaktion";
 const MAX_TEXT_ZEICHEN = 20000;
 export const MAX_KARTEN = 24;
 export const MAX_GALERIE = 50;
@@ -44,10 +61,11 @@ const EINTRAG_NAMEN = {
   zahlen: "Zahl",
 };
 
-const kuerze = (text, n = 60) =>
+export const kuerze = (text, n = 60) =>
   text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text;
-const anzahlText = (n, eins, viele) => (n === 1 ? eins : `${n} ${viele}`);
-const LINK_HILFE =
+export const anzahlText = (n, eins, viele) =>
+  n === 1 ? eins : `${n} ${viele}`;
+export const LINK_HILFE =
   "Eine Seite dieser Website (zum Beispiel /stufen/woelfe), eine Webadresse mit https, eine E-Mail-Adresse mit mailto: oder eine Telefonnummer mit tel:.";
 
 // Namen der Felder und Texte zu den Codes der Prüfung des Servers (zod und Verweisprüfung)
@@ -84,6 +102,20 @@ export const FELDNAMEN = {
   email: "Die E-Mail-Adresse",
   preis: "Der Preis",
   hinweis: "Der Hinweis",
+  untertitel: "Der Untertitel",
+  schaltflaechen: "Die Schaltflächen",
+  felder: "Die Angaben",
+  nachricht: "Die Nachricht",
+  // Bilder und Medien (#742)
+  spalten: "Die Zahl der Spalten",
+  format: "Das Format",
+  position: "Die Lage des Textes",
+  hoehe: "Die Höhe",
+  fokusX: "Der waagrechte Fokus",
+  fokusY: "Der senkrechte Fokus",
+  vorherText: "Die Bezeichnung links",
+  nachherText: "Die Bezeichnung rechts",
+  ...TEXT_FELDNAMEN,
 };
 export const CODE_TEXTE = {
   too_small: "fehlt oder ist zu kurz.",
@@ -102,9 +134,11 @@ export const VERWEIS_TEXTE = {
   MEDIUM_NICHT_OEFFENTLICH:
     "Das Bild ist nicht öffentlich. Wähle ein öffentliches Bild oder stelle den Baustein auf «Nur angemeldet».",
   MEDIUM_ALT_FEHLT:
-    "Im Karussell braucht jedes Bild einen Alt-Text. Wähle ein Bild mit Alt-Text oder ergänze ihn in der Medienbibliothek.",
+    "Im Karussell, im Bildvergleich und in der Logo-Reihe braucht jedes Bild einen Alt-Text. Wähle ein Bild mit Alt-Text oder ergänze ihn in der Medienbibliothek.",
   TAG_UNBEKANNT: "Die gewählte Gruppe gibt es nicht mehr.",
   PERSON_UNBEKANNT: "Die gewählte Person gibt es nicht mehr.",
+  PERSON_NICHT_AUF_WEBSITE:
+    "Die gewählte Person ist keine Leitung und erscheint nicht auf der Website. Wähle eine andere Person oder entferne den Eintrag.",
   SEITE_UNBEKANNT:
     "Ein Link zeigt auf eine Seite, die es nicht gibt. Prüfe die Adresse.",
 };
@@ -118,7 +152,7 @@ export const feldName = (pfad) =>
   ] ?? "Die Eingabe";
 
 // Ein Feld an die Fehler anmelden: Der Fehler verschwindet, sobald die Person das Feld ändert
-function anmelden(reg, pfad, f) {
+export function anmelden(reg, pfad, f) {
   reg(pfad, f.wurzel, f.eingabe);
   const weg = () => loescheFeldFehler(f.wurzel);
   f.eingabe.addEventListener("input", weg);
@@ -126,7 +160,7 @@ function anmelden(reg, pfad, f) {
 }
 
 // Textfeld oder Zahlfeld, das beim Tippen in die Kopie des Bausteins schreibt
-function eingabe(k, b, reg, schluessel, label, optionen = {}) {
+export function eingabe(k, b, reg, schluessel, label, optionen = {}) {
   const { optional, zahl, hilfe, ...rest } = optionen;
   const f = feld({
     label,
@@ -146,7 +180,7 @@ function eingabe(k, b, reg, schluessel, label, optionen = {}) {
 }
 
 // Wie eingabe(), für einen Eintrag einer Liste (Karte, Galeriebild)
-function teilEingabe(
+export function teilEingabe(
   k,
   b,
   reg,
@@ -195,7 +229,7 @@ function waehler({ label, optionen, wert }) {
 }
 
 // Auswahl aus wenigen Werten als Segment (Radios); Zahlen bleiben Zahlen
-function wahl(k, b, reg, schluessel, label, optionen) {
+export function wahl(k, b, reg, schluessel, label, optionen) {
   const name = neueId("segment");
   const wurzel = el(
     "fieldset",
@@ -297,7 +331,7 @@ export const groesseText = (bytes) =>
 // schluessel: Feld des Eintrags mit der Bild-ID; optional: das Bild darf fehlen (Stufenkarte), «Bild entfernen» erscheint
 // alt: «pflicht» (Bild, Karussell: ohne Alt-Text kein Übernehmen), «zeigen» (der Alt-Text steht da und lässt sich ändern) oder ein Satz, warum das Bild hier keinen braucht (Porträt)
 // name: Beschriftung («Bild», «Foto der Station», «Porträt»); klein: Vorschau in halber Höhe, für Einträge einer Liste
-function bildWahl(
+export function bildWahl(
   k,
   b,
   reg,
@@ -467,7 +501,7 @@ function altFeld(k, medium, alt, reg) {
 
 // Eine Liste von Teilen (Bilder, Karten) mit «Hinzufügen», «Entfernen» und der Reihenfolge wie bei den Bausteinen (Sortierliste: Griff, Tastatur, Hoch und Runter).
 // Jede Änderung der Liste zeichnet das Formular des Bausteins neu und setzt den Fokus auf den betroffenen Teil.
-function listenForm(
+export function listenForm(
   k,
   b,
   { liste, max, hinzuText, hinzu, zeile, name, pfadName, listeName },
@@ -698,7 +732,7 @@ function kartenForm(k, b, reg) {
 // --- Bausteine der Inhaltsseiten (#560): Listen von Einträgen mit Pflicht- und freiwilligen Feldern ---------------------------
 
 // Fehlt ein Pflichtfeld eines Eintrags, meldet die Prüfung den Pfad des Feldes
-const pflicht = (d, ...felder) => [
+export const pflicht = (d, ...felder) => [
   ...((d.eintraege ?? []).length === 0 ? [["daten.eintraege", "fehlt."]] : []),
   ...(d.eintraege ?? []).flatMap((x, i) =>
     felder.flatMap((f) =>
@@ -720,7 +754,7 @@ function bildOptional(k, b, reg, eintrag, pfad, bild) {
 }
 
 // felder: [Schlüssel, Beschriftung, Optionen von teilEingabe]; bild: der Eintrag hat ein freiwilliges Bild
-function eintraegeForm(k, b, reg, { name, max, felder, bild = false }) {
+export function eintraegeForm(k, b, reg, { name, max, felder, bild = false }) {
   return listenForm(k, b, {
     name,
     listeName: "Einträge",
@@ -816,75 +850,65 @@ function gruppenPillen(k, b, reg, schluessel, label, optional) {
   return wurzel;
 }
 
-// Erst die Gruppe, dann die Person der Gruppe (die Liste kommt vom Server, nur für die gewählte Gruppe)
-function personWahl(k, b, reg) {
+// Person direkt wählen (#755, Fotos #760): eine Auswahl mit allen Leitenden der Abteilung, nach Gruppe geordnet, mit Foto (website-personenwahl.js). Die Liste kommt vom Server und enthält nur, wer auf der Website erscheinen darf (Rolle mit Aussenwirkung); sie wird je Editor einmal geladen (k.personen).
+// ziel: das Objekt mit der personId (der Baustein oder ein Eintrag der Liste); optional: «Keine Person» ist möglich
+function personWahl(k, b, reg, ziel, pfad, { optional = false } = {}) {
   const wurzel = el("div", { class: "feld" });
-  const personen = el("div");
-  const gewaehlt = el("p", { class: "hilfe" });
-  const zeigeGewaehlt = () => {
-    const name = k.personNamen.get(b.daten.personId);
-    gewaehlt.textContent = b.daten.personId
-      ? name
-        ? `Gewählt: ${name}`
-        : "Eine Person ist gewählt. Ihr Name erscheint in der Vorschau."
-      : "Noch keine Person gewählt.";
+  const hilfeId = neueId("person-hilfe");
+  const hilfe = el("p", { class: "hilfe", id: hilfeId }, PERSON_HILFE);
+  const platz = el("div");
+  const zeichne = (liste) => {
+    const aktuell = ziel.personId;
+    // Die gewählte Person steht nicht (mehr) zur Auswahl, zum Beispiel weil ihr die Rolle entzogen wurde: sie bleibt sichtbar, bis jemand anderes gewählt ist
+    const veraltet = Boolean(aktuell) && !liste.some((p) => p.id === aktuell);
+    const warnung = veraltet
+      ? el(
+          "p",
+          { class: "fehlertext", role: "status" },
+          "Diese Person ist keine Leitung mehr und erscheint nicht auf der Website. Wähle eine andere Person.",
+        )
+      : null;
+    const f = personenAuswahl({
+      label: "Person",
+      personen: liste,
+      wert: aktuell ?? "",
+      veraltet,
+      optional,
+      hilfeId,
+      beiWahl: (id) => {
+        if (id) ziel.personId = id;
+        else delete ziel.personId;
+        warnung?.remove();
+        k.aendere(b);
+        loescheFeldFehler(wurzel);
+      },
+    });
+    platz.replaceChildren(...[f.wurzel, warnung].filter(Boolean));
+    reg(pfad, wurzel, f.eingabe);
   };
-  const gruppeWahl = waehler({
-    label: "Gruppe der Person",
-    optionen: [["", "Gruppe wählen"], ...k.tags.map((t) => [t.id, t.name])],
-    wert: "",
-  });
-  const lade = async (tagId) => {
-    personen.replaceChildren(
+  const lade = async () => {
+    platz.replaceChildren(
       el("p", { class: "hilfe", role: "status" }, "Personen werden geladen …"),
     );
     try {
-      const antwort = await anfrage("GET", `${API}/personen?tag=${tagId}`);
-      for (const p of antwort.personen) k.personNamen.set(p.id, p.anzeigename);
-      const liste = waehler({
-        label: "Person",
-        optionen: [
-          [
-            "",
-            antwort.personen.length > 0
-              ? "Person wählen"
-              : "Niemand in dieser Gruppe",
-          ],
-          ...antwort.personen.map((p) => [
-            p.id,
-            p.funktion ? `${p.anzeigename} (${p.funktion})` : p.anzeigename,
-          ]),
-        ],
-        wert: antwort.personen.some((p) => p.id === b.daten.personId)
-          ? b.daten.personId
-          : "",
-      });
-      liste.eingabe.addEventListener("change", () => {
-        if (liste.eingabe.value) b.daten.personId = liste.eingabe.value;
-        else delete b.daten.personId;
-        zeigeGewaehlt();
-        k.aendere(b);
-        loescheFeldFehler(wurzel);
-      });
-      personen.replaceChildren(liste.wurzel);
+      zeichne(await ladePersonen(k));
     } catch (f) {
-      personen.replaceChildren(
+      platz.replaceChildren(
         el("p", { class: "fehlertext", role: "alert" }, fehlertext(f)),
+        knopf("Erneut laden", { klein: true, onclick: lade }),
       );
     }
   };
-  gruppeWahl.eingabe.addEventListener("change", () => {
-    if (gruppeWahl.eingabe.value) lade(gruppeWahl.eingabe.value);
-    else personen.replaceChildren();
-  });
-  zeigeGewaehlt();
-  wurzel.append(gewaehlt, gruppeWahl.wurzel, personen);
-  reg("daten.personId", wurzel, gruppeWahl.eingabe);
+  wurzel.append(platz, hilfe);
+  reg(pfad, wurzel, wurzel);
+  // Schon geladen: sofort zeichnen, damit der Fokus nach «Person hinzufügen» auf der Auswahl landet
+  if (k.personen.liste) zeichne(k.personen.liste);
+  else lade();
   return wurzel;
 }
 
 // Der Link des Hinweisbands ist ein Teilobjekt: Felder lesen und schreiben darin, fehlen beide, entfällt der ganze Link
-function linkTeil(b) {
+export function linkTeil(b) {
   return new Proxy(
     {},
     {
@@ -909,7 +933,21 @@ function linkTeil(b) {
 const tagText = (d, k, leer) =>
   d.tagId ? `Gruppe ${k.tagNamen.get(d.tagId) ?? "unbekannt"}` : leer;
 
+// Bausteine mit Daten aus Cevi OS (#740): eigene Datei, die Helfer von hier bekommt
+const dynamisch = dynamischeBausteine({
+  eingabe,
+  wahl,
+  waehler,
+  anmelden,
+  listenForm,
+  teilEingabe,
+  loescheFeldFehler,
+});
+Object.assign(FELDNAMEN, FELDNAMEN_DYNAMISCH);
+Object.assign(VERWEIS_TEXTE, VERWEIS_TEXTE_DYNAMISCH);
+
 export const TYPEN = {
+  ...dynamisch.TYPEN,
   ueberschrift: {
     name: "Überschrift",
     kurz: (d) => d.text ?? "",
@@ -1079,41 +1117,54 @@ export const TYPEN = {
       groesseFeld(k, b, reg),
     ],
   },
+  // Personen (#560, #610, #755): echte Personen der Plattform; Name und Bild kommen von der Person, Funktion und Adresse der Funktion sind Angaben der Seite
   personen: {
     name: "Personen",
-    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Person", "Personen"),
-    pruefe: (d) => pflicht(d, "name"),
+    kurz: (d, k) => {
+      const n = anzahlText(d.eintraege?.length ?? 0, "1 Person", "Personen");
+      const namen = (d.eintraege ?? [])
+        .map((e) => k.personNamen.get(e.personId))
+        .filter(Boolean);
+      return namen.length > 0 ? `${n} · ${namen.join(", ")}` : n;
+    },
+    pruefe: (d) => pflicht(d, "personId"),
     form: (k, b, reg) => [
       el(
         "p",
         { class: "hilfe" },
-        "Ansprechpersonen mit Foto, Anzeigename, Funktion und E-Mail-Adresse. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
+        "Ansprechpersonen mit Foto, Cevi-Name, Funktion und E-Mail-Adresse. Name und Foto kommen aus dem Profil der Person. Trage nur ein, was die Person öffentlich zeigen will: die Adresse ihrer Funktion, keine private. Eine Telefonnummer gibt es hier nicht.",
       ),
-      eintraegeForm(k, b, reg, {
+      listenForm(k, b, {
         name: "Person",
+        listeName: "Personen",
+        pfadName: "daten.eintraege",
+        liste: () => b.daten.eintraege,
         max: MAX_PERSONEN,
-        bild: {
-          name: "Porträt",
-          alt: "Das Porträt braucht keinen Alt-Text: Der Name steht daneben. Ohne Porträt stehen die Anfangsbuchstaben.",
+        hinzuText: "Person hinzufügen",
+        hinzu: (liste, fertig) => {
+          liste.push({});
+          fertig(liste.length - 1);
         },
-        felder: [
-          [
-            "name",
-            "Anzeigename",
-            {
-              maxlength: 100,
-              hilfe:
-                "Steht gross unter dem Bild, zum Beispiel der Cevi-Name, sonst der Vorname.",
-            },
-          ],
-          [
+        zeile: (eintrag, pfad) => [
+          personWahl(k, b, reg, eintrag, `${pfad}.personId`),
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
             "funktion",
             "Funktion (optional)",
+            `${pfad}.funktion`,
             { optional: true, maxlength: 100 },
-          ],
-          [
+          ),
+          teilEingabe(
+            k,
+            b,
+            reg,
+            eintrag,
             "email",
             "E-Mail-Adresse der Funktion (optional)",
+            `${pfad}.email`,
             {
               optional: true,
               maxlength: 254,
@@ -1121,7 +1172,7 @@ export const TYPEN = {
               spellcheck: "false",
               autocapitalize: "off",
             },
-          ],
+          ),
         ],
       }),
     ],
@@ -1158,10 +1209,12 @@ export const TYPEN = {
   },
   kontaktperson: {
     name: "Kontaktperson",
-    kurz: (d, k) => k.personNamen.get(d.personId) ?? "",
+    kurz: (d, k) =>
+      k.personNamen.get(d.personId) ??
+      (d.personId && k.personen.liste ? "Person nicht mehr wählbar" : ""),
     pruefe: (d) => (d.personId ? [] : [["daten.personId", "fehlt."]]),
     form: (k, b, reg) => [
-      personWahl(k, b, reg),
+      personWahl(k, b, reg, b.daten, "daten.personId"),
       el(
         "p",
         { class: "hilfe" },
@@ -1171,19 +1224,30 @@ export const TYPEN = {
   },
   leitungsteam: {
     name: "Leitungsteam",
-    kurz: (d, k) =>
-      d.tagId
-        ? `Aus der ${tagText(d, k, "").replace("Gruppe ", "Gruppe ")}`
-        : "",
+    // «Gruppe Pilami · 4 Personen»; die Zahl kommt aus dem Stand, den die Anzeige im Formular geladen hat (k.teams)
+    kurz: (d, k) => {
+      if (!d.tagId) return "";
+      const n = k.teams.stand.get(d.tagId)?.personen.length;
+      return n === undefined
+        ? tagText(d, k, "")
+        : `${tagText(d, k, "")} · ${anzahlText(n, "1 Person", "Personen")}`;
+    },
     pruefe: (d) => (d.tagId ? [] : [["daten.tagId", "fehlt."]]),
-    form: (k, b, reg) => [
-      gruppenPillen(k, b, reg, "tagId", "Gruppe", false),
-      el(
-        "p",
-        { class: "hilfe" },
-        "Zeigt alle Personen der Gruppe mit Cevi-Name und Funktion.",
-      ),
-    ],
+    form: (k, b, reg) => {
+      const gruppe = gruppenPillen(k, b, reg, "tagId", "Gruppe", false);
+      const team = teamAnzeige(k, () => b.daten.tagId);
+      // Die Pille schreibt die Gruppe in den Baustein, dann kommt der Klick hier an
+      gruppe.addEventListener("click", () => team.aktualisiere());
+      return [
+        gruppe,
+        team.wurzel,
+        el(
+          "p",
+          { class: "hilfe" },
+          "Das Leitungsteam zeigt Foto, Cevi-Name und Funktion. Bei einer Stufe stehen die Stufenleitenden zuerst.",
+        ),
+      ];
+    },
   },
   terminliste: {
     name: "Termin-Liste",
@@ -1245,6 +1309,12 @@ export const TYPEN = {
         autocapitalize: "off",
         hilfe:
           "Die Webadresse des Videos oder Beitrags, mit https. Sie wird nur als Link gezeigt, nie eingebettet.",
+      }),
+      // Vorschaubild (#742): ein Bild der Medienbibliothek; die Karte führt weiter auf die Seite des Videos
+      bildWahl(k, b, reg, b.daten, "daten.bild", {
+        schluessel: "bild",
+        optional: true,
+        name: "Vorschaubild (optional)",
       }),
     ],
   },
@@ -1411,7 +1481,7 @@ export const TYPEN = {
         optional: true,
         hilfe: "Ohne Eingabe steht dort: Fragen? Melde dich bei uns.",
       }),
-      personWahl(k, b, reg),
+      personWahl(k, b, reg, b.daten, "daten.personId", { optional: true }),
       el(
         "p",
         { class: "hilfe" },
@@ -1497,6 +1567,17 @@ export const TYPEN = {
       ),
     ],
   },
+  ...medienTypen({
+    eingabe,
+    teilEingabe,
+    wahl,
+    bildWahl,
+    listenForm,
+    linkTeil,
+    groesseFeld,
+    anzahlText,
+    LINK_HILFE,
+  }),
   stufenfakten: {
     name: "Samstagsangaben der Stufen",
     kurz: () => "Datum, Treffpunkt und Mitnehmen der Stufe",
@@ -1515,136 +1596,333 @@ export const TYPEN = {
       ),
     ],
   },
+  // Einstieg und Handlung (#743): website-felder-handlung.js
+  ...TYPEN_HANDLUNG,
+  // Text und Gestaltung (#741), website-felder-text.js
+  ...TEXT_TYPEN,
 };
 
-// Was «Baustein hinzufügen» anbietet (Reihenfolge und Texte wie im Design E3)
+// Die Gruppen des Katalogs in der Reihenfolge, in der der Dialog «Baustein hinzufügen» sie zeigt
+export const GRUPPEN = [
+  "Text",
+  "Bilder und Medien",
+  "Karten und Listen",
+  "Handlung",
+  "Personen",
+  "Dynamisch",
+  "Gestaltung",
+];
+
+// Beispiele für die Vorschau im Katalog: feste IDs, die der Server durch Platzhalterbilder und Platzhalternamen ersetzt (nie echte Medien, Personen oder Namen)
+const bspId = (nr) => `00000000-0000-4000-8000-${String(nr).padStart(12, "0")}`;
+const bspBild = (nr, unterschrift) => ({
+  mediumId: bspId(nr),
+  ...(unterschrift && { unterschrift }),
+});
+const bspAbsatz = (...abschnitte) => ({ typ: "absatz", inhalt: abschnitte });
+const bspKarten = (darstellung, eintraege) => ({ darstellung, eintraege });
+// Beispieladressen: Der Quelltext der Verwaltung nennt keine Adresse im Klartext (seiten.test.ts), darum getrennt geschrieben
+const BSP_HTTPS = "https:" + "//";
+
+// Was «Baustein hinzufügen» anbietet (Reihenfolge und Texte wie im Design E3).
+// gruppe: Überschrift im Dialog (GRUPPEN). beispiel: Beispieldaten des Bausteins (das Feld «daten»), die der Server mit dem Renderer der Website zeigt; Platzhaltertexte, Bilder nur als Beispiel-ID. Jeder neue Eintrag braucht beides
 export const KATALOG = [
   {
     typ: "ueberschrift",
+    gruppe: "Text",
     beschreibung: "Ein Titel, um die Seite zu gliedern.",
     neu: () => ({ ebene: 2, text: "" }),
+    beispiel: () => ({ ebene: 2, text: "Das machen wir im Cevi" }),
   },
   {
     typ: "text",
+    gruppe: "Text",
     beschreibung: "Absätze mit Fett, Kursiv, Listen und Links.",
     neu: () => ({ inhalt: [] }),
+    beispiel: () => ({
+      inhalt: [
+        bspAbsatz(
+          { text: "Wir treffen uns jeden Samstag. " },
+          { text: "Alle sind willkommen", fett: true },
+          { text: ", auch wenn sie noch niemanden kennen." },
+        ),
+        {
+          typ: "liste",
+          geordnet: false,
+          eintraege: [
+            [{ text: "Spielen und Basteln" }],
+            [{ text: "Draussen unterwegs sein" }],
+          ],
+        },
+      ],
+    }),
   },
   {
     typ: "bild",
+    gruppe: "Bilder und Medien",
     beschreibung: "Ein Bild mit Alt-Text und Bildunterschrift.",
     neu: () => ({}),
+    beispiel: () => bspBild(1, "Bildunterschrift zum Beispielbild"),
   },
   {
     typ: "galerie",
+    gruppe: "Bilder und Medien",
     beschreibung: "Mehrere Bilder, je mit Alt-Text.",
     neu: () => ({ bilder: [{}] }),
+    beispiel: () => ({ bilder: [2, 3, 4, 5].map((nr) => bspBild(nr)) }),
   },
   {
     typ: "karussell",
+    gruppe: "Bilder und Medien",
     beschreibung: "3 bis 8 Bilder, die sich langsam abwechseln.",
     neu: () => ({ bilder: [{}, {}, {}] }),
+    beispiel: () => ({ bilder: [6, 7, 8].map((nr) => bspBild(nr)) }),
   },
   ...[
-    ["karten", "Kästchen mit Titel, Text und Link «Mehr zu …»."],
-    ["liste", "Zeilen mit Titel und Text, der Titel als Link."],
+    [
+      "karten",
+      "Kästchen mit Titel, Text und Link «Mehr zu …».",
+      () =>
+        bspKarten(
+          "karten",
+          ["Erster", "Zweiter", "Dritter"].map((t) => ({
+            titel: `${t} Beispieltitel`,
+            text: "Ein kurzer Text zur Karte.",
+            link: "/",
+          })),
+        ),
+    ],
+    [
+      "liste",
+      "Zeilen mit Titel und Text, der Titel als Link.",
+      () =>
+        bspKarten(
+          "liste",
+          ["Erste", "Zweite", "Dritte"].map((t) => ({
+            titel: `${t} Zeile`,
+            text: "Ein kurzer Text zur Zeile.",
+            link: "/",
+          })),
+        ),
+    ],
     [
       "stufen",
       "Karten mit Foto, Etikett im Bild und Link, zum Beispiel für Stufen.",
+      () =>
+        bspKarten(
+          "stufen",
+          [9, 10, 11].map((nr, i) => ({
+            titel: `Beispielstufe ${i + 1}`,
+            text: "Ein kurzer Text zur Stufe.",
+            alter: `${i + 2}. Klasse`,
+            bild: bspId(nr),
+            link: "/",
+          })),
+        ),
     ],
     [
       "merkmale",
       "Stichworte mit kurzem Text im blauen Band, auf Wunsch mit Foto.",
+      () =>
+        bspKarten(
+          "merkmale",
+          ["Gemeinschaft", "Abenteuer", "Glaube"].map((t) => ({
+            titel: t,
+            text: "Ein kurzer Satz dazu, was das für uns heisst.",
+          })),
+        ),
     ],
-    ["zeitstrahl", "Stationen einer Geschichte mit Jahr, Text und Foto."],
-    ["zahlen", "Wenige grosse Zahlen mit kurzer Beschriftung."],
-  ].map(([darstellung, beschreibung]) => ({
+    [
+      "zeitstrahl",
+      "Stationen einer Geschichte mit Jahr, Text und Foto.",
+      () =>
+        bspKarten(
+          "zeitstrahl",
+          [
+            ["1890", "Der Anfang"],
+            ["1950", "Das erste Lager"],
+            ["2020", "Heute"],
+          ].map(([jahr, text]) => ({ titel: jahr, text })),
+        ),
+    ],
+    [
+      "zahlen",
+      "Wenige grosse Zahlen mit kurzer Beschriftung.",
+      () =>
+        bspKarten("zahlen", [
+          { titel: "120", text: "Kinder und Jugendliche" },
+          { titel: "30", text: "Leitende" },
+          { titel: "50", text: "Jahre Cevi" },
+        ]),
+    ],
+  ].map(([darstellung, beschreibung, beispiel]) => ({
     typ: "karten",
+    gruppe: "Karten und Listen",
     name: KARTEN_ARTEN[darstellung],
     beschreibung,
     neu: () => ({ darstellung, eintraege: [{ titel: "" }] }),
+    beispiel,
   })),
   {
     typ: "schaltflaeche",
+    gruppe: "Handlung",
     beschreibung: "Führt auf eine andere Seite oder Adresse.",
     neu: () => ({ darstellung: "schaltflaeche", beschriftung: "", ziel: "" }),
+    beispiel: () => ({
+      darstellung: "schaltflaeche",
+      beschriftung: "Jetzt anmelden",
+      ziel: "/anmelden",
+    }),
   },
   {
     typ: "datei",
+    gruppe: "Handlung",
     beschreibung:
       "Zum Beispiel ein PDF im SharePoint, mit Name, Grösse und Typ.",
     neu: () => ({ titel: "", link: "" }),
+    beispiel: () => ({
+      titel: "Beispieldatei zum Herunterladen",
+      link: `${BSP_HTTPS}beispiel.sharepoint.com/datei.pdf`,
+      typ: "PDF",
+      groesse: 240000,
+    }),
   },
   {
     typ: "personen",
+    gruppe: "Personen",
     beschreibung: "Ansprechpersonen mit Foto, Name, Funktion und E-Mail.",
     neu: () => ({ eintraege: [{}] }),
+    beispiel: () => ({
+      eintraege: [12, 13, 14].map((nr) => ({
+        personId: bspId(nr),
+        funktion: "Leitung",
+        email: "leitung@beispiel.example",
+      })),
+    }),
   },
   {
     typ: "artikel",
+    gruppe: "Karten und Listen",
     beschreibung: "Karten mit Bild, Name und Preis.",
     neu: () => ({ eintraege: [{}] }),
+    beispiel: () => ({
+      eintraege: [15, 16, 17].map((nr, i) => ({
+        name: `Beispielartikel ${i + 1}`,
+        preis: `${(i + 2) * 10}.–`,
+        mediumId: bspId(nr),
+      })),
+    }),
   },
   {
     typ: "kontaktperson",
+    gruppe: "Personen",
     beschreibung: "Eine Person mit Cevi-Name und Funktion.",
     neu: () => ({ zusatz: [] }),
+    beispiel: () => ({ personId: bspId(18), zusatz: [] }),
   },
   {
     typ: "leitungsteam",
+    gruppe: "Personen",
     beschreibung: "Die Leitenden einer Gruppe.",
     neu: () => ({ zusatz: [] }),
+    beispiel: () => ({ tagId: bspId(19), zusatz: [] }),
   },
   {
     typ: "terminliste",
+    gruppe: "Dynamisch",
     beschreibung: "Die nächsten 3 bis 10 Termine, auch nur einer Gruppe.",
     neu: () => ({ anzahl: 5 }),
+    beispiel: () => ({ anzahl: 3 }),
   },
   {
     typ: "trenner",
+    gruppe: "Gestaltung",
     beschreibung: "Mehr Luft oder eine Linie zwischen Bausteinen.",
     neu: () => ({ art: "abstand" }),
+    beispiel: () => ({ art: "linie" }),
   },
   {
     typ: "videolink",
-    beschreibung: "Nur als Link, ohne Einbetten.",
+    gruppe: "Bilder und Medien",
+    beschreibung: "Ein Link auf ein Video, auf Wunsch mit Vorschaubild.",
     neu: () => ({ art: "video", beschriftung: "", url: "" }),
+    beispiel: () => ({
+      art: "video",
+      beschriftung: "Beispielvideo ansehen",
+      url: `${BSP_HTTPS}www.beispiel.example/video`,
+      bild: bspId(9),
+    }),
   },
   {
     typ: "stufenfakten",
+    gruppe: "Dynamisch",
     beschreibung: "Datum, Treffpunkt und Mitnehmen der Stufe.",
     neu: () => ({}),
+    beispiel: () => ({}),
   },
   {
     typ: "laden",
+    gruppe: "Dynamisch",
     beschreibung: "Das Lädeli: Artikel, Warenkorb und Bestellung.",
     neu: () => ({}),
+    beispiel: () => ({}),
   },
   {
     typ: "fotoalben",
+    gruppe: "Dynamisch",
     beschreibung: "Fotoalben aus Flickr, nur für angemeldete Personen.",
     neu: () => ({}),
+    beispiel: () => ({}),
   },
   {
     typ: "hinweis",
+    gruppe: "Gestaltung",
     beschreibung: "Ein Satz mit Symbol, zum Beispiel «Anmeldung offen».",
     neu: () => ({ text: "" }),
+    beispiel: () => ({
+      text: "Anmeldung offen bis zum Beispieldatum",
+      link: { beschriftung: "Zur Anmeldung", ziel: "/anmelden" },
+    }),
   },
   {
     typ: "eckdaten",
+    gruppe: "Karten und Listen",
     beschreibung: "Datum, Ort, Kosten und mehr auf einen Blick.",
     neu: () => ({ eintraege: [{ bezeichnung: "", wert: "" }] }),
+    beispiel: () => ({
+      eintraege: [
+        { bezeichnung: "Datum", wert: "Beispieldatum" },
+        { bezeichnung: "Ort", wert: "Beispielort" },
+        { bezeichnung: "Kosten", wert: "CHF 00.–" },
+      ],
+    }),
   },
   {
     typ: "aufruf",
+    gruppe: "Handlung",
     beschreibung: "Ein farbiges Band mit Titel, Text und Schaltfläche.",
     neu: () => ({ titel: "", beschriftung: "", ziel: "" }),
+    beispiel: () => ({
+      titel: "Komm vorbei!",
+      text: "Schnuppern ist jederzeit möglich.",
+      beschriftung: "Mehr erfahren",
+      ziel: "/",
+    }),
   },
   {
     typ: "kontaktkarte",
+    gruppe: "Personen",
     beschreibung:
       "«Fragen? Melde dich bei uns.» mit Knöpfen für E-Mail und Telefon, Anschrift und Verweisen.",
     neu: () => ({}),
+    beispiel: () => ({ titel: "Fragen? Melde dich bei uns." }),
   },
+  // Einstieg und Handlung (#743)
+  ...KATALOG_HANDLUNG,
+  // Bilder und Medien (#742)
+  ...MEDIEN_KATALOG,
+  ...TEXT_KATALOG,
+  ...dynamisch.KATALOG,
 ].map((e) => ({ name: TYPEN[e.typ].name, ...e }));
 
 // Ein Karten-Baustein heisst nach seiner Darstellung («Zeitstrahl»): So findet man ihn in der Liste der Seite wieder

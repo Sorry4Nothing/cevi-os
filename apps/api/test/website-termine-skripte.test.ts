@@ -420,7 +420,7 @@ describe("Kalender-Link (W6)", () => {
     );
     expect(h).toContain(`value="${adresse}"`);
     expect(h).toContain("Link kopieren");
-    expect(h).toContain("Neuer Link erzeugt.");
+    expect(h).toContain("Abonniere ihn in deinem Kalender neu.");
   });
   test("Laden und Fehler", () => {
     expect(
@@ -587,8 +587,10 @@ describe("Termin vorschlagen (W7)", () => {
       'value="Materialtag"'.replace("Materialtag", " Materialtag "),
     );
   });
-  test("Erfolg und kein Zugriff", () => {
-    expect(text(vorschlag.erfolgView())).toContain("Gesendet.");
+  test("Hinweis zum Ablauf und kein Zugriff", () => {
+    expect(text(vorschlag.hinweisView())).toContain(
+      "Du erfährst es, sobald die Leitung entschieden hat.",
+    );
     expect(text(vorschlag.keinZugriffView())).toContain(
       "Dieser Bereich ist für andere Gruppen.",
     );
@@ -880,16 +882,18 @@ describe("Anlass-Anmeldung (W8)", () => {
     expect(h).toContain("Änderungen speichern");
     expect(h).toContain('data-aktion="abmelden"');
   });
-  test("Erfolg und Laden", () => {
-    expect(
-      text(
-        anmeldung.erfolgView(
-          { id: ID, titel: "Sommerlager 2027" },
-          "Nils",
-          false,
-        ),
-      ),
-    ).toContain("Nils ist für «Sommerlager 2027» angemeldet.");
+  test("Nach dem Speichern steht der Zustand «schon angemeldet», der Toast meldet das Speichern (#762)", () => {
+    const da = teilnehmer({
+      id: "x",
+      status: "angemeldet",
+      antworten: {},
+      geaendertAm: "2027-01-12T17:40:00.000Z",
+    });
+    const sperre = anmeldung.sperreView(z({}, [da]), "2027-02-01");
+    expect(html(sperre!)).toContain('id="tm-erfolg"');
+    expect(text(sperre!)).toContain("schon angemeldet");
+  });
+  test("Laden", () => {
     expect(html(anmeldung.kontoLadeKarte())).toContain('aria-busy="true"');
   });
 });

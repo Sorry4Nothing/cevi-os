@@ -15,26 +15,26 @@ const lua1 = {
   name: "Lua Demo",
   benutzername: "lua.demo",
   ceviName: "Lua",
-  admin: false,
+  abteilungsleitung: false,
   rollen: [{ typ: "stufenleitung", stufeId: "s1" }],
 };
 const lua2 = {
   name: "Lua Demo",
   benutzername: "lua.demo2",
   ceviName: null,
-  admin: false,
+  abteilungsleitung: false,
   rollen: [{ typ: "leitung", stufeId: "s2" }],
 };
 const chef = {
   name: "Jonas Demo",
   benutzername: "jonas",
-  admin: true,
+  abteilungsleitung: true,
   rollen: [],
 };
 const nichts = {
   name: "Mia Probe",
   benutzername: "mia",
-  admin: false,
+  abteilungsleitung: false,
   rollen: [],
 };
 

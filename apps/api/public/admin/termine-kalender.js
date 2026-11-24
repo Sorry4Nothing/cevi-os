@@ -21,6 +21,7 @@ import {
   termineTabelle,
 } from "./kalenderhilfen.js";
 import { skeletonFlaeche } from "./lader.js";
+import { melde } from "./melden.js";
 import {
   adresseVon,
   ansichtAusPfad,
@@ -414,11 +415,14 @@ function zeichneListe(
       termine.push(...seite.termine);
       weitere = seite.weitere;
       naechste = seite.naechste;
-      meldung.textContent = `${zaehlwort(seite.termine.length, "weiterer Termin", "weitere Termine")} geladen.`;
+      melde(
+        `${zaehlwort(seite.termine.length, "weiterer Termin", "weitere Termine")} geladen.`,
+      );
       zeichneTabelle();
     } catch (f) {
-      meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
+      melde(`${fehlertext(f)} Versuche es nochmals.`, "fehler");
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
     }

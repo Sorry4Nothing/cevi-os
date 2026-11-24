@@ -1,5 +1,6 @@
 import { anfrage, fehlertext } from "./api.js";
 import { chip, el, feld, knopf, neueId, zeit } from "./dom.js";
+import { entferneFehler, feldFehler } from "./liste-hilfen.js";
 
 // Cevi-Datenbank (#691): Verbindung prüfen und die Gruppe (Ebene) der Abteilung einstellen. Adresse und Token stehen nur in der Umgebung des Servers (deploy/.env); diese Seite zeigt sie nie und kann sie nicht ändern. Die Verbindung liest nur.
 // Abfragen: einmal GET beim Öffnen, danach nur auf Knopfdruck («Prüfen» ein POST, «Speichern» ein PUT). Kein Polling.
@@ -33,7 +34,12 @@ export function zeige(bereich, ctx) {
 }
 
 function zeichne(bereich, ctx, daten) {
-  const stand = el("div", { class: "hinweis", role: "status", hidden: true });
+  // Fortschritt der laufenden Prüfung; das Ergebnis kommt als Toast
+  const stand = el(
+    "div",
+    { class: "hinweis", role: "status", hidden: true },
+    "Die Verbindung wird geprüft.",
+  );
   const pruefKnopf = knopf("Verbindung prüfen", {
     art: "haupt",
     symbol: "aktualisieren",
@@ -42,8 +48,6 @@ function zeichne(bereich, ctx, daten) {
     pruefKnopf.disabled = true;
     pruefKnopf.setAttribute("aria-busy", "true");
     stand.hidden = false;
-    stand.className = "hinweis";
-    stand.textContent = "Die Verbindung wird geprüft.";
     try {
       const r = await anfrage("POST", "/api/v1/admin/cevi-db/pruefen");
       const [art, text] = ERGEBNIS[r.ergebnis] ?? ERGEBNIS.antwort;
@@ -53,12 +57,11 @@ function zeichne(bereich, ctx, daten) {
       if (r.ergebnis === "ok" && r.gruppe === false)
         satz +=
           " Die eingestellte Gruppe sieht das Token nicht. Prüfe die Nummer der Gruppe.";
-      stand.className = `hinweis hinweis--${art === "ok" ? "ok" : art === "warn" ? "warn" : "fehler"}`;
-      stand.textContent = satz;
+      ctx.melde(satz, art === "ok" || art === "warn" ? art : "fehler");
     } catch (f) {
-      stand.className = "hinweis hinweis--fehler";
-      stand.textContent = fehlertext(f);
+      ctx.melde(fehlertext(f), "fehler");
     } finally {
+      stand.hidden = true;
       pruefKnopf.disabled = false;
       pruefKnopf.removeAttribute("aria-busy");
     }
@@ -72,26 +75,23 @@ function zeichne(bereich, ctx, daten) {
     hilfe:
       "Die Nummer der Abteilung in der Cevi-Datenbank, zum Beispiel aus der Adresse ihrer Seite. Leer lassen, wenn du sie nicht kennst; die Prüfung testet dann nur das Token.",
   });
-  const gruppeMeldung = el("p", { class: "klein", role: "status" });
   const speichern = knopf("Speichern", { art: "haupt" });
   speichern.addEventListener("click", async () => {
     const wert = gruppe.eingabe.value.trim();
     if (wert !== "" && !/^[0-9]{1,20}$/.test(wert)) {
-      gruppeMeldung.textContent = "Die Nummer besteht nur aus Ziffern.";
-      gruppe.eingabe.setAttribute("aria-invalid", "true");
+      feldFehler(gruppe, "Die Nummer besteht nur aus Ziffern.");
       gruppe.eingabe.focus();
       return;
     }
-    gruppe.eingabe.removeAttribute("aria-invalid");
+    entferneFehler(gruppe);
     speichern.disabled = true;
     try {
       await anfrage("PUT", "/api/v1/admin/cevi-db", {
         gruppeId: wert === "" ? null : wert,
       });
-      gruppeMeldung.textContent = "Gespeichert.";
       ctx.melde("Gespeichert.");
     } catch (f) {
-      gruppeMeldung.textContent = fehlertext(f);
+      ctx.melde(fehlertext(f), "fehler");
     } finally {
       speichern.disabled = false;
     }
@@ -137,7 +137,6 @@ function zeichne(bereich, ctx, daten) {
       el("h2", { id: `${titelId}-g` }, "Gruppe der Abteilung"),
       gruppe.wurzel,
       el("div", { class: "reihe" }, speichern),
-      gruppeMeldung,
     ),
     el(
       "section",

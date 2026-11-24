@@ -12,6 +12,7 @@ import {
   el,
   filterGruppe,
   icon,
+  vorZeit,
   knopf,
   neueId,
   tabelle,
@@ -34,7 +35,6 @@ const UHR_SEKUNDEN = new Intl.DateTimeFormat("de-CH", {
   minute: "2-digit",
   second: "2-digit",
 });
-const RELATIV = new Intl.RelativeTimeFormat("de-CH", { numeric: "auto" });
 
 export const zahl = (n) =>
   n === null || n === undefined ? "–" : ZAHL.format(n);
@@ -52,15 +52,8 @@ export function dauer(sekunden) {
   return `${sekunden} Sek.`;
 }
 
-// «vor 3 Minuten»; das Datum steht zusätzlich im Titel des Elements
-export function vor(iso) {
-  const sekunden = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
-  const abs = Math.abs(sekunden);
-  if (abs < 60) return RELATIV.format(Math.round(sekunden / 10) * 10, "second");
-  if (abs < 3600) return RELATIV.format(Math.round(sekunden / 60), "minute");
-  if (abs < 86400) return RELATIV.format(Math.round(sekunden / 3600), "hour");
-  return RELATIV.format(Math.round(sekunden / 86400), "day");
-}
+// «vor 3 Minuten», «gestern», «vor 2 Wochen»; das Datum steht zusätzlich im Titel des Elements
+export const vor = vorZeit;
 
 export async function ladeBetrieb() {
   const [system, anfragen] = await Promise.all([
@@ -76,19 +69,18 @@ async function ladeSeite() {
   return { ...betrieb, abrufe };
 }
 
-// Lädt neu, wenn die Person «Aktualisieren» wählt, nie im Takt: kein Polling, damit die Datenbank nicht im Hintergrund belastet wird (#593). Ein Fehler lässt die alten Zahlen stehen; liefert, ob es geklappt hat
-export function aufWunsch(bereich, laden, zeichnen, fehlerFeld) {
+// Lädt neu, wenn die Person «Aktualisieren» wählt, nie im Takt: kein Polling, damit die Datenbank nicht im Hintergrund belastet wird (#593). Ein Fehler lässt die alten Zahlen stehen und meldet sich als Toast; liefert, ob es geklappt hat
+export function aufWunsch(bereich, laden, zeichnen, melde) {
   let laeuft = false;
   return async function lauf() {
     if (laeuft) return false;
     laeuft = true;
     try {
       zeichnen(await laden());
-      fehlerFeld.textContent = "";
       return true;
     } catch (f) {
       if (bereich.isConnected) {
-        fehlerFeld.textContent = `Aktualisieren nicht möglich: ${fehlertext(f)}`;
+        melde(`Aktualisieren nicht möglich: ${fehlertext(f)}`, "fehler");
       }
       return false;
     } finally {
@@ -951,8 +943,6 @@ function zeichneSeite(bereich, daten, ctx) {
   const offeneRouten = new Set();
   const offen = { wert: false };
   const basis = neueId("system");
-  // Nur ein Fehler wird angesagt; die regelmässige Aktualisierung bleibt still
-  const fehlerFeld = el("p", { class: "meta fehlerzeile", role: "status" });
   const stand = el("p", { class: "meta stand" });
   const lageFeld = el("div", { class: "hinweis", role: "status" });
   const kacheln = el("div", { class: "kacheln" });
@@ -965,7 +955,6 @@ function zeichneSeite(bereich, daten, ctx) {
   const routenZahl = el("p", { class: "klein leise", role: "status" });
   const fehler = el("div", {});
   const abrufe = el("div", { class: "raster" });
-  const abrufeFehler = el("p", { class: "meta fehlerzeile", role: "status" });
   const abrufLaeuft = { kalender: false };
   let abrufDaten;
 
@@ -1210,7 +1199,7 @@ function zeichneSeite(bereich, daten, ctx) {
     {
       id: `${basis}-abrufe`,
       text: "Abrufe",
-      inhalt: [abrufeFehler, abrufe],
+      inhalt: [abrufe],
     },
   ]);
 
@@ -1231,9 +1220,8 @@ function zeichneSeite(bereich, daten, ctx) {
           ? "Abruf abgeschlossen."
           : "Es läuft schon ein Abruf.",
       );
-      abrufeFehler.textContent = "";
     } catch (f) {
-      abrufeFehler.textContent = `Abruf nicht möglich: ${fehlertext(f)}`;
+      ctx.melde(`Abruf nicht möglich: ${fehlertext(f)}`, "fehler");
     } finally {
       abrufLaeuft[job] = false;
     }
@@ -1252,7 +1240,7 @@ function zeichneSeite(bereich, daten, ctx) {
       zeichne(neu);
       zeichneAbrufeNeu(neu.abrufe);
     },
-    fehlerFeld,
+    ctx.melde,
   );
   ctx.kopfAktion(
     knopf("Aktualisieren", {
@@ -1263,7 +1251,7 @@ function zeichneSeite(bereich, daten, ctx) {
     }),
   );
   bereich.append(
-    el("div", { class: "stand-zeile" }, stand, fehlerFeld),
+    el("div", { class: "stand-zeile" }, stand),
     ansicht.leiste,
     ...ansicht.tafeln,
   );

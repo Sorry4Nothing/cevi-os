@@ -18,6 +18,7 @@ import {
   zustandView,
 } from "./tm.js";
 import { anlassAdresse, anlassId, geschlossenText, vorname } from "./anlass.js";
+import { toast } from "./toast.js";
 
 export const MAX_TEXT = 500;
 const feldId = (f) => `a-${f.schluessel}`;
@@ -438,6 +439,7 @@ export function sperreView(z, heuteTag) {
       symbol: "haken",
       titel: `${a.anmeldungFuer === "kind" ? vorname(t) + " ist" : "Du bist"} schon angemeldet.`,
       text: `Angemeldet am ${zeitpunktText(t.anmeldung.geaendertAm)}.`,
+      attr: { tabindex: "-1", id: "tm-erfolg" },
       aktion: a.anmeldungOffen
         ? h(
             "button",
@@ -455,23 +457,6 @@ export function sperreView(z, heuteTag) {
     });
   }
   return null;
-}
-
-export function erfolgView(a, name, geaendert) {
-  return bandView({
-    art: "ok",
-    symbol: "haken",
-    titel: geaendert
-      ? "Änderungen gespeichert."
-      : `${name} ist für «${a.titel}» angemeldet.`,
-    text: "Du kannst die Anmeldung bis zum Anmeldeschluss ändern.",
-    attr: { tabindex: "-1", id: "tm-erfolg" },
-    aktion: h(
-      "div",
-      { class: "knopfreihe" },
-      h("a", { class: "btn s", href: anlassAdresse(a.id) }, "Zum Anlass"),
-    ),
-  });
 }
 
 // --- Verbindung mit dem Dokument
@@ -496,7 +481,6 @@ function start(doc, wurzel) {
   const rueck = Object.assign(doc.createElement("p"), { className: "rueck" });
   kopf.prepend(rueck);
   let modus = "laedt";
-  let letzte = null;
 
   const werteVon = (t) =>
     t.anmeldung?.status === "angemeldet" ? { ...t.anmeldung.antworten } : {};
@@ -535,8 +519,6 @@ function start(doc, wurzel) {
       });
     } else if (modus === "fehler") {
       d = fehlerView("nochmal");
-    } else if (modus === "erfolg") {
-      d = erfolgView(z.a, letzte.name, letzte.geaendert);
     } else {
       const sperre = sperreView(z, heute());
       d = sperre
@@ -674,14 +656,12 @@ function start(doc, wurzel) {
     });
     z.senden = false;
     if (r.status === 200) {
-      letzte = { name: vorname(t), geaendert: bestehend };
       z.bearbeiten = false;
-      // Der Stand kommt neu vom Server; die Erfolgsmeldung bleibt stehen
+      // Der Stand kommt neu vom Server; die Seite zeigt ihn («schon angemeldet»), der Toast meldet das Speichern
       const neu = await api(`/anlaesse/${id}`);
       if (neu.status === 200) z.a = neu.daten;
-      modus = "erfolg";
       zeichne("tm-erfolg");
-      melde(doc, "Gespeichert.");
+      toast(bestehend ? "Änderungen gespeichert." : "Anmeldung gespeichert.");
       return;
     }
     return fehlerBehandeln(sendeFehler(r), "nochmal-senden");
@@ -709,13 +689,7 @@ function start(doc, wurzel) {
       });
       return zeichne("tm-zusammenfassung");
     } else if (f.art === "band") {
-      z.band = bandView({
-        art: "fe",
-        symbol: "warnung",
-        titel: f.titel,
-        text: f.text,
-        rolle: "alert",
-      });
+      toast(`${f.titel} ${f.text}`, "fehler");
     } else if (f.art === "offline") {
       z.band = bandView({
         art: "wa",
@@ -757,13 +731,8 @@ function start(doc, wurzel) {
     if (r.status === 204) {
       z.bearbeiten = false;
       await lade();
-      z.band = bandView({
-        art: "ok",
-        symbol: "haken",
-        titel: "Abgemeldet.",
-        text: "Du kannst dich bis zum Anmeldeschluss wieder anmelden.",
-      });
-      return zeichne();
+      toast("Abgemeldet.");
+      return;
     }
     return fehlerBehandeln(sendeFehler(r), "abmelden");
   }

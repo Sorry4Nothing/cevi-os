@@ -820,6 +820,11 @@ const AUSNAHMEN = {
     "geloescht",
   ],
   "POST /api/v1/redaktion/orte/vorschau": ["Ort", "geprüft", "status"],
+  "POST /api/v1/redaktion/bausteine/vorschau": [
+    "Baustein",
+    "geprüft",
+    "status",
+  ],
   "PUT /api/v1/redaktion/orte/reihenfolge": [
     "Reihenfolge der Orte",
     "gesetzt",
@@ -864,6 +869,7 @@ const NICHT_ERFASST = {
     "POST /api/v1/admin/fotos/verbindung",
     "POST /api/v1/admin/rechte/gruppen/:p/rollen/vorschau",
     "POST /api/v1/redaktion/orte/vorschau",
+    "POST /api/v1/redaktion/bausteine/vorschau",
     "POST /api/v1/lager/:p/schichtplan/vorschlag",
     "POST /api/v1/lager/:p/aufgaben/schnell",
     "POST /api/v1/lager/:p/eingang/status",

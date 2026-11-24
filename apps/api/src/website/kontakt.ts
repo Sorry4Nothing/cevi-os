@@ -27,7 +27,7 @@ export function telefonZiel(nummer: string): string {
 }
 
 // Ein Link nur, wenn die Adresse eine erlaubte Art hat; sonst fehlt er (nie ein Link ohne Ziel)
-const linkKnoten = (
+export const linkKnoten = (
   ziel: string,
   innen: HtmlKnoten[],
   klasse?: string,
@@ -199,7 +199,8 @@ export function fuss(k: Kontext): string {
     .map((p) => `<li><a href="${esc(p.pfad)}">${esc(p.titel)}</a></li>`);
   const recht = [
     c.impressum ? `<li><a href="${esc(c.impressum)}">Impressum</a></li>` : "",
-    `<li><a href="${esc(c.datenschutz ?? "/datenschutz")}">Datenschutz</a></li>`,
+    `<li><a href="${esc(c.datenschutz ?? "/datenschutz-website")}">Datenschutz</a></li>`,
+    `<li><a href="/datenschutz-cevi-os">Datenschutz: Cevi OS, App, Verwaltung und Website</a></li>`,
   ].filter((a) => a !== "");
   return `<footer class="fuss">
 <div class="wrap fuss-raster">

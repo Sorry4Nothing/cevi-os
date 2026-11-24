@@ -198,7 +198,8 @@ export async function legeRechtewelt(
     return {
       id: k.id!,
       abteilungId: abt,
-      admin,
+      abteilungsleitung: admin,
+      entwickler: false,
       zweiterFaktor: admin,
       rollen: [],
     };

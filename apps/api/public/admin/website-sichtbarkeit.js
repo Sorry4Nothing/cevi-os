@@ -235,12 +235,12 @@ export function sichtbarkeitBlatt(opt) {
   return blatt;
 }
 
-// «Wer darf bearbeiten»: Die Standardrechte stehen fest (Regeln des Servers), Sonderrechte vergibt nur die Abteilungsleitung
-// r: { seite, istAdmin, melde }
+// «Wer darf bearbeiten»: Die Standardrechte stehen fest (Regeln des Servers), Sonderrechte vergeben die Abteilungsleitung und der Entwickler
+// r: { seite, siehtAlles, melde }
 function rechteBereich(r, tagNamen) {
-  const { seite, istAdmin, melde } = r;
+  const { seite, siehtAlles, melde } = r;
   const standard = [
-    "Abteilungsleitung",
+    "Abteilungsleitung und Entwickler",
     "Webmaster mit dem Recht «Seiten bearbeiten»",
     seite.tagId
       ? `Stufenleitung von ${tagNamen.get(seite.tagId) ?? "der zugehörigen Gruppe"}`
@@ -264,7 +264,7 @@ function rechteBereich(r, tagNamen) {
     el("h3", {}, "Wer darf bearbeiten"),
     liste,
   );
-  if (!istAdmin) {
+  if (!siehtAlles) {
     wurzel.append(
       band(
         "info",
@@ -273,9 +273,8 @@ function rechteBereich(r, tagNamen) {
     );
     return wurzel;
   }
-  const meldung = el("p", { class: "hilfe", role: "status", tabindex: "-1" });
   const platz = el("div", {});
-  wurzel.append(platz, meldung);
+  wurzel.append(platz);
   let personen = new Map();
   const bezeichnung = (b) =>
     b.tagId
@@ -300,13 +299,11 @@ function rechteBereich(r, tagNamen) {
             try {
               await anfrage("DELETE", `/api/v1/admin/bearbeiter/${b.id}`);
               li.remove();
-              meldung.setAttribute("role", "status");
-              meldung.textContent = `Das Recht von ${name} ist entzogen.`;
+              platz.querySelector("button")?.focus();
+              melde(`Das Recht von ${name} ist entzogen.`);
             } catch (f) {
-              meldung.setAttribute("role", "alert");
-              meldung.textContent = fehlertext(f);
+              melde(fehlertext(f), "fehler");
             }
-            meldung.focus();
           },
         }),
       );

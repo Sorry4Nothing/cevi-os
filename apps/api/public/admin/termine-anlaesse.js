@@ -1,4 +1,5 @@
 import { anfrage, kennungGueltig } from "./api.js";
+import { siehtAlles } from "./sicht.js";
 import { gehe, zurueckKlick } from "./verlauf.js";
 import {
   auswahl,
@@ -328,12 +329,15 @@ function zeichneListe(bereich, ctx, erste) {
       anlaesse.push(...seite.anlaesse);
       weitere = seite.weitere;
       naechste = seite.naechste;
-      meldung.textContent = `${zaehlwort(seite.anlaesse.length, "weiterer Anlass", "weitere Anlässe")} geladen.`;
+      ctx.melde(
+        `${zaehlwort(seite.anlaesse.length, "weiterer Anlass", "weitere Anlässe")} geladen.`,
+      );
       zeichneFilter();
       zeichneAnlaesse();
     } catch (f) {
-      meldung.textContent = `${meldungVon(f)} Versuche es nochmals.`;
+      ctx.melde(`${meldungVon(f)} Versuche es nochmals.`, "fehler");
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
     }
@@ -743,8 +747,8 @@ function zeichneUebersicht(
     // Die Gruppe des Anlasses (zum Beispiel das OK, #626); ihre Rollen tragen die Rechte (#651). Ein Lager hat keine
     a.art === "anlass" && [
       "Gruppe",
-      // Gruppen und Rollen ordnet nur die Abteilungsleitung (Bereich «Personen»); ein OK sieht den Namen
-      a.gruppe && ctx.ich.role !== "admin"
+      // Gruppen und Rollen ordnen die Abteilungsleitung und der Entwickler (Bereich «Personen»); ein OK sieht den Namen
+      a.gruppe && !siehtAlles(ctx.ich)
         ? a.gruppe.name
         : a.gruppe
           ? el(
@@ -767,7 +771,7 @@ function zeichneUebersicht(
                 "Rollen und Rechte",
               ),
             )
-          : ctx.ich.role !== "admin"
+          : !siehtAlles(ctx.ich)
             ? "Keine"
             : knopf("OK anlegen", {
                 klein: true,
@@ -855,7 +859,6 @@ function zeichneEinstellungen(
       aktualisiere();
     },
   });
-  const meldungen = el("div", {});
 
   function aktualisiere() {
     const n = anzahlAenderungen(start, f.lies());
@@ -867,7 +870,6 @@ function zeichneEinstellungen(
   }
 
   async function speichern(knopfNode) {
-    ersetze(meldungen);
     if (f.pruefe()) return;
     knopfNode.disabled = true;
     knopfNode.setAttribute("aria-busy", "true");
@@ -886,15 +888,13 @@ function zeichneEinstellungen(
       await neu();
       document.querySelector("h1")?.focus();
     } catch (fehler) {
-      const hinweis = el(
-        "div",
-        { class: "hinweis hinweis--fehler", role: "alert", tabindex: "-1" },
+      ctx.melde(
         `Nicht gespeichert. ${meldungVon(fehler)} Deine Eingaben sind noch da.`,
+        "fehler",
       );
-      ersetze(meldungen, hinweis);
-      hinweis.focus();
       knopfNode.disabled = false;
       knopfNode.removeAttribute("aria-busy");
+      knopfNode.focus();
     }
   }
 
@@ -918,7 +918,6 @@ function zeichneEinstellungen(
   const form = el(
     "div",
     { class: "anl-einstellungen" },
-    meldungen,
     el(
       "section",
       { class: "flaeche", "aria-labelledby": "anl-e-anm" },

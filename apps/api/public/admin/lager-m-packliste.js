@@ -397,8 +397,7 @@ function meine(ctx, lagerId, lager, daten) {
       ctx.melde(`«${text}» ist in deiner Liste.`);
       textEingabe.eingabe.focus();
     } catch (f) {
-      fehler.textContent = meldung(f);
-      fehler.hidden = false;
+      ctx.melde(meldung(f), "fehler");
     }
   };
   textEingabe.eingabe.addEventListener("keydown", (e) => {

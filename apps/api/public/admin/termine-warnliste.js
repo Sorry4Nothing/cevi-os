@@ -123,11 +123,12 @@ function zeichne(bereich, ctx, erste) {
       termine.push(...seite.termine);
       weitere = seite.weitere;
       naechste = seite.naechste;
-      meldung.textContent = `${termineText(seite.termine.length)} geladen.`;
+      ctx.melde(`${termineText(seite.termine.length)} geladen.`);
       zeichneListe();
     } catch (f) {
-      meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
+      ctx.melde(`${fehlertext(f)} Versuche es nochmals.`, "fehler");
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
     }
