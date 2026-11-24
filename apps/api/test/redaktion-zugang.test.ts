@@ -385,6 +385,8 @@ describe("Auswahllisten", () => {
       aufWebsite: true,
       gruppe: expect.any(String),
       tagId: welt.stufeAId,
+      // Kein Profilbild: kein Pfad (die Auswahl zeigt Initialen)
+      bildUrl: null,
     });
     // Wer den Tag nicht trägt, steht nicht in der Liste
     expect(personen.map((p) => p.id)).not.toContain(slB.id);
@@ -392,6 +394,7 @@ describe("Auswahllisten", () => {
       expect(Object.keys(p).sort()).toEqual([
         "anzeigename",
         "aufWebsite",
+        "bildUrl",
         "funktion",
         "gruppe",
         "id",
@@ -482,6 +485,186 @@ describe("Auswahllisten", () => {
         )
       ).status,
     ).toBe(404);
+  });
+});
+
+describe("Personenwahl mit Foto und Leitungsteam (#760)", () => {
+  type Team = {
+    gruppe: string;
+    stufe: boolean;
+    personen: {
+      id: string;
+      anzeigename: string;
+      funktion: string | null;
+      bildUrl: string | null;
+    }[];
+  };
+  const team = async (konto: PersonaKonto, tagId: string) =>
+    holen(konto, `/api/v1/redaktion/leitungsteam?tag=${tagId}`);
+  const bildSetzen = (userId: string) =>
+    db
+      .insert(schema.profilbild)
+      .values({ userId, inhalt: new Uint8Array(bild) })
+      .onConflictDoUpdate({
+        target: schema.profilbild.userId,
+        set: { inhalt: new Uint8Array(bild), geaendertAm: new Date() },
+      });
+
+  test("die Liste nennt den Pfad des Bildes, nur wo es eines gibt; das Bild kommt über die Redaktions-Route", async () => {
+    await bildSetzen(slA.id!);
+    const antwort = await holen(webmaster, "/api/v1/redaktion/personen");
+    const { personen } = (await antwort.json()) as {
+      personen: { id: string; bildUrl: string | null }[];
+    };
+    const meine = personen.find((p) => p.id === slA.id)!;
+    expect(meine.bildUrl).toMatch(
+      new RegExp(`^/api/v1/redaktion/personen/${slA.id}/bild\\?v=\\d+$`),
+    );
+    expect(personen.find((p) => p.id === slB.id)!.bildUrl).toBeNull();
+    const bildAntwort = await holen(webmaster, meine.bildUrl!);
+    expect(bildAntwort.status).toBe(200);
+    expect(bildAntwort.headers.get("content-type")).toBe("image/jpeg");
+    expect(bildAntwort.headers.get("cache-control")).toBe("private, no-store");
+    expect(bildAntwort.headers.get("x-content-type-options")).toBe("nosniff");
+    expect(Buffer.from(await bildAntwort.arrayBuffer())).toEqual(bild);
+  });
+
+  test("das Bild gibt es nur für Personen, die auf der Website erscheinen dürfen, und nur mit Redaktionszugang", async () => {
+    const pfad = (id: string) => `/api/v1/redaktion/personen/${id}/bild`;
+    // Eltern und Personen der Demo-Abteilung mit Bild, aber ohne Rolle mit Aussenwirkung bzw. in einer anderen Abteilung
+    await bildSetzen(eltern.id!);
+    await bildSetzen(demoEltern.id!);
+    for (const id of [eltern.id!, demoEltern.id!, randomUUID()]) {
+      expect((await holen(webmaster, pfad(id))).status).toBe(404);
+    }
+    // Wer kein Bild hat, bekommt dasselbe 404
+    expect((await holen(webmaster, pfad(slB.id!))).status).toBe(404);
+    // Ein deaktiviertes Konto erscheint nicht, also auch sein Bild nicht
+    const weg = await legePersonaAn(welt, "slA");
+    await bildSetzen(weg.id!);
+    expect((await holen(admin, pfad(weg.id!))).status).toBe(200);
+    await db
+      .update(schema.user)
+      .set({ deaktiviertAm: new Date() })
+      .where(eq(schema.user.id, weg.id!));
+    expect((await holen(admin, pfad(weg.id!))).status).toBe(404);
+    // Die Demo-Abteilung sieht das Bild der Testabteilung nie
+    await bildSetzen(slA.id!);
+    expect((await holen(demoAdmin, pfad(slA.id!))).status).toBe(404);
+    for (const konto of [eltern, ohneRecht, adminOhne]) {
+      expect((await holen(konto, pfad(slA.id!))).status).toBe(403);
+    }
+    // Eine andere Abteilung kennt das Objekt nicht (404 vor dem Recht)
+    expect((await holen(demoEltern, pfad(slA.id!))).status).toBe(404);
+    expect((await holen(webmaster, pfad("kein-uuid"))).status).toBe(400);
+  });
+
+  test("Leitungsteam einer Stufe: Stufenleitung vor Leitung, Cevi-Name, Bild nur wo es eines gibt, nie Telefon oder E-Mail", async () => {
+    await bildSetzen(slA.id!);
+    const antwort = await team(webmaster, welt.stufeAId);
+    expect(antwort.status).toBe(200);
+    const text = await antwort.text();
+    const t = JSON.parse(text) as Team;
+    expect(t.stufe).toBe(true);
+    expect(t.personen[0]).toEqual({
+      id: slA.id,
+      anzeigename: "Flink",
+      funktion: "Stufenleitung",
+      bildUrl: expect.stringContaining(`/personen/${slA.id}/bild?v=`),
+    });
+    // Die Leitende der Stufe (webmaster, Rolle «leitung») steht danach
+    const leitung = t.personen.findIndex((p) => p.id === webmaster.id);
+    expect(leitung).toBeGreaterThan(0);
+    expect(t.personen[leitung]!.funktion).toBe("Leitung");
+    expect(t.personen[leitung]!.bildUrl).toBeNull();
+    // Wer die Stufe nicht trägt oder Elternteil ist, steht nicht da
+    expect(t.personen.map((p) => p.id)).not.toContain(slB.id);
+    expect(t.personen.map((p) => p.id)).not.toContain(eltern.id);
+    for (const p of t.personen) {
+      expect(Object.keys(p).sort()).toEqual([
+        "anzeigename",
+        "bildUrl",
+        "funktion",
+        "id",
+      ]);
+    }
+    expect(text).not.toContain("+41791234567");
+    expect(text).not.toContain("@example.org");
+  });
+
+  test("jedes andere Team zeigt seine Mitglieder mit Cevi-Name und Rolle, ohne Bild; ohne Cevi-Namen niemanden; die Gruppe eines Anlasses nie", async () => {
+    const [gruppe] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId: welt.testabteilungId,
+        name: "Runde",
+        typ: "team",
+        kuerzel: "Ru",
+      })
+      .returning();
+    const [oK] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId: welt.testabteilungId,
+        name: "OK",
+        typ: "anlass",
+        kuerzel: "OK",
+      })
+      .returning();
+    await db.insert(schema.personTag).values([
+      { userId: slA.id!, tagId: gruppe!.id, rolle: "Co-Leitung" },
+      // Ohne Cevi-Namen erscheint die Person in einem Team nicht
+      { userId: eltern.id!, tagId: gruppe!.id, rolle: null },
+      { userId: slA.id!, tagId: oK!.id, rolle: "Kasse" },
+    ]);
+    await bildSetzen(slA.id!);
+    const t = (await (await team(webmaster, gruppe!.id)).json()) as Team;
+    expect(t.stufe).toBe(false);
+    expect(t.personen).toEqual([
+      {
+        id: slA.id,
+        anzeigename: "Flink",
+        funktion: "Co-Leitung",
+        bildUrl: null,
+      },
+    ]);
+    const anlass = (await (await team(webmaster, oK!.id)).json()) as Team;
+    expect(anlass.personen).toEqual([]);
+  });
+
+  test("eine Stufe ohne Leitende hat ein leeres Team", async () => {
+    const [leer] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId: welt.testabteilungId,
+        name: "Neu",
+        typ: "stufe",
+        kuerzel: "Ne",
+      })
+      .returning();
+    await db
+      .insert(schema.personTag)
+      .values({ userId: eltern.id!, tagId: leer!.id, rolle: null });
+    const t = (await (await team(admin, leer!.id)).json()) as Team;
+    expect(t).toEqual({ gruppe: "Neu", stufe: true, personen: [] });
+  });
+
+  test("Zugang, Eingabe und Abteilung", async () => {
+    const pfad = `/api/v1/redaktion/leitungsteam?tag=${welt.stufeAId}`;
+    for (const konto of [eltern, ohneRecht, adminOhne, demoEltern]) {
+      expect((await holen(konto, pfad)).status).toBe(403);
+    }
+    expect((await holen(admin, "/api/v1/redaktion/leitungsteam")).status).toBe(
+      400,
+    );
+    expect(
+      (await holen(admin, "/api/v1/redaktion/leitungsteam?tag=kein-uuid"))
+        .status,
+    ).toBe(400);
+    expect((await holen(admin, `${pfad}&weiter=1`)).status).toBe(400);
+    // Ein Tag der Demo-Abteilung gibt es für die Testabteilung nicht, und umgekehrt
+    expect((await team(admin, welt.demoStufeId)).status).toBe(404);
+    expect((await team(demoAdmin, welt.stufeAId)).status).toBe(404);
   });
 });
 

@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { and, asc, eq, inArray, isNull, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { personTag, profilbild, tag, user } from "../db/schema.js";
 import type { Baustein } from "./bausteine.js";
@@ -38,6 +38,88 @@ export const anzeigename = (ceviName: string | null, name: string) =>
   ceviName?.trim() || name.trim().split(/\s+/)[0] || "";
 
 const AKTIV = and(isNull(user.deaktiviertAm), sql`${user.banned} is not true`);
+
+// Cevi-Name und Funktion, nie der Name im Konto: Wer keinen Cevi-Namen hat, erscheint in einem Team nicht
+export const sichtbarePerson = and(AKTIV, isNotNull(user.ceviName));
+
+// Die Rolle als Funktion im Leitungsteam einer Stufe
+export const funktionsname = (rolle: string | null) =>
+  rolle === "stufenleitung" ? "Stufenleitung" : "Leitung";
+
+// Leitung und Stufenleitung der Stufen-Tags in der Reihenfolge der Website: Stufenleitung vor Leitung, dann die Reihenfolge der Kontakte (null zuletzt) und der Name. Einzige Quelle für die Website (ladeWebsitePersonen) und die Anzeige im Editor (GET /redaktion/leitungsteam); mitBild: mit den Bytes des Bildes (die Website), sonst ohne (der Editor braucht nur bildStand)
+export function stufenteamZeilen(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+  stufenIds: string[],
+  mitBild: boolean,
+) {
+  return db
+    .select({
+      tagId: personTag.tagId,
+      userId: user.id,
+      name: user.name,
+      ceviName: user.ceviName,
+      rolle: personTag.rolle,
+      bild: mitBild ? profilbild.inhalt : sql<null>`null`,
+      bildStand: profilbild.geaendertAm,
+    })
+    .from(personTag)
+    .innerJoin(
+      tag,
+      and(
+        eq(tag.id, personTag.tagId),
+        eq(tag.typ, "stufe"),
+        eq(tag.abteilungId, abteilungId),
+      ),
+    )
+    .innerJoin(
+      user,
+      and(eq(user.id, personTag.userId), eq(user.abteilungId, abteilungId)),
+    )
+    .leftJoin(profilbild, eq(profilbild.userId, user.id))
+    .where(
+      and(
+        inArray(personTag.tagId, stufenIds),
+        inArray(personTag.rolle, [...AUSSENROLLEN]),
+        AKTIV,
+      ),
+    )
+    .orderBy(
+      sql`${personTag.rolle} = 'stufenleitung' desc`,
+      sql`${personTag.prioritaet} asc nulls last`,
+      asc(user.name),
+      asc(user.id),
+    );
+}
+
+// Die Mitglieder jedes anderen Teams (Tag ohne Typ «stufe») als einfache Liste, wie die Website sie zeigt: Cevi-Name und Rolle als Text, nach Reihenfolge der Kontakte (null zuletzt) und Name
+export function teamZeilen(
+  db: Pick<Db, "select">,
+  abteilungId: string,
+  tagIds: string[],
+) {
+  return db
+    .select({
+      tagId: personTag.tagId,
+      userId: user.id,
+      name: user.ceviName,
+      funktion: personTag.rolle,
+    })
+    .from(personTag)
+    .innerJoin(user, eq(user.id, personTag.userId))
+    .where(
+      and(
+        inArray(personTag.tagId, tagIds),
+        eq(user.abteilungId, abteilungId),
+        sichtbarePerson,
+      ),
+    )
+    .orderBy(
+      sql`${personTag.prioritaet} asc nulls last`,
+      asc(user.ceviName),
+      asc(user.id),
+    );
+}
 
 // Darf die Person (in der Abfrage auf «user») auf der Website erscheinen? Rolle mit Aussenwirkung und aktives Konto, wie ladeWebsitePersonen
 export const aufWebsite = sql<boolean>`(${hatAussenrolle} and ${user.deaktiviertAm} is null and ${user.banned} is not true)`;
@@ -91,53 +173,18 @@ export async function ladeWebsitePersonen(
     }
   }
   if (stufenIds.length > 0) {
-    const zeilen = await db
-      .select({
-        tagId: personTag.tagId,
-        name: user.name,
-        ceviName: user.ceviName,
-        rolle: personTag.rolle,
-        bild: profilbild.inhalt,
-      })
-      .from(personTag)
-      .innerJoin(
-        tag,
-        and(
-          eq(tag.id, personTag.tagId),
-          eq(tag.typ, "stufe"),
-          eq(tag.abteilungId, abteilungId),
-        ),
-      )
-      .innerJoin(
-        user,
-        and(eq(user.id, personTag.userId), eq(user.abteilungId, abteilungId)),
-      )
-      .leftJoin(profilbild, eq(profilbild.userId, user.id))
-      .where(
-        and(
-          inArray(personTag.tagId, stufenIds),
-          inArray(personTag.rolle, [...AUSSENROLLEN]),
-          AKTIV,
-        ),
-      )
-      // Stufenleitung vor Leitung, dann die Reihenfolge der Kontakte (null zuletzt) und der Name
-      .orderBy(
-        sql`${personTag.rolle} = 'stufenleitung' desc`,
-        sql`${personTag.prioritaet} asc nulls last`,
-        asc(user.name),
-        asc(user.id),
-      );
+    // Jede Stufe hat ein Team, auch ein leeres: Der Baustein bleibt dann leer, statt auf die Liste der Mitglieder auszuweichen
+    for (const id of stufenIds) stufenteams.set(id, []);
+    const zeilen = await stufenteamZeilen(db, abteilungId, stufenIds, true);
     for (const z of zeilen) {
       const name = anzeigename(z.ceviName, z.name);
       if (name === "") continue;
       const bild = bildAdresse(z.bild);
-      const liste = stufenteams.get(z.tagId) ?? [];
-      liste.push({
+      stufenteams.get(z.tagId)!.push({
         name,
-        funktion: z.rolle === "stufenleitung" ? "Stufenleitung" : "Leitung",
+        funktion: funktionsname(z.rolle),
         ...(bild && { bild }),
       });
-      stufenteams.set(z.tagId, liste);
     }
   }
   return { personen, stufenteams, dateien: [...dateien] };

@@ -194,6 +194,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-felder-medien.js": { erwartet: alle(200) },
   "GET /admin/website-felder-text.js": { erwartet: alle(200) },
   "GET /admin/website-felder-dynamisch.js": { erwartet: alle(200) },
+  "GET /admin/website-personenwahl.js": { erwartet: alle(200) },
   "GET /admin/website-sichtbarkeit.js": { erwartet: alle(200) },
   "GET /admin/website-symbole.js": { erwartet: alle(200) },
   "GET /admin/website-veroeffentlichen.js": { erwartet: alle(200) },
@@ -2501,6 +2502,32 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Personenwahl mit Foto und Leitungsteam (#760): wie die Personen; das Bild gibt es nur fuer Personen mit Aussenrolle der eigenen Abteilung (Objekt zuerst: andere Abteilung 404, dann das Recht 403). Die Wirkung steht in test/redaktion-zugang.test.ts
+  "GET /api/v1/redaktion/personen/:id/bild": {
+    url: () => `/api/v1/redaktion/personen/${bildZielId}/bild`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 404,
+      demoEltern: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/redaktion/leitungsteam": {
+    url: (w) => `/api/v1/redaktion/leitungsteam?tag=${w.stufeAId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 404,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Geschützte Bausteine der Website (#354): ohne Sitzung 401, mit Sitzung nichts ohne Seite (404, auch in der Demo-Abteilung); die Wirkung je Persona steht in test/website-inhalt.test.ts
   "GET /api/v1/website/inhalt": {
     url: () => "/api/v1/website/inhalt?pfad=/matrix-unbekannt",
@@ -2937,6 +2964,15 @@ beforeAll(async () => {
   await db
     .insert(schema.profilbild)
     .values({ userId: bildZielId, inhalt: testBild });
+  // Aussenrolle in der Stufe: Nur wer auf der Website erscheinen darf, hat ein Bild fuer die Personenwahl (#760)
+  await db
+    .insert(schema.personTag)
+    .values({
+      userId: bildZielId,
+      tagId: welt.stufeAId,
+      rolle: "stufenleitung",
+    })
+    .onConflictDoNothing();
   await db
     .insert(schema.stufenlogo)
     .values({ stufeId: welt.stufeAId, inhalt: testBild });

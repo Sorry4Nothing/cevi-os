@@ -4,7 +4,6 @@ import {
   eq,
   inArray,
   isNotNull,
-  isNull,
   ne,
   sql as roh,
 } from "drizzle-orm";
@@ -30,7 +29,13 @@ import {
   type Seitendokument,
 } from "./dokument.js";
 import { aufWebsiteEreignis } from "./ereignisse.js";
-import { ladeWebsitePersonen, PERSON_DATEI, personenIn } from "./personen.js";
+import {
+  ladeWebsitePersonen,
+  PERSON_DATEI,
+  personenIn,
+  sichtbarePerson,
+  teamZeilen,
+} from "./personen.js";
 import {
   keineDaten,
   rendereAnmeldung,
@@ -152,13 +157,6 @@ type Zeile = {
   veroeffentlichteVersionId: string | null;
   ausgabeHash: string | null;
 };
-
-// Cevi-Name und Funktion, nie der Name im Konto: Wer keinen Cevi-Namen hat, erscheint nicht
-const sichtbarePerson = and(
-  isNull(user.deaktiviertAm),
-  roh`${user.banned} is not true`,
-  isNotNull(user.ceviName),
-);
 
 // Das Logo der Abteilung (#550): nur ein öffentliches Bild; ein fehlendes, fremdes oder nicht öffentliches Medium ergibt kein Logo (der Kopf zeigt dann die Wortmarke).
 // Die Fassung für den dunklen Modus (#558) kommt in derselben Abfrage mit; für sie gelten dieselben Bedingungen, sonst fehlt sie
@@ -346,25 +344,14 @@ export async function ladeDaten(
         ),
       );
     stufenIds.push(...tags.filter((t) => t.typ === "stufe").map((t) => t.id));
-    const mitglieder = await db
-      .select({
-        tagId: personTag.tagId,
-        name: user.ceviName,
-        funktion: personTag.rolle,
-      })
-      .from(personTag)
-      .innerJoin(user, eq(user.id, personTag.userId))
-      .where(
-        and(
-          inArray(
-            personTag.tagId,
+    const mitglieder =
+      tags.length > 0
+        ? await teamZeilen(
+            db,
+            abteilungId,
             tags.map((t) => t.id),
-          ),
-          eq(user.abteilungId, abteilungId),
-          sichtbarePerson,
-        ),
-      )
-      .orderBy(roh`${personTag.prioritaet} asc nulls last`, user.ceviName);
+          )
+        : [];
     for (const t of tags) {
       teams.set(t.id, {
         name: t.name,
