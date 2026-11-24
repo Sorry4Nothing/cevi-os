@@ -1061,3 +1061,138 @@ describe("Sperre und Auslöser", () => {
     }
   });
 });
+
+describe("Personen mit Profilbild (#560)", () => {
+  const BILD = new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 1, 2, 3, 4]);
+  const person = async (
+    name: string,
+    extra: Partial<typeof schema.user.$inferInsert> = {},
+    mitBild = true,
+  ) => {
+    const [u] = await db
+      .insert(schema.user)
+      .values({
+        name,
+        email: `${randomUUID()}@example.org`,
+        abteilungId,
+        ...extra,
+      })
+      .returning();
+    if (mitBild) {
+      await db
+        .insert(schema.profilbild)
+        .values({ userId: u!.id, inhalt: Buffer.from(BILD) });
+    }
+    return u!.id;
+  };
+  const baustein = (...ids: string[]) => ({
+    id: randomUUID(),
+    typ: "personen",
+    daten: {
+      eintraege: ids.map((personId) => ({ personId, funktion: "Leitung" })),
+    },
+  });
+  const bilder = async () =>
+    (await ausgabe.liste()).filter((p) => p.startsWith("website/person-"));
+
+  test("freigegebene Personen erscheinen mit Anzeigename und Profilbild als Datei; alle anderen gar nicht", async () => {
+    const jetzt = new Date();
+    const mitCeviName = await person("Anna Muster", {
+      ceviName: "Flink",
+      websiteFreigabeAm: jetzt,
+    });
+    const nurVorname = await person(
+      "Beat Beispiel",
+      { websiteFreigabeAm: jetzt },
+      false,
+    );
+    const ohneFreigabe = await person("Clara Geheim", { ceviName: "Nebel" });
+    const deaktiviert = await person("Dora Weg", {
+      websiteFreigabeAm: jetzt,
+      deaktiviertAm: jetzt,
+    });
+    const s = await seite({
+      adresse: "team",
+      inhalt: dok(
+        "Team",
+        baustein(mitCeviName, nurVorname, ohneFreigabe, deaktiviert),
+      ),
+    });
+    await lauf();
+
+    const html = await lies("team/index.html");
+    expect(html).toContain('<h2 class="titel">Flink</h2>');
+    expect(html).toContain('<h2 class="titel">Beat</h2>');
+    for (const nein of [
+      "Anna",
+      "Muster",
+      "Beispiel",
+      "Nebel",
+      "Clara",
+      "Dora",
+    ]) {
+      expect(html).not.toContain(nein);
+    }
+    // Eine Datei je Profilbild; Name der Datei ist ein Hash, keine ID
+    const dateien = await bilder();
+    expect(dateien).toHaveLength(1);
+    expect(dateien[0]).toMatch(/^website\/person-[0-9a-f]{16}\.jpg$/);
+    expect(dateien[0]).not.toContain(mitCeviName);
+    expect(html).toContain(`src="/${dateien[0]}"`);
+    expect(new Uint8Array(await readFile(join(wurzel, dateien[0]!)))).toEqual(
+      BILD,
+    );
+
+    // Widerruf: Name und Datei sind beim nächsten Lauf weg
+    await db
+      .update(schema.user)
+      .set({ websiteFreigabeAm: null })
+      .where(eq(schema.user.id, mitCeviName));
+    await db
+      .update(schema.seite)
+      .set({ ausgabeHash: null })
+      .where(eq(schema.seite.id, s));
+    await lauf();
+    expect(await lies("team/index.html")).not.toContain("Flink");
+    expect(await bilder()).toEqual([]);
+  });
+
+  test("Konto gelöscht oder deaktiviert: Name und Datei fehlen beim nächsten Lauf", async () => {
+    const a = await person("Eva Eins", { websiteFreigabeAm: new Date() });
+    const b = await person("Fritz Zwei", { websiteFreigabeAm: new Date() });
+    await seite({ adresse: "team", inhalt: dok("Team", baustein(a, b)) });
+    await lauf();
+    expect(await bilder()).toHaveLength(1); // beide Bilder sind gleich: eine Datei
+    await db.delete(schema.user).where(eq(schema.user.id, a));
+    await db
+      .update(schema.user)
+      .set({ deaktiviertAm: new Date() })
+      .where(eq(schema.user.id, b));
+    await db.update(schema.seite).set({ ausgabeHash: null });
+    await lauf();
+    const html = await lies("team/index.html");
+    expect(html).not.toContain("Eva");
+    expect(html).not.toContain("Fritz");
+    expect(await bilder()).toEqual([]);
+  });
+
+  test("eine Person einer anderen Abteilung erscheint nie", async () => {
+    const [fremde] = await db
+      .insert(schema.abteilung)
+      .values({ name: "Fremde Abteilung" })
+      .returning();
+    const [u] = await db
+      .insert(schema.user)
+      .values({
+        name: "Gustav Fremd",
+        email: `${randomUUID()}@example.org`,
+        abteilungId: fremde!.id,
+        websiteFreigabeAm: new Date(),
+      })
+      .returning();
+    await seite({ adresse: "team", inhalt: dok("Team", baustein(u!.id)) });
+    await lauf();
+    expect(await lies("team/index.html")).not.toContain("Gustav");
+    expect(await bilder()).toEqual([]);
+  });
+});
