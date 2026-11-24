@@ -282,6 +282,11 @@ export async function legePersonaAn(
     },
   });
 
+  // Die Abteilungsleitung ist eine Zeile in abteilungsleitung_person (#720); role = 'admin' oben ist nur der Spiegel
+  if (steckbrief.admin) {
+    await db.insert(schema.abteilungsleitungPerson).values({ userId: user.id });
+  }
+
   const stufen = { A: welt.stufeAId, B: welt.stufeBId };
   for (const [stufe, typ] of steckbrief.rollen ?? []) {
     await db

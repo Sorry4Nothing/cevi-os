@@ -128,7 +128,7 @@ export function erstelleUebersichtRouten({
                 (select count(*) from "user" u
                   where u.abteilung_id = ${a} and u.banned is not true and u.deaktiviert_am is null
                     and coalesce(u.two_factor_enabled, false) = false
-                    and (u.role = 'admin'
+                    and (exists (select 1 from abteilungsleitung_person al where al.user_id = u.id)
                       or exists (select 1 from person_plattform_rolle r where r.user_id = u.id)
                       or exists (select 1 from plattform_entwickler e where e.user_id = u.id)))::int as ohne_faktor,
                 (select count(*) from anlass

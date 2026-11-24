@@ -2,6 +2,7 @@ import { HTTPException } from "hono/http-exception";
 import { sql, type SQL } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import {
+  abteilungsleitungPerson,
   bearbeiter,
   personPlattformRolle,
   personTag,
@@ -92,7 +93,7 @@ export async function geschuetzteKonten(
     select ${user.id} as id from ${user}
     where ${user.abteilungId} = ${abteilungId} ${nur}
       and (
-        ${user.role} = 'admin'
+        exists (select 1 from ${abteilungsleitungPerson} where ${abteilungsleitungPerson.userId} = ${user.id})
         or exists (select 1 from ${plattformEntwickler} where ${plattformEntwickler.userId} = ${user.id})
         or exists (select 1 from ${personPlattformRolle} inner join ${plattformRolle} on ${plattformRolle.id} = ${personPlattformRolle.rolleId} and ${plattformRolle.abteilungId} = ${abteilungId} where ${personPlattformRolle.userId} = ${user.id})
         or exists (select 1 from ${personTag} where ${personTag.userId} = ${user.id} and ${personTag.rolleId} is not null)

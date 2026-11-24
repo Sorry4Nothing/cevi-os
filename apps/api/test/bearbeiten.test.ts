@@ -95,9 +95,13 @@ const neuePerson = (persona: Persona) => legePersonaAn(welt, persona);
 // Wie personAusSitzung (rechte.ts): Rolle und Stufenrollen frisch aus der Datenbank, nie zwischengespeichert
 async function personVon(konto: PersonaKonto): Promise<Person> {
   const [u] = await db
-    .select({ abteilungId: schema.user.abteilungId, role: schema.user.role })
+    .select({ abteilungId: schema.user.abteilungId })
     .from(schema.user)
     .where(eq(schema.user.id, konto.id!));
+  const [al] = await db
+    .select({ userId: schema.abteilungsleitungPerson.userId })
+    .from(schema.abteilungsleitungPerson)
+    .where(eq(schema.abteilungsleitungPerson.userId, konto.id!));
   const rollen = await db
     .select({ stufeId: schema.rolle.stufeId, typ: schema.rolle.typ })
     .from(schema.rolle)
@@ -112,7 +116,7 @@ async function personVon(konto: PersonaKonto): Promise<Person> {
   return {
     id: konto.id!,
     abteilungId: u.abteilungId,
-    admin: u.role === "admin",
+    admin: al !== undefined,
     zweiterFaktor: true,
     rollen,
   };
@@ -336,9 +340,8 @@ describe("darfBearbeiten: Sonderrechte", () => {
     const objekt = randomUUID();
     expect(await darf(zweiter, objekt)).toBe(true);
     await db
-      .update(schema.user)
-      .set({ role: "user" })
-      .where(eq(schema.user.id, zweiter.id!));
+      .delete(schema.abteilungsleitungPerson)
+      .where(eq(schema.abteilungsleitungPerson.userId, zweiter.id!));
     expect(await darf(zweiter, objekt)).toBe(false);
 
     const zweiteSl = await neuePerson("slA");

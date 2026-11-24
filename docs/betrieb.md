@@ -156,6 +156,16 @@ Bestätigte Buchungen eines Raums dürfen sich nicht überschneiden. Das hält d
 - **Backup und Wiederherstellung:** Der Dump enthält `CREATE EXTENSION btree_gist`; die Wiederherstellung braucht dieselbe Voraussetzung.
 - **Last:** Der Index wird nur für bestätigte Buchungen geführt (Teilindex); bei einigen Dutzend Buchungen je Raum und Jahr ist das vernachlässigbar.
 
+## Abteilungsleitung in eigener Tabelle (#720)
+
+Die Abteilungsleitung ist eine Zeile in `abteilungsleitung_person` (eine Zeile je Konto; die Abteilung steht im Konto). Bisher war es das Konto mit `user.role = 'admin'`. Teil 2 von 11 des Umbaus «Entwickler ist der einzige Admin» (Epic #714).
+
+- **Migration `0159_abteilungsleitung_person`:** legt die Tabelle an und kopiert jedes Konto mit `role = 'admin'` hinein, auf dem Server genau eines. `user.role` bleibt unberührt. Sie läuft auf einer Datenbank mit allen bisherigen Migrationen ohne Eingriff: Ihr `when` ist grösser als das von 0158.
+- **Reihenfolge beim Ausrollen:** erst die Migration, dann der neue Code. `deploy.sh` migriert vor dem Start, die Reihenfolge stimmt also von selbst. Der alte Code liest weiter `role` und bleibt bis zum Neustart funktionsfähig.
+- **Übergang:** Der neue Code liest die Abteilungsleitung nur aus der Tabelle, schreibt aber `user.role` weiter als Spiegel (Person ändern, Person anlegen, `npm run admin:anlegen`). So funktionieren die Web-Verwaltung (liest `role` aus der Sitzung) und ein Rückgriff auf das vorige Release. Ein späterer Teil des Umbaus entfernt den Spiegel; bis dahin darf `role` nicht von Hand geändert werden: Die Tabelle gilt.
+- **Notfall:** Ist niemand mehr in der Tabelle, setzt man eine Zeile von Hand als Besitzer der Datenbank: `insert into abteilungsleitung_person (user_id) select id from "user" where username = '<benutzername>'` (und `update "user" set role = 'admin' where username = '<benutzername>'`, solange der Spiegel gilt).
+- **Rückweg:** `drizzle/rueckweg/0159_abteilungsleitung_person.sql` (`psql -1 -f`, nach dem Zurückstellen des Codes) setzt `role = 'admin'` für alle Mitglieder der Tabelle, löscht sie und die Journalzeile.
+
 ## Aufräumläufe der API
 
 Die API räumt selbst auf: Alle Läufe sind Zeitgeber im Prozess der API (`apps/api/src/server.ts`), es gibt keinen Cron und keinen externen Planer. Jeder Lauf startet beim Start der API sofort und danach im Takt; nach einem Deploy laufen sie also einmal sofort, was bei Löschläufen unkritisch ist (sie sind idempotent). Ins Log (journald, siehe «Logs») kommen nur der Name des Laufs und die Zahl der Zeilen, bei einem Fehler nur ein Code; ein Fehler bricht nichts ab, der nächste Lauf folgt im nächsten Takt. Es gibt keinen Alarm dafür: Wer prüfen will, ob ein Lauf läuft, sucht im Log nach dem Ereignisnamen.

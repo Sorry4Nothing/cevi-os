@@ -19,6 +19,7 @@ import { HTTPException } from "hono/http-exception";
 import type { erstelleAuth } from "./auth.js";
 import type { Db } from "./db/client.js";
 import {
+  abteilungsleitungPerson,
   chat,
   kind,
   kindKontoEinstellung,
@@ -65,13 +66,14 @@ export function personAusSitzung(
       throw new HTTPException(403);
     }
     // Kein Fremdschlüssel sichert zu, dass die Stufe zur Abteilung der Person gehört, darum die Bedingung im Join
-    // Eine Abfrage für beides (Rollen und eigenes Kind): jede Anfrage zahlt sie, und die Tests der Datenbanklast zählen sie. Die Zeile mit kindId ist das eigene Konto eines Kindes (user_id ist eindeutig, höchstens eine)
+    // Eine Abfrage für alles (Rollen, eigenes Kind, Abteilungsleitung): jede Anfrage zahlt sie, und die Tests der Datenbanklast zählen sie. Die Zeile mit kindId ist das eigene Konto eines Kindes (user_id ist eindeutig, höchstens eine)
     const zeilen = await unionAll(
       db
         .select({
           stufeId: sql<string | null>`${rolle.stufeId}`.as("stufe_id"),
           typ: sql<string | null>`${rolle.typ}`.as("typ"),
           kindId: sql<string | null>`null::uuid`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
         })
         .from(rolle)
         .innerJoin(
@@ -87,6 +89,7 @@ export function personAusSitzung(
           stufeId: sql<string | null>`null::uuid`.as("stufe_id"),
           typ: sql<string | null>`null::text`.as("typ"),
           kindId: sql<string | null>`${kind.id}`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`false`.as("abteilungsleitung"),
         })
         .from(kind)
         .where(
@@ -95,6 +98,16 @@ export function personAusSitzung(
             eq(kind.abteilungId, sitzung.user.abteilungId),
           ),
         ),
+      // Die Abteilungsleitung steht in einer eigenen Tabelle (#720), nicht mehr in user.role
+      db
+        .select({
+          stufeId: sql<string | null>`null::uuid`.as("stufe_id"),
+          typ: sql<string | null>`null::text`.as("typ"),
+          kindId: sql<string | null>`null::uuid`.as("kind_id"),
+          abteilungsleitung: sql<boolean>`true`.as("abteilungsleitung"),
+        })
+        .from(abteilungsleitungPerson)
+        .where(eq(abteilungsleitungPerson.userId, sitzung.user.id)),
     );
     const rollen = zeilen.flatMap((z) =>
       z.stufeId && z.typ
@@ -105,7 +118,7 @@ export function personAusSitzung(
     c.set("person", {
       id: sitzung.user.id,
       abteilungId: sitzung.user.abteilungId,
-      admin: sitzung.user.role === "admin",
+      admin: zeilen.some((z) => z.abteilungsleitung),
       zweiterFaktor: sitzung.user.twoFactorEnabled === true,
       rollen,
       ...(eigenesKind && { kindId: eigenesKind }),

@@ -99,7 +99,6 @@ export function erstelleAuth(
     anmeldungGesperrt?: (nutzer: {
       id: string;
       abteilungId: string;
-      role?: string | null;
     }) => Promise<boolean>;
   } = {},
 ) {
@@ -199,7 +198,6 @@ export function erstelleAuth(
                 mussPasswortAendern?: boolean;
                 startpasswortGueltigBis?: Date | string | null;
                 abteilungId: string;
-                role?: string | null;
               }>({
                 model: "user",
                 where: [{ field: "id", value: sitzung.userId }],
@@ -210,7 +208,6 @@ export function erstelleAuth(
                 (await anmeldungGesperrt?.({
                   id: sitzung.userId,
                   abteilungId: person.abteilungId,
-                  role: person.role,
                 }))
               ) {
                 throw new APIError("LOCKED", {

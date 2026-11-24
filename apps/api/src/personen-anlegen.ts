@@ -3,7 +3,12 @@ import { eq } from "drizzle-orm";
 import { erstelleAuth, platzhalterEmail } from "./auth.js";
 import type { Db } from "./db/client.js";
 import * as schema from "./db/schema.js";
-import { auditLog, kindEltern, rolle } from "./db/schema.js";
+import {
+  abteilungsleitungPerson,
+  auditLog,
+  kindEltern,
+  rolle,
+} from "./db/schema.js";
 import type { Person } from "./rechte.js";
 import {
   normalisiereStartpasswort,
@@ -40,6 +45,7 @@ export async function legePersonAn(
       email: platzhalterEmail(),
       password: normalisiereStartpasswort(eingaben.startpasswort),
       name: `${eingaben.vorname} ${eingaben.nachname}`,
+      // Spiegel (#720): Die Abteilungsleitung steht in abteilungsleitung_person, role schreibt der Übergang weiter
       role: eingaben.admin ? "admin" : "user",
       data: {
         username: eingaben.benutzername,
@@ -54,6 +60,9 @@ export async function legePersonAn(
       .update(schema.user)
       .set({ telefon: eingaben.telefon })
       .where(eq(schema.user.id, neu.id));
+  }
+  if (eingaben.admin) {
+    await tx.insert(abteilungsleitungPerson).values({ userId: neu.id });
   }
   if (eingaben.rollen.length > 0) {
     await tx

@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type { Db } from "../db/client.js";
+import { istAbteilungsleitungSql } from "../admins.js";
 import { rolle, stufe, user } from "../db/schema.js";
 import type { Person } from "../rechte.js";
 
@@ -13,8 +14,8 @@ export async function ladePerson(
     .select({
       id: user.id,
       name: user.name,
-      role: user.role,
       twoFactorEnabled: user.twoFactorEnabled,
+      abteilungsleitung: istAbteilungsleitungSql(user.id),
     })
     .from(user)
     .where(and(eq(user.id, userId), eq(user.abteilungId, abteilungId)));
@@ -31,7 +32,7 @@ export async function ladePerson(
     id: konto.id,
     name: konto.name,
     abteilungId,
-    admin: konto.role === "admin",
+    admin: konto.abteilungsleitung,
     zweiterFaktor: konto.twoFactorEnabled === true,
     rollen,
   };

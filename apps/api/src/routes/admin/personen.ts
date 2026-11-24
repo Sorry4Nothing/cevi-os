@@ -5,6 +5,8 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import {
   aktiveAdminIds,
+  istAbteilungsleitung,
+  istAbteilungsleitungSql,
   istLetzterAdmin,
   LETZTER_ADMIN,
 } from "../../admins.js";
@@ -19,6 +21,7 @@ import {
 } from "../../benutzername.js";
 import type { Db } from "../../db/client.js";
 import {
+  abteilungsleitungPerson,
   auditLog,
   kind,
   kindEltern,
@@ -144,7 +147,7 @@ export function erstellePersonenRouten({
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
   async function ladeZiel(person: Person, id: string) {
     const [ziel] = await db
-      .select({ id: user.id, admin: sql<boolean>`${user.role} = 'admin'` })
+      .select({ id: user.id, admin: istAbteilungsleitungSql(user.id) })
       .from(user)
       .where(
         and(
@@ -209,7 +212,10 @@ export function erstellePersonenRouten({
       return;
     }
     const [[bisher], rollen, eltern] = await Promise.all([
-      db.select({ role: user.role }).from(user).where(eq(user.id, id)),
+      db
+        .select({ admin: istAbteilungsleitungSql(user.id) })
+        .from(user)
+        .where(eq(user.id, id)),
       db
         .select({ stufeId: rolle.stufeId, typ: rolle.typ })
         .from(rolle)
@@ -220,8 +226,7 @@ export function erstellePersonenRouten({
         .where(eq(kindEltern.userId, id)),
     ]);
     const adminGeaendert =
-      aenderung.admin !== undefined &&
-      (bisher.role === "admin") !== aenderung.admin;
+      aenderung.admin !== undefined && bisher.admin !== aenderung.admin;
     const alt = new Map(rollen.map((r) => [r.stufeId, r.typ]));
     const rollenGeaendert =
       aenderung.rollen !== undefined &&
@@ -338,7 +343,7 @@ export function erstellePersonenRouten({
               ceviName: user.ceviName,
               telefon: user.telefon,
               benutzername: user.username,
-              role: user.role,
+              admin: istAbteilungsleitungSql(user.id),
               twoFactorEnabled: user.twoFactorEnabled,
               banned: user.banned,
               mussPasswortAendern: user.mussPasswortAendern,
@@ -430,7 +435,7 @@ export function erstellePersonenRouten({
           bildUrl: p.bildUrl,
           telefon: p.telefon,
           benutzername: p.benutzername,
-          admin: p.role === "admin",
+          admin: p.admin,
           zweiterFaktor: p.twoFactorEnabled === true,
           deaktiviert: p.banned === true,
           mussPasswortAendern: p.mussPasswortAendern,
@@ -556,12 +561,20 @@ export function erstellePersonenRouten({
               }
             }
             if (aenderung.admin !== undefined) {
+              // Die Tabelle ist die Quelle, user.role der Spiegel für den Übergang (#720)
               felder.role = aenderung.admin ? "admin" : "user";
-              const [bisher] = await tx
-                .select({ role: user.role })
-                .from(user)
-                .where(eq(user.id, id));
-              if ((bisher.role === "admin") !== aenderung.admin) {
+              const bisherAdmin = await istAbteilungsleitung(tx, id);
+              if (aenderung.admin) {
+                await tx
+                  .insert(abteilungsleitungPerson)
+                  .values({ userId: id })
+                  .onConflictDoNothing();
+              } else {
+                await tx
+                  .delete(abteilungsleitungPerson)
+                  .where(eq(abteilungsleitungPerson.userId, id));
+              }
+              if (bisherAdmin !== aenderung.admin) {
                 details.admin = aenderung.admin;
               }
             }

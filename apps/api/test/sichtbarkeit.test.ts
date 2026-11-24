@@ -111,13 +111,13 @@ beforeAll(async () => {
         const konto = konten[p];
         if (!konto.id) return [p, null];
         const [u] = await db
-          .select({ role: schema.user.role })
-          .from(schema.user)
-          .where(eq(schema.user.id, konto.id));
+          .select({ id: schema.abteilungsleitungPerson.userId })
+          .from(schema.abteilungsleitungPerson)
+          .where(eq(schema.abteilungsleitungPerson.userId, konto.id));
         const person = {
           id: konto.id,
           abteilungId: konto.abteilungId,
-          admin: u.role === "admin",
+          admin: u !== undefined,
         };
         return [p, { ...person, tagIds: await ladeTagIds(db, person) }];
       }),

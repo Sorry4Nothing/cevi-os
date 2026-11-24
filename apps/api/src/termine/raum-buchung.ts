@@ -1,6 +1,7 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { z } from "zod";
+import { istAbteilungsleitungSql } from "../admins.js";
 import type { Db } from "../db/client.js";
 import { personTag, user } from "../db/schema.js";
 import { log } from "../log.js";
@@ -95,7 +96,7 @@ export async function pushNeueAnfrage(
             .where(
               and(
                 aktivesKonto(opt.abteilungId),
-                eq(user.role, "admin"),
+                istAbteilungsleitungSql(user.id),
                 eq(user.twoFactorEnabled, true),
                 ne(user.id, opt.vonId),
               ),
