@@ -1,4 +1,4 @@
-import { anfrage, fehlertext } from "./api.js";
+import { fehlertext } from "./api.js";
 import { el, feld, knopf, neueId, tag } from "./dom.js";
 import { loescheFeldFehler } from "./website-dialoge.js";
 import {
@@ -18,6 +18,12 @@ import {
   TEXT_TYPEN,
 } from "./website-felder-text.js";
 import {
+  ladePersonen,
+  personenAuswahl,
+  teamAnzeige,
+  PERSON_HILFE,
+} from "./website-personenwahl.js";
+import {
   dynamischeBausteine,
   FELDNAMEN_DYNAMISCH,
   VERWEIS_TEXTE_DYNAMISCH,
@@ -28,7 +34,6 @@ import {
 // k ist der Kontext des Formulars: { tags, tagNamen, personNamen, medien (Map), waehleBild(fn), aendere(), formNeu(b, fokus), kannAlt, altAenderung(mediumId, text) }
 // reg(pfad, wurzel, ziel) meldet ein Feld an die Fehlerliste an (Pfad wie beim Server ohne «bausteine.<n>.», zum Beispiel «daten.text»).
 
-const API = "/api/v1/redaktion";
 const MAX_TEXT_ZEICHEN = 20000;
 export const MAX_KARTEN = 24;
 export const MAX_GALERIE = 50;
@@ -845,27 +850,8 @@ function gruppenPillen(k, b, reg, schluessel, label, optional) {
   return wurzel;
 }
 
-// Person direkt wählen (#755): eine Auswahl mit allen Leitenden der Abteilung, nach Gruppe geordnet. Die Liste kommt vom Server und enthält nur, wer auf der Website erscheinen darf (Rolle mit Aussenwirkung); sie wird je Editor einmal geladen (k.personen).
+// Person direkt wählen (#755, Fotos #760): eine Auswahl mit allen Leitenden der Abteilung, nach Gruppe geordnet, mit Foto (website-personenwahl.js). Die Liste kommt vom Server und enthält nur, wer auf der Website erscheinen darf (Rolle mit Aussenwirkung); sie wird je Editor einmal geladen (k.personen).
 // ziel: das Objekt mit der personId (der Baustein oder ein Eintrag der Liste); optional: «Keine Person» ist möglich
-const PERSON_HILFE =
-  "Nur Leitende erscheinen auf der Website. Kinder und andere Personen stehen hier nicht zur Auswahl.";
-const FUNKTIONEN = { stufenleitung: "Stufenleitung", leitung: "Leitung" };
-
-function ladePersonen(k) {
-  k.personen.laden ??= anfrage("GET", `${API}/personen`).then(
-    (antwort) => {
-      for (const p of antwort.personen) k.personNamen.set(p.id, p.anzeigename);
-      k.personen.liste = antwort.personen;
-      return antwort.personen;
-    },
-    (f) => {
-      k.personen.laden = null;
-      throw f;
-    },
-  );
-  return k.personen.laden;
-}
-
 function personWahl(k, b, reg, ziel, pfad, { optional = false } = {}) {
   const wurzel = el("div", { class: "feld" });
   const hilfeId = neueId("person-hilfe");
@@ -875,28 +861,6 @@ function personWahl(k, b, reg, ziel, pfad, { optional = false } = {}) {
     const aktuell = ziel.personId;
     // Die gewählte Person steht nicht (mehr) zur Auswahl, zum Beispiel weil ihr die Rolle entzogen wurde: sie bleibt sichtbar, bis jemand anderes gewählt ist
     const veraltet = Boolean(aktuell) && !liste.some((p) => p.id === aktuell);
-    const f = waehler({
-      label: "Person",
-      optionen: [
-        [
-          "",
-          optional
-            ? "Keine Person"
-            : liste.length > 0
-              ? "Person wählen"
-              : "Niemand zur Auswahl",
-        ],
-        ...(veraltet
-          ? [[aktuell, "Bisherige Person (nicht mehr wählbar)"]]
-          : []),
-        ...liste.map((p) => [
-          p.id,
-          `${p.anzeigename} (${FUNKTIONEN[p.funktion] ?? p.funktion}, ${p.gruppe})`,
-        ]),
-      ],
-      wert: aktuell ?? "",
-    });
-    f.eingabe.setAttribute("aria-describedby", hilfeId);
     const warnung = veraltet
       ? el(
           "p",
@@ -904,12 +868,20 @@ function personWahl(k, b, reg, ziel, pfad, { optional = false } = {}) {
           "Diese Person ist keine Leitung mehr und erscheint nicht auf der Website. Wähle eine andere Person.",
         )
       : null;
-    f.eingabe.addEventListener("change", () => {
-      if (f.eingabe.value) ziel.personId = f.eingabe.value;
-      else delete ziel.personId;
-      warnung?.remove();
-      k.aendere(b);
-      loescheFeldFehler(wurzel);
+    const f = personenAuswahl({
+      label: "Person",
+      personen: liste,
+      wert: aktuell ?? "",
+      veraltet,
+      optional,
+      hilfeId,
+      beiWahl: (id) => {
+        if (id) ziel.personId = id;
+        else delete ziel.personId;
+        warnung?.remove();
+        k.aendere(b);
+        loescheFeldFehler(wurzel);
+      },
     });
     platz.replaceChildren(...[f.wurzel, warnung].filter(Boolean));
     reg(pfad, wurzel, f.eingabe);
@@ -1148,7 +1120,13 @@ export const TYPEN = {
   // Personen (#560, #610, #755): echte Personen der Plattform; Name und Bild kommen von der Person, Funktion und Adresse der Funktion sind Angaben der Seite
   personen: {
     name: "Personen",
-    kurz: (d) => anzahlText(d.eintraege?.length ?? 0, "1 Person", "Personen"),
+    kurz: (d, k) => {
+      const n = anzahlText(d.eintraege?.length ?? 0, "1 Person", "Personen");
+      const namen = (d.eintraege ?? [])
+        .map((e) => k.personNamen.get(e.personId))
+        .filter(Boolean);
+      return namen.length > 0 ? `${n} · ${namen.join(", ")}` : n;
+    },
     pruefe: (d) => pflicht(d, "personId"),
     form: (k, b, reg) => [
       el(
@@ -1231,7 +1209,9 @@ export const TYPEN = {
   },
   kontaktperson: {
     name: "Kontaktperson",
-    kurz: (d, k) => k.personNamen.get(d.personId) ?? "",
+    kurz: (d, k) =>
+      k.personNamen.get(d.personId) ??
+      (d.personId && k.personen.liste ? "Person nicht mehr wählbar" : ""),
     pruefe: (d) => (d.personId ? [] : [["daten.personId", "fehlt."]]),
     form: (k, b, reg) => [
       personWahl(k, b, reg, b.daten, "daten.personId"),
@@ -1244,19 +1224,30 @@ export const TYPEN = {
   },
   leitungsteam: {
     name: "Leitungsteam",
-    kurz: (d, k) =>
-      d.tagId
-        ? `Aus der ${tagText(d, k, "").replace("Gruppe ", "Gruppe ")}`
-        : "",
+    // «Gruppe Pilami · 4 Personen»; die Zahl kommt aus dem Stand, den die Anzeige im Formular geladen hat (k.teams)
+    kurz: (d, k) => {
+      if (!d.tagId) return "";
+      const n = k.teams.stand.get(d.tagId)?.personen.length;
+      return n === undefined
+        ? tagText(d, k, "")
+        : `${tagText(d, k, "")} · ${anzahlText(n, "1 Person", "Personen")}`;
+    },
     pruefe: (d) => (d.tagId ? [] : [["daten.tagId", "fehlt."]]),
-    form: (k, b, reg) => [
-      gruppenPillen(k, b, reg, "tagId", "Gruppe", false),
-      el(
-        "p",
-        { class: "hilfe" },
-        "Zeigt alle Personen der Gruppe mit Cevi-Name und Funktion.",
-      ),
-    ],
+    form: (k, b, reg) => {
+      const gruppe = gruppenPillen(k, b, reg, "tagId", "Gruppe", false);
+      const team = teamAnzeige(k, () => b.daten.tagId);
+      // Die Pille schreibt die Gruppe in den Baustein, dann kommt der Klick hier an
+      gruppe.addEventListener("click", () => team.aktualisiere());
+      return [
+        gruppe,
+        team.wurzel,
+        el(
+          "p",
+          { class: "hilfe" },
+          "Das Leitungsteam zeigt Foto, Cevi-Name und Funktion. Bei einer Stufe stehen die Stufenleitenden zuerst.",
+        ),
+      ];
+    },
   },
   terminliste: {
     name: "Termin-Liste",
