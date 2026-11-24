@@ -427,7 +427,15 @@ describe("Wartungsmodus: wer schalten darf", () => {
       ).bereiche;
     // Die Vorgabe «Webmaster» hat auch «fotos.verwalten» (#690): ein eigener Eintrag für die Seite «Fotos»
     expect(await bereiche(webmasterMitRecht)).toEqual(["website", "plattform"]);
-    expect(await bereiche(entwickler)).toEqual(["website", "plattform"]);
+    // Der Entwickler hat jedes Recht (#722): auch Lädeli, Lager, Betriebszahlen und Fotos
+    expect(await bereiche(entwickler)).toEqual([
+      "website",
+      "plattform",
+      "laedeli",
+      "lager",
+      "system",
+      "fotos",
+    ]);
     expect(await bereiche(webmaster)).toEqual(["website", "fotos"]);
     expect(await bereiche(slA)).toEqual(["website"]);
   });

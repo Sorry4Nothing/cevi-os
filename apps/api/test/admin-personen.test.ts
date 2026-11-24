@@ -12,7 +12,7 @@ import {
   vi,
   type MockInstance,
 } from "vitest";
-import { aktiveAdminIds } from "../src/admins.js";
+import { aktiveVerwalter } from "../src/verwalter.js";
 import { erstelleApp } from "../src/app.js";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
@@ -85,7 +85,7 @@ function anlegenBody(extra: Record<string, unknown> = {}) {
     vorname: "Vreni",
     nachname: "Muster",
     benutzername: neuerBenutzername(),
-    admin: false,
+    abteilungsleitung: false,
     rollen: [],
     elternteilVon: [],
     ...extra,
@@ -113,6 +113,15 @@ const anmelden = (benutzername: string, passwort: string) =>
     returnHeaders: true,
   });
 
+const istInTabelle = async (id: string) =>
+  (
+    await db
+      .select()
+      .from(schema.abteilungsleitungPerson)
+      .where(eq(schema.abteilungsleitungPerson.userId, id))
+  ).length === 1;
+const aktiveIds = async (abteilungId: string) =>
+  (await aktiveVerwalter(db, abteilungId)).map((v) => v.id);
 const userZeile = async (id: string) =>
   (await db.select().from(schema.user).where(eq(schema.user.id, id)))[0];
 const sitzungen = (id: string) =>
@@ -124,7 +133,7 @@ describe("POST /api/v1/admin/personen", () => {
     const roh = `Vreni-M.${randomUUID().slice(0, 8).toUpperCase()}`;
     const angelegt = await legePersonAn({
       benutzername: roh,
-      admin: true,
+      abteilungsleitung: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
       elternteilVon: [welt.kindBId],
     });
@@ -132,6 +141,8 @@ describe("POST /api/v1/admin/personen", () => {
     expect(angelegt.startpasswort).toMatch(STARTPASSWORT_FORM);
 
     const person = await userZeile(angelegt.id);
+    // Quelle ist die Tabelle, role der Spiegel für den Übergang (#720)
+    expect(await istInTabelle(angelegt.id)).toBe(true);
     expect(person).toMatchObject({
       name: "Vreni Muster",
       username: roh.toLowerCase(),
@@ -228,6 +239,7 @@ describe("POST /api/v1/admin/personen", () => {
     ["unbekanntes Kind", () => ({ elternteilVon: [randomUUID()] })],
     ["doppeltes Kind", () => ({ elternteilVon: [welt.kindAId, welt.kindAId] })],
     ["überzähliger Schlüssel", () => ({ telefon: "079" })],
+    ["das alte Feld admin (#736)", () => ({ admin: true })],
     ["Cevi-Name mit 51 Zeichen", () => ({ ceviName: "a".repeat(51) })],
     ["Benutzername mit !", () => ({ benutzername: "mit!zeichen" })],
     ["Benutzername mit 1 Zeichen", () => ({ benutzername: "a" })],
@@ -257,6 +269,25 @@ describe("POST /api/v1/admin/personen", () => {
 });
 
 describe("GET /api/v1/admin/personen", () => {
+  test("zeigt abteilungsleitung und entwickler je Person, nie admin (#736)", async () => {
+    const leitung = await legePersonAn({ abteilungsleitung: true });
+    const dev = await legePersonAn();
+    await db.insert(schema.plattformEntwickler).values({ userId: dev.id });
+    const koerper = (await (await anfrage(admin, "GET")).json()) as {
+      personen: Record<string, unknown>[];
+    };
+    const von = (id: string) => koerper.personen.find((p) => p.id === id)!;
+    expect(von(leitung.id)).toMatchObject({
+      abteilungsleitung: true,
+      entwickler: false,
+    });
+    expect(von(dev.id)).toMatchObject({
+      abteilungsleitung: false,
+      entwickler: true,
+    });
+    expect(von(leitung.id)).not.toHaveProperty("admin");
+  });
+
   test("liefert Personen mit Rollen, Stufen und Kinder der eigenen Abteilung, ohne E-Mail", async () => {
     const angelegt = await legePersonAn({
       rollen: [{ stufeId: welt.stufeBId, typ: "leitung" }],
@@ -271,12 +302,13 @@ describe("GET /api/v1/admin/personen", () => {
     };
     const person = koerper.personen.find((p) => p.id === angelegt.id)!;
     expect(Object.keys(person).sort()).toEqual([
-      "admin",
+      "abteilungsleitung",
       "benutzername",
       "bildUrl",
       "ceviName",
       "deaktiviert",
       "elternteilVon",
+      "entwickler",
       "id",
       "mussPasswortAendern",
       "name",
@@ -287,7 +319,7 @@ describe("GET /api/v1/admin/personen", () => {
       "zweiterFaktor",
     ]);
     expect(person).toMatchObject({
-      admin: false,
+      abteilungsleitung: false,
       deaktiviert: false,
       mussPasswortAendern: true,
       rollen: [{ stufeId: welt.stufeBId, typ: "leitung" }],
@@ -415,7 +447,9 @@ describe("Cevi-Name", () => {
     ).toBe(204);
     expect(await liste()).toBe("Blitz");
     // Ohne den Schlüssel bleibt er, leer löscht ihn
-    await anfrage(admin, "PATCH", `/${angelegt.id}`, { admin: false });
+    await anfrage(admin, "PATCH", `/${angelegt.id}`, {
+      abteilungsleitung: false,
+    });
     expect(await liste()).toBe("Blitz");
     await anfrage(admin, "PATCH", `/${angelegt.id}`, { ceviName: " " });
     expect(await liste()).toBeNull();
@@ -430,6 +464,15 @@ describe("Cevi-Name", () => {
 });
 
 describe("PATCH /api/v1/admin/personen/:id", () => {
+  test("das alte Feld admin gibt 400 und ändert nichts (#736)", async () => {
+    const angelegt = await legePersonAn();
+    const antwort = await anfrage(admin, "PATCH", `/${angelegt.id}`, {
+      admin: true,
+    });
+    expect(antwort.status).toBe(400);
+    expect(await istInTabelle(angelegt.id)).toBe(false);
+  });
+
   test("ändert Name, Abteilungsleitung und Listen; unveränderte kind_eltern-Zeilen behalten erstellt_am", async () => {
     const angelegt = await legePersonAn({
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
@@ -446,7 +489,7 @@ describe("PATCH /api/v1/admin/personen/:id", () => {
       );
     const antwort = await anfrage(admin, "PATCH", `/${angelegt.id}`, {
       name: "Neues Name",
-      admin: true,
+      abteilungsleitung: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
       elternteilVon: [welt.kindAId, welt.kindBId],
     });
@@ -455,6 +498,7 @@ describe("PATCH /api/v1/admin/personen/:id", () => {
       name: "Neues Name",
       role: "admin",
     });
+    expect(await istInTabelle(angelegt.id)).toBe(true);
     expect(
       await db
         .select({ stufeId: schema.rolle.stufeId, typ: schema.rolle.typ })
@@ -683,8 +727,8 @@ describe("DELETE /api/v1/admin/personen/:id", () => {
   });
 });
 
-// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver die Abteilungsleitung ihrer Abteilung
-describe("Schutz des letzte Abteilungsleitungs", () => {
+// Eigene Welt pro Test: Die Fälle hängen an der genauen Zahl aktiver Personen der Abteilungsleitung und aktiver Entwickler ihrer Abteilung (#731)
+describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt", () => {
   async function eigeneWelt() {
     const eigene = await erstelleWelt(db, auth);
     return {
@@ -696,11 +740,14 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
   test("der einzige Abteilungsleitung kann sich die Rolle nicht selbst nehmen", async () => {
     const { ersterAdmin } = await eigeneWelt();
     const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-      admin: false,
+      abteilungsleitung: false,
     });
     expect(antwort.status).toBe(409);
-    expect(await antwort.json()).toMatchObject({ code: "LETZTER_ADMIN" });
+    expect(await antwort.json()).toMatchObject({
+      code: "LETZTE_ABTEILUNGSLEITUNG",
+    });
     expect((await userZeile(ersterAdmin.id!)).role).toBe("admin");
+    expect(await istInTabelle(ersterAdmin.id!)).toBe(true);
   });
 
   test("mit zwei die Abteilungsleitung geht das Entfernen des einen, der letzte bleibt; deaktivierte zählen nicht", async () => {
@@ -709,21 +756,27 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
 
     // Zwei die Abteilungsleitung: den anderen zurückstufen geht
     expect(
-      (await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: false }))
-        .status,
+      (
+        await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, {
+          abteilungsleitung: false,
+        })
+      ).status,
     ).toBe(204);
     // Jetzt ist ersterAdmin allein: sich selbst zurückstufen gibt 409
     expect(
       (
         await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-          admin: false,
+          abteilungsleitung: false,
         })
       ).status,
     ).toBe(409);
     // Wieder zwei die Abteilungsleitung, aber der zweite deaktiviert: er zählt nicht
     expect(
-      (await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: true }))
-        .status,
+      (
+        await anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, {
+          abteilungsleitung: true,
+        })
+      ).status,
     ).toBe(204);
     expect(
       (await anfrage(ersterAdmin, "POST", `/${zweiter.id}/deaktivieren`))
@@ -732,7 +785,7 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
     expect(
       (
         await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
-          admin: false,
+          abteilungsleitung: false,
         })
       ).status,
     ).toBe(409);
@@ -753,7 +806,7 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
       [204, 401],
       [204, 409],
     ]).toContainEqual(status);
-    expect(await aktiveAdminIds(db, eigene.testabteilungId)).toHaveLength(1);
+    expect(await aktiveIds(eigene.testabteilungId)).toHaveLength(1);
   });
 
   test("gegenseitiges Zurückstufen über Promise.all lässt genau einen aktiven Abteilungsleitung übrig", async () => {
@@ -761,8 +814,12 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
     const zweiter = await legePersonaAn(eigene, "admin");
 
     const antworten = await Promise.all([
-      anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, { admin: false }),
-      anfrage(zweiter, "PATCH", `/${ersterAdmin.id}`, { admin: false }),
+      anfrage(ersterAdmin, "PATCH", `/${zweiter.id}`, {
+        abteilungsleitung: false,
+      }),
+      anfrage(zweiter, "PATCH", `/${ersterAdmin.id}`, {
+        abteilungsleitung: false,
+      }),
     ]);
     const status = antworten.map((a) => a.status).sort((a, b) => a - b);
     // 403, wenn die Sitzung des Verlierers die Rolle erst nach dem fremden Commit las
@@ -770,7 +827,87 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
       [204, 403],
       [204, 409],
     ]).toContainEqual(status);
-    expect(await aktiveAdminIds(db, eigene.testabteilungId)).toHaveLength(1);
+    expect(await aktiveIds(eigene.testabteilungId)).toHaveLength(1);
+  });
+
+  // Konto der Abteilung als Entwickler (Zeile in plattform_entwickler), sonst eine gewöhnliche Person
+  async function legeEntwicklerAn(eigene: Welt) {
+    const entwickler = await legePersonaAn(eigene, "elternA");
+    await db
+      .insert(schema.plattformEntwickler)
+      .values({ userId: entwickler.id! });
+    return entwickler;
+  }
+
+  test("ein aktiver Entwickler der Abteilung genügt: die einzige Abteilungsleitung darf zurückgestuft werden", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const entwickler = await legeEntwicklerAn(eigene);
+    const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+      abteilungsleitung: false,
+    });
+    expect(antwort.status).toBe(204);
+    expect(await istInTabelle(ersterAdmin.id!)).toBe(false);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([entwickler.id]);
+  });
+
+  test("wer Abteilungsleitung und Entwickler ist, behält als Entwickler die Verwaltung der Abteilung", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    await db
+      .insert(schema.plattformEntwickler)
+      .values({ userId: ersterAdmin.id! });
+    const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+      abteilungsleitung: false,
+    });
+    expect(antwort.status).toBe(204);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([ersterAdmin.id]);
+  });
+
+  test("ein deaktivierter Entwickler zählt nicht: danach gilt die Abteilungsleitung allein", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const entwickler = await legeEntwicklerAn(eigene);
+    expect(
+      (await anfrage(ersterAdmin, "POST", `/${entwickler.id}/deaktivieren`))
+        .status,
+    ).toBe(204);
+    const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+      abteilungsleitung: false,
+    });
+    expect(antwort.status).toBe(409);
+    expect(await antwort.json()).toMatchObject({
+      code: "LETZTE_ABTEILUNGSLEITUNG",
+    });
+  });
+
+  test("ein gelöschter Entwickler zählt nicht: danach gilt die Abteilungsleitung allein", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const entwickler = await legeEntwicklerAn(eigene);
+    expect(
+      (await anfrage(ersterAdmin, "DELETE", `/${entwickler.id}`)).status,
+    ).toBe(204);
+    expect(
+      (
+        await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
+          abteilungsleitung: false,
+        })
+      ).status,
+    ).toBe(409);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([ersterAdmin.id]);
+  });
+
+  test("gegenseitiges Löschen über Promise.all lässt genau eine aktive Abteilungsleitung übrig", async () => {
+    const { welt: eigene, ersterAdmin } = await eigeneWelt();
+    const zweiter = await legePersonaAn(eigene, "admin");
+    const antworten = await Promise.all([
+      anfrage(ersterAdmin, "DELETE", `/${zweiter.id}`),
+      anfrage(zweiter, "DELETE", `/${ersterAdmin.id}`),
+    ]);
+    const status = antworten.map((a) => a.status).sort((a, b) => a - b);
+    // 401, wenn die Sitzung des Verlierers erst nach dem fremden Commit geprüft wurde
+    expect([
+      [204, 401],
+      [204, 409],
+    ]).toContainEqual(status);
+    expect(await aktiveIds(eigene.testabteilungId)).toHaveLength(1);
   });
 
   test("Deaktivierte sind für die Zählung inaktiv, banned null zählt als aktiv", async () => {
@@ -780,9 +917,7 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
       .update(schema.user)
       .set({ banned: sqlAusdruck`null` })
       .where(eq(schema.user.id, ersterAdmin.id!));
-    expect(await aktiveAdminIds(db, eigene.testabteilungId)).toEqual([
-      ersterAdmin.id,
-    ]);
+    expect(await aktiveIds(eigene.testabteilungId)).toEqual([ersterAdmin.id]);
   });
 });
 

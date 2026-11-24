@@ -126,7 +126,8 @@ const ROLLE = {
   alle: () => true,
   eltern: (p) => p.elternteilVon.length > 0,
   leitung: (p) => p.rollen.length > 0,
-  admin: (p) => p.admin,
+  abteilungsleitung: (p) => p.abteilungsleitung,
+  entwickler: (p) => p.entwickler,
 };
 const KONTO = {
   alle: () => true,
@@ -185,7 +186,8 @@ function zeichne(bereich, ctx, daten, neu) {
     );
   const rollenChips = (person) =>
     [
-      person.admin && chip("Abteilungsleitung", undefined, false),
+      person.abteilungsleitung && chip("Abteilungsleitung", undefined, false),
+      person.entwickler && chip("Entwickler", undefined, false),
       ...person.rollen.map((r) =>
         chip(
           `${r.typ === "stufenleitung" ? "Stufenleitung" : "Leitung"} · ${stufenname.get(r.stufeId) ?? "Stufe"}`,
@@ -258,7 +260,10 @@ function zeichne(bereich, ctx, daten, neu) {
       },
       icon("telefon"),
     );
-  const ton = (p) => (p.admin || p.rollen.length > 0 ? "blau" : "hell");
+  const ton = (p) =>
+    p.abteilungsleitung || p.entwickler || p.rollen.length > 0
+      ? "blau"
+      : "hell";
   const karte = (e) => {
     const p = e.person;
     e.knoten = mitgliedKarte({
@@ -348,18 +353,21 @@ function zeichne(bereich, ctx, daten, neu) {
       ? {
           gruppen: [
             { schluessel: "leitung", titel: "Leitende" },
-            { schluessel: "admin", titel: "Abteilungsleitung" },
+            { schluessel: "abteilungsleitung", titel: "Abteilungsleitung" },
+            { schluessel: "entwickler", titel: "Entwickler" },
             { schluessel: "eltern", titel: "Eltern" },
             { schluessel: "weitere", titel: "Weitere Personen" },
           ],
           schluesselVon: ({ person: p }) =>
             p.rollen.length > 0
               ? "leitung"
-              : p.admin
-                ? "admin"
-                : p.elternteilVon.length > 0
-                  ? "eltern"
-                  : "weitere",
+              : p.abteilungsleitung
+                ? "abteilungsleitung"
+                : p.entwickler
+                  ? "entwickler"
+                  : p.elternteilVon.length > 0
+                    ? "eltern"
+                    : "weitere",
         }
       : art === "stufe"
         ? {
@@ -405,7 +413,8 @@ function zeichne(bereich, ctx, daten, neu) {
           ["alle", "Alle Rollen"],
           ["eltern", "Eltern"],
           ["leitung", "Leitung"],
-          ["admin", "Abteilungsleitung"],
+          ["abteilungsleitung", "Abteilungsleitung"],
+          ["entwickler", "Entwickler"],
         ],
         wert: zustand.filter.rolle,
       },

@@ -175,7 +175,8 @@ const auditZeilen = (lagerId: string) =>
 const person = (konto: PersonaKonto, adminRecht = false): Person => ({
   id: konto.id!,
   abteilungId: welt.testabteilungId,
-  admin: adminRecht,
+  abteilungsleitung: adminRecht,
+  entwickler: false,
   zweiterFaktor: adminRecht,
   rollen: [],
 });

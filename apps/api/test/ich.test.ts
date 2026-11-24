@@ -84,7 +84,8 @@ describe("GET /api/v1/ich", () => {
       name: "Leitende A und zugleich Elternteil B",
       ceviName: null,
       benutzername: konto.benutzername,
-      admin: false,
+      abteilungsleitung: false,
+      entwickler: false,
       zweiterFaktor: false,
       mussPasswortAendern: false,
       datenschutzGelesenAm: null,
@@ -117,14 +118,36 @@ describe("GET /api/v1/ich", () => {
     });
   });
 
-  test("Abteilungsleitung ohne Rollen und Kinder: admin true, leere Listen", async () => {
+  test("Abteilungsleitung ohne Rollen und Kinder: abteilungsleitung true, leere Listen", async () => {
     const konto = await legePersonaAn(welt, "admin");
     const koerper = await (await ich(konto)).json();
     expect(koerper).toMatchObject({
-      admin: true,
+      abteilungsleitung: true,
       rollen: [],
       stufen: [],
       kinder: [],
+    });
+  });
+
+  test("Rollen des Vertrags (#736): abteilungsleitung und entwickler, kein Feld admin", async () => {
+    const al = await (await ich(await legePersonaAn(welt, "admin"))).json();
+    expect(al).toMatchObject({ abteilungsleitung: true, entwickler: false });
+    expect(al).not.toHaveProperty("admin");
+    // Der Entwickler steht in plattform_entwickler, nicht in user.role
+    const dev = await legePersonaAn(welt, "elternA");
+    await db.insert(schema.plattformEntwickler).values({ userId: dev.id! });
+    const koerper = await (await ich(dev)).json();
+    expect(koerper).toMatchObject({
+      abteilungsleitung: false,
+      entwickler: true,
+    });
+    expect(koerper).not.toHaveProperty("admin");
+    const eltern = await (
+      await ich(await legePersonaAn(welt, "elternB"))
+    ).json();
+    expect(eltern).toMatchObject({
+      abteilungsleitung: false,
+      entwickler: false,
     });
   });
 
@@ -132,7 +155,7 @@ describe("GET /api/v1/ich", () => {
     const konto = await legePersonaAn(welt, "slA");
     const koerper = await (await ich(konto)).json();
     expect(koerper).toMatchObject({
-      admin: false,
+      abteilungsleitung: false,
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
       stufen: [{ id: welt.stufeAId, name: "Stufe A", kuerzel: "A" }],
       kinder: [],

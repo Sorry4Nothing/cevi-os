@@ -160,6 +160,10 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/system.css": { erwartet: alle(200) },
   "GET /admin/konto.js": { erwartet: alle(200) },
   "GET /admin/konto.css": { erwartet: alle(200) },
+  "GET /admin/qr.js": { erwartet: alle(200) },
+  "GET /admin/zweiter-faktor-einrichten.js": { erwartet: alle(200) },
+  "GET /admin/zweiter-faktor.css": { erwartet: alle(200) },
+  "GET /admin/sicht.js": { erwartet: alle(200) },
   "GET /admin/zuschneiden.js": { erwartet: alle(200) },
   "GET /admin/zuschneiden.css": { erwartet: alle(200) },
   "GET /admin/zeitregeln.js": { erwartet: alle(200) },
@@ -186,6 +190,10 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-bausteine.js": { erwartet: alle(200) },
   "GET /admin/website-dialoge.js": { erwartet: alle(200) },
   "GET /admin/website-felder.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-handlung.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-medien.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-text.js": { erwartet: alle(200) },
+  "GET /admin/website-felder-dynamisch.js": { erwartet: alle(200) },
   "GET /admin/website-sichtbarkeit.js": { erwartet: alle(200) },
   "GET /admin/website-symbole.js": { erwartet: alle(200) },
   "GET /admin/website-veroeffentlichen.js": { erwartet: alle(200) },
@@ -196,6 +204,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-editor.css": { erwartet: alle(200) },
   "GET /admin/website-richtext.js": { erwartet: alle(200) },
   "GET /admin/website-vorschau.css": { erwartet: alle(200) },
+  "GET /admin/website-vorschau.js": { erwartet: alle(200) },
   "GET /admin/website-medien.js": { erwartet: alle(200) },
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
@@ -397,11 +406,11 @@ const MATRIX: Record<string, Zeile> = {
   },
   "POST /api/auth/two-factor/enable": {
     body: () => ({ password: FALSCH }),
+    // Jedes Konto mit Sitzung darf ihn einrichten (#715); ohne Sitzung (auch deaktiviert) und f√ºr das Konto eines Kindes ist der Pfad zu. Das falsche Passwort gibt 400, das Gate 404
     erwartet: {
-      ...alle(404),
-      admin: 400,
-      adminOhneZweitenFaktor: 400,
-      demoAdmin: 400,
+      ...alle(400),
+      deaktiviert: 404,
+      ohneLogin: 404,
     },
   },
   // Die Felder je Rolle pr√ºft test/ich.test.ts; GET /ich bleibt als einzige /api/v1-Route auch unter dem Pflichtwechsel offen (#15)
@@ -591,7 +600,7 @@ const MATRIX: Record<string, Zeile> = {
       vorname: "Matrix",
       nachname: "Person",
       benutzername: `matrix.${randomUUID().slice(0, 8)}`,
-      admin: false,
+      abteilungsleitung: false,
       rollen: [],
       elternteilVon: [],
     }),
@@ -1613,11 +1622,32 @@ const MATRIX: Record<string, Zeile> = {
   },
   "GET /api/v1/admin/protokoll/:id": {
     url: () => `/api/v1/admin/protokoll/${randomUUID()}`,
-    // Erst das Objekt, dann die Funktion: Eine unbekannte Kennung ist f¸r jede angemeldete Person 404
+    // Erst das Objekt, dann die Funktion: Eine unbekannte Kennung ist fÔøΩr jede angemeldete Person 404
     erwartet: {
       ...alle(404),
       adminOhneZweitenFaktor: 403,
       mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Vorschau einzelner Bausteine (#739): Zugang zur Website-Verwaltung wie bei den Seiten, ohne Seite nur Platzhalter. Die Wirkung steht in test/redaktion-bausteine-vorschau.test.ts
+  "POST /api/v1/redaktion/bausteine/vorschau": {
+    body: () => ({
+      bausteine: [
+        {
+          id: randomUUID(),
+          typ: "ueberschrift",
+          daten: { ebene: 2, text: "Matrix" },
+        },
+      ],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -1711,7 +1741,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "POST /api/v1/admin/bearbeiter": {
-    // Sonderrecht auf eine Seite f¸r eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
+    // Sonderrecht auf eine Seite fÔøΩr eine Person der Testabteilung; die Demo-Abteilung kennt sie nicht
     body: () => ({
       objektTyp: "seite",
       objektId: randomUUID(),
@@ -2092,7 +2122,7 @@ const MATRIX: Record<string, Zeile> = {
     },
   },
   "PATCH /api/v1/redaktion/website": {
-    // Kein Logo setzen ‰ndert den Stand nicht: Die Anfrage pr¸ft nur das Recht
+    // Kein Logo setzen ÔøΩndert den Stand nicht: Die Anfrage prÔøΩft nur das Recht
     body: () => ({ logoMediumId: null }),
     erwartet: {
       ...alle(403),
@@ -2446,6 +2476,18 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Anlaesse und Orte fuer die Bausteine aus Cevi OS (#740): wie die Tags, nur Namen und Tage
+  "GET /api/v1/redaktion/baustein-auswahl": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "GET /api/v1/redaktion/personen": {
     // Der Tag geh√∂rt zur Testabteilung: Die Demo-Abteilung kennt ihn nicht
     url: (w) => `/api/v1/redaktion/personen?tag=${w.stufeAId}`,
@@ -2709,7 +2751,7 @@ async function wegwerfTagId(userId?: string) {
   return zeile.id;
 }
 
-// Wegwerf-Recht der Testabteilung: Sonderrecht f¸r den Tag-Empf‰nger
+// Wegwerf-Recht der Testabteilung: Sonderrecht fÔøΩr den Tag-EmpfÔøΩnger
 async function wegwerfBearbeiterId() {
   const [zeile] = await welt.db
     .insert(schema.bearbeiter)
@@ -3088,7 +3130,7 @@ describe("Lager-Matrix: jede Route mal jede Lager-Persona mal jeder Zustand", ()
 
 // Rolle mal Anmeldung f√ºr jede Route der Termine-Module (test/termine/matrix/*.ts); die Regeln √ºber alle Zeilen pr√ºft test/termine/matrix-regeln.test.ts. Bewusst eine Schleife: Ohne Zeilen ergibt sie keinen Test, statt an einem leeren test.each zu scheitern
 describe("Termine-Matrix: jede Route mal jede Persona", () => {
-  // H‰lt die Suite auch ohne Zeilen g¸ltig (vitest verlangt einen Test) und belegt, dass die Vorbereitung der Module gelaufen ist
+  // HÔøΩlt die Suite auch ohne Zeilen gÔøΩltig (vitest verlangt einen Test) und belegt, dass die Vorbereitung der Module gelaufen ist
   test("der Kontext der Termine steht", () => {
     expect(termineKontext.welt).toBe(welt);
   });

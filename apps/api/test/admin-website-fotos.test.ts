@@ -19,7 +19,7 @@ describe("Verwaltung der Fotos", () => {
     expect(fotos.modul).toBe("./website-fotos.js");
     expect(fotos.zugang).toBe("recht:fotos.verwalten");
     const person = (rechte: string[], admin = false) => ({
-      istAdmin: admin,
+      abteilungsleitung: admin,
       zugang: { bereiche: [], rechte: [], katalogRechte: rechte },
     });
     expect(nav.darfSehen(fotos, person(["fotos.verwalten"]))).toBe(true);

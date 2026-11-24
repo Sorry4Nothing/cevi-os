@@ -634,7 +634,8 @@ describe("Datenbanklast der Rechteprüfung", () => {
   const person = (konto: PersonaKonto): Person => ({
     id: konto.id!,
     abteilungId: konto.abteilungId!,
-    admin: false,
+    abteilungsleitung: false,
+    entwickler: false,
     zweiterFaktor: true,
     rollen: [],
   });

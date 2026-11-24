@@ -1438,6 +1438,13 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "entschieden",
     gruppe: "entschieden",
   },
+  "POST /api/v1/redaktion/bausteine/vorschau": {
+    titel: "Bausteine als Vorschau rendern, ohne zu speichern",
+    objekt: "Baustein",
+    aktion: "geprüft",
+    gruppe: "status",
+    nicht: "pruefung",
+  },
   "POST /api/v1/redaktion/medien": {
     titel: "Bild hochladen",
     objekt: "Bild",

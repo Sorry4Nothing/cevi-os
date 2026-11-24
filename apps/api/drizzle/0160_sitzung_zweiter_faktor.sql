@@ -1,0 +1,5 @@
+-- Die Sitzung merkt sich, ob der zweite Faktor in ihr geprüft wurde (#721): Die App meldet sich ohne Code an und bekommt auch bei einem Konto mit zweitem Faktor eine Sitzung. Verwaltung und Rechte mit «erweitert» verlangen die Prüfung in der Sitzung, nicht nur am Konto.
+-- Bestehende Sitzungen von Konten mit zweitem Faktor gelten als geprüft: Bisher bekam so ein Konto nur nach dem Code eine Sitzung (die App lehnte sie ab, die Anmeldung gab bis jetzt keine ohne Code aus, und das Einschalten des Faktors beendet alle anderen Sitzungen). Darum wird niemand ausgesperrt, und es gilt nichts als geprüft, was es nicht war. Alle anderen Sitzungen beginnen mit «nicht geprüft», auch die von Konten ohne zweiten Faktor (sie brauchen ihn für nichts, und wer ihn einschaltet, bekommt dabei eine neue Sitzung).
+-- Rückweg: drizzle/rueckweg/0160_sitzung_zweiter_faktor.sql
+ALTER TABLE "session" ADD COLUMN "zweiter_faktor_geprueft" boolean DEFAULT false NOT NULL;--> statement-breakpoint
+UPDATE "session" SET "zweiter_faktor_geprueft" = true WHERE "user_id" IN (SELECT "id" FROM "user" WHERE "two_factor_enabled" IS TRUE);

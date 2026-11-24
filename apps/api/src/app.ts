@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { etag } from "hono/etag";
 import { bodyLimit } from "hono/body-limit";
@@ -6,6 +7,7 @@ import { requestId } from "hono/request-id";
 import { routePath } from "hono/route";
 import type { Sql } from "postgres";
 import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
+import { kind } from "./db/schema.js";
 import type { BildKodierer } from "./bild.js";
 import {
   erstelleSchalterPruefung,
@@ -204,6 +206,8 @@ export function erstelleApp({
   const entwurfLimit = bodyLimit({ maxSize: MAX_ENTWURF_BYTES });
   // Bis zu 100 Operationen der Offline-Warteschlange des Lagers (#367)
   const warteschlangeLimit = bodyLimit({ maxSize: 256 * 1024 });
+  // Die Beispiele des Katalogs «Baustein hinzufügen» (#739): bis zu 80 Bausteine in einer Anfrage
+  const vorschauLimit = bodyLimit({ maxSize: 256 * 1024 });
   const fotoRouten = erstelleFotoRouten({ db, quelle: fotos });
   const protokollieren = aktivitaet
     ? aktivitaetMiddleware(aktivitaet)
@@ -255,7 +259,7 @@ export function erstelleApp({
       })
       // Aktivitätsprotokoll (#637): vor den Begrenzungen, damit auch abgewiesene Anfragen (401, 413, 429) erscheinen; die Zeile entsteht nach der Antwort
       .use((c, next) => (protokollieren ? protokollieren(c, next) : next()))
-      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB, das Dokument einer Seite mit 512 KiB und die Warteschlange des Lagers mit 256 KB
+      // Ausnahmen: die Uploads von Profilbild und Stufenlogo, die ihre Routen selbst auf 5 MB begrenzen, der Upload der Medien (20 MB, die Route begrenzt selbst) und der Import mit 256 KB, das Dokument einer Seite mit 512 KiB, die Warteschlange des Lagers und die Vorschau der Bausteine mit je 256 KB
       .use((c, next) =>
         (c.req.method === "PUT" &&
           (c.req.path === "/api/v1/ich/bild" ||
@@ -275,7 +279,10 @@ export function erstelleApp({
               : c.req.method === "POST" &&
                   /^\/api\/v1\/lager\/[^/]+\/aenderungen$/.test(c.req.path)
                 ? warteschlangeLimit(c, next)
-                : kleinesLimit(c, next),
+                : c.req.method === "POST" &&
+                    c.req.path === "/api/v1/redaktion/bausteine/vorschau"
+                  ? vorschauLimit(c, next)
+                  : kleinesLimit(c, next),
       )
       .use("/api/*", async (c, next) => {
         const version = c.req.header("X-App-Version");
@@ -285,7 +292,20 @@ export function erstelleApp({
         }
         await next();
       })
-      .route("/", erstelleAuthRouten(auth))
+      .route(
+        "/",
+        erstelleAuthRouten(
+          auth,
+          async (userId) =>
+            (
+              await db
+                .select({ id: kind.id })
+                .from(kind)
+                .where(eq(kind.userId, userId))
+                .limit(1)
+            ).length > 0,
+        ),
+      )
       // ICS-Feed der Termine (#438): der geheime Token im Pfad ersetzt die Sitzung, darum vor ihr und ausserhalb von /api/v1
       .route("/", erstelleIcalRoute({ db, schalter }))
       // Einen Origin sendet nur ein Browser (die Verwaltung), die App nicht; erlaubt ist dieselbe Liste, die better-auth unter /api/auth prüft: BETTER_AUTH_URL und das App-Schema. Vor der Sitzung, damit eine fremde Seite keine Abfrage auslöst
@@ -309,7 +329,7 @@ export function erstelleApp({
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       // Gleich nach der Sitzung, vor jeder Route: Wartung und Sperre gelten für alles dahinter
-      .use("/api/v1/*", erstelleSchalterPruefung({ db, zustand: schalter }))
+      .use("/api/v1/*", erstelleSchalterPruefung({ zustand: schalter }))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route(
         "/api/v1/plattform",
@@ -454,6 +474,7 @@ export function erstelleApp({
           return c.json(
             zweiterFaktorFehlt(
               "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+              c.get("person"),
             ),
             403,
           );

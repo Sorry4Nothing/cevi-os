@@ -140,7 +140,7 @@ export async function ladeRaeume(
 
 // Belegungsplan (#628): Der alte Weg für «raum.belegung», nur noch von der Hülle rechtemodell/alt.ts und vom Schattenbetrieb gebraucht; die Routen fragen verlange(). Wer die Belegung der Räume sieht (Wunsch des Nutzers: «alle Leiter»; Annahme, vom Nutzer zu bestätigen): jede Leitung, also die Abteilungsleitung, wer eine Rolle «leitung» oder «stufenleitung» an einer Stufe hat, Verantwortliche eines Teams und wer den Team-Tag eines Raums trägt (entscheidet über dessen Anfragen). Eltern und Personen ohne eine dieser Aufgaben nicht. Eine Abfrage, und nur für Personen, die nicht schon über Abteilungsleitung oder eine Stufenrolle zählen. Eine Person der Abteilungsleitung ohne zweiten Faktor zählt mit: Die Route liegt nicht unter /admin und gibt nichts frei, was die Leitung nicht schon in der App sieht.
 export async function darfBelegungSehen(db: Db, person: Person) {
-  if (person.admin || person.rollen.length > 0) return true;
+  if (person.abteilungsleitung || person.rollen.length > 0) return true;
   const [zeile] = await db
     .select({
       ok: sql<boolean>`exists (select 1 from ${personTag} inner join ${tag} on ${tag.id} = ${personTag.tagId} where ${personTag.userId} = ${person.id} and ${tag.abteilungId} = ${person.abteilungId} and ((lower(${personTag.rolle}) = ${TEAM_ROLLE} and ${tag.typ} = 'team') or ${personTag.tagId} in (select ${raum.teamTagId} from ${raum} where ${raum.abteilungId} = ${person.abteilungId} and ${raum.teamTagId} is not null)))`,

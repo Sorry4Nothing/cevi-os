@@ -49,7 +49,7 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
         .map((datei) => [datei, lade(`admin/${datei}`)]),
     );
   // Die Vorschau im Editor (#358) lädt den Stil der Website von hier: Die Website selbst liefert die API nicht aus
-  // Mit dem Stil des Kopfs (#558), der Grossansicht und des Karussells (#559) und der Inhaltsbausteine (#560), den die Website nur auf Seiten mit einem solchen Baustein lädt
+  // Mit dem Stil des Kopfs (#558), der Grossansicht und des Karussells (#559), der Inhaltsbausteine (#560) und der Bilder und Medien (#742), den die Website nur auf Seiten mit einem solchen Baustein lädt
   // Die Schrift der Website (#570) liefert die Verwaltung selbst aus: Die Vorschau zeigt Archivo auch, wenn Website und Verwaltung nicht auf demselben Host liegen
   admin[SCHRIFT] = new Uint8Array(
     readFileSync(new URL(`../public/website/${SCHRIFT}`, import.meta.url)),
@@ -69,7 +69,9 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
     lade("website/fuss.css") +
     lade("website/lichtkasten.css") +
     lade("website/karussell.css") +
-    lade("website/inhalt.css");
+    lade("website/inhalt.css") +
+    lade("website/medien.css") +
+    lade("website/dynamisch.css");
   // Der Stil liegt einmal in seite.css; die CSP-freien Seiten setzen ihn ein, statt ihn zu laden
   const stil = lade("seite.css");
   const seite = (datei: string) =>

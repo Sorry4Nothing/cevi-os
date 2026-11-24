@@ -3,7 +3,12 @@ import { eq } from "drizzle-orm";
 import { erstelleAuth, platzhalterEmail } from "./auth.js";
 import type { Db } from "./db/client.js";
 import * as schema from "./db/schema.js";
-import { auditLog, kindEltern, rolle } from "./db/schema.js";
+import {
+  abteilungsleitungPerson,
+  auditLog,
+  kindEltern,
+  rolle,
+} from "./db/schema.js";
 import type { Person } from "./rechte.js";
 import {
   normalisiereStartpasswort,
@@ -18,7 +23,7 @@ export interface NeuePerson {
   ceviName?: string | null;
   telefon?: string | null;
   benutzername: string;
-  admin: boolean;
+  abteilungsleitung: boolean;
   rollen: readonly { stufeId: string; typ: "leitung" | "stufenleitung" }[];
   elternteilVon: readonly string[];
   startpasswort: string;
@@ -40,7 +45,8 @@ export async function legePersonAn(
       email: platzhalterEmail(),
       password: normalisiereStartpasswort(eingaben.startpasswort),
       name: `${eingaben.vorname} ${eingaben.nachname}`,
-      role: eingaben.admin ? "admin" : "user",
+      // Spiegel (#720): Die Abteilungsleitung steht in abteilungsleitung_person, role schreibt weiter als Spiegel bis Teil 10 (Epic #714)
+      role: eingaben.abteilungsleitung ? "admin" : "user",
       data: {
         username: eingaben.benutzername,
         ceviName: eingaben.ceviName ?? undefined,
@@ -54,6 +60,9 @@ export async function legePersonAn(
       .update(schema.user)
       .set({ telefon: eingaben.telefon })
       .where(eq(schema.user.id, neu.id));
+  }
+  if (eingaben.abteilungsleitung) {
+    await tx.insert(abteilungsleitungPerson).values({ userId: neu.id });
   }
   if (eingaben.rollen.length > 0) {
     await tx
@@ -75,7 +84,7 @@ export async function legePersonAn(
     zielTyp: "person",
     zielId: neu.id,
     details: {
-      admin: eingaben.admin,
+      abteilungsleitung: eingaben.abteilungsleitung,
       rollen: eingaben.rollen,
       elternteilVon: eingaben.elternteilVon,
     },

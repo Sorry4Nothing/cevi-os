@@ -154,6 +154,8 @@ const AUDIT_KLARTEXT: Record<string, string> = {
   person_angelegt: "Person angelegt",
   entwickler_vergeben: "Entwickler-Recht vergeben",
   entwickler_entzogen: "Entwickler-Recht entzogen",
+  abteilungsleitung_vergeben: "Abteilungsleitung vergeben",
+  abteilungsleitung_entzogen: "Abteilungsleitung entzogen",
   zweiter_faktor_zurueckgesetzt: "Zweiter Faktor zurückgesetzt",
   tag_zugewiesen: "Tag zugewiesen",
   tag_entzogen: "Tag entzogen",

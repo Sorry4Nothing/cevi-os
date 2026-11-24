@@ -1,6 +1,7 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 import type { Context } from "hono";
 import { z } from "zod";
+import { istAbteilungsleitungSql } from "../admins.js";
 import type { Db } from "../db/client.js";
 import { personTag, user } from "../db/schema.js";
 import { log } from "../log.js";
@@ -46,10 +47,11 @@ export const dauerOk = (beginn: string, ende: string) =>
 // Wer über eine Anfrage entscheidet (Annahme, vom Nutzer zu bestätigen): Hat der Raum ein Team, wer den Tag des Teams trägt (eine Person genügt); hat er keines, die Abteilungsleitung (Abteilungsleitung mit zweitem Faktor: Die Route liegt nicht unter /admin und erbt ihn nicht). Die eigene Anfrage entscheidet nie dieselbe Person (die Route prüft es)
 export async function darfEntscheiden(
   db: Db,
-  person: Pick<Person, "id" | "admin" | "zweiterFaktor">,
+  person: Pick<Person, "id" | "abteilungsleitung" | "zweiterFaktor">,
   teamTagId: string | null,
 ): Promise<boolean> {
-  if (teamTagId === null) return person.admin && person.zweiterFaktor;
+  if (teamTagId === null)
+    return person.abteilungsleitung && person.zweiterFaktor;
   const [treffer] = await db
     .select({ eins: sql`1` })
     .from(personTag)
@@ -60,10 +62,10 @@ export async function darfEntscheiden(
 
 // SQL-Bedingung «diese Person entscheidet über Anfragen dieses Raums» für die Liste; raum ist die Tabelle des Raums in der Abfrage
 export function entscheidetUeberRaum(
-  person: Pick<Person, "id" | "admin" | "zweiterFaktor">,
+  person: Pick<Person, "id" | "abteilungsleitung" | "zweiterFaktor">,
 ) {
   const team = sql`raum.team_tag_id in (select tag_id from person_tag where user_id = ${person.id})`;
-  return person.admin && person.zweiterFaktor
+  return person.abteilungsleitung && person.zweiterFaktor
     ? sql`(${team} or raum.team_tag_id is null)`
     : team;
 }
@@ -95,7 +97,7 @@ export async function pushNeueAnfrage(
             .where(
               and(
                 aktivesKonto(opt.abteilungId),
-                eq(user.role, "admin"),
+                istAbteilungsleitungSql(user.id),
                 eq(user.twoFactorEnabled, true),
                 ne(user.id, opt.vonId),
               ),
