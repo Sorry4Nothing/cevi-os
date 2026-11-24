@@ -1418,11 +1418,11 @@ const MATRIX: Record<string, Zeile> = {
   "PUT /api/v1/admin/fotos/alben/:id": {
     url: () => "/api/v1/admin/fotos/alben/987654321",
     body: () => ({ titel: "Matrix", version: 0 }),
+    // Ohne Zugang zu Flickr gibt es kein Album: erst das Objekt (404), dann das Recht
     erwartet: {
-      ...alle(403),
-      admin: 200,
+      ...alle(404),
       adminOhneZweitenFaktor: 403,
-      demoAdmin: 200,
+      mussPasswortAendern: 403,
       deaktiviert: 401,
       ohneLogin: 401,
     },

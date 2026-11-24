@@ -25091,11 +25091,11 @@ paths:
       operationId: setzeAdminFotosAlbum
       summary: Fotoalbum speichern
       description: |
-        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet ein Album aus (`sichtbar`) und setzt einen eigenen Titel (`titel`, `null` zurück auf den von Flickr); mindestens eines von beiden. Ein Album lässt sich nur zeigen, wenn es das Konto bei Flickr hat (404 sonst, 409 ohne Konto). `version` ist die des Albums im Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`.
+        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet ein Album aus (`sichtbar`) und setzt einen eigenen Titel (`titel`, `null` zurück auf den von Flickr); mindestens eines von beiden. Das Album muss zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). `version` ist die des Albums im Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`.
 
         Statuscodes: 200 mit der neuen Version. 400, 401, 403, 404, 409, 502.
 
-        Datenbanklast: beim Zeigen ein Abruf aus dem Speicher; sonst eine Transaktion mit Sperre der Zeile.
+        Datenbanklast: eine Abfrage für die Einstellung, ein Abruf der Albumliste aus dem Speicher, eine Transaktion mit Sperre der Zeile.
       tags:
         - Fotos
       parameters:
@@ -25125,7 +25125,7 @@ paths:
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
-          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`) oder es ist noch kein Konto eingerichtet.
+          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`).
           content:
             application/json:
               schema:

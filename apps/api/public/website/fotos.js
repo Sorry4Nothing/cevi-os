@@ -1,7 +1,7 @@
-// Fotoalben (#690): zeigt die Alben der Abteilung und ihre Bilder. Das HTML der Seite ist statisch und für alle gleich (nur der leere Behälter «.fotos»); dieses Skript fragt nach dem Laden unseren Server (GET /api/v1/fotos/alben, …/alben/<id>) und baut alles mit DOM-Knoten, nie mit innerHTML.
+// Fotoalben (#690): zeigt die Alben der Abteilung und ihre Bilder. Das HTML der Seite ist statisch und für alle gleich (nur der leere Behälter «.fotos»); dieses Skript fragt nach dem Laden unseren Server (GET /api/v1/fotos/alben, …/alben/<id>) und baut alles mit DOM-Knoten und setzt Text nur als Textknoten.
 // Bilder kommen von unserem Server, nie von Flickr (img-src 'self'): /api/v1/fotos/alben/<id>/titel und …/bilder/<bildId>?groesse=klein|mittel|gross. Ohne Sitzung antwortet der Server 401, dann steht «Nur angemeldet sichtbar» mit dem Link zur Anmeldung.
 // Ein Album hat eine teilbare Adresse: /fotos?album=<Kennung> (Ziffern). Der Wechsel zwischen Übersicht und Album setzt einen Eintrag im Verlauf, Zurück im Browser führt dorthin zurück. Die Grossansicht ist lichtkasten.js (Pfeiltasten, Esc, Wischen): Die Bilder stehen in einer «.galerie», jedes als Link «a.bildgross».
-import { band, el, holeMitFrist, skelett, symbol } from "./ui.js";
+import { el, holeMitFrist, skelett, symbol } from "./ui.js";
 
 const API = "/api/v1/fotos";
 // Nach so langer Zeit steht der Hinweis, dass es länger dauert
@@ -43,6 +43,7 @@ function start(wurzel) {
   let hinweisTimer = 0;
   // Das Album, aus dem die Person zurückkommt: Dort landet der Fokus wieder
   let zuletzt = null;
+  let offenesAlbum = null;
 
   const sage = (text) => {
     status.textContent = "";
@@ -209,6 +210,7 @@ function start(wurzel) {
   // ---------- Übersicht der Alben ----------
 
   async function zeigeAlben() {
+    offenesAlbum = null;
     inhalt.replaceChildren(skelettAlben());
     warteHinweis();
     sage("Die Alben werden geladen.");
@@ -272,6 +274,7 @@ function start(wurzel) {
   // ---------- Ein Album ----------
 
   async function zeigeAlbum(id) {
+    offenesAlbum = id;
     inhalt.replaceChildren(skelettBilder());
     warteHinweis();
     sage("Das Album wird geladen.");
@@ -376,11 +379,12 @@ function start(wurzel) {
     if (!link || !wurzel.contains(link)) return;
     e.preventDefault();
     zuletzt = link.dataset.album ?? albumAusAdresse();
-    history.pushState(null, "", link.getAttribute("href"));
+    window.history.pushState(null, "", link.getAttribute("href"));
     zeige();
   });
   window.addEventListener("popstate", () => {
-    zuletzt = null;
+    // Zurück aus einem Album: Der Fokus kehrt zu seiner Karte zurück
+    zuletzt = offenesAlbum;
     zeige();
   });
   zeige();

@@ -1119,3 +1119,33 @@ Gilt für das Konto-Menü im Kopf der öffentlichen Website (Vorlage in `src/web
 ### Stand der Prüfung (#669)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung gesehen: Menü der Leitung (mit «Verwaltung») und der Eltern (ohne) bei 1440 und 390 Pixel, Hell und Dunkel, «Zur Website» in der Verwaltung bei 1440, 800 und 390 Pixel. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), erzwungene Farben im Browser (nur der Quelltext), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug. Bekannt, nicht von diesem Abschnitt: Die Logozeile der Verwaltung läuft bei 390 Pixel schon ohne «Zur Website» über (Umschalter Hell und Dunkel).
+
+## 66. Website und Verwaltung: Fotos aus Flickr (#690)
+
+Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, `public/website/fotos.js`, `fotos.css`, Grossansicht `lichtkasten.js`) und für die Unterseite «Fotos» in der Verwaltung (`public/admin/website-fotos.js`, `website-fotos.css`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
+
+**Website**
+
+- [ ] **66.1** Ohne JavaScript steht ein Hinweis («Zum Anzeigen braucht diese Seite JavaScript.») als Band; die Seite ist sonst statisch und enthält weder Titel noch Bilder noch Alben.
+- [ ] **66.2** Ohne Sitzung (401) steht «Nur angemeldet sichtbar» mit Schloss-Symbol, Satz und dem Knopf «Anmelden» (Ziel: die Anmeldung mit Rückweg zum selben Album). Der Wechsel wird angesagt (Statusregion); nichts blinkt, nichts springt.
+- [ ] **66.3** Zustände: lädt (Skeleton in der Form der Albumkarten oder Kacheln, `aria-busy`, nach 4 Sekunden «Das dauert länger als sonst.»), leer («Hier gibt es noch keine Fotos.» mit Hilfe), kein Zugriff für das Konto eines Kindes, Zeitlimit und Fehler (`role="alert"`, «Nochmals versuchen»), 429, Album nicht gefunden (mit «Alle Alben»).
+- [ ] **66.4** Alben sind Links (`a.fotos-album`) mit Titel als Überschrift (`h2`), Anzahl und Datum als Text; ein Album ohne Titelbild zeigt eine ruhige Fläche mit Symbol, nie ein kaputtes Bild. Titelbilder sind dekorativ (`alt=""`), weil der Titel daneben steht.
+- [ ] **66.5** Ein Album hat eine teilbare Adresse (`?album=<Kennung>`); Browser-Zurück führt zur Übersicht zurück, der Fokus liegt dort wieder auf dem Album. Beim Öffnen springt der Fokus auf den Titel des Albums, der Titel des Tabs folgt.
+- [ ] **66.6** Das Bilderraster ist eine Liste (`role="list"`); jedes Bild ist ein Link zur Grossansicht mit Alt-Text (Titel bei Flickr, sonst «Foto 3 von 80»). Bilder haben `width` und `height` und `loading="lazy"`: Der Platz steht fest, bevor das Bild geladen ist (kein Layoutsprung); ein Bild, das nicht lädt, zeigt die ruhige Fläche mit Alt-Text.
+- [ ] **66.7** Grossansicht (`lichtkasten.js`, natives `dialog`): Fokus im Dialog, Esc und Klick daneben schliessen, Pfeiltasten und Knöpfe «Vorheriges Bild» und «Nächstes Bild» blättern, Wischen am Handy, «Bild 3 von 80» als Ansage, Fokus zurück aufs Bild.
+- [ ] **66.8** «Album auf Flickr öffnen» steht nur, wenn die Abteilung es einschaltet; es ist ein externer Link mit dem Zeichen für «fremde Seite» und öffnet in einem neuen Tab (`rel="noopener noreferrer"`).
+- [ ] **66.9** Zielgrössen mindestens 44 Pixel (Albumkarte, Zurück, Knöpfe); sichtbarer Fokus (Ring 3 Pixel, 3 : 1); Kontrast aller Texte mindestens 4,5 : 1 in Hell und Dunkel; 390, 1440 und 2560 Pixel ohne Seitenscroll, 200 Prozent Zoom.
+- [ ] **66.10** Bewegung: Das leichte Heranzoomen des Titelbilds beim Zeigen nur unter «Bewegung nicht reduzieren»; Skeleton und Einblenden folgen den Regeln der Website (kein Schimmer bei reduzierter Bewegung).
+
+**Verwaltung**
+
+- [ ] **66.11** «Verbindung testen» zeigt das Ergebnis als Meldung (`role="status"`, Fehler `role="alert"`) ohne Geheimnisse; der Knopf zeigt `aria-busy`. Die Verbindung steht als Wort im Band («Die Verbindung zu Flickr steht.» oder der Grund), nie nur als Farbe.
+- [ ] **66.12** Ohne Zugangsdaten steht eine Anleitung Schritt für Schritt (geordnete Liste), ohne Werte.
+- [ ] **66.13** Die Kennung des Kontos hat ein sichtbares Label, Hilfetext, Prüfung beim Speichern mit Meldung beim Feld und Fokus darauf; die Wahl «Link zu Flickr» ist ein Kästchen mit Erklärung.
+- [ ] **66.14** Jedes Album: Schalter «Auf der Website zeigen» (`role="switch"`, `aria-checked`, Name nennt das Album) mit dem Zustand als Wort («Sichtbar», «Nicht sichtbar»); Änderungen gelten sofort, die Meldung bietet «Rückgängig» an. «Titel ändern» öffnet ein Feld in der Zeile (`aria-expanded`), Fokus ins Feld und beim Schliessen zurück auf den Knopf.
+- [ ] **66.15** Die Reihenfolge lässt sich per Ziehen, mit Tastatur (Leertaste, Pfeile) und mit Knöpfen «Nach oben» und «Nach unten» ändern (2.5.7); die Änderung wird angesagt und lässt sich in der Frist zurücknehmen.
+- [ ] **66.16** Zustände der Liste: lädt (Skeleton), leer (Bei Flickr gibt es noch keine Alben), Fehler mit «Nochmals versuchen»; Zielgrössen 44 Pixel, Hell und Dunkel, 390 bis 1440 Pixel.
+
+### Stand der Prüfung (#690)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Attrappe von Flickr (eigener kleiner Server mit erfundenen Alben und erzeugten Pixelbildern, keine Verbindung zu Flickr) gesehen: Übersicht, Album und Grossansicht der Website bei 390, 1440 und 2560 Pixel, Hell und Dunkel, ohne Sitzung, mit Sitzung und mit reduzierter Bewegung; Verwaltung bei 1440 und 390 Pixel. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), echte Fotos und echte Antworten von Flickr (es gibt keine Zugangsdaten), Kontrastwerte mit einem Messwerkzeug, 200 Prozent Zoom am Gerät, Ladezeit grosser Alben über ein langsames Netz.

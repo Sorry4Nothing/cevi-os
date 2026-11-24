@@ -84,6 +84,15 @@ Abschnitte über die ganze Breite, Titelschiene, Kartenarten, der eigene Symbols
 - **Anmeldung:** `/anmelden` ist eine erzeugte Datei (kein Datenbankzugriff beim Abruf) mit dem Skript `website/anmelden.js`. Es ruft dieselben Aufrufe wie die Verwaltung unter `/api/auth` (Rate-Limit und Sperre nach Fehlversuchen gelten dort) und führt danach auf `weiter`. `weiter` ist eine Allowlist (`website/weiter.js`): nur `/` oder Adressstücke aus `a-z`, `0-9` und `-`, nie eine reservierte Adresse; alles andere führt auf `/`.
 - **Gleiche Herkunft:** Die API prüft bei `POST` den `Origin` (`BETTER_AUTH_URL` und `BETTER_AUTH_TRUSTED_ORIGINS`). Die Website muss unter derselben Domain wie die API laufen; eine Testadresse mit anderer Domain braucht einen Eintrag in `BETTER_AUTH_TRUSTED_ORIGINS` (und dann ein Cookie für diese Domain, also einen Proxy auf dieselbe Herkunft).
 
+## Fotos aus Flickr (#690)
+
+Die Fotos der Abteilung liegen bei Flickr und erscheinen auf der Seite mit dem Baustein «Fotoalben», nur für angemeldete Personen. Die erzeugte Datei ist wie jede Seite statisch und für alle gleich: Sie enthält nur einen leeren Behälter (`<div class="fotos">`) und den Hinweis für Browser ohne Skript, nie Albumtitel, Zahlen oder Bilder. Das Skript `website/fotos.js` fragt nach dem Laden `GET /api/v1/fotos/alben` (und `…/alben/<id>`), baut alles mit DOM-Knoten und zeigt ohne Sitzung (401) «Nur angemeldet sichtbar» mit dem Link zur Anmeldung.
+
+- **Server holt, Browser lädt nur von uns:** Der Server ruft die Flickr-API ab und liefert die Bilder selbst aus (`/api/v1/fotos/alben/<id>/bilder/<bildId>?groesse=klein|mittel|gross`, nur feste Grössen, nur Bilder aus sichtbaren Alben). Die CSP der Seite bleibt `img-src 'self'`; die Website lädt nichts von Dritten. Die Edge muss `/api/*` an die API weitergeben wie für das Lädeli. Bilder tragen `Cache-Control: private, no-cache`: Der Edge darf sie nicht zwischenspeichern.
+- **Adresse eines Albums:** `/fotos?album=<Kennung>`. `weiter.js` lässt diese eine Anfrage («?album=» mit Ziffern) für den Rückweg nach der Anmeldung zu.
+- **Konfiguration und Einrichtung:** `docs/flickr-einrichten.md`. Die vier Werte `FLICKR_API_KEY`, `FLICKR_API_SECRET`, `FLICKR_OAUTH_TOKEN` und `FLICKR_OAUTH_TOKEN_SECRET` stehen nur in `deploy/.env`; Konto und Albenwahl stellt die Verwaltung ein (Tabellen `foto_einstellung`, `foto_album`).
+- **Änderungen an der Auswahl** (Album zeigen, Reihenfolge, Titel) wirken sofort; sie erzeugen keine Dateien neu, weil nichts davon im HTML steht.
+
 ## Konfiguration
 
 Alle drei Variablen oder keine; mit einzelnen startet die API nicht. Ohne sie läuft die Erzeugung nicht (Log `website_ausgabe`, Art `aus`).

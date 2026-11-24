@@ -214,23 +214,25 @@ export function erstelleAdminFotoRouten({
         eingabe("json", albumSchema),
         async (c) => {
           const person = c.get("person");
-          await verlange(db, person, RECHT);
           const { id } = c.req.valid("param");
           const a = c.req.valid("json");
-          // Zeigen darf man nur, was das Konto bei Flickr hat: Eine erfundene Kennung gibt keine Zeile mit Wirkung
-          if (a.sichtbar === true) {
-            const e = await ladeEinstellung(db, person.abteilungId);
-            if (!speicher || !e.flickrKonto) throw new HTTPException(409);
-            try {
-              if (
-                !(await speicher.alben(e.flickrKonto)).some((x) => x.id === id)
-              ) {
-                throw new HTTPException(404);
-              }
-            } catch (f) {
-              if (f instanceof HTTPException) throw f;
-              throw new HTTPException(502);
+          // Erst das Objekt (404), dann das Recht (403): Das Album gehört zum Konto der Abteilung bei Flickr; ohne Zugang oder Konto gibt es keines
+          const e = await ladeEinstellung(db, person.abteilungId);
+          if (!speicher || !e.flickrKonto) throw new HTTPException(404);
+          await verlange(db, person, RECHT);
+          // Eine erfundene Kennung gibt keine Zeile: Das Album muss das Konto bei Flickr haben
+          try {
+            if (
+              !(await speicher.alben(e.flickrKonto)).some((x) => x.id === id)
+            ) {
+              throw new HTTPException(404);
             }
+          } catch (f) {
+            if (f instanceof HTTPException) throw f;
+            if (f instanceof QuellFehler && f.art === "nicht_gefunden") {
+              throw new HTTPException(404);
+            }
+            throw new HTTPException(502);
           }
           const ergebnis = await db.transaction(async (tx) => {
             const [zeile] = await tx

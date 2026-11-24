@@ -425,9 +425,10 @@ describe("Wartungsmodus: wer schalten darf", () => {
           await anfrage(konto, "GET", "/api/v1/redaktion/ich")
         ).json()) as { bereiche: string[] }
       ).bereiche;
+    // Die Vorgabe «Webmaster» hat auch «fotos.verwalten» (#690): ein eigener Eintrag für die Seite «Fotos»
     expect(await bereiche(webmasterMitRecht)).toEqual(["website", "plattform"]);
     expect(await bereiche(entwickler)).toEqual(["website", "plattform"]);
-    expect(await bereiche(webmaster)).toEqual(["website"]);
+    expect(await bereiche(webmaster)).toEqual(["website", "fotos"]);
     expect(await bereiche(slA)).toEqual(["website"]);
   });
 

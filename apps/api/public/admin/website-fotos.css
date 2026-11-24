@@ -59,9 +59,24 @@
 }
 
 .foto-schalter {
+  flex-wrap: wrap;
   align-items: center;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0.25rem 0.75rem;
   padding: 0;
+}
+
+/* Der Text bricht nach Wörtern um, nie Zeichen für Zeichen; auf schmalen Zeilen steht er allein über dem Schalter */
+.foto-schalter-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+
+@media (max-width: 40em) {
+  .foto-schalter-text {
+    flex-basis: 100%;
+  }
 }
 
 .foto-zustand-feld {

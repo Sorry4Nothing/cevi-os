@@ -8,11 +8,11 @@ import {
 // Zwischenspeicher vor der Quelle (#690): Flickr bremst nach 3600 Abrufen je Stunde und Schlüssel, und jeder Abruf dauert. Darum merkt sich der Server Albumlisten und Alben im Speicher.
 // Gilt für Menschen mit Zugriff gleich (die Quelle liefert nie etwas, das von der Person abhängt); die Sichtbarkeit prüft die Route danach. Nach einem Neustart ist er leer.
 // - Treffer bis zur Frist (Vorgabe 10 Minuten); gleichzeitige Anfragen teilen sich einen Abruf (kein Ansturm bei kaltem Speicher)
-// - Ein Fehler wird nicht gespeichert, ausser kurz (30 s), damit eine kaputte Einrichtung Flickr nicht mit Wiederholungen überrollt
+// - Ein Fehler wird nicht gespeichert, ausser kurz (10 s), damit eine kaputte Einrichtung Flickr nicht mit Wiederholungen überrollt
 // - Höchstens MAX_EINTRAEGE Einträge; der älteste fliegt zuerst hinaus
 
 export const FRIST_MS = 10 * 60 * 1000;
-export const FEHLER_FRIST_MS = 30 * 1000;
+export const FEHLER_FRIST_MS = 10 * 1000;
 const MAX_EINTRAEGE = 200;
 
 type Eintrag<T> = { bis: number; wert: Promise<T> };

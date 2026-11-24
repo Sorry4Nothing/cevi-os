@@ -102,6 +102,7 @@ export const BEREICHE = {
   rechte: "Rechte",
   plattform: "Plattform",
   laden: "Lädeli",
+  fotos: "Fotos",
   raeume: "Räume",
   termine: "Termine",
   "termin-vorschlaege": "Termine",

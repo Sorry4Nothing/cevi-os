@@ -66,7 +66,6 @@ function zeichne(bereich, ctx, daten, neuLaden) {
 
   // «Verbindung testen»: ein frischer Abruf; ein Konto, das noch nicht gespeichert ist, lässt sich vorher prüfen
   const testen = knopf("Verbindung testen", {
-    symbol: "nochmals",
     onclick: async () => {
       testen.disabled = true;
       testen.setAttribute("aria-busy", "true");
