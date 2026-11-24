@@ -48,11 +48,20 @@ services:
       FLICKR_API_SECRET:
       FLICKR_OAUTH_TOKEN:
       FLICKR_OAUTH_TOKEN_SECRET:
+      # Website (#705): Die API schreibt die fertigen Seiten in das Volume «website», der Edge-Caddy liefert sie aus (docs/website-auslieferung.md); ohne diese drei erzeugt sie nichts
+      # Nur mit gesetzter ID: Die API verlangt alle drei oder keine
+      WEBSITE_AUSGABE_PFAD: ${WEBSITE_ABTEILUNG_ID:+/srv/website}
+      WEBSITE_ABTEILUNG_ID:
+      WEBSITE_BASIS_URL:
+      # alt, schatten oder neu (docs/rechte-umstellung.md); leer = schatten
+      RECHTE_MODELL:
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:
       - /tmp
     volumes:
+      # Beschreibbar nur für die API; der Edge-Caddy bindet es lesend ein (docs/betrieb.md, «Edge-Caddy»)
+      - website:/srv/website
       - type: bind
         source: ./secrets/fcm-service-account.json
         target: /run/secrets/fcm-service-account.json
@@ -159,3 +168,6 @@ networks:
 
 volumes:
   postgres:
+  # Die erzeugte Website; fester Name, damit der Edge-Caddy es als externes Volume einbinden kann
+  website:
+    name: cevi-os_website

@@ -38,7 +38,24 @@ networks:
     name: edge-cevi-os
 ```
 
-Die Seite der API ist [`deploy/edge/cevi-os.caddy`](../deploy/edge/cevi-os.caddy). Sie kommt als `<Edge-Ordner>/sites/cevi-os.caddy` auf den Server, mit der echten Domain statt `api.example.org`; Header und HSTS bleiben, `reverse_proxy` zeigt auf `cevi-os-api:3000`. Die Domain muss auf die IP des Servers zeigen, Caddy holt das Zertifikat selbst.
+Die Seite von Cevi OS ist [`deploy/edge/cevi-os.caddy`](../deploy/edge/cevi-os.caddy). Sie kommt als `<Edge-Ordner>/sites/cevi-os.caddy` auf den Server, mit der echten Domain statt `api.example.org`; Header und HSTS bleiben. Eine Domain für alles: `/api`, `/admin`, `/health`, die Store-Seiten und den Kalender-Feed leitet sie per `reverse_proxy` an `cevi-os-api:3000`, alle anderen Adressen liefert sie aus den erzeugten Dateien der Website unter `/srv/website`. Die Domain muss auf die IP des Servers zeigen, Caddy holt das Zertifikat selbst.
+
+Dafür bindet der Edge-Caddy das Volume der Website lesend ein. In `<Edge-Ordner>/docker-compose.yml`, zusätzlich zum Netz oben:
+
+```yaml
+services:
+  caddy:
+    volumes:
+      - cevi-os-website:/srv/website:ro
+
+volumes:
+  # Legt deploy/docker-compose.prod.yml des Stacks cevi-os an; erst nach dem ersten Deploy mit WEBSITE_ABTEILUNG_ID starten
+  cevi-os-website:
+    name: cevi-os_website
+    external: true
+```
+
+Das Volume existiert erst nach dem ersten Deploy des Stacks (`docker volume ls` zeigt `cevi-os_website`). Reihenfolge beim ersten Mal: Deploy, dann `docker compose up -d` im Edge-Ordner mit der geänderten Datei, dann die neue `cevi-os.caddy` prüfen (`caddy validate`) und laden. Fehlt das Volume im Edge-Caddy, liefert die Website 404, Schnittstelle und Verwaltung laufen weiter.
 
 Eine Seite ändern oder hinzufügen, ohne Unterbruch: Datei nach `<Edge-Ordner>/sites/` kopieren, dann im Edge-Ordner `docker compose exec caddy caddy validate --config /etc/caddy/Caddyfile` und `docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`. Ist die neue Datei fehlerhaft, melden beide Befehle den Fehler und der Caddy läuft mit der alten Konfiguration weiter. Ändert sich `deploy/edge/cevi-os.caddy` in einem Release, die Änderung von Hand übernehmen (die Domain bleibt). Prüfen mit `curl -sI https://<Domain>/health`: Die Antwort zeigt `strict-transport-security`, aber keine Zeile `server`. `deploy.sh` aktualisiert das Image des Edge-Caddys nicht: gelegentlich im Edge-Ordner `docker compose pull && docker compose up -d`.
 
@@ -171,7 +188,7 @@ Mehrere Instanzen: Heute läuft eine Instanz. Kalender, Zeitregeln und Website h
 
 Die öffentliche Website besteht aus fertigen Dateien, die die API in ein eigenes Verzeichnis schreibt (`WEBSITE_AUSGABE_PFAD`) und ein Host ausliefert; Besucher belasten die Datenbank nicht. Ablauf, Konfiguration, Vorschlag für den Edge-Caddy, Vorschau im Editor und Datenbanklast stehen in [website-auslieferung.md](website-auslieferung.md). Hier nur, was der Betrieb wissen muss:
 
-- **Heute nicht eingerichtet:** Domain (#68), Ort der Dateien und die Änderung am Edge-Caddy stehen nicht fest. `deploy/.env.example` und `deploy/docker-compose.prod.yml` führen die drei `WEBSITE_*`-Variablen noch nicht; ohne sie erzeugt die API nichts (Log `website_ausgabe`, Art `aus`). Der Dienst `api` läuft mit `read_only: true` und braucht für das Verzeichnis ein beschreibbares Volume.
+- **Einrichtung (#705):** `deploy/docker-compose.prod.yml` führt `WEBSITE_ABTEILUNG_ID`, `WEBSITE_BASIS_URL` und `RECHTE_MODELL` aus `deploy/.env` durch und setzt `WEBSITE_AUSGABE_PFAD` auf `/srv/website`, aber nur, wenn die Abteilungs-ID gesetzt ist (die API verlangt alle drei oder keine). `/srv/website` ist das Volume `cevi-os_website`: Die API (`read_only`-Dateisystem) beschreibt es, der Edge-Caddy bindet es lesend ein (siehe «Edge-Caddy»). Ohne `WEBSITE_ABTEILUNG_ID` startet die API wie bisher ohne Website (Log `website_ausgabe`, Art `aus`). `WEBSITE_BASIS_URL` ist dieselbe Adresse wie `BETTER_AUTH_URL`, sonst scheitert die Anmeldung auf der Website. Die Abteilungs-ID: `docker compose -f docker-compose.prod.yml exec postgres psql -U postgres -d cevi_os -c "select id, name from abteilung;"`.
 - **Neuaufbau der Dateien:** Fehlt eine Datei oder das ganze Verzeichnis, schreibt der Abgleich sie beim nächsten Lauf neu (beim Start der API, bei jedem Ereignis, spätestens nach 10 Minuten). Einen vollständigen Neuaufbau erzwingt man, indem man den Inhalt des Verzeichnisses löscht und die API neu startet.
 - **Backup:** Der Ausgabeordner ist aus der Datenbank ableitbar und wird **nicht gesichert**. Gesichert sind die Seiten, Versionen und Weiterleitungen (Tabellen `seite`, `seite_version`, `weiterleitung`) im Dump; nach einer Wiederherstellung gleicht der Abgleich die Dateien selbst ab. Die Bilder der Website liegen im Medienspeicher (siehe «Medienspeicher»), Dateien zum Herunterladen im SharePoint.
 - **Vom Netz nehmen:** Die Informationssperre mit «Öffentliche Website vom Netz nehmen» leert das Verzeichnis und schreibt eine Hinweisseite (siehe «Informationssperre»).
