@@ -346,6 +346,14 @@ tr.lm-erledigt th label {
   overflow-wrap: anywhere;
 }
 
+.lm-kontakt-name .ava {
+  width: 28px;
+  height: 28px;
+  margin-inline-end: 8px;
+  vertical-align: middle;
+  font-size: 0.6875rem;
+}
+
 .lm-nummer {
   display: inline-flex;
   align-items: center;

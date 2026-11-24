@@ -1,6 +1,7 @@
 import { anfrage } from "./api.js";
 import { datumZeitFeld } from "./datumsfeld.js";
 import {
+  avatar,
   dialogFormular,
   el,
   feld,
@@ -111,10 +112,11 @@ export function zeige(bereich, ctx, lagerId, lager) {
   );
 }
 
-// Alle Seiten der Matrix; Namen und Frist stehen in jeder Antwort
+// Alle Seiten der Matrix; Namen, Profilbilder (bilder: ID -> Pfad, nur Konten mit Bild) und Frist stehen in jeder Antwort
 async function ladeMatrix(lagerId) {
   const eintraege = [];
   let namen = {};
+  let bilder = {};
   let frist = null;
   let nach = null;
   for (let i = 0; i < 20; i++) {
@@ -123,11 +125,12 @@ async function ladeMatrix(lagerId) {
     const a = await anfrage("GET", `${LB(lagerId)}/anwesenheit?${q}`);
     eintraege.push(...a.eintraege);
     namen = { ...namen, ...a.namen };
+    bilder = { ...bilder, ...a.bilder };
     frist = a.frist;
     nach = a.naechster;
     if (!nach) break;
   }
-  return { eintraege, namen, frist };
+  return { eintraege, namen, bilder, frist };
 }
 
 const feldSchluessel = (person, tagId, abschnittId) =>
@@ -155,6 +158,7 @@ function zeichne(bereich, ctx, d) {
           typ: "person",
           id: m.personId,
           name: m.name,
+          bildUrl: m.bildUrl,
           gruppe: "leitende",
         })),
         ...d.kinder
@@ -179,6 +183,7 @@ function zeichne(bereich, ctx, d) {
           typ,
           id,
           name: d.matrix.namen[id],
+          bildUrl: d.matrix.bilder?.[id],
           gruppe: typ === "person" ? "leitende" : "teilnehmende",
         });
       }
@@ -398,8 +403,17 @@ function zeichne(bereich, ctx, d) {
         el(
           "th",
           { scope: "row" },
-          el("span", { class: "name" }, p.name),
-          p.neben && el("span", { class: "klein leise" }, ` ${p.neben}`),
+          el(
+            "div",
+            { class: "wer" },
+            avatar(p.name, { hell: true, bildUrl: p.bildUrl }),
+            el(
+              "div",
+              {},
+              el("span", { class: "name" }, p.name),
+              p.neben && el("span", { class: "klein leise" }, ` ${p.neben}`),
+            ),
+          ),
         ),
         abschnitte.map((a) => zelle(p, tag, a)),
         bearbeiten || eigeneSchreiben

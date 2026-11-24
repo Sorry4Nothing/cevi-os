@@ -29,10 +29,10 @@ import {
   holeLager,
   konfliktBox,
   meldung,
-  personName,
   restPfad,
   kinder,
 } from "./lager-sm-gemeinsam.js";
+import { personZeile } from "./lager-aufgaben-gemeinsam.js";
 
 // Modul «Eingang» im Lager-Arbeitsbereich (#673): Ideen, Wünsche, Fragen und Feedback an die Lagerleitung. Wer eingang.senden hat, schreibt eine Meldung (auch anonym) und liest die eigenen Antworten; wer eingang.lesen hat, sieht alle Meldungen, wer eingang.antworten hat, beantwortet und ordnet sie zu. Anonym heisst: Der Server speichert keine Person. Der Rückfragecode erscheint genau einmal. Texte der Meldungen stehen nie in der Adresse oder im Titel der Seite. Adressen: …/eingang und …/eingang/eigene.
 
@@ -243,7 +243,7 @@ function zeichneAlle(
               m.anonym
                 ? el("span", { class: "chip" }, "Anonym")
                 : m.von
-                  ? personName(m.von)
+                  ? personZeile(m.von)
                   : "–",
             ),
             el("td", {}, statusChip(m.status)),
