@@ -2241,6 +2241,51 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/qr.js:
+    get:
+      operationId: getAdminQrSkript
+      summary: Skript der Verwaltung – QR-Code zeichnen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zweiter-faktor-einrichten.js:
+    get:
+      operationId: getAdminZweiterFaktorEinrichtenSkript
+      summary: Skript der Verwaltung – Zweiten Faktor einrichten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zweiter-faktor.css:
+    get:
+      operationId: getAdminZweiterFaktorStilvorlage
+      summary: Stilvorlage der Verwaltung – Zweiten Faktor einrichten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/zuschneiden.js:
     get:
       operationId: getAdminZuschneidenSkript
