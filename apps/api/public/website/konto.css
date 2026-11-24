@@ -7,13 +7,20 @@
   gap: 24px;
   align-items: start;
 }
+/* Ab 60 em links Profil und «Abmelden» untereinander, rechts alle übrigen Karten über beide Zeilen. Im Dokument steht «Abmelden» zuletzt, das Raster setzt es nur um (Tab-Reihenfolge bleibt). */
 @media (min-width: 60em) {
   .tm .kto {
     grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+    grid-template-rows: auto 1fr;
   }
   .tm .kto-links {
-    position: sticky;
-    top: 24px;
+    grid-area: 1 / 1;
+  }
+  .tm .kto-ende {
+    grid-area: 2 / 1;
+  }
+  .tm .kto-rechts {
+    grid-area: 1 / 2 / 3 / 3;
   }
 }
 /* Beim Wechsel des Startpassworts steht nur die eine Karte, in Lesebreite */
@@ -21,16 +28,31 @@
   grid-template-columns: minmax(0, 40rem);
 }
 
-/* Rechts: Karten in zwei Spalten, soweit der Platz reicht; Mitteilungen und Datenschutz stehen über die ganze Breite */
+/* Rechts: Karten laufen in Zeilen und wachsen, bis die Zeile voll ist; eine einzelne Karte am Ende füllt die Zeile, es bleibt keine Lücke. Mitteilungen und Datenschutz stehen über die ganze Breite */
 .tm .kto-rechts {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 24px;
-  align-items: start;
+}
+.tm .kto-rechts > * {
+  flex: 1 1 18rem;
+  min-width: 0;
 }
 .tm .kto-rechts > [aria-labelledby="kt-push-t"],
 .tm .kto-rechts > [aria-labelledby="kt-ds-t"] {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
+}
+
+/* Steht die Karte «Datenschutz und Hilfe» allein in einer breiten Zeile, laufen die Links nebeneinander, damit sie nicht hoch und leer wird */
+.tm .kto-rechts > [aria-labelledby="kt-mehr-t"] {
+  container-type: inline-size;
+}
+@container (min-width: 36rem) {
+  .tm .kto-rechts .linkliste {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 0 32px;
+  }
 }
 
 .tm .kto-karte {
