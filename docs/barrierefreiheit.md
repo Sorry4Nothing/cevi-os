@@ -1292,6 +1292,32 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Tag und Nacht) geprüf
 - **Nicht geprüft:** Safari und Firefox; Bildschirmleser; Touch (der Hinweis `data-tipp` erscheint dort nicht, die Information steht im Namen oder im Text); jede einzelne Zeile der Seiten, die nur mit Daten erreichbar sind, die die Demo-Datenbank nicht enthält.
 - **Bleibt unvermeidlich:** der Dialog des Browsers beim Schliessen oder Neuladen des Tabs mit echten ungespeicherten Änderungen, und der Systemdialog der Dateiwahl.
 
+## 74. Website und Verwaltung: Bausteine mit Daten aus Cevi OS (#740)
+
+Gilt für die Bausteine «Nächster Anlass», «Anlässe», «Lager-Karte», «Countdown», «Treffpunkte», «Dokumente» und «Cevi in Zahlen» (`src/website/dynamisch.ts`, Stil `public/website/dynamisch.css`) und ihre Felder im Editor (`public/admin/website-felder-dynamisch.js`). Massstab WCAG 2.2 AA; die Seiten sind statisch und ohne Skript benutzbar.
+
+**Website**
+
+- [ ] **74.1** Jede Karte hat eine Überschrift (Anlass, Ort) auf der Ebene unter der letzten Überschrift der Seite, höchstens `h3`; Datum, Zeit, Ort, Anmeldeschluss und Kosten stehen als Beschreibungsliste (`dl`), das Datum als `<time datetime>`.
+- [ ] **74.2** Das Datumsfeld ist `aria-hidden`; derselbe Inhalt steht als Text in den Angaben. Der Zustand «Anmeldung offen» steht als Wort im Etikett, nicht nur als Farbe; die Art (Anlass, Lager) ebenfalls.
+- [ ] **74.3** Jeder Knopf nennt sein Ziel für Screenreader («Anmelden zu Sommerlager», `nur-sr`), auch in einer Liste mit mehreren gleichen Knöpfen; nur der erste rote Knopf der Seite ist Hauptaktion.
+- [ ] **74.4** Countdown: ein Satz im Fliesstext («Noch 12 Tage bis …»), Datum als Text daneben; kein Zähler im Browser, nichts blinkt oder wird angesagt; «Heute» und «1 Tag» stimmen in der Einzahl.
+- [ ] **74.5** Treffpunkte: der Link zur Karte steht als Verweis mit dem Zeichen für «fremde Seite» und dem Namen des Orts für Screenreader («Auf Google Maps ansehen: Pfadiheim»); keine eingebettete Karte.
+- [ ] **74.6** Dokumente: jeder Link nennt den Titel und «(externe Seite)»; Typ und Grösse stehen als Text dahinter; die Trefferfläche ist mindestens 44 Pixel hoch.
+- [ ] **74.7** «Cevi in Zahlen»: grosse Zahl mit Beschriftung im Text (Einzahl und Mehrzahl richtig), Kontrast mindestens 4,5 : 1 in Hell und Dunkel, Zahl nie allein ohne Wort.
+- [ ] **74.8** Leere Liste: «Im Moment sind keine Anlässe eingetragen.» als Zustand, nie eine leere Fläche.
+- [ ] **74.9** 390, 1280 und 1920 Pixel ohne Seitenscroll, 200 Prozent Zoom, Hell und Dunkel nur über Tokens; die Karte stapelt sich unter 47.5 em (Datum über dem Text); erzwungene Farben: Rand statt Fläche.
+
+**Verwaltung**
+
+- [ ] **74.10** Die Wahl des Anlasses ist ein Auswahlfeld mit Label; sie meldet Laden («Anlässe werden geladen …», `role="status"`), Fehler (`role="alert"` mit «Nochmals versuchen») und Leere (Hinweis, wo man den Anlass anlegt). Ein gewählter Anlass, der nicht mehr öffentlich ist, bleibt sichtbar als «Gewählter Anlass (nicht mehr öffentlich oder gelöscht)».
+- [ ] **74.11** Orte und Zahlen sind Ankreuzlisten in einer Gruppe (`fieldset`, `legend`), jede Zeile mindestens 44 Pixel hoch, das Label ist das Ziel; ein Fehler steht beim Feld.
+- [ ] **74.12** Fehler der Verweisprüfung (`ANLASS_UNBEKANNT`, `ANLASS_NICHT_OEFFENTLICH`, `ORT_UNBEKANNT`) erscheinen als Satz beim Baustein; kein Browserdialog.
+
+### Stand der Prüfung (#740)
+
+Im Browser (Chromium, Playwright) gegen die Demo-Abteilung: Seite mit allen sieben Bausteinen in der Vorschau und als erzeugte Datei bei 390, 1280 und 1920 Pixel, Hell und Dunkel. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA) und echte Geräte; Kontraste aus den Tokens der Website, nicht neu gemessen. Befunde: PR zu #740.
+
 ## 72. Website: feste Seite «Datenschutz: Cevi OS, App, Verwaltung und Website» (#712)
 
 Gilt für `/datenschutz-cevi-os` (`datenschutz-cevi-os.ts`, `datenschutz.css`) und die neuen Links auf sie (Fuss, Mein Konto, `/support`, `/konto-loeschen`). Massstab WCAG 2.2 AA. Es ist eine lange Seite aus Text ohne Skript und ohne Formular.

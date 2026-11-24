@@ -16,6 +16,13 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
+import { istDynamisch } from "./bausteine-dynamisch.js";
+import type { DynamischErgebnis } from "./dynamisch-daten.js";
+import {
+  BREITE_DYNAMISCHE,
+  rendereDynamischenBaustein,
+  STIL_DYNAMISCH,
+} from "./dynamisch.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
 import { fuss, kontaktkarte, STIL_FUSS } from "./kontakt.js";
 import {
@@ -128,6 +135,8 @@ export type Daten = {
   ladenUebergabe: ReadonlyMap<string, true>;
   // Die Einstellungen des Lädelis (#642) unter dem Schlüssel «e»; ohne Eintrag gelten die Vorgaben
   ladenEinstellung: ReadonlyMap<"e", LadenEinstellung>;
+  // Je Baustein mit Daten aus Cevi OS (#740, nach der ID des Bausteins) das Ergebnis; fehlt der Eintrag, entfällt der Baustein
+  dynamisch: ReadonlyMap<string, DynamischErgebnis>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
@@ -141,6 +150,7 @@ export const keineDaten = (): Daten => ({
   laden: new Map(),
   ladenUebergabe: new Map(),
   ladenEinstellung: new Map(),
+  dynamisch: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -439,6 +449,7 @@ function rendereBaustein(
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
   if (b.typ === "fotoalben") return rendereFotoalben();
+  if (istDynamisch(b)) return rendereDynamischenBaustein(b, daten, letzte);
   switch (b.typ) {
     case "ueberschrift": {
       const ebene = Math.min(b.daten.ebene, letzte.ebene + 1);
@@ -1079,6 +1090,7 @@ const istBreit = (b: Baustein) =>
   b.typ === "artikel" ||
   b.typ === "laden" ||
   b.typ === "fotoalben" ||
+  BREITE_DYNAMISCHE.has(b.typ) ||
   b.typ === "galerie" ||
   b.typ === "karussell" ||
   (b.typ === "karten" &&
@@ -1382,6 +1394,10 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         ? [STIL_INHALT]
         : []),
       ...(mitLaden ? STILE_LADEN : []),
+      // Bausteine mit Daten aus Cevi OS (#740): der Stil nur auf Seiten, die einen davon zeigen
+      ...(eintraege.some((e) => istDynamisch(e.b) && e.knoten !== null)
+        ? [STIL_DYNAMISCH]
+        : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
     ...((geschuetzt || mitLaden || mitFotos) && {

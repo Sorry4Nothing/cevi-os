@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
 import { sichtbarkeitSchema } from "../sichtbarkeit.js";
+import { dynamischeBausteine } from "./bausteine-dynamisch.js";
 
 // Bausteinkatalog Version 1 der Website (#349): ein strenges Schema je Typ, kein HTML.
 // Reine Schemas ohne Datenbank und ohne Route; die Verweisprüfung (Medium, Tag, Person, Seite existiert) macht #350. Der Baustein «datei» verweist auf einen Link, nicht auf ein Medium (#428).
@@ -362,6 +363,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein("laden", z.strictObject({})),
   // Fotoalben (#690): die Alben der Abteilung aus Flickr, nur für angemeldete Personen. Der Baustein hat keine eigenen Daten und steht als Behälter im HTML; das Skript holt Alben und Bilder von unserem Server (GET /api/v1/fotos/alben), der sie bei Flickr abholt. Welche Alben erscheinen, stellt die Verwaltung unter «Website, Fotos» ein
   baustein("fotoalben", z.strictObject({})),
+  // Bausteine mit Daten aus Cevi OS (#740): bausteine-dynamisch.ts
+  ...dynamischeBausteine,
 ]);
 export type Baustein = z.infer<typeof bausteinSchema>;
 export type Bausteintyp = Baustein["typ"];

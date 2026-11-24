@@ -69,6 +69,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/website-bausteine.js`             | Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten         | **200** alle      |
 | `GET /admin/website-dialoge.js`               | Skript der Verwaltung – Bereich Website, Fenster und Hinweise                        | **200** alle      |
 | `GET /admin/website-felder.js`                | Skript der Verwaltung – Bereich Website, Felder und Typen der Bausteine              | **200** alle      |
+| `GET /admin/website-felder-dynamisch.js`      | Skript der Verwaltung – Bereich Website, Felder der Bausteine aus Cevi OS            | **200** alle      |
 | `GET /admin/website-sichtbarkeit.js`          | Skript der Verwaltung – Bereich Website, Sichtbarkeit                                | **200** alle      |
 | `GET /admin/website-symbole.js`               | Skript der Verwaltung – Bereich Website, Symbole                                     | **200** alle      |
 | `GET /admin/website-veroeffentlichen.js`      | Skript der Verwaltung – Bereich Website, Veröffentlichen und Versionen               | **200** alle      |
@@ -289,6 +290,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `PATCH /api/v1/redaktion/medien/:id`                           | Alt-Text nachtragen oder ändern                      | **200** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern           |
 | `DELETE /api/v1/redaktion/medien/:id`                          | Medium löschen                                       | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern           |
 | `GET /api/v1/redaktion/tags`                                   | Tags der Abteilung für die Auswahl im Editor         | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
+| `GET /api/v1/redaktion/baustein-auswahl`                       | Anlässe und Orte für die Bausteine aus Cevi OS       | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
 | `GET /api/v1/redaktion/personen`                               | Personen mit einem Tag für die Auswahl im Editor     | **200** admin, slA, slB<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern<br>**404** demoAdmin           |
 
 ## App: plattform
