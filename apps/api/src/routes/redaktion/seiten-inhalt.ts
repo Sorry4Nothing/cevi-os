@@ -7,7 +7,7 @@ import type { Db } from "../../db/client.js";
 import { abteilung, auditLog, seite, seiteVersion } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
-import { ladeDaten, ladeLogo } from "../../website/abgleich.js";
+import { ladeLogo } from "../../website/abgleich.js";
 import { pruefeDokument } from "../../website/dokument.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import {
@@ -17,12 +17,7 @@ import {
   STYLESHEET_PFAD,
   type Kontakt,
 } from "../../website/rendern.js";
-import { ladeLadenDaten } from "../../laden/laden.js";
-import { ladeStufenfaktenGemerkt } from "../../website/stufenfakten.js";
-import {
-  ladeAnlassSeiten,
-  ladeTerminlisten,
-} from "../../website/termine-liste.js";
+import { ladeVorschauDaten } from "../../website/vorschau.js";
 import { pruefeVerweise } from "../../website/verweise.js";
 
 const pfad = () => z.strictObject({ id: z.uuid() });
@@ -229,45 +224,15 @@ export function erstelleSeitenInhaltRouten({
               sichtbarkeit: "erbt" as const,
             })),
           };
-          // Termin-Liste und «Zur Anmeldung» (#570) aus denselben Quellen wie der Abgleich; die Termine nur, wenn die Seite eine Liste hat (dann drei Abfragen mehr, sonst eine)
-          const [daten, laden, fakten, termine, anlaesse, [abt], logo] =
-            await Promise.all([
-              ladeDaten(db, person.abteilungId, [dokument], false),
-              // Lädeli (#566): Die Vorschau zeigt die Artikel wie die Website; die Abfragen laufen nur, wenn die Seite den Baustein hat
-              ladeLadenDaten(
-                db,
-                person.abteilungId,
-                [id],
-                new Map([[id, dokument]]),
-              ),
-              ladeStufenfaktenGemerkt(db, person.abteilungId, id),
-              dokument.bausteine.some((b) => b.typ === "terminliste")
-                ? ladeTerminlisten(
-                    db,
-                    person.abteilungId,
-                    [id],
-                    new Map([[id, dokument]]),
-                  )
-                : {},
-              ladeAnlassSeiten(db, person.abteilungId, [id]),
-              db
-                .select({ name: abteilung.name })
-                .from(abteilung)
-                .where(eq(abteilung.id, person.abteilungId)),
-              ladeLogo(db, person.abteilungId),
-            ]);
-          if (fakten) daten.stufenfakten = new Map([[id, fakten]]);
-          if (laden.laden) {
-            daten.laden = laden.laden;
-            if (laden.ladenUebergabe) {
-              daten.ladenUebergabe = laden.ladenUebergabe;
-            }
-            if (laden.ladenEinstellung) {
-              daten.ladenEinstellung = laden.ladenEinstellung;
-            }
-            daten.medien = new Map([...daten.medien, ...(laden.medien ?? [])]);
-          }
-          Object.assign(daten, termine, anlaesse, kontakt && { kontakt });
+          const [daten, [abt], logo] = await Promise.all([
+            // Daten aus denselben Quellen wie der Abgleich (vorschau.ts); die Vorschau einzelner Bausteine im Editor nutzt dieselben
+            ladeVorschauDaten(db, person, id, dokument, kontakt),
+            db
+              .select({ name: abteilung.name })
+              .from(abteilung)
+              .where(eq(abteilung.id, person.abteilungId)),
+            ladeLogo(db, person.abteilungId),
+          ]);
           // Die Startseite hat einen eigenen Einstieg (Titelkarte im Bild): Die Vorschau zeigt ihn nur unter ihrer Adresse
           const start =
             z.seite.elternId === null && z.seite.adresse === STARTSEITE;

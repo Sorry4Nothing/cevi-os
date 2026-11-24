@@ -45,6 +45,7 @@ import {
 } from "./website-felder.js";
 import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
 import { mitSymbol, symbol } from "./website-symbole.js";
+import { bausteinVorschau } from "./website-vorschau.js";
 import {
   veroeffentlichenDialog,
   vergleiche,
@@ -184,6 +185,8 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     speichert: false,
     offline: false,
     pruefen: new Set(),
+    // Bausteine, deren Vorschau in der Liste aufgeklappt ist (#739); sie bleibt beim Neuzeichnen der Liste offen
+    vorschauOffen: new Set(),
     geloescht: null,
   };
   if (gepuffert)
@@ -772,23 +775,31 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
       onclick: () => bearbeitenBlatt(k, b, k.dok.bausteine.indexOf(b)),
     });
     const chips = chipsFuer(b);
+    // Die Vorschau zeigt den Baustein mit den aktuellen Daten des Entwurfs, auch ungespeichert (#739)
+    const vorschau = bausteinVorschau(k, b, bezeichnung);
     return el(
       "div",
-      { class: "ws-bauzeile" },
+      { class: "ws-bauzeile-block" },
       el(
         "div",
-        { class: "ws-bausteintext" },
-        el("p", { class: "typ" }, bezeichnung),
-        el("p", { class: "zus" }, kurzText(k, b) || "Noch ohne Inhalt"),
-        chips.length > 0 ? el("ul", { class: "chips" }, chips) : null,
+        { class: "ws-bauzeile" },
+        el(
+          "div",
+          { class: "ws-bausteintext" },
+          el("p", { class: "typ" }, bezeichnung),
+          el("p", { class: "zus" }, kurzText(k, b) || "Noch ohne Inhalt"),
+          chips.length > 0 ? el("ul", { class: "chips" }, chips) : null,
+        ),
+        el(
+          "div",
+          { class: "akt" },
+          vorschau.knopf,
+          bearbeiten,
+          mini("duplizieren", "Duplizieren", "kopieren", () => dupliziere(b)),
+          mini("loeschen", "Löschen", "papierkorb", () => loesche(b)),
+        ),
       ),
-      el(
-        "div",
-        { class: "akt" },
-        bearbeiten,
-        mini("duplizieren", "Duplizieren", "kopieren", () => dupliziere(b)),
-        mini("loeschen", "Löschen", "papierkorb", () => loesche(b)),
-      ),
+      vorschau.panel,
     );
   }
 
