@@ -2,13 +2,12 @@ import type { Db } from "../db/client.js";
 import { ladeLadenDaten } from "../laden/laden.js";
 import type { Person } from "../rechte.js";
 import { ladeDaten } from "./abgleich.js";
-import type { Baustein } from "./bausteine.js";
-import { istDynamisch } from "./bausteine-dynamisch.js";
 import {
   ladeDynamischeBausteine,
   type AnlassInfo,
   type DynamischErgebnis,
 } from "./dynamisch-daten.js";
+import type { Baustein } from "./bausteine.js";
 import { sammleVerweise, type Seitendokument } from "./dokument.js";
 import {
   keineDaten,
@@ -128,65 +127,62 @@ function beispielTermine(anzahl: number, vorne: string): TerminEintrag[] {
   });
 }
 
-// Ein Anlass für die Bausteine mit Daten aus Cevi OS (#740): Platzhalter, nie ein echter Anlass
-function beispielAnlass(art: "anlass" | "lager"): AnlassInfo {
-  const [von, bis] = beispielTermine(2, "anlass").map((t) => t.von) as [
-    string,
-    string,
-  ];
+// Platzhalter für die Bausteine aus Cevi OS (#740): erfundene Anlässe, Orte und Zahlen, nichts aus der Datenbank
+function beispielAnlass(nr: number, art: "anlass" | "lager"): AnlassInfo {
+  const tag = beispielTermine(nr + 1, "anlass")[nr]!;
   return {
-    id: beispielId(30),
+    id: `${beispielId(30 + nr)}`,
     titel: art === "lager" ? "Beispiel: Sommerlager" : "Beispiel: Anlass",
     art,
-    von,
-    bis,
+    von: tag.von,
+    bis: tag.bis,
     zeitVon: "14:00",
     zeitBis: "17:00",
     ort: "Beispielort",
     anmeldungOffen: true,
-    fristTag: von,
+    fristTag: tag.von,
     fristZeit: "23:59",
     seiteId: null,
   };
 }
-
-function beispielDynamisch(
-  b: Extract<Baustein, { typ: string }>,
-): DynamischErgebnis | null {
-  if (!istDynamisch(b)) return null;
+function beispielDynamisch(b: Baustein): DynamischErgebnis | null {
   switch (b.typ) {
     case "naechsterAnlass":
+      return { typ: "anlaesse", anlaesse: [beispielAnlass(0, "anlass")] };
     case "lagerkarte":
-      return { typ: "anlaesse", anlaesse: [beispielAnlass("lager")] };
+      return { typ: "anlaesse", anlaesse: [beispielAnlass(1, "lager")] };
     case "anlaesse":
       return {
         typ: "anlaesse",
-        anlaesse: Array.from({ length: Math.min(b.daten.anzahl, 3) }, () =>
-          beispielAnlass("anlass"),
-        ),
+        anlaesse: [0, 1, 2].map((i) => beispielAnlass(i, "anlass")),
       };
     case "countdown":
       return {
         typ: "countdown",
-        anlass: beispielAnlass("lager"),
-        tage: 42,
-        zielTag: beispielAnlass("lager").von,
+        anlass: beispielAnlass(2, "lager"),
+        tage: 21,
+        zielTag: beispielAnlass(2, "lager").von,
       };
     case "treffpunkte":
       return {
         typ: "orte",
-        orte: b.daten.ortIds.slice(0, 3).map((_, i) => ({
-          name: `Beispielort ${i + 1}`,
-          beschreibung: "Eine Beschreibung des Treffpunkts.",
-          karte: null,
-        })),
+        orte: [
+          {
+            name: "Beispielort",
+            beschreibung: "Vor dem Gemeindehaus",
+            karte: null,
+          },
+        ],
       };
     case "kennzahlen":
       return {
         typ: "kennzahlen",
-        zahlen: b.daten.zahlen.map((art, i) => ({ art, zahl: [6, 24, 8][i]! })),
+        zahlen: [
+          { art: "stufen", zahl: 6 },
+          { art: "leitende", zahl: 24 },
+          { art: "anlaesse", zahl: 8 },
+        ],
       };
-    // Die Dokumente haben keine Daten aus der Datenbank
     default:
       return null;
   }

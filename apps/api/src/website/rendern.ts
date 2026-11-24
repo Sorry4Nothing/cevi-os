@@ -26,6 +26,11 @@ import {
 import { kopf, STIL_KOPF } from "./kopf.js";
 import { fuss, kontaktkarte, STIL_FUSS } from "./kontakt.js";
 import {
+  istBreitText,
+  istTextBaustein,
+  rendereTextBaustein,
+} from "./bausteine-text-rendern.js";
+import {
   rendereLaden,
   SKRIPT_LADEN,
   STILE_LADEN,
@@ -238,7 +243,7 @@ export function verlinke(
   return [el("a", klasse ? { ...h, class: klasse } : h, ...innen, ...extern)];
 }
 
-function textBlock(b: TextBlock): HtmlKnoten {
+export function textBlock(b: TextBlock): HtmlKnoten {
   const abschnitte = (liste: Extract<TextBlock, { typ: "absatz" }>["inhalt"]) =>
     liste.flatMap((a) => {
       let k: HtmlKnoten = a.text;
@@ -368,7 +373,7 @@ function stufenkarte(
 }
 
 // Anker einer Überschrift der Ebene 2 (#560): ihr Text als Adresse («Unsere Lager» wird «unsere-lager»); ein doppelter bekommt «-2»
-function anker(text: string, vergeben: Set<string>): string | null {
+export function anker(text: string, vergeben: Set<string>): string | null {
   const basis = text
     .toLowerCase()
     .replace(/ä/g, "ae")
@@ -445,6 +450,8 @@ function rendereBaustein(
   if (istInhaltsBaustein(b)) {
     return rendereInhaltsBaustein(b, daten, letzte);
   }
+  // Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, Spalten, Bild und Text, Tabelle, Schritte, Checkliste
+  if (istTextBaustein(b)) return rendereTextBaustein(b, daten, letzte);
   if (b.typ === "laden") {
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
@@ -1087,6 +1094,7 @@ const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
   "karussell",
 ]);
 const istBreit = (b: Baustein) =>
+  istBreitText(b) ||
   b.typ === "artikel" ||
   b.typ === "laden" ||
   b.typ === "fotoalben" ||

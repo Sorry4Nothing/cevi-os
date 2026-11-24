@@ -69,6 +69,7 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/website-bausteine.js`             | Skript der Verwaltung – Bereich Website, Bausteine hinzufügen und bearbeiten         | **200** alle      |
 | `GET /admin/website-dialoge.js`               | Skript der Verwaltung – Bereich Website, Fenster und Hinweise                        | **200** alle      |
 | `GET /admin/website-felder.js`                | Skript der Verwaltung – Bereich Website, Felder und Typen der Bausteine              | **200** alle      |
+| `GET /admin/website-felder-text.js`           | Skript der Verwaltung – Bereich Website, Felder der Bausteine Text und Gestaltung    | **200** alle      |
 | `GET /admin/website-felder-dynamisch.js`      | Skript der Verwaltung – Bereich Website, Felder der Bausteine aus Cevi OS            | **200** alle      |
 | `GET /admin/website-sichtbarkeit.js`          | Skript der Verwaltung – Bereich Website, Sichtbarkeit                                | **200** alle      |
 | `GET /admin/website-symbole.js`               | Skript der Verwaltung – Bereich Website, Symbole                                     | **200** alle      |

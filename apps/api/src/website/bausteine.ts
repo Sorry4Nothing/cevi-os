@@ -1,6 +1,31 @@
 import { z } from "zod";
 import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
-import { sichtbarkeitSchema } from "../sichtbarkeit.js";
+import {
+  baustein,
+  bildEintrag,
+  kurztext,
+  link,
+  linkAlle,
+  mediumId,
+  MAX_UNTERSCHRIFT,
+  richText,
+  zusatz,
+} from "./bausteine-basis.js";
+import { textBausteine } from "./bausteine-text.js";
+
+// Was früher hier stand und andere Dateien von hier importieren
+export {
+  linkArt,
+  MAX_ABSCHNITT_ZEICHEN,
+  MAX_ABSCHNITTE_PRO_BLOCK,
+  MAX_LINK_LAENGE,
+  MAX_LISTENEINTRAEGE,
+  MAX_TEXT_ZEICHEN,
+  MAX_TEXTBLOECKE,
+  MAX_UNTERSCHRIFT,
+  type LinkArt,
+  type TextBlock,
+} from "./bausteine-basis.js";
 import { dynamischeBausteine } from "./bausteine-dynamisch.js";
 
 // Bausteinkatalog Version 1 der Website (#349): ein strenges Schema je Typ, kein HTML.
@@ -14,13 +39,6 @@ export const MAX_UEBERSCHRIFT = 200;
 export const MAX_KURZTEXT = 100;
 export const MAX_BESCHRIFTUNG = 60;
 export const MAX_DATEITYP = 20;
-export const MAX_UNTERSCHRIFT = 300;
-export const MAX_LINK_LAENGE = 2000;
-export const MAX_TEXTBLOECKE = 100;
-export const MAX_ABSCHNITTE_PRO_BLOCK = 50;
-export const MAX_LISTENEINTRAEGE = 50;
-export const MAX_ABSCHNITT_ZEICHEN = 2000;
-export const MAX_TEXT_ZEICHEN = 20000;
 export const MAX_GALERIE_BILDER = 50;
 // Karussell (#550): wenige Bilder wechseln sich ab; mehr wären kein Karussell mehr, sondern eine Galerie
 export const MIN_KARUSSELL_BILDER = 3;
@@ -49,123 +67,6 @@ export const MAX_ARTIKEL = 60;
 export const MAX_PREIS = 40;
 export const MIN_TERMINE = 3;
 export const MAX_TERMINE = 10;
-
-// Steuerzeichen (auch NUL, das jsonb nicht speichert) gehören in keinen Text; Zeilenumbrüche entstehen durch Absätze
-const STEUERZEICHEN = /\p{Cc}/u;
-const sauber = (s: string) => !STEUERZEICHEN.test(s);
-const kurztext = (max: number) =>
-  z.string().trim().min(1).max(max).refine(sauber);
-
-// Links: nur diese Arten, je Baustein eine Auswahl. Ein Ziel ohne Schema (`javascript:`, `data:`, `//host`, `http:`) passt nie
-export type LinkArt = "https" | "seite" | "mailto" | "tel";
-// Zeichen, die in einer Adresse nie vorkommen: Leerraum, Steuerzeichen, Backslash (Browser lesen ihn als «/»), Klammern und Anführungszeichen
-const ADRESSE_VERBOTEN = /[\s\p{Cc}\\<>"]/u;
-// Seitenadresse wie die Slugs der Website, optional mit Anker; «/» ist die Startseite
-const SEITENPFAD =
-  /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?(?:#[a-z0-9_-]+)?$/;
-
-function istHttps(s: string): boolean {
-  if (!/^https:\/\/[^/?#]/.test(s)) return false;
-  try {
-    const u = new URL(s);
-    // Ohne Zugangsdaten in der Adresse; ein Punkt im Host schliesst «localhost» und Kurznamen aus
-    return (
-      u.protocol === "https:" &&
-      !u.username &&
-      !u.password &&
-      u.hostname.includes(".")
-    );
-  } catch {
-    return false;
-  }
-}
-
-const LINK_PRUEFER: Record<LinkArt, (s: string) => boolean> = {
-  https: istHttps,
-  seite: (s) => SEITENPFAD.test(s),
-  mailto: (s) =>
-    s.startsWith("mailto:") && z.email().safeParse(s.slice(7)).success,
-  tel: (s) => /^tel:\+?[0-9]{3,20}$/.test(s),
-};
-
-export function linkArt(ziel: string): LinkArt | null {
-  if (ADRESSE_VERBOTEN.test(ziel) || ziel.length > MAX_LINK_LAENGE) return null;
-  return (
-    (Object.keys(LINK_PRUEFER) as LinkArt[]).find((a) =>
-      LINK_PRUEFER[a](ziel),
-    ) ?? null
-  );
-}
-
-const link = (...erlaubt: LinkArt[]) =>
-  z
-    .string()
-    .max(MAX_LINK_LAENGE)
-    .refine((s) => {
-      const art = linkArt(s);
-      return art !== null && erlaubt.includes(art);
-    });
-
-const linkAlle = link("https", "seite", "mailto", "tel");
-
-// Rich Text als Knoten: Absatz oder Liste (flach, keine Verschachtelung), darin Abschnitte mit den Marken fett, kursiv und Link
-const abschnitt = z.strictObject({
-  text: z.string().min(1).max(MAX_ABSCHNITT_ZEICHEN).refine(sauber),
-  fett: z.literal(true).optional(),
-  kursiv: z.literal(true).optional(),
-  link: linkAlle.optional(),
-});
-const abschnitte = z.array(abschnitt).min(1).max(MAX_ABSCHNITTE_PRO_BLOCK);
-const textBlock = z.discriminatedUnion("typ", [
-  z.strictObject({ typ: z.literal("absatz"), inhalt: abschnitte }),
-  z.strictObject({
-    typ: z.literal("liste"),
-    geordnet: z.boolean(),
-    eintraege: z.array(abschnitte).min(1).max(MAX_LISTENEINTRAEGE),
-  }),
-]);
-export type TextBlock = z.infer<typeof textBlock>;
-
-function zeichen(bloecke: TextBlock[]): number {
-  return bloecke.reduce(
-    (summe, b) =>
-      summe +
-      (b.typ === "absatz" ? [b.inhalt] : b.eintraege)
-        .flat()
-        .reduce((n, a) => n + a.text.length, 0),
-    0,
-  );
-}
-const richText = z
-  .array(textBlock)
-  .min(1)
-  .max(MAX_TEXTBLOECKE)
-  .refine((bloecke) => zeichen(bloecke) <= MAX_TEXT_ZEICHEN);
-
-// Cevi-Name und Funktion zeigt die Website immer; was zusätzlich erscheinen darf, entscheidet #351 (Einwilligung)
-const zusatz = z
-  .array(z.enum(["telefon", "email", "foto"]))
-  .max(3)
-  .refine((a) => new Set(a).size === a.length)
-  .default([]);
-
-const mediumId = z.uuid();
-const bildEintrag = z.strictObject({
-  mediumId,
-  unterschrift: kurztext(MAX_UNTERSCHRIFT).optional(),
-});
-
-// id: stabile ID, damit Editor und Versionen einen Baustein wiedererkennen; sichtbarkeit: fehlt sie oder steht «erbt», gilt die der Seite
-function baustein<T extends string, D extends z.ZodType>(typ: T, daten: D) {
-  return z.strictObject({
-    id: z.uuid(),
-    typ: z.literal(typ),
-    daten,
-    sichtbarkeit: z
-      .union([z.literal("erbt"), sichtbarkeitSchema])
-      .default("erbt"),
-  });
-}
 
 export const bausteinSchema = z.discriminatedUnion("typ", [
   // Der Seitentitel ist das H1, darum ab Ebene 2
@@ -363,6 +264,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   baustein("laden", z.strictObject({})),
   // Fotoalben (#690): die Alben der Abteilung aus Flickr, nur für angemeldete Personen. Der Baustein hat keine eigenen Daten und steht als Behälter im HTML; das Skript holt Alben und Bilder von unserem Server (GET /api/v1/fotos/alben), der sie bei Flickr abholt. Welche Alben erscheinen, stellt die Verwaltung unter «Website, Fotos» ein
   baustein("fotoalben", z.strictObject({})),
+  // Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, Spalten, Bild und Text, Tabelle, Schritte, Checkliste
+  ...textBausteine,
   // Bausteine mit Daten aus Cevi OS (#740): bausteine-dynamisch.ts
   ...dynamischeBausteine,
 ]);
