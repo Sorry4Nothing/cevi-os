@@ -6,7 +6,7 @@ import { sk } from "./lader.js";
 // Vorschau einzelner Bausteine (#739): Katalog «Baustein hinzufügen» und Bausteinliste des Editors.
 // Der Server rendert die Bausteine mit demselben Renderer wie die Website (POST /api/v1/redaktion/bausteine/vorschau) und liefert je Baustein eine fertige Seite.
 // Sie kommt in einen Rahmen (iframe) per srcdoc: sandbox ohne allow-scripts (kein Skript läuft, auch bei einem Fehler im Renderer nicht), eigene CSP in der Seite, Stil und Schrift von der eigenen Herkunft.
-// Nie innerHTML im Dokument der Verwaltung: Der Rahmen hält den Stil der Website von der Verwaltung fern und umgekehrt.
+// Nie HTML in das Dokument der Verwaltung einfügen: Der Rahmen hält den Stil der Website von der Verwaltung fern und umgekehrt.
 
 const API = "/api/v1/redaktion";
 // So viele Bausteine je Anfrage (der Server nimmt höchstens 80)

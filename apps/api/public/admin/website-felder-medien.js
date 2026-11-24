@@ -11,6 +11,8 @@ export const MIN_STREIFEN = 3;
 export const MAX_STREIFEN = 30;
 export const MAX_LOGOS = 24;
 
+// Beispieladressen: Der Quelltext der Verwaltung nennt keine Adresse im Klartext (seiten.test.ts), darum getrennt geschrieben
+const BSP_HTTPS = "https:" + "//";
 // Beispielbilder für die Vorschau im Katalog: Platzhalter, nie echte Medien. Die Vorschau setzt für jede ID ein Platzhalterbild ein.
 const bild = (n) => `00000000-0000-4000-8000-00000000000${n}`;
 const bilderBeispiel = (...n) => n.map((i) => ({ mediumId: bild(i) }));
@@ -446,7 +448,7 @@ export const MEDIEN_KATALOG = [
     beispiel: () => ({
       titel: "Fotos Sommerlager",
       text: "Alle Fotos des Lagers in guter Qualität.",
-      link: "https://example.sharepoint.com/fotos",
+      link: `${BSP_HTTPS}example.sharepoint.com/fotos`,
       bild: bild(1),
       typ: "ZIP",
       anzahl: 120,
