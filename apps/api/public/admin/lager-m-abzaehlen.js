@@ -1,5 +1,5 @@
 import { anfrage } from "./api.js";
-import { el, filterGruppe, knopf } from "./dom.js";
+import { avatar, el, filterGruppe, knopf } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import {
   blendeEin,
@@ -233,6 +233,7 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
   }
 
   function zeileVon(e) {
+    const anzeigename = nameVon(e);
     const knopf = el(
       "button",
       {
@@ -243,6 +244,7 @@ function zeichne(bereich, ctx, k, ersteListe, gruppen) {
         onclick: () => haken([e], !e.geprueft),
       },
       el("span", { class: "mn-haken", "aria-hidden": "true" }),
+      avatar(anzeigename, { hell: true, bildUrl: e.bildUrl }),
       el(
         "span",
         { class: "mn-abzaehl-name" },

@@ -112,6 +112,7 @@ function zeichne(bereich, ctx, { k, a, kinder, mitglieder }, neu) {
     typ: "person",
     id: p.personId,
     name: p.name,
+    bildUrl: p.bildUrl ?? null,
     neben:
       p.rolle === "leitung"
         ? "Leitung"
@@ -198,6 +199,7 @@ function zeichne(bereich, ctx, { k, a, kinder, mitglieder }, neu) {
             personId: p.id,
             name: p.name,
             ceviName: null,
+            bildUrl: p.bildUrl ?? null,
             rolle: rolle ?? p.rolle ?? "leitung",
           });
         }

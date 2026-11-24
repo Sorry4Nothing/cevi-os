@@ -1,6 +1,7 @@
 import { anfrage } from "./api.js";
 import {
   ankreuzen,
+  avatar,
   dialogFormular,
   el,
   feld,
@@ -83,6 +84,7 @@ const alsPerson = (s) => ({
   typ: s.teilnehmerId ? "teilnehmer" : "person",
   id: s.teilnehmerId ?? s.personId,
   name: s.name,
+  bildUrl: s.bildUrl ?? null,
 });
 
 function zeichne(
@@ -234,6 +236,7 @@ function zeichne(
                   text: (l) => l[0].name,
                 })
               : false,
+            avatar(p.name, { hell: true, bildUrl: p.bildUrl }),
             el("span", { class: "mn-chip-name" }, p.name),
             bearbeiten
               ? el(
@@ -365,7 +368,12 @@ function zeichne(
     const je = new Map();
     for (const s of plan.schichten) {
       const key = s.personId ?? s.teilnehmerId;
-      const z = je.get(key) ?? { name: s.name, anzahl: 0, nachtwachen: 0 };
+      const z = je.get(key) ?? {
+        name: s.name,
+        bildUrl: s.bildUrl,
+        anzahl: 0,
+        nachtwachen: 0,
+      };
       z.anzahl++;
       if (nacht.has(s.dienstId)) z.nachtwachen++;
       je.set(key, z);
@@ -396,7 +404,16 @@ function zeichne(
               el(
                 "tr",
                 {},
-                el("th", { scope: "row" }, z.name),
+                el(
+                  "th",
+                  { scope: "row" },
+                  el(
+                    "div",
+                    { class: "wer" },
+                    avatar(z.name, { hell: true, bildUrl: z.bildUrl }),
+                    z.name,
+                  ),
+                ),
                 el("td", { class: "lg-zahlen rechts" }, String(z.anzahl)),
                 el("td", { class: "lg-zahlen rechts" }, String(z.nachtwachen)),
               ),
@@ -500,9 +517,17 @@ function poolFlaeche(mitglieder, plan) {
             { class: "mn-chip" },
             ziehGriff({
               name: m.name,
-              nutzlast: () => [{ typ: "person", id: m.personId, name: m.name }],
+              nutzlast: () => [
+                {
+                  typ: "person",
+                  id: m.personId,
+                  name: m.name,
+                  bildUrl: m.bildUrl,
+                },
+              ],
               text: (l) => l[0].name,
             }),
+            avatar(m.name, { hell: true, bildUrl: m.bildUrl }),
             el("span", { class: "mn-chip-name" }, m.name),
             el(
               "span",

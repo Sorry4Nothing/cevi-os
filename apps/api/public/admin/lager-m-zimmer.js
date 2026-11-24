@@ -1,6 +1,7 @@
 import { anfrage } from "./api.js";
 import {
   auswahl,
+  avatar,
   dialogFormular,
   el,
   feld,
@@ -121,6 +122,7 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
                     el(
                       "li",
                       { class: "mn-person" },
+                      avatar(m.name, { hell: true, bildUrl: m.bildUrl }),
                       el("span", { class: "name" }, m.name),
                     ),
                   ),
@@ -144,7 +146,12 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
       name: `${t.vorname} ${t.nachname}`,
       neben: t.stufe ?? undefined,
     })),
-    person: offenP.map((p) => ({ typ: "person", id: p.id, name: p.name })),
+    person: offenP.map((p) => ({
+      typ: "person",
+      id: p.id,
+      name: p.name,
+      bildUrl: p.bildUrl ?? null,
+    })),
   };
   const mitSchluessel = (p, quelle) => ({
     ...p,
@@ -247,7 +254,13 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
       );
     const ziel = zimmer.find((z) => z.id === zielId);
     for (const p of personen) {
-      const roh = { typ: p.typ, id: p.id, name: p.name, neben: p.neben };
+      const roh = {
+        typ: p.typ,
+        id: p.id,
+        name: p.name,
+        neben: p.neben,
+        bildUrl: p.bildUrl ?? null,
+      };
       if (ziel) ziel.mitglieder.push(roh);
       else offen[p.typ].push(roh);
     }

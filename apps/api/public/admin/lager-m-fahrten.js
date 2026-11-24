@@ -95,6 +95,7 @@ const alsPerson = (p) => ({
   id: p.teilnehmerId ?? p.personId,
   name: p.name,
   neben: p.stufe ?? undefined,
+  bildUrl: p.bildUrl ?? null,
 });
 
 function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
@@ -230,9 +231,16 @@ function zeichne(bereich, ctx, { k, fahrten, ohne, mitglieder }, neu) {
         teilnehmerId: p.typ === "teilnehmer" ? p.id : null,
         name: p.name,
         stufe: p.neben ?? null,
+        bildUrl: p.bildUrl ?? null,
       });
     else
-      offen[rich].push({ typ: p.typ, id: p.id, name: p.name, neben: p.neben });
+      offen[rich].push({
+        typ: p.typ,
+        id: p.id,
+        name: p.name,
+        neben: p.neben,
+        bildUrl: p.bildUrl ?? null,
+      });
   }
 
   const menueFuer = (p) => {

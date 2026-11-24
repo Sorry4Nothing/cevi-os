@@ -1,5 +1,5 @@
 import { anfrage } from "./api.js";
-import { auswahl, dialogFormular, el, feld, knopf } from "./dom.js";
+import { auswahl, avatar, dialogFormular, el, feld, knopf } from "./dom.js";
 import { skeletonVon } from "./lager-skeleton.js";
 import { ADRESSE, feldFehler, haenge, meldung } from "./lager-gemeinsam.js";
 import {
@@ -170,7 +170,12 @@ function kontaktZeile(k, darf, handler) {
     "div",
     { class: "lm-kontakt" },
     el("strong", { class: "lm-kontakt-funktion" }, k.funktion),
-    el("span", { class: "lm-kontakt-name" }, k.name || "Ohne Namen"),
+    el(
+      "span",
+      { class: "lm-kontakt-name" },
+      k.personId && avatar(k.name || "?", { hell: true, bildUrl: k.bildUrl }),
+      k.name || "Ohne Namen",
+    ),
     nummer,
     k.quelle === "ressort" &&
       el("span", { class: "chip" }, "Aus dem Ressort Sicherheit"),
