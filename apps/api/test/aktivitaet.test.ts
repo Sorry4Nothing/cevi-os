@@ -542,7 +542,7 @@ describe("Änderungsprotokoll mit Datenbank", () => {
       abteilungId: welt.testabteilungId,
       beschreibung: "Person angelegt",
       felder: [
-        "admin",
+        "abteilungsleitung",
         "benutzername",
         "elternteilVon",
         "nachname",
