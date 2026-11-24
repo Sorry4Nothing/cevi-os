@@ -1346,4 +1346,4 @@ Dieser Abschnitt gilt für die Chips und Schalter, die die Rolle zeigen: «Mein 
 
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung, Server auf einem lokalen Port mit dem Vertrag aus Teil 8) gesehen bei 1280 und 2560 px, hell und dunkel: Personenliste mit Filter und Chips, Personenblatt einer Person mit Rolle «Entwickler» (Hilfetext), Schalter «Abteilungsleitung» (PATCH mit `abteilungsleitung`, 204, danach der Chip in der Liste), «Mein Konto» und Übersicht für Abteilungsleitung, Entwickler, Stufenleitung und Webmaster, ein Konto ohne Zugang («Dieses Konto hat keinen Zugang zur Verwaltung»).
 
-**Nicht geprüft:** VoiceOver, TalkBack und NVDA, Safari und Firefox, 320 px und 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem. Die Übersicht des Entwicklers zeigt weniger Kacheln als die der Abteilungsleitung, solange der Server die Sicht `siehtAlles` (Teil 3 des Epics) nicht liefert.
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA, Safari und Firefox, 320 px und 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.
