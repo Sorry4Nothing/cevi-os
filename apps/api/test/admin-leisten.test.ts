@@ -66,9 +66,13 @@ describe("Leisten der Verwaltung", () => {
     );
   });
 
-  test("schmal bleibt die Logozeile eine Zeile: nur Symbole, «Abmelden» als Symbol", () => {
-    expect(css).toMatch(/\.abmelden-text,\s+\.palette-knopf-text/);
+  test("schmal bleibt die Logozeile eine Zeile: nur Symbole; das Konto-Menü bleibt als Bild erreichbar", () => {
+    expect(css).toMatch(/\.palette-knopf-text,\s+\.palette-kuerzel/);
     expect(css).not.toMatch(/\.logozeile \.breite \{[^}]*flex-wrap: wrap/);
-    expect(lies("rahmen.js")).toContain('class: "abmelden-text"');
+    // Bis 1100 px weichen Name, Rolle und Pfeil dem Platz; das Bild (44 px) bleibt der Knopf des Menüs
+    expect(css).toMatch(
+      /@media \(max-width: 1100px\) \{[^@]*\.konto-text \{[^}]*clip-path: inset\(50%\)/,
+    );
+    expect(lies("rahmen.js")).toContain('class: "konto-menue"');
   });
 });

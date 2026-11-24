@@ -1,36 +1,68 @@
 import { readFileSync } from "node:fs";
 import { expect, test } from "vitest";
 
-// «Zur Website» im Kopf der Verwaltung (#669): neben dem Logo, das Logo bleibt die Übersicht der Verwaltung
+// Kopf der Verwaltung (#669): «Zur Website», «Mein Konto» und «Abmelden» stehen im Konto-Menü unter dem Profil, wie im Kopf der Website; das Logo führt zur Website, «Verwaltung» zur Übersicht
 const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
 
-test("die Logozeile hat einen Link «Zur Website» mit sichtbarem Text, Ziel «/» und Symbol; das Logo führt in die Verwaltung", () => {
+test("das Konto-Menü hat «Zur Website», «Mein Konto» und «Abmelden» in dieser Reihenfolge, als Offenlegungsmenü ohne ARIA-«menu»", () => {
   const rahmen = lies("rahmen.js");
-  const kopf = rahmen.slice(rahmen.indexOf("export function logozeile"));
-  expect(kopf).toMatch(
-    /class: "zur-website", href: "\/" \},\s*icon\("website"\),\s*el\("span", \{ class: "zur-website-text" \}, "Zur Website"\)/,
-  );
-  // Neben dem Logo: hinter dem Namen des Bereichs, vor dem Konto
-  expect(kopf.indexOf("zur-website")).toBeGreaterThan(
-    kopf.indexOf("bereichname"),
-  );
-  expect(kopf.indexOf("zur-website")).toBeLessThan(kopf.indexOf("kopf-rechts"));
-  // Das Logo bleibt die Übersicht der Verwaltung (Adresse «#»), nicht die Website
-  expect(rahmen.match(/class: "marke", href: "#"/g)).toHaveLength(1);
-  expect(rahmen).toContain('href: "#",');
+  const menue = rahmen.slice(rahmen.indexOf("function erstelleKontoMenue"));
+  const website = menue.indexOf('"Zur Website"');
+  const konto = menue.indexOf('"Mein Konto"');
+  // Der Knopf wird oben angelegt und steht als letzter Eintrag in der Liste
+  expect(menue).toContain('"Abmelden"');
+  const abmelden = menue.indexOf('el("li", {}, abmelden)');
+  expect(website).toBeGreaterThan(0);
+  expect(konto).toBeGreaterThan(website);
+  expect(abmelden).toBeGreaterThan(konto);
+  expect(menue).toContain('el("a", { href: "/" }, icon("website")');
+  expect(menue).toContain('href: "#konto"');
+  expect(menue).toContain('"details"');
+  expect(menue).not.toContain('role: "menu');
+  // Name für Screenreader beginnt mit «Konto: » und enthält den sichtbaren Namen
+  expect(menue).toContain('el("span", { class: "nur-leser" }, "Konto: ")');
+  // Tastatur: Pfeile, Pos1, Ende, Esc mit Fokus zurück, Verlassen und Klick daneben schliessen
+  for (const teil of [
+    '"ArrowDown"',
+    '"ArrowUp"',
+    '"Escape"',
+    '"Home"',
+    '"End"',
+    '"focusout"',
+  ]) {
+    expect(menue).toContain(teil);
+  }
 });
 
-test("Fläche mindestens 44 px; schmal bleibt das Symbol, der Name bleibt für Screenreader; ganz schmal steht der Link im Bereichsmenü", () => {
-  const css = lies("geruest.css");
-  const regel = /\.zur-website \{([^}]*)\}/.exec(css)![1]!;
-  expect(regel).toContain("min-height: 2.75rem");
-  expect(regel).toContain("min-width: 2.75rem");
-  expect(css).toMatch(/\.zur-website-text \{[^}]*clip-path: inset\(50%\)/);
-  expect(css).toMatch(
-    /@media \(max-width: 520px\) \{\s*\.zur-website \{\s*display: none/,
-  );
+test("in der Leiste stehen nur noch Suchen, das Profil-Menü und der Umschalter; kein eigener Knopf «Abmelden» oder «Zur Website»", () => {
   const rahmen = lies("rahmen.js");
-  expect(rahmen).toContain('class: "bereichswahl-website"');
-  expect(rahmen).toContain('el("span", {}, "Zur Website")');
+  const kopf = rahmen.slice(rahmen.indexOf("export function logozeile"));
+  expect(kopf).not.toContain('"Abmelden"');
+  expect(kopf).not.toContain("Zur Website");
+  expect(rahmen).not.toContain("zur-website");
+  expect(rahmen).not.toContain("bereichswahl-website");
+});
+
+test("das Logo führt zur Website, «Verwaltung» zur Übersicht; beide mit Namen und Hinweis", () => {
+  const rahmen = lies("rahmen.js");
+  expect(rahmen.match(/href: "\/",/g)).toHaveLength(2);
+  expect(rahmen).not.toMatch(/class: "marke[^}]*href: "#"/);
+  expect(rahmen).toContain('"aria-label": "Cevi: zur Website"');
+  expect(rahmen).toContain('title: "Zur Website"');
+  expect(rahmen).toMatch(
+    /class: "bereichname",\s*href: "#",\s*title: "Zur Übersicht der Verwaltung"/,
+  );
+});
+
+test("Ziele mindestens 44 px; unter 1100 px bleibt nur das Bild als Knopf des Menüs", () => {
+  const css = lies("geruest.css");
+  expect(css).toMatch(/\.konto \{[^}]*min-height: 2\.75rem/);
+  expect(css).toMatch(/\.konto-liste button \{[^}]*min-height: 2\.75rem/);
+  expect(css).toMatch(/a\.bereichname \{[^}]*min-height: 2\.75rem/);
+  expect(css).toMatch(
+    /@media \(max-width: 1100px\) \{[^@]*\.konto \.i \{\s*display: none/,
+  );
+  // Erzwungene Farben und Bewegung
+  expect(css).toMatch(/@media \(forced-colors: active\) \{\s*\.konto-tafel/);
 });

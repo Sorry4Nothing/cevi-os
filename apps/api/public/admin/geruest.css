@@ -147,32 +147,17 @@
   font-weight: 700;
 }
 
-/* «Zur Website» (#669): neben dem Logo, Fläche mindestens 44 px; gleicher Rand und gleiches Zeigen wie «Abmelden» */
-.zur-website {
+/* «Verwaltung» im Kopf ist ein Link zur Übersicht der Verwaltung (#669); das Logo führt zur Website */
+a.bereichname {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
-  min-width: 2.75rem;
   min-height: 2.75rem;
-  padding: 0 1rem 0 0.75rem;
-  border: 1px solid var(--outline);
-  border-radius: var(--r-full);
-  color: var(--text);
-  font-size: 0.9375rem;
-  font-weight: 600;
   text-decoration: none;
-  white-space: nowrap;
-  transition:
-    background var(--dauer) var(--kurve),
-    color var(--dauer) var(--kurve),
-    border-color var(--dauer) var(--kurve);
 }
 
-.zur-website:hover {
-  border-color: var(--secondary);
-  background: var(--secondary);
-  color: var(--on-secondary);
+a.bereichname:hover {
+  color: var(--text);
+  text-decoration: underline;
 }
 
 .kopf-rechts {
@@ -182,9 +167,15 @@
   margin-left: auto;
 }
 
-/* Der Name im Kopf ist der Link zu «Mein Konto» (#621): Rand und Zeigen wie «Abmelden», Fläche mindestens 44 px */
+/* Das Profil im Kopf öffnet das Konto-Menü (#669, Aufbau wie auf der Website): Bild, Name und Rolle, Fläche mindestens 44 px */
+.konto-menue {
+  position: relative;
+}
+
 .konto {
   display: flex;
+  cursor: pointer;
+  list-style: none;
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
@@ -196,13 +187,136 @@
   transition: background var(--dauer) var(--kurve);
 }
 
-.konto:hover {
+.konto::-webkit-details-marker {
+  display: none;
+}
+
+.konto .i {
+  width: 1.25rem;
+  height: 1.25rem;
+  transition: transform var(--dauer) var(--kurve);
+}
+
+.konto-menue[open] > .konto .i {
+  transform: rotate(180deg);
+}
+
+.konto:hover,
+.konto-menue[open] > .konto {
   color: var(--text);
   background: var(--erhoben);
 }
 
-.konto[aria-current="page"] {
+.konto--hier {
   box-shadow: inset 0 0 0 2px var(--blau);
+}
+
+.konto-tafel {
+  position: absolute;
+  top: calc(100% + 0.5rem);
+  right: 0;
+  z-index: 30;
+  box-sizing: border-box;
+  width: 16rem;
+  max-width: calc(100vw - 2 * var(--seitenrand));
+  padding: 0.5rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--surface-container-low);
+  box-shadow: var(--schatten);
+}
+
+.konto-kopf {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem 0.75rem;
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.konto-kopf .ava {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1rem;
+}
+
+.konto-kopf p {
+  min-width: 0;
+}
+
+.konto-kopf p strong,
+.konto-kopf p span {
+  display: block;
+}
+
+.konto-kopf p strong {
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.konto-kopf p span {
+  color: var(--on-surface-variant);
+  font-size: 0.875rem;
+}
+
+.konto-liste {
+  margin: 0.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.konto-liste a,
+.konto-liste button {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.75rem;
+  border: 0;
+  border-radius: var(--r-sm);
+  background: none;
+  color: var(--text);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+  transition:
+    background var(--dauer) var(--kurve),
+    color var(--dauer) var(--kurve);
+}
+
+.konto-liste a:hover,
+.konto-liste button:hover {
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.konto-liste a[aria-current="page"] {
+  box-shadow: inset 0 0 0 2px var(--blau);
+}
+
+.konto-liste [aria-disabled="true"] {
+  cursor: progress;
+  opacity: 0.6;
+}
+
+.konto-meldung {
+  padding: 0.5rem 0.75rem 0.25rem;
+  color: var(--on-error-container);
+  font-size: 0.9375rem;
+}
+
+.konto-meldung:empty {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  .konto-tafel {
+    border: 1px solid CanvasText;
+  }
 }
 
 .konto-text {
@@ -423,6 +537,10 @@
     padding-right: 0.125rem;
   }
 
+  .konto .i {
+    display: none;
+  }
+
   .konto-text {
     position: absolute;
     width: 1px;
@@ -433,30 +551,16 @@
   }
 }
 
-/* Wo die Bereichsauswahl übernimmt (bis 960 px), bleibt die Logozeile eine Zeile: Konto, Suche, «Abmelden» und Umschalter zeigen nur Symbole (Namen bleiben für Screenreader), «Verwaltung» entfällt. So ist sie ebenso hoch wie die Zeile der Bereichsauswahl darunter. */
+/* Wo die Bereichsauswahl übernimmt (bis 960 px), bleibt die Logozeile eine Zeile: Konto, Suche und Umschalter zeigen nur Symbole (Namen bleiben für Screenreader), «Verwaltung» entfällt. So ist sie ebenso hoch wie die Zeile der Bereichsauswahl darunter. */
 @media (max-width: 960px) {
-  .bereichname {
+  a.bereichname {
     display: none;
-  }
-
-  .zur-website {
-    padding-inline: 0;
-  }
-
-  .zur-website-text {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
   }
 
   .logo {
     height: 1.875rem;
   }
 
-  .abmelden-text,
   .palette-knopf-text,
   .palette-kuerzel {
     position: absolute;
@@ -487,10 +591,6 @@
 
 /* Schmal bleibt von der Marke das Wort «CEVI»; der Name der Abteilung steht in der Bereichsauswahl nicht, er ist für Screenreader noch da */
 @media (max-width: 520px) {
-  .zur-website {
-    display: none;
-  }
-
   .marke:not(.marke--logo) span {
     position: absolute;
     width: 1px;
