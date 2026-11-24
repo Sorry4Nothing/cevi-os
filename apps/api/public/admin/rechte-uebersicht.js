@@ -415,14 +415,14 @@ function zeigeRecht(ort, z, rechtId) {
     return;
   }
   ergebnis.append(skelett());
-  const admin = z.personen
-    .filter((p) => p.admin && !p.deaktiviert)
+  const abteilungsleitung = z.personen
+    .filter((p) => p.abteilungsleitung && !p.deaktiviert)
     .map((p) => ({ id: p.id, name: p.name }));
   ladeAlleGruppenrollen(z).then(
     (gruppen) => {
       const zeilen = werDarf({
         eintrag,
-        admin,
+        abteilungsleitung,
         globale: z.globale,
         gruppen,
       });

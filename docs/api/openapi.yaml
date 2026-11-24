@@ -2286,6 +2286,21 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/sicht.js:
+    get:
+      operationId: getAdminSichtSkript
+      summary: Skript der Verwaltung – Wer die Person ist
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/zuschneiden.js:
     get:
       operationId: getAdminZuschneidenSkript

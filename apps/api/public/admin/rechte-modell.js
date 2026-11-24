@@ -258,13 +258,13 @@ export const geltungText = (geltung) =>
 export const zuteilungText = (z, klartext) =>
   `${klartext(z.recht)} (${geltungText(z.geltung)})`;
 
-// Wer ist betroffen? Aus dem Entwurf und der Zahl der Personen je Rolle; die Abteilungsleitung hat ohnehin alles und zählt nicht mit (admin: Menge der Kennungen)
-export function betroffene(rollen, entwurf, admin = new Set()) {
+// Wer ist betroffen? Aus dem Entwurf und der Zahl der Personen je Rolle; die Abteilungsleitung und der Entwickler haben ohnehin alles und zählen nicht mit (ohnehinAlle: Menge der Kennungen)
+export function betroffene(rollen, entwurf, ohnehinAlle = new Set()) {
   const personen = new Set();
   const jeRolle = aenderungenJeRolle(rollen, entwurf).map((a) => {
     const ids = a.rolle.personen
       .map((p) => p.id)
-      .filter((id) => !admin.has(id));
+      .filter((id) => !ohnehinAlle.has(id));
     ids.forEach((id) => personen.add(id));
     return { ...a, personen: ids.length };
   });
@@ -361,8 +361,8 @@ export function vorschlaegeFuer(katalog) {
 // ---------- Wer darf dieses Recht? ----------
 
 // Aus dem, was schon geladen ist: Rollen mit dem Recht und ihre Personen. Die Abteilungsleitung steht immer da (ausser bei Rechten nur für den Entwickler); die Mitgliedschaft in Team und Funktion gibt zusätzlich Standardrechte, die nur die Anfrage je Person kennt (Reiter «Person»).
-// quellen: { eintrag, admin: [{id,name}], globale: [Rolle], gruppen: [{ gruppe, rollen: [Rolle] }] }
-export function werDarf({ eintrag, admin, globale, gruppen }) {
+// quellen: { eintrag, abteilungsleitung: [{id,name}], globale: [Rolle], gruppen: [{ gruppe, rollen: [Rolle] }] }
+export function werDarf({ eintrag, abteilungsleitung, globale, gruppen }) {
   const zeilen = [];
   if (eintrag.art === "struktur") {
     zeilen.push({
@@ -386,7 +386,7 @@ export function werDarf({ eintrag, admin, globale, gruppen }) {
       art: "abteilungsleitung",
       titel: "Abteilungsleitung",
       geltung: "alle",
-      personen: admin,
+      personen: abteilungsleitung,
       fest: true,
     });
   }
@@ -568,7 +568,8 @@ const ROLLENNAME = { stufenleitung: "Stufenleitung", leitung: "Leitung" };
 // person: Eintrag aus GET /api/v1/admin/personen; stufenName: Map Stufen-ID nach Name
 export function rolleText(person, stufenName) {
   const teile = [];
-  if (person.admin) teile.push("Abteilungsleitung");
+  if (person.abteilungsleitung) teile.push("Abteilungsleitung");
+  if (person.entwickler) teile.push("Entwickler");
   for (const r of person.rollen ?? []) {
     const name = ROLLENNAME[r.typ];
     if (name) teile.push(`${name} ${stufenName.get(r.stufeId) ?? ""}`.trim());

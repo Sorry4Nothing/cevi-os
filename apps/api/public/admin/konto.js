@@ -10,6 +10,7 @@ import { feldFehler } from "./liste-hilfen.js";
 import { rolleVon } from "./navigation.js";
 import { setzeKontoBild } from "./rahmen.js";
 import { zweiStufig } from "./rueckgaengig.js";
+import { istAbteilungsleitung, istEntwickler, siehtAlles } from "./sicht.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
 import { zuschneiden } from "./zuschneiden.js";
 import { erstelleEinrichtung } from "./zweiter-faktor-einrichten.js";
@@ -64,12 +65,12 @@ const PASSWORT_FEHLER = {
 // ===== Reine Funktionen (getestet in test/admin-konto.test.ts) =====
 
 // Chips der Rollen im Klartext: Abteilungsleitung, Entwickler, je Stufe «Stufenleitung Artemis», Website-Redaktion. Die Rechte entscheidet der Server, das hier ist nur die Anzeige
-// profil: Antwort von GET /api/v1/ich; zugang: Antwort von GET /api/v1/redaktion/ich
-export function rollenChips({ profil, zugang, entwickler = false }) {
+// profil: Antwort von GET /api/v1/ich (abteilungsleitung, entwickler, rollen, stufen); zugang: Antwort von GET /api/v1/redaktion/ich
+export function rollenChips({ profil, zugang }) {
   const stufenName = new Map(profil.stufen.map((s) => [s.id, s.name]));
   const chips = [];
-  if (profil.admin) chips.push({ text: "Abteilungsleitung" });
-  if (entwickler) chips.push({ text: "Entwickler" });
+  if (istAbteilungsleitung(profil)) chips.push({ text: "Abteilungsleitung" });
+  if (istEntwickler(profil)) chips.push({ text: "Entwickler" });
   for (const r of profil.rollen) {
     const stufe = stufenName.get(r.stufeId);
     if (stufe && ROLLEN_NAME[r.typ]) {
@@ -77,7 +78,7 @@ export function rollenChips({ profil, zugang, entwickler = false }) {
     }
   }
   const rechte = zugang?.rechte ?? [];
-  if (!profil.admin && rechte.length > 0) {
+  if (!siehtAlles(profil) && rechte.length > 0) {
     chips.push({
       text: rechte.some((r) => !r.startsWith("wartungsmodus."))
         ? "Website-Redaktion"
@@ -269,8 +270,8 @@ function zeichne(bereich, ctx, profil) {
   let stand = profil;
   const istStufenleitung = profil.rollen.some((r) => r.typ === "stufenleitung");
   const rolle = rolleVon({
-    istAdmin: profil.admin,
-    entwickler: ctx.entwickler,
+    abteilungsleitung: istAbteilungsleitung(profil),
+    entwickler: istEntwickler(profil),
     zugang: ctx.zugang,
     profil,
   });
@@ -416,11 +417,7 @@ function zeichne(bereich, ctx, profil) {
     },
   });
 
-  const chips = rollenChips({
-    profil,
-    zugang: ctx.zugang,
-    entwickler: ctx.entwickler,
-  });
+  const chips = rollenChips({ profil, zugang: ctx.zugang });
   // Der Kennwert «Zweiter Faktor» ändert sich, sobald der Ablauf in der Sicherheit fertig ist (#715)
   const faktorKennwert = el("div", { class: "kt-kennwert" });
   const zeichneFaktorKennwert = (an) =>
@@ -498,7 +495,7 @@ function zeichne(bereich, ctx, profil) {
     f.eingabe.classList.add("kt-lesen");
     return f;
   };
-  const wer = profil.admin
+  const wer = siehtAlles(profil)
     ? "Ändere ihn unter «Personen»."
     : "Ihn ändert die Abteilungsleitung.";
   const name = lesefeld(
@@ -721,7 +718,7 @@ function zeichne(bereich, ctx, profil) {
         telefon.wurzel,
       ),
       pushGruppe,
-      profil.admin &&
+      siehtAlles(profil) &&
         el(
           "p",
           { class: "hilfe" },

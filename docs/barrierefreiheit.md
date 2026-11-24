@@ -1330,3 +1330,20 @@ Die Seite «Zweiten Faktor einrichten» erscheint nach der Anmeldung, wenn ein R
 Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung) mit einem Test-TOTP (RFC 6238, im Skript nachgerechnet) geprüft: Pflichtseite für ein Konto der Abteilungsleitung und für eine Person mit Webmaster-Rolle, «Mein Konto» für eine Stufenleitung, hell und dunkel, 1100 und 375 px; danach verlangt die neue Anmeldung den Code. Punkte 73.1 bis 73.3, 73.6 und 73.7 sind mit Tabfolge, berechnetem Fokusring, berechnetem Kontrast (hell mindestens 5,4:1, Fehlertext 7,9:1, dunkel 5,4:1 und 7,0:1) und der Messung der Breite bei 320 px belegt. Der QR-Code aus dem Browser wurde mit zbar und OpenCV dekodiert und gleicht dem Link der API.
 
 **Nicht geprüft:** VoiceOver, TalkBack und NVDA (73.4, 73.5, 73.8 nur als Quelltext und Rolle), echte Authenticator-Apps auf einem Telefon, Safari und Firefox, 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.
+
+## 74. Verwaltung: Rollen «Abteilungsleitung» und «Entwickler» aus dem Konto (#737)
+
+Dieser Abschnitt gilt für die Chips und Schalter, die die Rolle zeigen: «Mein Konto» (`konto.js`), Rolle im Kopf (`navigation.js`, `rolleVon`), Personenliste und Personenblatt (`personen.js`, `personen-blatt.js`). Die Rollen kommen aus `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`) und werden über `sicht.js` gelesen. Neu sind der Chip und die Zeile «Entwickler», der Filter und die Gruppe «Entwickler» in der Personenliste und ein Hilfetext im Personenblatt. Es gibt keine neue Bedienung.
+
+### Prüfpunkte
+
+- [ ] **74.1** Die Rolle steht als Text, nie nur als Farbe: «Abteilungsleitung» und «Entwickler» sind Chips mit Beschriftung (Mein Konto, Personenkarte, Liste) und eine Textzeile unter dem Namen (Kopf, Personenblatt). Ein Konto mit beiden zeigt beide Wörter.
+- [ ] **74.2** Der Filter «Rolle» in der Personenliste hat die Optionen «Abteilungsleitung» und «Entwickler» und bleibt mit der Tastatur bedienbar; die Gruppen «Abteilungsleitung» und «Entwickler» tragen je eine Überschrift mit Zähler.
+- [ ] **74.3** Der Hilfetext im Personenblatt («Diese Person ist auch Entwickler …») steht als Absatz unter dem Schalter «Abteilungsleitung» und ist für Bildschirmleser lesbar (kein `title`, kein Tooltip). Der Schalter «Abteilungsleitung» hat sein sichtbares Label; die Rolle «Entwickler» ist nur zu lesen und hat keinen Schalter.
+- [ ] **74.4** Kontrast und Reflow der neuen Chips wie die übrigen Chips (4,5:1 Text, 3:1 Rahmen, hell und dunkel; bei 320 px brechen die Chips um).
+
+### Stand der Prüfung (#737)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung, Server auf einem lokalen Port mit dem Vertrag aus Teil 8) gesehen bei 1280 und 2560 px, hell und dunkel: Personenliste mit Filter und Chips, Personenblatt einer Person mit Rolle «Entwickler» (Hilfetext), Schalter «Abteilungsleitung» (PATCH mit `abteilungsleitung`, 204, danach der Chip in der Liste), «Mein Konto» und Übersicht für Abteilungsleitung, Entwickler, Stufenleitung und Webmaster, ein Konto ohne Zugang («Dieses Konto hat keinen Zugang zur Verwaltung»).
+
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA, Safari und Firefox, 320 px und 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem. Die Übersicht des Entwicklers zeigt weniger Kacheln als die der Abteilungsleitung, solange der Server die Sicht `siehtAlles` (Teil 3 des Epics) nicht liefert.

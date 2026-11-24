@@ -9,6 +9,7 @@ import {
   knopf,
 } from "./dom.js";
 import { suchWahl } from "./personen-wahl.js";
+import { siehtAlles } from "./sicht.js";
 import { ansichtVon } from "./rueckgaengig.js";
 import {
   entzieheGlobaleRolle,
@@ -204,11 +205,13 @@ export function personenBlock(
           "div",
           {},
           el("span", { class: "name" }, person.name),
-          person.admin &&
+          siehtAlles(person) &&
             el(
               "span",
               { class: "klein leise" },
-              "Abteilungsleitung, hat ohnehin alles",
+              person.abteilungsleitung
+                ? "Abteilungsleitung, hat ohnehin alles"
+                : "Entwickler, hat ohnehin alles",
             ),
         ),
       ),

@@ -14,6 +14,7 @@ import { erstellePalette } from "./befehlspalette.js";
 import { erstelleHinweisband } from "./hinweisband.js";
 import { erstelleLader } from "./lader.js";
 import { erstelleEinrichtung } from "./zweiter-faktor-einrichten.js";
+import { istAbteilungsleitung, istEntwickler, siehtAlles } from "./sicht.js";
 import {
   BEREICHE,
   loese,
@@ -41,6 +42,7 @@ import {
 } from "./zustaende.js";
 
 const app = document.getElementById("app");
+// Das Konto aus get-session, dazu «abteilungsleitung» und «entwickler» aus GET /api/v1/ich (#737): Wer die Person ist, sagt die API, nicht die Sitzung
 let ich = null;
 // Antwort von GET /api/v1/redaktion/ich, mit darf(recht) für die Plattformrechte (Rolle Webmaster); nur für die Anzeige, jede Route prüft selbst
 let zugang = null;
@@ -57,12 +59,13 @@ const mitDarf = (daten, alle) => ({
 // Hat die Person mit diesen Rechten etwas in der Verwaltung zu tun? Website, Belegung oder ein Recht bei Termine, Räumen und Anlässen
 const hatTerminRecht = (z) =>
   Object.values(z.termine ?? {}).some((v) => v === true);
-const istAdmin = () => ich?.role === "admin";
-// Nur der Entwickler darf den Namen der Abteilung ändern: Dieses Signal («nameAenderbar», GET /api/v1/redaktion/website) steuert den Eintrag «Komponenten»
-let entwickler = false;
-// Die Abteilungsleitung sieht alle Bereiche, alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
+// Die Abteilungsleitung und der Entwickler sehen alle Bereiche (der Entwickler dazu die Einträge nur für ihn), alle anderen nur die, die der Server ihnen nennt (heute: «website» und «plattform»)
 const sichtbareBereiche = () =>
-  bereicheFuer({ istAdmin: istAdmin(), zugang, entwickler });
+  bereicheFuer({
+    abteilungsleitung: istAbteilungsleitung(ich),
+    entwickler: istEntwickler(ich),
+    zugang,
+  });
 
 // Suche (Strg oder Cmd + K): Seiten, Personen, Gruppen, Termine, Anlässe, Website-Seiten und Lager, nur im Rahmen dessen, was die Navigation der Person zeigt
 const palette = erstellePalette({
@@ -356,15 +359,20 @@ async function pruefeKonto(nachAnmeldung = true) {
     );
     return;
   }
-  ich = sitzung.user;
+  // Eine Abfrage mehr als die Sitzung: Das Konto trägt die Rollen nicht (#737). Sie ist auch vor dem Pflichtwechsel und ohne zweiten Faktor offen
+  const profil = await anfrage("GET", "/api/v1/ich");
+  ich = {
+    ...sitzung.user,
+    abteilungsleitung: profil.abteilungsleitung === true,
+    entwickler: profil.entwickler === true,
+  };
   zugang = null;
-  entwickler = false;
   if (ich.mussPasswortAendern) {
     zeigeSperre(
       "Du musst zuerst dein Startpasswort ändern. Das geht in der App. Melde dich danach hier neu an.",
       ["Startpasswort offen", "schluessel", "warn"],
     );
-  } else if (istAdmin()) {
+  } else if (siehtAlles(ich)) {
     if (!ich.twoFactorEnabled) {
       zeigeEinrichtung();
       return;
@@ -377,7 +385,7 @@ async function pruefeKonto(nachAnmeldung = true) {
       { redigieren: true, bereiche: ["website"], verwalten: true, rechte: [] },
       true,
     );
-    await zeigeVerwaltung();
+    await zeigeVerwaltung(profil);
   } else {
     // Alle anderen: nur der Bereich «Website» mit Bearbeitungsrecht und der Bereich «Plattform» mit dem Recht auf den Wartungsmodus. Es werden keine Daten der Abteilungsleitung geladen
     try {
@@ -407,7 +415,7 @@ async function pruefeKonto(nachAnmeldung = true) {
       ]);
       return;
     }
-    await zeigeVerwaltung();
+    await zeigeVerwaltung(profil);
   }
 }
 
@@ -481,7 +489,7 @@ const leisten = erstelleLeisten();
 // Band bei Wartung oder Informationssperre (#593): nur für Personen, die die Plattform sehen; die Zustände liegen im Speicher der API
 const hinweisband = erstelleHinweisband();
 const darfPlattform = () =>
-  istAdmin() || zugang?.bereiche.includes("plattform") === true;
+  siehtAlles(ich) || zugang?.bereiche.includes("plattform") === true;
 // Toasts mit «Rückgängig» (#578): Die Region steht im Seitenaufbau gleich nach dem Kopf; sie bleibt bei jeder Navigation bestehen
 const toasts = erstelleToasts(steuerung);
 verdrahte({
@@ -498,21 +506,17 @@ const zaehlerStand = new Map();
 let aktiv = null;
 let navigation = 0;
 
-async function zeigeVerwaltung() {
-  // Zwei Fragen vor dem ersten Bild, damit Kopf und Menü gleich stimmen: die Einstellungen der Website (Name, Logo, Signal «nameAenderbar»; nur wer «Seiten veröffentlichen» darf, sonst 403) und für alle ohne Abteilungsleitung das eigene Profil (Rolle im Kopf)
+// profil: Antwort von GET /api/v1/ich, schon geladen
+async function zeigeVerwaltung(profil) {
+  // Vor dem ersten Bild, damit Kopf und Menü gleich stimmen: die Einstellungen der Website (Name, Logo; nur wer «Seiten veröffentlichen» darf, sonst 403); das eigene Profil (Rolle und Profilbild im Kopf, #621) kommt schon aus pruefeKonto
   const darfEinstellungen =
-    istAdmin() || zugang.darf("seiten.veroeffentlichen");
-  const [einstellungen, profil] = await Promise.all([
-    darfEinstellungen
-      ? anfrage("GET", "/api/v1/redaktion/website").catch(() => null)
-      : null,
-    // Auch die Abteilungsleitung: Das Profilbild gehört in den Kopf (#621)
-    anfrage("GET", "/api/v1/ich").catch(() => null),
-  ]);
-  entwickler = einstellungen?.nameAenderbar === true;
+    siehtAlles(ich) || zugang.darf("seiten.veroeffentlichen");
+  const einstellungen = darfEinstellungen
+    ? await anfrage("GET", "/api/v1/redaktion/website").catch(() => null)
+    : null;
   const rolle = rolleVon({
-    istAdmin: istAdmin(),
-    entwickler,
+    abteilungsleitung: istAbteilungsleitung(ich),
+    entwickler: istEntwickler(ich),
     zugang,
     profil,
   });
@@ -657,8 +661,7 @@ async function navigiere() {
     pfad,
     // Wo die Person gerade ist (für Module, die mehrere Seiten bedienen, und für den Platzhalter)
     seite: { bereich: gruppe, unter },
-    // Für «Mein Konto» (#621): ob die Person den Namen der Abteilung ändern darf (Rolle im Kopf) und der Weg zur Anmeldung, wenn alle Sitzungen beendet sind
-    entwickler,
+    // Für «Mein Konto» (#621): der Weg zur Anmeldung, wenn alle Sitzungen beendet sind
     zurAnmeldung: (text) => zeigeLogin(text),
     melde,
     // Aktion mit «Rückgängig» statt Rückfrage (rueckgaengig.js)

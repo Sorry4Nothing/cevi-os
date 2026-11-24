@@ -31,16 +31,18 @@ describe("Einbindung und Zugang", () => {
 
   test("sichtbar nur für den Entwickler: nicht für die Abteilungsleitung, nicht für andere Rollen", () => {
     expect(eintrag.zugang).toBe("entwickler");
-    expect(darfSehen(eintrag, { istAdmin: true, entwickler: false })).toBe(
-      false,
-    );
+    expect(
+      darfSehen(eintrag, { abteilungsleitung: true, entwickler: false }),
+    ).toBe(false);
     expect(
       darfSehen(eintrag, {
-        istAdmin: false,
+        abteilungsleitung: false,
         zugang: { bereiche: ["website", "plattform"], rechte: [] },
       }),
     ).toBe(false);
-    expect(darfSehen(eintrag, { istAdmin: true, entwickler: true })).toBe(true);
+    expect(
+      darfSehen(eintrag, { abteilungsleitung: true, entwickler: true }),
+    ).toBe(true);
   });
 });
 

@@ -3,9 +3,11 @@
 // Bereich:     { schluessel, name, symbol, start?, unter: [Unterseite] }
 // Unterseite:  { schluessel, name, modul, untertitel, zugang? }
 //   modul      Pfad der Datei mit `export function zeige(bereich, ctx)`; eine Unterseite ohne eigenes Modul zeigt «platzhalter.js»
-//   zugang     wer die Seite sehen darf (neu: «termine:<signal>», ein Signal aus `termine` in GET /api/v1/redaktion/ich, zum Beispiel «termine:raumAnfragen», auch für Rechte nur an den eigenen Objekten, #649): «admin» (Vorgabe, Abteilungsleitung mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), «belegung» (jede Leitung: Signal `belegung` in GET /api/v1/redaktion/ich, #628), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur wer den Namen der Abteilung ändern darf, Signal `nameAenderbar` in GET /api/v1/redaktion/website) oder «recht:<name>» (die Person hat dieses Recht des Rechtekatalogs abteilungsweit; Abteilungsleitung hat alle; «recht:a|b»: eines von beiden genügt). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
+//   zugang     wer die Seite sehen darf (neu: «termine:<signal>», ein Signal aus `termine` in GET /api/v1/redaktion/ich, zum Beispiel «termine:raumAnfragen», auch für Rechte nur an den eigenen Objekten, #649): «abteilungsleitung» (Vorgabe, Abteilungsleitung und Entwickler mit zweitem Faktor), «alle» (jede Person mit Zugang zur Verwaltung), «belegung» (jede Leitung: Signal `belegung` in GET /api/v1/redaktion/ich, #628), ein Bereich aus GET /api/v1/redaktion/ich (heute «website» und «plattform»), «entwickler» (nur der Entwickler, Feld `entwickler` in GET /api/v1/ich) oder «recht:<name>» (die Person hat dieses Recht des Rechtekatalogs abteilungsweit; Abteilungsleitung hat alle; «recht:a|b»: eines von beiden genügt). Die Anzeige folgt nur dem Server; jede Route prüft selbst. Ein Eintrag, der für die Person in ein 403 liefe, erscheint gar nicht.
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
 // Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
+
+import { siehtAlles } from "./sicht.js";
 
 export const BEREICHE = [
   {
@@ -373,16 +375,16 @@ export function neueAdresse(hash) {
   return hash;
 }
 
-// Darf die Person die Unterseite sehen? zugang: Antwort von GET /api/v1/redaktion/ich mit bereiche[] und rechte[]; entwickler: true, wenn der Server den Namen der Abteilung für diese Person änderbar nennt (nameAenderbar)
+// Darf die Person die Unterseite sehen? abteilungsleitung und entwickler: die Felder aus GET /api/v1/ich (#737); zugang: Antwort von GET /api/v1/redaktion/ich mit bereiche[] und rechte[]
 export function darfSehen(
   unterseite,
-  { istAdmin, zugang, entwickler = false },
+  { abteilungsleitung = false, entwickler = false, zugang },
 ) {
-  const wer = unterseite.zugang ?? "admin";
+  const wer = unterseite.zugang ?? "abteilungsleitung";
   // Die Abteilungsleitung sieht alles ausser dem, was nur der Entwickler darf
   if (wer === "entwickler") return entwickler === true;
-  if (istAdmin) return true;
-  if (wer === "admin") return false;
+  if (siehtAlles({ abteilungsleitung, entwickler })) return true;
+  if (wer === "abteilungsleitung") return false;
   if (wer === "alle") return true;
   if (wer === "belegung") return zugang?.belegung === true;
   if (wer.startsWith("termine:")) {
@@ -401,8 +403,13 @@ export function darfSehen(
 
 // Rolle unter dem Namen im Kopf, nur zur Anzeige (die Rechte entscheidet der Server): was die Person tatsächlich ist, nicht ein Sammelwort
 // profil: Antwort von GET /api/v1/ich (rollen, stufen) oder null; zugang: Antwort von GET /api/v1/redaktion/ich
-export function rolleVon({ istAdmin, entwickler = false, zugang, profil }) {
-  if (istAdmin) {
+export function rolleVon({
+  abteilungsleitung = false,
+  entwickler = false,
+  zugang,
+  profil,
+}) {
+  if (abteilungsleitung) {
     return entwickler ? "Entwickler · Abteilungsleitung" : "Abteilungsleitung";
   }
   const stufenName = new Map((profil?.stufen ?? []).map((s) => [s.id, s.name]));

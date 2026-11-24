@@ -43,6 +43,7 @@ import {
   medienIds,
   typName,
 } from "./website-felder.js";
+import { siehtAlles } from "./sicht.js";
 import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
 import { mitSymbol, symbol } from "./website-symbole.js";
 import {
@@ -1015,7 +1016,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         },
         rechte: {
           seite,
-          istAdmin: ctx.ich.role === "admin",
+          siehtAlles: siehtAlles(ctx.ich),
           melde: ctx.melde,
         },
       }),
