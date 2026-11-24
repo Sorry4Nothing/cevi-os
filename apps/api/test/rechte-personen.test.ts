@@ -228,7 +228,7 @@ const personBody = (extra: Record<string, unknown> = {}) => ({
   vorname: "Neu",
   nachname: "Person",
   benutzername: neuerBenutzername(),
-  admin: false,
+  abteilungsleitung: false,
   rollen: [],
   elternteilVon: [],
   ...extra,
@@ -321,7 +321,7 @@ describe("Personen: ändern", () => {
         P.verwalter,
         "POST",
         `${A}/personen`,
-        personBody({ admin: true }),
+        personBody({ abteilungsleitung: true }),
       ),
     ).toBe(403);
     expect(
@@ -378,12 +378,14 @@ describe("Personen: ändern", () => {
     expect(
       await status(P.verwalter, "PATCH", pfad, {
         name: "Anna Muster",
-        admin: false,
+        abteilungsleitung: false,
         rollen: [],
         elternteilVon: [welt.kindAId],
       }),
     ).toBe(204);
-    expect(await status(P.verwalter, "PATCH", pfad, { admin: true })).toBe(403);
+    expect(
+      await status(P.verwalter, "PATCH", pfad, { abteilungsleitung: true }),
+    ).toBe(403);
     expect(
       await status(P.verwalter, "PATCH", pfad, {
         rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],

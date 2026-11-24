@@ -16,7 +16,7 @@ export const STUFENROLLEN_STANDARD = {
     z("seiten.veroeffentlichen", "eigene"),
     z("vorschlag.einreichen", "alle"),
     z("raum.belegung", "alle"),
-    // Programme und Stufenarbeit wie vor dem Rechtemodell (#650): «adminOderSl» sieht jedes Programm; Leitung und Stufenleitung führen die Anwesenheit ihrer Stufe, sehen die Teilnahmen der Kinder und die Kontakte der Stufe
+    // Programme und Stufenarbeit wie vor dem Rechtemodell (#650): «siehtAlles» sieht jedes Programm; Leitung und Stufenleitung führen die Anwesenheit ihrer Stufe, sehen die Teilnahmen der Kinder und die Kontakte der Stufe
     z("programm.alle_sehen", "alle"),
     z("anwesenheit.fuehren", "eigene"),
     z("stufe.einblick", "eigene"),

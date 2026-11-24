@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import { Hono, type Context } from "hono";
 import { etag } from "hono/etag";
 import { bodyLimit } from "hono/body-limit";
@@ -6,6 +7,7 @@ import { requestId } from "hono/request-id";
 import { routePath } from "hono/route";
 import type { Sql } from "postgres";
 import { erstelleAdminSeiten, type AdminDateien } from "./admin-seiten.js";
+import { kind } from "./db/schema.js";
 import type { BildKodierer } from "./bild.js";
 import {
   erstelleSchalterPruefung,
@@ -285,7 +287,20 @@ export function erstelleApp({
         }
         await next();
       })
-      .route("/", erstelleAuthRouten(auth))
+      .route(
+        "/",
+        erstelleAuthRouten(
+          auth,
+          async (userId) =>
+            (
+              await db
+                .select({ id: kind.id })
+                .from(kind)
+                .where(eq(kind.userId, userId))
+                .limit(1)
+            ).length > 0,
+        ),
+      )
       // ICS-Feed der Termine (#438): der geheime Token im Pfad ersetzt die Sitzung, darum vor ihr und ausserhalb von /api/v1
       .route("/", erstelleIcalRoute({ db, schalter }))
       // Einen Origin sendet nur ein Browser (die Verwaltung), die App nicht; erlaubt ist dieselbe Liste, die better-auth unter /api/auth prüft: BETTER_AUTH_URL und das App-Schema. Vor der Sitzung, damit eine fremde Seite keine Abfrage auslöst
@@ -309,7 +324,7 @@ export function erstelleApp({
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       // Gleich nach der Sitzung, vor jeder Route: Wartung und Sperre gelten für alles dahinter
-      .use("/api/v1/*", erstelleSchalterPruefung({ db, zustand: schalter }))
+      .use("/api/v1/*", erstelleSchalterPruefung({ zustand: schalter }))
       .use("/api/v1/admin/*", zweiterFaktorPflicht)
       .route(
         "/api/v1/plattform",
@@ -454,6 +469,7 @@ export function erstelleApp({
           return c.json(
             zweiterFaktorFehlt(
               "Für dieses Recht braucht es zuerst einen zweiten Faktor.",
+              c.get("person"),
             ),
             403,
           );

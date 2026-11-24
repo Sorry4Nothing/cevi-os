@@ -28,6 +28,7 @@ import {
   chatMitglieder,
   hatRolle,
   sichtbareNachrichten,
+  siehtAlles,
   type Person,
 } from "../rechte.js";
 import { programmSichtbar } from "../programmsicht.js";
@@ -53,7 +54,7 @@ async function darfBildSehen(db: Db, person: Person, zielId: string) {
       .limit(1);
     return !!ziel;
   };
-  if (person.admin) return inAbteilung();
+  if (siehtAlles(person)) return inAbteilung();
   // Die Stufe der Person: Leitende und SL sehen alle Leitenden ihrer Stufe (wie in den Anmeldungen), Eltern mit aktivem Kind nur die SL
   const zielRollen = await db
     .select({ stufeId: rolle.stufeId, typ: rolle.typ })

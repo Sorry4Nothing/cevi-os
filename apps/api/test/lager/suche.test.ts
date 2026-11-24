@@ -775,7 +775,8 @@ describe("Audit, Datenbanklast, Index", () => {
     const person = {
       id: konten.lagerleitung.id!,
       abteilungId: welt.testabteilungId,
-      admin: false,
+      abteilungsleitung: false,
+      entwickler: false,
     };
     const zugriff = (await ladeLagerZugriff(eigene, person, lagerId))!;
     abfragen.length = 0;
@@ -791,7 +792,8 @@ describe("Audit, Datenbanklast, Index", () => {
     const person = {
       id: konten.lagerleitung.id!,
       abteilungId: welt.testabteilungId,
-      admin: false,
+      abteilungsleitung: false,
+      entwickler: false,
     };
     const z = (await ladeLagerZugriff(db, person, lagerId))!;
     const quellen = listeSuchquellen();

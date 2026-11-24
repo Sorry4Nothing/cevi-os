@@ -12,6 +12,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Lädeli auf der Website: Abschnitt 11 («Lädeli»); Bereich «Lädeli» der Verwaltung: Abschnitt 13, im Browser geprüft.
 - Verwaltung insgesamt (Web statt App), im Browser geprüft: Toasts und zweistufige Knöpfe Abschnitt 14, Kopf, Auswahlfelder und Seiten im Fluss Abschnitt 15, Übersicht Abschnitt 16, Anmeldung, System und Mitteilungen Abschnitt 17, Website-Medien, Einstellungen und Lädeli Abschnitt 18, Personen Abschnitt 19, Lager Abschnitt 20, Seiten und Editor Abschnitt 21, Navigation, Bereichsauswahl und Befehlspalette Abschnitt 22.
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
+- Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 73; Rollen «Abteilungsleitung» und «Entwickler» in der Verwaltung: Abschnitt 74; beide im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1333,3 +1334,42 @@ Gilt für `/datenschutz-cevi-os` (`datenschutz-cevi-os.ts`, `datenschutz.css`) u
 ### Stand der Prüfung (#712)
 
 Im Browser (Chromium, headless, die Seite aus dem Code in eine Datei erzeugt und von einem lokalen Dateiserver ausgeliefert, Abteilung mit Beispieldaten) gesehen: 72.1, 72.3, 72.5 und 72.6 bei 1440, 390 und 320 px, Hell und Dunkel (Text hell auf dunkel rund 14 : 1), kein waagrechtes Scrollen, Zielhöhe der Liste 44 px, Fokus sichtbar, alle acht Anker vorhanden; 72.2, 72.4 und 72.7 im Markup und im Stil geprüft, nicht im Browser bedient. Im Test (`website-datenschutz-cevi-os.test.ts`): Überschriftenfolge, acht Abschnitte, 42 Kategorien, Anker, Links, Maskierung. **Nicht geprüft:** Bildschirmleser, Safari und Firefox, Touch, erhöhter Kontrast mit erzwungenen Farben, 400 % Zoom.
+
+## 73. Verwaltung: Zweiten Faktor einrichten (#715)
+
+Die Seite «Zweiten Faktor einrichten» erscheint nach der Anmeldung, wenn ein Recht den zweiten Faktor verlangt und keiner eingerichtet ist (`admin.js`, `zeigeEinrichtung`). Derselbe Ablauf (`zweiter-faktor-einrichten.js`) steht freiwillig unter «Mein Konto». Er hat drei Schritte: Passwort bestätigen, Konto in der App eintragen (QR-Code oder Schlüssel, erster Code), Ersatzcodes speichern. Den QR-Code zeichnet `qr.js` im Browser als SVG, ohne Abhängigkeit und ohne Skript von Dritten.
+
+### Prüfpunkte
+
+- [ ] **73.1** Tastatur: Jeder Schritt ist ohne Maus zu bedienen; die Tabfolge geht Feld, Hauptknopf, «Abbrechen» oder «Abmelden». Nach jedem Schritt steht der Fokus auf der neuen Überschrift (`h2`, `tabindex="-1"`), damit der Bildschirmleser den Schritt ansagt. Enter im Passwortfeld geht weiter, die sechste Ziffer des Codes bestätigt von selbst.
+- [ ] **73.2** Fokus: Jedes Bedienelement trägt einen sichtbaren Fokusring (3 px), auch im dunklen Theme. Nach einem Fehler geht der Fokus ins Feld; ein Fehler ohne Feld (Netz, Server) bekommt `role="alert"` und den Fokus.
+- [ ] **73.3** Fehlermeldungen am Feld: «Das Passwort stimmt nicht», «Der Code stimmt nicht» und «Gib die sechs Ziffern aus der App ein» stehen als Text mit Symbol beim Feld (`aria-invalid`, `aria-describedby`), nie nur als Farbe. Das Formular hat `novalidate`; kein Dialog und keine Blase des Browsers.
+- [ ] **73.4** Schlüssel für den Bildschirmleser: Der Schlüssel steht in Gruppen zu vier Zeichen zum Abtippen und wird zeichenweise vorgelesen («K Q Y G, Y 2 S S, …», `nur-leser`); die sichtbare Fassung ist für den Bildschirmleser versteckt, damit er ihn nicht doppelt liest. «Schlüssel kopieren» meldet das Ergebnis in einer Statusregion, auch wenn das Kopieren nicht geht («Markiere den Schlüssel von Hand»).
+- [ ] **73.5** QR-Code mit Textalternative: Das SVG ist ein Bild (`role="img"`) mit der Beschriftung «QR-Code für die Authenticator-App. Den Schlüssel dazu findest du als Text darunter.» Der Code ist immer Schwarz auf Weiss mit Ruhezone, im hellen und im dunklen Theme, und der Schlüssel als Text steht immer dabei: Wer nicht scannen kann, kommt ohne Kamera zum Ziel.
+- [ ] **73.6** Kontrast: Text mindestens 4,5:1, Knöpfe und Rahmen mindestens 3:1, hell und dunkel. Der Fehlertext erreicht mindestens 7:1.
+- [ ] **73.7** Reflow und Schrift: Bei 320 px Breite gibt es kein waagrechtes Scrollen; die Ersatzcodes stehen unter 32 em in einer Spalte und brechen nicht mitten im Code um. Text und Schlüssel wachsen mit der Schrift.
+- [ ] **73.8** Ersatzcodes: Sie stehen als Liste «Ersatzcodes» mit «Ersatzcodes kopieren». «Zur Verwaltung» oder «Fertig» verlangt das Häkchen «Ich habe die Ersatzcodes gespeichert»; ohne Häkchen erscheint ein Hinweis beim Häkchen (`role="alert"`) und der Fokus geht dorthin. Danach sind die Codes aus der Seite gelöscht.
+- [ ] **73.9** Bewegung: Der Ablauf kommt ohne Animation aus; nichts blinkt.
+
+### Stand der Prüfung (#715)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung) mit einem Test-TOTP (RFC 6238, im Skript nachgerechnet) geprüft: Pflichtseite für ein Konto der Abteilungsleitung und für eine Person mit Webmaster-Rolle, «Mein Konto» für eine Stufenleitung, hell und dunkel, 1100 und 375 px; danach verlangt die neue Anmeldung den Code. Punkte 73.1 bis 73.3, 73.6 und 73.7 sind mit Tabfolge, berechnetem Fokusring, berechnetem Kontrast (hell mindestens 5,4:1, Fehlertext 7,9:1, dunkel 5,4:1 und 7,0:1) und der Messung der Breite bei 320 px belegt. Der QR-Code aus dem Browser wurde mit zbar und OpenCV dekodiert und gleicht dem Link der API.
+
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA (73.4, 73.5, 73.8 nur als Quelltext und Rolle), echte Authenticator-Apps auf einem Telefon, Safari und Firefox, 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.
+
+## 74. Verwaltung: Rollen «Abteilungsleitung» und «Entwickler» aus dem Konto (#737)
+
+Dieser Abschnitt gilt für die Chips und Schalter, die die Rolle zeigen: «Mein Konto» (`konto.js`), Rolle im Kopf (`navigation.js`, `rolleVon`), Personenliste und Personenblatt (`personen.js`, `personen-blatt.js`). Die Rollen kommen aus `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`) und werden über `sicht.js` gelesen. Neu sind der Chip und die Zeile «Entwickler», der Filter und die Gruppe «Entwickler» in der Personenliste und ein Hilfetext im Personenblatt. Es gibt keine neue Bedienung.
+
+### Prüfpunkte
+
+- [ ] **74.1** Die Rolle steht als Text, nie nur als Farbe: «Abteilungsleitung» und «Entwickler» sind Chips mit Beschriftung (Mein Konto, Personenkarte, Liste) und eine Textzeile unter dem Namen (Kopf, Personenblatt). Ein Konto mit beiden zeigt beide Wörter.
+- [ ] **74.2** Der Filter «Rolle» in der Personenliste hat die Optionen «Abteilungsleitung» und «Entwickler» und bleibt mit der Tastatur bedienbar; die Gruppen «Abteilungsleitung» und «Entwickler» tragen je eine Überschrift mit Zähler.
+- [ ] **74.3** Der Hilfetext im Personenblatt («Diese Person ist auch Entwickler …») steht als Absatz unter dem Schalter «Abteilungsleitung» und ist für Bildschirmleser lesbar (kein `title`, kein Tooltip). Der Schalter «Abteilungsleitung» hat sein sichtbares Label; die Rolle «Entwickler» ist nur zu lesen und hat keinen Schalter.
+- [ ] **74.4** Kontrast und Reflow der neuen Chips wie die übrigen Chips (4,5:1 Text, 3:1 Rahmen, hell und dunkel; bei 320 px brechen die Chips um).
+
+### Stand der Prüfung (#737)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Demo-Abteilung, Server auf einem lokalen Port mit dem Vertrag aus Teil 8) gesehen bei 1280 und 2560 px, hell und dunkel: Personenliste mit Filter und Chips, Personenblatt einer Person mit Rolle «Entwickler» (Hilfetext), Schalter «Abteilungsleitung» (PATCH mit `abteilungsleitung`, 204, danach der Chip in der Liste), «Mein Konto» und Übersicht für Abteilungsleitung, Entwickler, Stufenleitung und Webmaster, ein Konto ohne Zugang («Dieses Konto hat keinen Zugang zur Verwaltung»).
+
+**Nicht geprüft:** VoiceOver, TalkBack und NVDA, Safari und Firefox, 320 px und 400 % Zoom von Hand, die Wirkung von «Bewegung reduzieren» im Betriebssystem.

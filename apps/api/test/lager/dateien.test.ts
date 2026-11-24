@@ -172,7 +172,8 @@ beforeAll(async () => {
     personen[name] = {
       id: zeile!.id,
       abteilungId: abteilung,
-      admin,
+      abteilungsleitung: admin,
+      entwickler: false,
       // Die Lagerleitung braucht den zweiten Faktor (#423); dieser Test prüft die Rechte der Dateien, nicht ihn
       zweiterFaktor: true,
       rollen: [],

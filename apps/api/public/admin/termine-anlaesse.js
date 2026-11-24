@@ -1,4 +1,5 @@
 import { anfrage, kennungGueltig } from "./api.js";
+import { siehtAlles } from "./sicht.js";
 import { gehe, zurueckKlick } from "./verlauf.js";
 import {
   auswahl,
@@ -743,8 +744,8 @@ function zeichneUebersicht(
     // Die Gruppe des Anlasses (zum Beispiel das OK, #626); ihre Rollen tragen die Rechte (#651). Ein Lager hat keine
     a.art === "anlass" && [
       "Gruppe",
-      // Gruppen und Rollen ordnet nur die Abteilungsleitung (Bereich «Personen»); ein OK sieht den Namen
-      a.gruppe && ctx.ich.role !== "admin"
+      // Gruppen und Rollen ordnen die Abteilungsleitung und der Entwickler (Bereich «Personen»); ein OK sieht den Namen
+      a.gruppe && !siehtAlles(ctx.ich)
         ? a.gruppe.name
         : a.gruppe
           ? el(
@@ -767,7 +768,7 @@ function zeichneUebersicht(
                 "Rollen und Rechte",
               ),
             )
-          : ctx.ich.role !== "admin"
+          : !siehtAlles(ctx.ich)
             ? "Keine"
             : knopf("OK anlegen", {
                 klein: true,

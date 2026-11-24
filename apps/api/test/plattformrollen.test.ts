@@ -138,7 +138,8 @@ const vergebe = (konto: PersonaKonto, rolleId = webmasterId) =>
 const person = (konto: PersonaKonto, zusatz: Partial<Person> = {}): Person => ({
   id: konto.id!,
   abteilungId: konto.abteilungId!,
-  admin: false,
+  abteilungsleitung: false,
+  entwickler: false,
   zweiterFaktor: false,
   rollen: [],
   ...zusatz,
@@ -200,7 +201,7 @@ describe("Rechtekatalog", () => {
 describe("hatPlattformRecht", () => {
   test("Abteilungsleitung hat jedes Recht, ohne eine Abfrage", async () => {
     abfragen.length = 0;
-    const leitung = person(admin, { admin: true });
+    const leitung = person(admin, { abteilungsleitung: true });
     for (const recht of PLATTFORM_RECHT_NAMEN) {
       expect(await hatPlattformRecht(zaehlDb, leitung, recht), recht).toBe(
         true,
@@ -208,7 +209,9 @@ describe("hatPlattformRecht", () => {
     }
     expect(abfragen).toHaveLength(0);
     // Abteilungsleitung ist nicht Entwickler
-    expect(await istEntwickler(db, person(admin, { admin: true }))).toBe(false);
+    expect(
+      await istEntwickler(db, person(admin, { abteilungsleitung: true })),
+    ).toBe(false);
   });
 
   test("ohne Rolle hat eine Person kein Recht, mit der Rolle genau deren Rechte", async () => {
@@ -376,9 +379,12 @@ describe("Middleware: Recht und zweiter Faktor", () => {
   test("Abteilungsleitung hat jedes Recht, braucht aber den zweiten Faktor", async () => {
     personen.set(
       "leitung-mit",
-      person(admin, { admin: true, zweiterFaktor: true }),
+      person(admin, { abteilungsleitung: true, zweiterFaktor: true }),
     );
-    personen.set("leitung-ohne", person(adminOhne, { admin: true }));
+    personen.set(
+      "leitung-ohne",
+      person(adminOhne, { abteilungsleitung: true }),
+    );
     expect((await frage("leitung-mit", "/recht")).status).toBe(200);
     expect(await frage("leitung-ohne", "/recht")).toEqual({
       status: 403,
@@ -390,7 +396,7 @@ describe("Middleware: Recht und zweiter Faktor", () => {
     const konto = await neuePerson("leitendeA");
     personen.set(
       "leitung-mit",
-      person(admin, { admin: true, zweiterFaktor: true }),
+      person(admin, { abteilungsleitung: true, zweiterFaktor: true }),
     );
     expect((await frage("leitung-mit", "/entwickler")).status).toBe(403);
 

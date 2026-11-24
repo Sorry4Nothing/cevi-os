@@ -9,7 +9,7 @@ import {
 
 export const BASIS = "/api/v1/admin/rechte";
 
-// Die Daten, die jede Ansicht braucht: Katalog, Gruppen (mit Zahlen), globale Rollen (die Abteilungsleitung zuerst), Personen. Der Entwickler (kein Recht «rechte.verwalten») sieht keine Personen und ändert nur die Rechte der Abteilungsleitung: Er bekommt die übrigen Rollen schreibgeschützt und keine Personenliste (#663)
+// Die Daten, die jede Ansicht braucht: Katalog, Gruppen (mit Zahlen), globale Rollen (die Abteilungsleitung zuerst), Personen. Wer «rechte.verwalten» nicht hat (nicht der Entwickler, er hat jedes Recht), sieht keine Personen und ändert nur die Rechte der Abteilungsleitung: Er bekommt die übrigen Rollen schreibgeschützt und keine Personenliste (#663)
 export async function ladeGrund() {
   const katalog = await anfrage("GET", `${BASIS}/katalog`);
   const verwaltet = katalog.ich?.rechteVerwalten === true;
