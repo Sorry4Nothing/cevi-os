@@ -113,6 +113,8 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
         b.daten.eintraege.forEach((e) => ziel(e.link));
         break;
       case "personen":
+        b.daten.eintraege.forEach((e) => personen.add(e.personId));
+        break;
       case "artikel":
         b.daten.eintraege.forEach((e) => {
           if (e.mediumId) medien.add(e.mediumId);
