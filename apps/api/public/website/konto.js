@@ -162,16 +162,17 @@ export function rollenText(p) {
 }
 
 // --- Ansichten
+// Seite: links die Profilkarte, rechts die Abschnitte als Karten (kto-…, Stil in konto.css); schmal eine Spalte.
 const feld = (id, label, { fehler, hilfe, control }) =>
   h(
     "div",
     { class: `feld${fehler ? " fehler" : ""}` },
     h("label", { for: id }, label),
-    hilfe ? h("p", { class: "hilfe", id: `${id}-h` }, hilfe) : null,
     control,
     fehler
       ? h("p", { class: "fehlertext", id: `${id}-f` }, icon("warnung"), fehler)
       : null,
+    hilfe,
   );
 
 const beschr = (id, fehler, hilfe) =>
@@ -179,11 +180,20 @@ const beschr = (id, fehler, hilfe) =>
     .filter(Boolean)
     .join(" ") || null;
 
-const karte = (id, titel, ...inhalt) =>
+// Karte mit Titel und einem Satz darunter; hervor: Das Speichern hat diese Karte gerade geändert
+const karte = (id, titel, lead, hervor, ...inhalt) =>
   h(
     "section",
-    { class: "karte seite-spalte", "aria-labelledby": id },
-    h("h2", { id }, titel),
+    {
+      class: `karte kto-karte${hervor ? " kto-hervor" : ""}`,
+      "aria-labelledby": id,
+    },
+    h(
+      "div",
+      { class: "kto-kopf" },
+      h("h2", { id }, titel),
+      lead ? h("p", { class: "hilfe" }, lead) : null,
+    ),
     inhalt,
   );
 
@@ -197,111 +207,176 @@ const meldung = (m) =>
       })
     : null;
 
+// «Lua Demo» → «LD»; nur Buchstaben, höchstens zwei
+export const initialen = (name) =>
+  String(name ?? "")
+    .split(/\s+/)
+    .filter((t) => /^\p{L}/u.test(t))
+    .slice(0, 2)
+    .map((t) => Array.from(t)[0])
+    .join("")
+    .toLocaleUpperCase("de-CH");
+
+const TAG = new Intl.DateTimeFormat("de-CH", {
+  day: "numeric",
+  month: "long",
+  year: "numeric",
+  timeZone: "Europe/Zurich",
+});
+
+// Profilkarte: Porträt (Bild oder Initialen), Name, Rolle als Chips, Benutzername, bei Eltern die Kinder
 export function profilKarte(p) {
   const rollen = rollenText(p);
-  return karte(
-    "kt-profil-t",
-    "Dein Profil",
+  return h(
+    "section",
+    { class: "karte kto-profil", "aria-labelledby": "kt-profil-t" },
     h(
-      "dl",
-      { class: "fakten" },
+      "div",
+      { class: "kto-portrait" },
       h(
-        "div",
-        { class: "fakt" },
-        icon("info", false),
-        h("dt", {}, "Name"),
-        h("dd", {}, p.ceviName ? `${p.name} (${p.ceviName})` : p.name),
+        "span",
+        { class: "kto-initialen", "aria-hidden": "true" },
+        initialen(p.name),
       ),
-      h(
-        "div",
-        { class: "fakt" },
-        icon("schloss", false),
-        h("dt", {}, "Benutzername"),
-        h("dd", {}, p.benutzername),
-      ),
-      rollen.length
-        ? h(
-            "div",
-            { class: "fakt" },
-            icon("info", false),
-            h("dt", {}, "Rolle"),
-            h("dd", {}, rollen.join(", ")),
-          )
-        : null,
-      p.kinder.length
-        ? h(
-            "div",
-            { class: "fakt" },
-            icon("info", false),
-            h("dt", {}, p.kinder.length === 1 ? "Kind" : "Kinder"),
-            h("dd", {}, p.kinder.map((k) => k.vorname).join(", ")),
-          )
+      p.bildUrl
+        ? h("img", { class: "kto-bild", src: p.bildUrl, alt: "" })
         : null,
     ),
     h(
-      "p",
-      { class: "hilfe" },
-      "Name und Benutzername ändert die Abteilungsleitung.",
+      "div",
+      { class: "kto-profil-text" },
+      h("h2", { id: "kt-profil-t", class: "kto-name" }, p.name),
+      p.ceviName ? h("p", { class: "kto-cevi" }, p.ceviName) : null,
+      rollen.length
+        ? h(
+            "ul",
+            { class: "chips", "aria-label": "Rollen" },
+            rollen.map((r) => h("li", { class: "chip st" }, r)),
+          )
+        : null,
+      h(
+        "dl",
+        { class: "kto-daten" },
+        h("div", {}, h("dt", {}, "Benutzername"), h("dd", {}, p.benutzername)),
+        p.kinder.length
+          ? h(
+              "div",
+              {},
+              h("dt", {}, p.kinder.length === 1 ? "Kind" : "Kinder"),
+              h("dd", {}, p.kinder.map((k) => k.vorname).join(", ")),
+            )
+          : null,
+      ),
+      h(
+        "p",
+        { class: "hilfe" },
+        "Name und Benutzername ändert die Abteilungsleitung.",
+      ),
     ),
   );
 }
 
-// Der Pflichtwechsel und der normale Wechsel teilen sich die Karte; nur Titel, Text und Beschriftung unterscheiden sich
-export function passwortKarte(s) {
-  const { pflicht, pw } = s;
-  const typ = pw.zeigen ? "text" : "password";
-  const f = pw.fehler;
-  const eingabe = (id, name, auto) =>
+// Hinweis zur Länge des neuen Passworts: Text mit Symbol und ein Balken (nie nur Farbe). Es zählt nur die Länge, keine Stärke
+export function laengeHinweis(n) {
+  const ok = n >= PASSWORT_MIN && n <= PASSWORT_MAX;
+  const text =
+    n === 0
+      ? `Mindestens ${PASSWORT_MIN} Zeichen.`
+      : n > PASSWORT_MAX
+        ? `Zu lang: höchstens ${PASSWORT_MAX} Zeichen.`
+        : n < PASSWORT_MIN
+          ? `Noch ${PASSWORT_MIN - n} Zeichen bis zum Minimum von ${PASSWORT_MIN}.`
+          : `Lang genug: ${n} Zeichen.`;
+  return h(
+    "div",
+    { class: `kto-laenge${ok ? " ok" : ""}`, id: "kt-pw-neu-h" },
+    h(
+      "span",
+      {
+        class: `kto-balken l${Math.min(n, PASSWORT_MIN)}`,
+        "aria-hidden": "true",
+      },
+      h("span", {}),
+    ),
+    h("p", { class: "hilfe" }, ok ? icon("haken") : null, text),
+  );
+}
+
+// Passwortfeld mit Auge im Feld; das Auge zeigt oder verbirgt nur dieses Feld
+const passwortFeld = (id, name, auto, s, fehler, hilfe) => {
+  const zeigen = s.pw[`zeigen_${name}`] === true;
+  return h(
+    "div",
+    { class: "kto-passwort" },
     h("input", {
       class: "eingabe",
       id,
-      type: typ,
-      value: pw[name],
+      type: zeigen ? "text" : "password",
+      value: s.pw[name],
       "data-name": `pw-${name}`,
       autocomplete: auto,
       spellcheck: "false",
-      "aria-describedby": beschr(id, f[name], id === "kt-pw-neu"),
-      "aria-invalid": f[name] ? "true" : null,
-      ...(pw.senden && { readonly: true }),
-    });
+      autocapitalize: "off",
+      "aria-describedby": beschr(id, fehler, hilfe),
+      "aria-invalid": fehler ? "true" : null,
+      ...(s.pw.senden && { readonly: true }),
+    }),
+    h(
+      "button",
+      {
+        type: "button",
+        class: "kto-auge",
+        "aria-label": zeigen ? "Passwort verbergen" : "Passwort anzeigen",
+        "aria-pressed": zeigen ? "true" : "false",
+        "data-aktion": "pw-zeigen",
+        "data-feld": name,
+      },
+      icon(zeigen ? "auge-zu" : "auge", false),
+    ),
+  );
+};
+
+// Der Pflichtwechsel und der normale Wechsel teilen sich die Karte; nur Titel, Text und Beschriftung unterscheiden sich
+export function passwortKarte(s) {
+  const { pflicht, pw } = s;
+  const f = pw.fehler;
   return karte(
     "kt-pw-t",
     pflicht ? "Wähle dein Passwort" : "Passwort ändern",
     pflicht
-      ? bandView({
-          art: "wa",
-          symbol: "info",
-          titel: "Du hast ein Startpasswort.",
-          text: "Wähle zuerst ein eigenes Passwort. Danach kannst du die Seite nutzen.",
-          rolle: "status",
-        })
-      : null,
+      ? "Du hast ein Startpasswort. Wähle zuerst ein eigenes. Danach kannst du die Seite nutzen."
+      : "Auf allen anderen Geräten wirst du dabei abgemeldet.",
+    s.markiert === "pw",
     meldung(pw.meldung),
     h(
       "form",
       { class: "formular", novalidate: true, id: "kt-pw-form" },
       feld("kt-pw-aktuell", pflicht ? "Startpasswort" : "Aktuelles Passwort", {
         fehler: f.aktuell,
-        control: eingabe("kt-pw-aktuell", "aktuell", "current-password"),
+        control: passwortFeld(
+          "kt-pw-aktuell",
+          "aktuell",
+          "current-password",
+          s,
+          f.aktuell,
+          false,
+        ),
       }),
       feld("kt-pw-neu", "Neues Passwort", {
         fehler: f.neu,
-        hilfe: `Mindestens ${PASSWORT_MIN} Zeichen. Ein Satz, den nur du kennst, geht gut.`,
-        control: eingabe("kt-pw-neu", "neu", "new-password"),
+        control: passwortFeld(
+          "kt-pw-neu",
+          "neu",
+          "new-password",
+          s,
+          f.neu,
+          true,
+        ),
+        hilfe: laengeHinweis(Array.from(pw.neu).length),
       }),
       h(
         "div",
-        { class: "knopfreihe" },
-        h(
-          "button",
-          {
-            type: "button",
-            class: "btn s",
-            "aria-pressed": pw.zeigen ? "true" : "false",
-            "data-aktion": "pw-zeigen",
-          },
-          pw.zeigen ? "Passwörter verbergen" : "Passwörter anzeigen",
-        ),
+        { class: "kto-aktion" },
         h(
           "button",
           {
@@ -321,15 +396,12 @@ export function datenschutzKarte(s) {
   return karte(
     "kt-ds-t",
     "Datenschutz",
+    "Bevor du weitermachst: Lies, wie die Abteilung mit Daten umgeht. Das Lesen ist keine Einwilligung. Du bestätigst nur, dass du es kennst.",
+    false,
     meldung(s.ds.meldung),
     h(
-      "p",
-      {},
-      "Bevor du weitermachst: Lies, wie die Abteilung mit Daten umgeht. Das Lesen ist keine Einwilligung. Du bestätigst nur, dass du es kennst.",
-    ),
-    h(
       "div",
-      { class: "knopfreihe" },
+      { class: "kto-aktion kto-aktion--zwei" },
       h(
         "a",
         {
@@ -344,7 +416,7 @@ export function datenschutzKarte(s) {
         "button",
         {
           type: "button",
-          class: "btn p gross",
+          class: "btn p",
           "data-aktion": "datenschutz",
           "aria-disabled": s.ds.senden ? "true" : null,
           "aria-busy": s.ds.senden ? "true" : null,
@@ -358,53 +430,98 @@ export function datenschutzKarte(s) {
 export function telefonKarte(s) {
   const p = s.profil;
   const sl = istStufenleitung(p);
-  // Wer keine Nummer hat und keine speichern darf, braucht den Abschnitt nicht
-  if (!sl && !p.telefon) return null;
   const t = s.tel;
+  // Wer keine Nummer hat und keine speichern darf, braucht den Abschnitt nicht; direkt nach dem Entfernen bleibt die Karte mit der Rückmeldung stehen
+  if (!sl && !p.telefon && !t.meldung) return null;
+  const entfernt = !sl && !p.telefon;
+  const knopf = (beschriftung, extra = {}) =>
+    h(
+      "button",
+      {
+        type: "submit",
+        class: "btn p",
+        "aria-disabled": t.senden ? "true" : null,
+        "aria-busy": t.senden ? "true" : null,
+        ...extra,
+      },
+      t.senden ? "Speichere …" : beschriftung,
+    );
   return karte(
     "kt-tel-t",
     "Telefon",
+    sl
+      ? "Eltern deiner Stufe sehen die Nummer und können dich anrufen."
+      : entfernt
+        ? null
+        : "Deine Nummer ist gespeichert. Du kannst sie nur entfernen.",
+    s.markiert === "tel",
     meldung(t.meldung),
-    h(
-      "form",
-      { class: "formular", novalidate: true, id: "kt-tel-form" },
-      feld("kt-tel", "Telefonnummer", {
-        fehler: t.fehler,
-        hilfe: sl
-          ? "Eltern deiner Stufe sehen die Nummer und können dich anrufen."
-          : "Du kannst deine Nummer nur entfernen.",
-        control: h("input", {
-          class: "eingabe",
-          id: "kt-tel",
-          type: "text",
-          inputmode: "tel",
-          autocomplete: "tel",
-          value: t.wert,
-          "data-name": "tel",
-          "aria-describedby": beschr("kt-tel", t.fehler, true),
-          "aria-invalid": t.fehler ? "true" : null,
-          ...(t.senden && { readonly: true }),
-        }),
-      }),
-      h(
-        "div",
-        { class: "knopfreihe" },
-        h(
-          "button",
-          {
-            type: "submit",
-            class: "btn p",
-            "aria-disabled": t.senden ? "true" : null,
-            "aria-busy": t.senden ? "true" : null,
-          },
-          t.senden
-            ? "Speichere …"
-            : sl || t.wert !== ""
-              ? "Nummer speichern"
-              : "Nummer entfernen",
+    entfernt
+      ? null
+      : h(
+          "form",
+          { class: "formular", novalidate: true, id: "kt-tel-form" },
+          sl
+            ? feld("kt-tel", "Telefonnummer", {
+                fehler: t.fehler,
+                hilfe: h(
+                  "p",
+                  { class: "hilfe", id: "kt-tel-h" },
+                  "Zum Beispiel 079 123 45 67.",
+                ),
+                control: h("input", {
+                  class: "eingabe",
+                  id: "kt-tel",
+                  type: "text",
+                  inputmode: "tel",
+                  autocomplete: "tel",
+                  value: t.wert,
+                  "data-name": "tel",
+                  "aria-describedby": beschr("kt-tel", t.fehler, true),
+                  "aria-invalid": t.fehler ? "true" : null,
+                  ...(t.senden && { readonly: true }),
+                }),
+              })
+            : h("p", { class: "kto-nummer" }, p.telefon),
+          h(
+            "div",
+            { class: "kto-aktion" },
+            sl
+              ? knopf(
+                  t.wert === "" && p.telefon
+                    ? "Nummer entfernen"
+                    : "Nummer speichern",
+                )
+              : knopf("Nummer entfernen", {
+                  "data-aktion": "tel-weg",
+                  type: "button",
+                }),
+          ),
         ),
-      ),
+  );
+}
+
+// Ein Schalter «Ein/Aus»: Text und Stellung des Knopfes, nie nur Farbe
+export function schalter({ id, an, aktion, daten, gesperrt }) {
+  return h(
+    "button",
+    {
+      type: "button",
+      role: "switch",
+      class: "schalter",
+      "aria-checked": an ? "true" : "false",
+      "aria-labelledby": id,
+      "aria-describedby": `${id}-h`,
+      "aria-disabled": gesperrt ? "true" : null,
+      "data-aktion": aktion,
+      ...daten,
+    },
+    h(
+      "span",
+      { class: "schalter-text", "aria-hidden": "true" },
+      an ? "Ein" : "Aus",
     ),
+    h("span", { class: "schalter-spur", "aria-hidden": "true" }),
   );
 }
 
@@ -414,94 +531,88 @@ export function mitteilungenKarte(s) {
   return karte(
     "kt-push-t",
     "Mitteilungen in der App",
-    h(
-      "p",
-      { class: "hilfe" },
-      "Diese Schalter gelten für die Cevi-OS-App auf deinem Handy. Im Browser gibt es keine Mitteilungen.",
-    ),
+    "Diese Schalter gelten für die Cevi-OS-App auf deinem Handy. Im Browser gibt es keine Mitteilungen.",
+    s.markiert === "push",
     meldung(s.push.meldung),
     h(
       "ul",
-      { class: "antworten" },
+      { class: "kto-zeilen" },
       liste.map((e) => {
         const an = p[e.schluessel] === true;
         const id = `kt-${e.schluessel}`;
         return h(
           "li",
-          { class: "antwort" },
+          { class: "kto-zeile" },
           h(
             "span",
-            { class: "antwort-text" },
+            { class: "kto-zeile-text" },
             h("span", { class: "antwort-name", id }, e.text),
-            h("span", { class: "hilfe" }, e.hilfe),
+            h("span", { class: "hilfe", id: `${id}-h` }, e.hilfe),
           ),
-          h(
-            "div",
-            { class: "seg", role: "group", "aria-labelledby": id },
-            [true, false].map((wert) =>
-              h(
-                "button",
-                {
-                  type: "button",
-                  "aria-pressed": an === wert ? "true" : "false",
-                  "aria-disabled": s.push.senden ? "true" : null,
-                  "data-aktion": "push",
-                  "data-schluessel": e.schluessel,
-                  "data-wert": wert ? "1" : "0",
-                },
-                wert ? "Ein" : "Aus",
-              ),
-            ),
-          ),
+          schalter({
+            id,
+            an,
+            aktion: "push",
+            gesperrt: s.push.senden,
+            daten: {
+              "data-schluessel": e.schluessel,
+              "data-wert": an ? "0" : "1",
+            },
+          }),
         );
       }),
     ),
   );
 }
 
-export function weitereKarte(s) {
-  const a = s.abmelden;
+// Datenschutzerklärung, Kalender, Hilfe, Konto löschen: Verweise, die es schon gibt
+export function hilfeKarte(s) {
+  const gelesen = s.profil.datenschutzGelesenAm;
   return karte(
     "kt-mehr-t",
-    "Weiteres",
-    meldung(a.meldung),
+    "Datenschutz und Hilfe",
+    gelesen
+      ? `Die Datenschutzerklärung hast du am ${TAG.format(new Date(gelesen))} zur Kenntnis genommen.`
+      : null,
+    false,
     h(
       "ul",
       { class: "linkliste" },
       [
-        ["/termine/", "Kalender abonnieren"],
         ["/datenschutz", "Datenschutzerklärung"],
+        ["/termine/", "Kalender abonnieren"],
         ["/support", "Hilfe und Kontakt"],
         ["/konto-loeschen", "Konto löschen"],
       ].map(([href, text]) =>
         h("li", {}, h("a", { class: "verweis", href }, text)),
       ),
     ),
+  );
+}
+
+export function abmeldenKarte(s) {
+  const a = s.abmelden;
+  return karte(
+    "kt-ab-t",
+    "Abmelden",
+    "Auf diesem Gerät oder überall.",
+    false,
+    meldung(a.meldung),
     h(
       "div",
-      { class: "knopfreihe" },
-      h(
-        "button",
-        {
-          type: "button",
-          class: "btn p",
-          "data-aktion": "abmelden",
-          "aria-disabled": a.senden ? "true" : null,
-        },
-        "Abmelden",
-      ),
+      { class: "kto-aktion kto-aktion--zwei" },
       a.bestaetigen
         ? [
             h(
-              "span",
-              { class: "frage", role: "status" },
+              "p",
+              { class: "kto-frage", role: "status" },
               "Alle anderen Geräte abmelden?",
             ),
             h(
               "button",
               {
                 type: "button",
-                class: "btn s",
+                class: "btn p",
                 "data-aktion": "alle-ja",
                 "aria-disabled": a.senden ? "true" : null,
               },
@@ -513,11 +624,23 @@ export function weitereKarte(s) {
               "Abbrechen",
             ),
           ]
-        : h(
-            "button",
-            { type: "button", class: "btn s", "data-aktion": "alle" },
-            "Überall abmelden",
-          ),
+        : [
+            h(
+              "button",
+              {
+                type: "button",
+                class: "btn p",
+                "data-aktion": "abmelden",
+                "aria-disabled": a.senden ? "true" : null,
+              },
+              "Abmelden",
+            ),
+            h(
+              "button",
+              { type: "button", class: "btn s", "data-aktion": "alle" },
+              "Überall abmelden",
+            ),
+          ],
     ),
   );
 }
@@ -525,25 +648,46 @@ export function weitereKarte(s) {
 export function kontoView(s) {
   const { profil: p } = s;
   // Beim Pflichtwechsel gibt es nur den Wechsel: Alle anderen Routen antworten bis dahin mit 403
-  if (s.pflicht)
-    return h("div", { class: "seite-spalte breit" }, passwortKarte(s));
+  if (s.pflicht) {
+    return h("div", { class: "kto kto--pflicht" }, passwortKarte(s));
+  }
   return h(
     "div",
-    { class: "seite-spalte breit" },
-    p.datenschutzGelesenAm ? null : datenschutzKarte(s),
-    profilKarte(p),
-    telefonKarte(s),
-    mitteilungenKarte(s),
-    passwortKarte(s),
-    weitereKarte(s),
+    { class: "kto" },
+    h("div", { class: "kto-links" }, profilKarte(p)),
+    h(
+      "div",
+      { class: "kto-rechts" },
+      p.datenschutzGelesenAm ? null : datenschutzKarte(s),
+      mitteilungenKarte(s),
+      telefonKarte(s),
+      passwortKarte(s),
+      hilfeKarte(s),
+      abmeldenKarte(s),
+    ),
   );
 }
 
+// Skelett in der Form der Seite: links die Profilkarte, rechts vier Karten
 export function ladeView() {
+  const karteSk = h(
+    "div",
+    { class: "karte kto-karte" },
+    skelett(sk("r h20 b40"), sk("r h56 b100")),
+  );
   return h(
     "div",
-    { class: "seite-spalte", "aria-busy": "true" },
-    skelett(sk("r h56 b100"), sk("r h56 b100"), sk("r h56 b100")),
+    { class: "kto", "aria-busy": "true" },
+    h(
+      "div",
+      { class: "kto-links" },
+      h(
+        "div",
+        { class: "karte kto-profil" },
+        skelett(sk("r h56 b100"), sk("r h20 b60"), sk("r h20 b40")),
+      ),
+    ),
+    h("div", { class: "kto-rechts" }, karteSk, karteSk, karteSk),
   );
 }
 
@@ -570,11 +714,13 @@ function neuerStand(profil) {
     pw: {
       aktuell: "",
       neu: "",
-      zeigen: false,
+      zeigen_aktuell: false,
+      zeigen_neu: false,
       senden: false,
       fehler: {},
       meldung: null,
     },
+    markiert: null,
     tel: {
       wert: profil.telefon ?? "",
       fehler: null,
@@ -615,6 +761,7 @@ function start(doc, wurzel) {
 
   async function speicherePasswort() {
     if (s.pw.senden) return;
+    s.markiert = null;
     const fehl = pruefePasswort({
       aktuell: s.pw.aktuell,
       neu: s.pw.neu,
@@ -639,7 +786,8 @@ function start(doc, wurzel) {
     // Das Passwort bleibt nirgends stehen, auch nicht bei einem Fehler
     s.pw.aktuell = "";
     s.pw.neu = "";
-    s.pw.zeigen = false;
+    s.pw.zeigen_aktuell = false;
+    s.pw.zeigen_neu = false;
     if (f?.feld) {
       s.pw.fehler[f.feld] = f.text;
       zeichne(`kt-pw-${f.feld}`);
@@ -657,6 +805,7 @@ function start(doc, wurzel) {
         art: "ok",
         text: "Dein Passwort ist geändert. Auf den anderen Geräten bist du abgemeldet.",
       };
+      s.markiert = "pw";
       zeichne();
       melde(doc, s.pw.meldung.text);
     }
@@ -664,6 +813,7 @@ function start(doc, wurzel) {
 
   async function speichereTelefon() {
     if (s.tel.senden) return;
+    s.markiert = null;
     const pr = pruefeTelefon({
       eingabe: s.tel.wert,
       original: s.profil.telefon,
@@ -693,6 +843,7 @@ function start(doc, wurzel) {
             ? "Die Nummer ist entfernt."
             : "Die Nummer ist gespeichert.",
       };
+      s.markiert = "tel";
     } else {
       s.tel.meldung = {
         art: "fe",
@@ -708,6 +859,7 @@ function start(doc, wurzel) {
 
   async function schalte(schluessel, wert) {
     if (s.push.senden || s.profil[schluessel] === wert) return;
+    s.markiert = null;
     s.push.senden = true;
     s.push.meldung = null;
     zeichne();
@@ -719,6 +871,7 @@ function start(doc, wurzel) {
     if (r.status === 204) {
       s.profil[schluessel] = wert;
       s.push.meldung = { art: "ok", text: "Gespeichert." };
+      s.markiert = "push";
     } else {
       s.push.meldung = {
         art: "fe",
@@ -727,9 +880,7 @@ function start(doc, wurzel) {
     }
     zeichne();
     doc
-      .querySelector(
-        `[data-aktion="push"][data-schluessel="${schluessel}"][data-wert="${wert ? "1" : "0"}"]`,
-      )
+      .querySelector(`[data-aktion="push"][data-schluessel="${schluessel}"]`)
       ?.focus();
     melde(doc, s.push.meldung.text);
   }
@@ -786,7 +937,13 @@ function start(doc, wurzel) {
     if (!s || !name) return;
     if (name === "tel") s.tel.wert = e.target.value;
     else if (name === "pw-aktuell") s.pw.aktuell = e.target.value;
-    else if (name === "pw-neu") s.pw.neu = e.target.value;
+    else if (name === "pw-neu") {
+      s.pw.neu = e.target.value;
+      // Der Hinweis zur Länge zieht mit, ohne die Seite neu zu zeichnen (der Fokus bleibt im Feld)
+      doc
+        .getElementById("kt-pw-neu-h")
+        ?.replaceWith(baue(doc, laengeHinweis(Array.from(s.pw.neu).length)));
+    }
   });
   wurzel.addEventListener("submit", (e) => {
     e.preventDefault();
@@ -800,9 +957,17 @@ function start(doc, wurzel) {
     if (a === "nochmal") return lade();
     if (!s || b.getAttribute("aria-disabled") === "true") return;
     if (a === "pw-zeigen") {
-      s.pw.zeigen = !s.pw.zeigen;
+      const feldName = `zeigen_${b.dataset.feld}`;
+      s.pw[feldName] = !s.pw[feldName];
       zeichne();
-      doc.querySelector('[data-aktion="pw-zeigen"]')?.focus();
+      doc
+        .querySelector(
+          `[data-aktion="pw-zeigen"][data-feld="${b.dataset.feld}"]`,
+        )
+        ?.focus();
+    } else if (a === "tel-weg") {
+      s.tel.wert = "";
+      speichereTelefon();
     } else if (a === "push") {
       schalte(b.dataset.schluessel, b.dataset.wert === "1");
     } else if (a === "datenschutz") nehmeKenntnis();

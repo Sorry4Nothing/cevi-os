@@ -10,6 +10,7 @@ import {
   neueId,
 } from "./dom.js";
 import { formularRaster } from "./formularraster.js";
+import { adressSuche } from "./ort-suche.js";
 import { ansichtVonKnopf, zweiStufig } from "./rueckgaengig.js";
 import { sortierListe } from "./sortieren.js";
 import { sichererKartenLink } from "./orte-logik.js";
@@ -87,12 +88,6 @@ export function reiter(aktiv) {
     ].map(eintrag),
   );
 }
-
-const standortArtText = {
-  koordinaten: "Koordinaten",
-  adresse: "Adresse",
-  link: "Kurzlink von Google Maps",
-};
 
 // ---------- Die Auswahl in den Samstagsangaben ----------
 
@@ -246,16 +241,17 @@ export function ortFormular({ ctx, ort, danach }) {
     wert: ort?.beschreibung ?? "",
     maxlength: MAX_BESCHREIBUNG,
     hilfe:
-      "Steht auf der Website unter dem Namen, zum Beispiel «Beim Hintereingang».",
+      "Steht auf der Website unter dem Namen. Nach der Suche steht hier die gewählte Adresse; du kannst sie ändern oder einen Hinweis ergänzen, zum Beispiel «Beim Hintereingang».",
   });
+  // Der Standort in Textform ist die eine Quelle: Ein gewählter Vorschlag trägt «Breite, Länge» ein, ein Link oder eine Adresse steht von Hand darin. Gelesen und geprüft wird er immer vom Server (POST /orte/vorschau)
   const standort = feld({
-    label: "Standort auf Google Maps",
+    label: "Link von Google Maps, Adresse oder Koordinaten",
     wert: ort?.standort ?? "",
     maxlength: MAX_STANDORT,
     autocomplete: "off",
     spellcheck: false,
     hilfe:
-      "Füge einen Link von Google Maps ein (in Google Maps: Teilen, Link kopieren) oder eine Adresse. Die Website zeigt nur den Verweis «Auf Google Maps ansehen», keine Karte.",
+      "Nur, wenn die Suche die Adresse nicht kennt: in Google Maps «Teilen», «Link kopieren» und hier einfügen. Die Website zeigt nur den Verweis «Auf Google Maps ansehen», keine Karte.",
   });
   const aktiv = ankreuzen({
     label: "In der Auswahl anzeigen",
@@ -263,11 +259,111 @@ export function ortFormular({ ctx, ort, danach }) {
     wert: "aktiv",
   });
 
-  // Was der Server aus dem Standort liest (ohne zu speichern); die Anzeige folgt dem Tippen mit kleiner Verzögerung
-  const gelesen = el("p", { class: "hilfe ort-gelesen", role: "status" });
+  // Die Adresse, die in dieser Sitzung aus einem Vorschlag übernommen wurde; sie steht auch im Feld «Adresse oder Hinweis», solange dort niemand schreibt
+  let gewaehlteAdresse = null;
+  let eingesetzt = null;
   let letzter = { fehler: false };
   let zaehler = 0;
   let uhr = 0;
+  const suche = adressSuche({
+    label: "Adresse oder Ort suchen",
+    hilfe:
+      "Tippe Strasse, Hausnummer und Ort, zum Beispiel «Beispielweg 4 Beispielstadt». Wähle dann einen Vorschlag: So stimmt der Standort genau.",
+    beiWahl: (v) => {
+      gewaehlteAdresse = v.bezeichnung;
+      standort.eingabe.value = `${v.breite}, ${v.laenge}`;
+      const b = beschreibung.eingabe;
+      if (b.value.trim() === "" || b.value === eingesetzt) {
+        b.value = v.bezeichnung.slice(0, MAX_BESCHREIBUNG);
+        eingesetzt = b.value;
+      }
+      clearTimeout(uhr);
+      lese();
+    },
+  });
+
+  // Was der Server aus dem Standort liest (ohne zu speichern): «bestätigt» oder «noch nicht bestätigt»
+  const status = el("div", { class: "ort-status", role: "status" });
+  const manuell = el("div", { class: "ort-manuell" });
+  const manuellId = neueId("ort-manuell");
+  manuell.id = manuellId;
+  const manuellKnopf = knopf("Link oder Koordinaten von Hand eintragen", {
+    klein: true,
+    "aria-expanded": "false",
+    "aria-controls": manuellId,
+  });
+  const oeffneManuell = (offen) => {
+    manuell.hidden = !offen;
+    manuellKnopf.hidden = offen;
+    manuellKnopf.setAttribute("aria-expanded", String(offen));
+  };
+  manuellKnopf.addEventListener("click", () => {
+    oeffneManuell(true);
+    standort.eingabe.focus();
+  });
+  manuell.append(standort.wurzel);
+
+  const sucheStarten = (r) =>
+    suche.suche(
+      (r?.standortArt === "adresse" ? r.standort : "") ||
+        beschreibung.eingabe.value.trim() ||
+        name.eingabe.value.trim(),
+    );
+  function zeigeStatus(r) {
+    if (r.standortArt === null) {
+      status.replaceChildren(
+        el(
+          "p",
+          { class: "ort-status-text leise" },
+          "Noch kein Standort. Suche oben eine Adresse. Ohne Standort steht auf der Website nur der Name.",
+        ),
+      );
+      return;
+    }
+    if (r.standortArt === "koordinaten") {
+      status.replaceChildren(
+        el(
+          "ul",
+          { class: "chips" },
+          chip(
+            gewaehlteAdresse ? "Adresse bestätigt" : "Standort bestätigt",
+            "ok",
+          ),
+        ),
+        gewaehlteAdresse &&
+          el("p", { class: "ort-status-adresse" }, gewaehlteAdresse),
+        el("p", { class: "klein leise" }, `Koordinaten ${r.standort}`),
+        kartenVerweis(r.kartenLink),
+      );
+      return;
+    }
+    // Adresse oder Kurzlink: lesbar, aber nicht von der Suche bestätigt
+    status.replaceChildren(
+      el(
+        "ul",
+        { class: "chips" },
+        chip("Standort noch nicht bestätigt", "warn"),
+      ),
+      el(
+        "p",
+        { class: "ort-status-text" },
+        r.standortArt === "adresse"
+          ? `Gelesen als Adresse: ${r.standort}. `
+          : "Gelesen als Kurzlink von Google Maps. ",
+        "Mit der Suche stimmt der Standort genau.",
+      ),
+      el(
+        "div",
+        { class: "ort-status-aktionen" },
+        knopf("Adresse suchen", {
+          klein: true,
+          symbol: "lupe",
+          onclick: () => sucheStarten(r),
+        }),
+        kartenVerweis(r.kartenLink),
+      ),
+    );
+  }
   async function lese() {
     const nr = ++zaehler;
     const wert = standort.eingabe.value;
@@ -275,34 +371,30 @@ export function ortFormular({ ctx, ort, danach }) {
       const r = await anfrage("POST", `${API}/vorschau`, { standort: wert });
       if (nr !== zaehler) return;
       letzter = { fehler: false, link: r.kartenLink };
-      gelesen.className = "hilfe ort-gelesen";
-      standort.wurzel.querySelector(".feld-fehler")?.remove();
       standort.eingabe.removeAttribute("aria-invalid");
-      gelesen.replaceChildren(
-        ...(r.standortArt === null
-          ? ["Kein Standort: Auf der Website steht nur der Name."]
-          : [
-              `Gelesen als ${standortArtText[r.standortArt]}${r.standortArt === "link" ? "" : `: ${r.standort}`}. `,
-              kartenVerweis(r.kartenLink),
-            ]),
-      );
+      zeigeStatus(r);
     } catch (f) {
       if (nr !== zaehler) return;
-      letzter = { fehler: true };
-      gelesen.replaceChildren(
-        f.status === 400 && f.code === "ORT_STANDORT_UNGUELTIG"
-          ? f.meldung
-          : "Der Standort konnte nicht geprüft werden. Speichern prüft ihn noch einmal.",
+      const ungueltig = f.status === 400;
+      letzter = { fehler: ungueltig };
+      // Ein abgelehnter Standort steht von Hand im Feld: Das Feld öffnet sich, die Meldung steht daneben
+      if (ungueltig) oeffneManuell(true);
+      status.replaceChildren(
+        el(
+          "p",
+          { class: ungueltig ? "feld-fehler" : "hilfe" },
+          ungueltig && f.code === "ORT_STANDORT_UNGUELTIG"
+            ? f.meldung
+            : "Der Standort konnte nicht geprüft werden. Speichern prüft ihn noch einmal.",
+        ),
       );
-      letzter.fehler = f.status === 400;
-      gelesen.className = letzter.fehler
-        ? "feld-fehler ort-gelesen"
-        : "hilfe ort-gelesen";
-      standort.eingabe.setAttribute("aria-invalid", letzter.fehler);
+      standort.eingabe.setAttribute("aria-invalid", String(ungueltig));
     }
     zeigeVorschau();
   }
   standort.eingabe.addEventListener("input", () => {
+    // Von Hand geändert: Die gewählte Adresse gilt nicht mehr
+    gewaehlteAdresse = null;
     clearTimeout(uhr);
     uhr = setTimeout(lese, 450);
   });
@@ -310,12 +402,6 @@ export function ortFormular({ ctx, ort, danach }) {
     clearTimeout(uhr);
     lese();
   });
-  gelesen.id = neueId("ort-gelesen");
-  standort.eingabe.setAttribute(
-    "aria-describedby",
-    `${standort.eingabe.getAttribute("aria-describedby")} ${gelesen.id}`,
-  );
-  standort.wurzel.append(gelesen);
 
   const vorschau = el("dl", { class: "ws-stufenvorschau" });
   function zeigeVorschau() {
@@ -344,14 +430,12 @@ export function ortFormular({ ctx, ort, danach }) {
   }
   if (!neu) {
     letzter = { fehler: false, link: ort.kartenLink };
-    gelesen.replaceChildren(
-      ort.standortArt === null
-        ? "Kein Standort: Auf der Website steht nur der Name."
-        : `Gelesen als ${standortArtText[ort.standortArt]}${ort.standortArt === "link" ? "" : `: ${ort.standort}`}. `,
-      kartenVerweis(ort.kartenLink),
-    );
+    zeigeStatus(ort);
+    // Wer einen Link oder eine Adresse hinterlegt hat, sieht das Feld dazu gleich
+    oeffneManuell(ort.standortArt === "adresse" || ort.standortArt === "link");
   } else {
-    gelesen.append("Kein Standort: Auf der Website steht nur der Name.");
+    zeigeStatus({ standortArt: null });
+    oeffneManuell(false);
   }
   zeigeVorschau();
 
@@ -363,8 +447,11 @@ export function ortFormular({ ctx, ort, danach }) {
       formularRaster({
         felder: [
           name.wurzel,
+          suche.wurzel,
+          status,
           beschreibung.wurzel,
-          standort.wurzel,
+          manuellKnopf,
+          manuell,
           aktiv.wurzel,
         ],
         seiteTitel: "So steht es auf der Stufenseite",
@@ -445,7 +532,7 @@ function zeichne(bereich, ctx, { orte }, neu) {
     el(
       "p",
       { class: "hilfe ws-stufenfakten-einleitung" },
-      "Orte, die oft vorkommen, legst du hier einmal an, zum Beispiel das Pfadiheim oder den Bahnhof. In den Angaben je Stufe wählst du sie dann aus. Mit einem Standort steht auf der Stufenseite der Verweis «Auf Google Maps ansehen». Das ist nur ein Link: Die Website lädt nichts von Google, bevor jemand ihn anklickt.",
+      "Orte, die oft vorkommen, legst du hier einmal an, zum Beispiel das Pfadiheim oder den Bahnhof. In den Angaben je Stufe wählst du sie dann aus. Die Adresse suchst du beim Anlegen mit einer Teiladresse und wählst einen Vorschlag: So stimmt der Standort. Auf der Stufenseite steht dann der Verweis «Auf Google Maps ansehen». Das ist nur ein Link: Die Website lädt nichts von Google, bevor jemand ihn anklickt.",
     ),
   );
   if (orte.length === 0) {
@@ -540,7 +627,9 @@ function zeile(o, ctx, neu) {
         { class: "chips" },
         o.standortArt === null
           ? chip("Ohne Standort", undefined, false)
-          : chip("Mit Standort", "ok"),
+          : o.standortArt === "koordinaten"
+            ? chip("Standort bestätigt", "ok")
+            : chip("Standort nicht bestätigt", "warn"),
         !o.aktiv && chip("Ausgeblendet", "warn"),
       ),
     ),

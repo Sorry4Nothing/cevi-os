@@ -44,7 +44,11 @@ describe("Orte in der Verwaltung", () => {
   });
 
   test("kein Popup des Browsers, kein HTML aus Text, kein natives Auswahlfeld mit eigenem Stil", () => {
-    for (const datei of ["website-orte.js", "website-stufenfakten.js"]) {
+    for (const datei of [
+      "website-orte.js",
+      "website-stufenfakten.js",
+      "ort-suche.js",
+    ]) {
       const q = lies(datei);
       expect(q, datei).not.toMatch(/\b(?:alert|confirm|prompt)\(/);
       expect(q, datei).not.toMatch(/innerHTML|insertAdjacentHTML/);
@@ -52,6 +56,52 @@ describe("Orte in der Verwaltung", () => {
     }
     // Das Auswahlfeld ist das der Verwaltung (select wird von auswahl.js aufgewertet)
     expect(lies("website-orte.js")).toContain("ceviAuswahl");
+  });
+});
+
+describe("Adresssuche der Orte (#695)", () => {
+  test("Kombinationsfeld nach WAI-ARIA mit Tastatur, Abbruch alter Anfragen und Zuständen", () => {
+    const q = lies("ort-suche.js");
+    for (const teil of [
+      'role: "combobox"',
+      "aria-expanded",
+      "aria-activedescendant",
+      'role: "listbox"',
+      'role: "option"',
+      "ArrowDown",
+      "Escape",
+      "Enter",
+      "AbortController",
+      "Keine Adresse gefunden.",
+      "Die Adresssuche ist gerade nicht erreichbar.",
+    ]) {
+      expect(q, teil).toContain(teil);
+    }
+    // Der Browser fragt nur den eigenen Server; kein Skript, kein Bild, keine Adresse von Dritten
+    expect(q).toContain("/api/v1/redaktion/orte/suche");
+    expect(q).not.toMatch(/https?:\/\//);
+    expect(lies("website-orte.js")).not.toMatch(
+      /geo\.admin|googleapis|maps\.google/,
+    );
+  });
+
+  test("das Formular kennt «Adresse bestätigt», «noch nicht bestätigt» und den Knopf «Adresse suchen»; der Link von Hand bleibt", () => {
+    const orte = lies("website-orte.js");
+    for (const text of [
+      "Adresse bestätigt",
+      "Standort noch nicht bestätigt",
+      "Adresse suchen",
+      "Link oder Koordinaten von Hand eintragen",
+    ]) {
+      expect(orte, text).toContain(text);
+    }
+  });
+
+  test("Stil: Bewegung nur ohne «Bewegung reduzieren»", () => {
+    const css = lies("website-orte.css");
+    const teil = css.slice(css.indexOf("Adresssuche (#695)"));
+    expect(teil).toMatch(/prefers-reduced-motion: no-preference/);
+    expect(teil).not.toMatch(/transition: all/);
   });
 });
 

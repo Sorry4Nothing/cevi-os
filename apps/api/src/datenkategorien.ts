@@ -711,7 +711,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "erstellt_am",
     ],
   },
-  // Orte der Abteilung (#646): Name, Adresszeile und Standort; die Karte ist nur ein Link, den der Server selbst baut
+  // Orte der Abteilung (#646): Name, Adresszeile und Standort; die Karte ist nur ein Link, den der Server selbst baut. Die Adresssuche (#695) fragt die Ortssuche des Bundes mit dem Suchtext, ohne etwas zu speichern
   ort: {
     programme: [
       "id",
