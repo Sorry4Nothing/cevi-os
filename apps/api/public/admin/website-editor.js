@@ -174,6 +174,8 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     tags,
     tagNamen: new Map(tags.map((t) => [t.id, t.name])),
     personNamen: new Map(),
+    // Die Leitenden zur Auswahl, einmal je Editor geladen (website-felder.js)
+    personen: { laden: null, liste: null },
     medien: new Map(),
     kannAlt: ctx.zugang.darf("medien.verwalten"),
     dok: gepuffert ? gepuffert.dok : (entwurf.dokument ?? leer()),

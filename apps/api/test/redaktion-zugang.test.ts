@@ -383,6 +383,8 @@ describe("Auswahllisten", () => {
       funktion: "stufenleitung",
       // Stufenleitung: eine Rolle mit Aussenwirkung (#610)
       aufWebsite: true,
+      gruppe: expect.any(String),
+      tagId: welt.stufeAId,
     });
     // Wer den Tag nicht trägt, steht nicht in der Liste
     expect(personen.map((p) => p.id)).not.toContain(slB.id);
@@ -391,11 +393,53 @@ describe("Auswahllisten", () => {
         "anzeigename",
         "aufWebsite",
         "funktion",
+        "gruppe",
         "id",
+        "tagId",
       ]);
     }
     expect(text).not.toContain("+41791234567");
     expect(text).not.toContain("@example.org");
+  });
+
+  test("ohne Tag: alle Leitenden der Abteilung nach Gruppe und Name, nie Eltern oder andere Abteilungen (#755)", async () => {
+    // Eltern in der Gruppe, ohne Rolle: erscheinen auf der Website nie
+    await db
+      .insert(schema.personTag)
+      .values({ userId: eltern.id!, tagId: welt.stufeAId, rolle: null });
+    const pfad = "/api/v1/redaktion/personen";
+    const antwort = await holen(webmaster, pfad);
+    expect(antwort.status).toBe(200);
+    const text = await antwort.text();
+    const { personen } = JSON.parse(text) as PersonenListe;
+    const ids = personen.map((p) => p.id);
+    expect(ids).toEqual(expect.arrayContaining([slA.id, slB.id]));
+    expect(ids).not.toContain(eltern.id);
+    expect(ids).not.toContain(demoEltern.id);
+    for (const p of personen) {
+      expect(["leitung", "stufenleitung"]).toContain(p.funktion);
+      expect(p.aufWebsite).toBe(true);
+    }
+    const gruppen = personen.map((p) => p.gruppe as string);
+    expect(gruppen).toEqual(
+      [...gruppen].sort(new Intl.Collator("de-CH").compare),
+    );
+    expect(personen.find((p) => p.id === slA.id)).toMatchObject({
+      anzeigename: "Flink",
+      tagId: welt.stufeAId,
+    });
+    expect(text).not.toContain("+41791234567");
+    // Auch mit Tag steht nur, wer auf die Website darf
+    const mitTag = (await (
+      await holen(webmaster, `${pfad}?tag=${welt.stufeAId}`)
+    ).json()) as PersonenListe;
+    expect(mitTag.personen.map((p) => p.id)).not.toContain(eltern.id);
+    // Die Demo-Abteilung sieht nur ihre eigenen Leitenden
+    const demo = (await (await holen(demoAdmin, pfad)).json()) as PersonenListe;
+    expect(demo.personen.map((p) => p.id)).not.toContain(slA.id);
+    for (const konto of [eltern, ohneRecht, demoEltern]) {
+      expect((await holen(konto, pfad)).status).toBe(403);
+    }
   });
 
   test("ein deaktiviertes Konto steht nicht in der Liste", async () => {
@@ -417,7 +461,7 @@ describe("Auswahllisten", () => {
       expect((await holen(konto, pfad)).status).toBe(403);
       expect((await holen(konto, "/api/v1/redaktion/tags")).status).toBe(403);
     }
-    expect((await holen(admin, "/api/v1/redaktion/personen")).status).toBe(400);
+    expect((await holen(admin, "/api/v1/redaktion/personen")).status).toBe(200);
     expect(
       (await holen(admin, "/api/v1/redaktion/personen?tag=kein-uuid")).status,
     ).toBe(400);
