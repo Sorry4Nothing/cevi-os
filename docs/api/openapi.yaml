@@ -1597,6 +1597,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/raeume-meine.js:
+    get:
+      operationId: getAdminRaeumeMeineSkript
+      summary: Skript der Verwaltung – Bereich Räume, Meine Anfragen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/kalenderhilfen.js:
     get:
       operationId: getAdminKalenderhilfenSkript
