@@ -767,7 +767,7 @@ function zeichne(bereich, ctx, profil) {
         el(
           "li",
           {},
-          el("a", { href: "/datenschutz" }, "Datenschutzerklärung"),
+          el("a", { href: "/datenschutz-website" }, "Datenschutzerklärung"),
           el(
             "span",
             { class: "leise" },

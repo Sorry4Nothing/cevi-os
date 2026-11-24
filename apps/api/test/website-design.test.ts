@@ -75,7 +75,7 @@ describe("Hülle", () => {
     expect(zaehle(html, "<h1")).toBe(1);
     expect(zaehle(html, "<main ")).toBe(1);
     expect(html).toContain('<footer class="fuss">');
-    expect(html).toContain('<a href="/datenschutz">Datenschutz</a>');
+    expect(html).toContain('<a href="/datenschutz-website">Datenschutz</a>');
   });
 
   test("Marke: «Cevi» steht im Logo, nicht zweimal", () => {

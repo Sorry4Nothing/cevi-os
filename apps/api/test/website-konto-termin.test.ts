@@ -457,7 +457,7 @@ describe("Mein Konto (#671)", () => {
       konto.kontoView(stand(profil({ datenschutzGelesenAm: null }))),
     );
     expect(offen).toContain("Zur Kenntnis genommen");
-    expect(offen).toContain('href="/datenschutz"');
+    expect(offen).toContain('href="/datenschutz-website"');
   });
 
   test("Karte nach dem Speichern: die geänderte Karte ist hervorgehoben", () => {
@@ -546,7 +546,7 @@ describe("Mein Konto (#671)", () => {
     expect(frage).toContain('data-aktion="alle-nein"');
     const hilfe = html(konto.hilfeKarte(stand(profil())));
     for (const ziel of [
-      "/datenschutz",
+      "/datenschutz-website",
       "/support",
       "/konto-loeschen",
       "/termine/",

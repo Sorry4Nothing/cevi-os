@@ -96,7 +96,7 @@ export type Kontakt = {
   adresse?: string;
   telefon?: string;
   email?: string;
-  // Adressen von Seiten des Baums; fehlt «datenschutz», führt der Link auf die Erklärung der Plattform
+  // Adressen von Seiten des Baums; fehlt «datenschutz», führt der Link auf «/datenschutz-website»
   impressum?: string;
   datenschutz?: string;
 };

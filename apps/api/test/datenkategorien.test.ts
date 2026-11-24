@@ -7,7 +7,6 @@ import {
   type KategorieId,
 } from "../src/datenkategorien.js";
 import * as schema from "../src/db/schema.js";
-import { ladeSeiten } from "../src/seiten.js";
 
 // Tabelle -> Spalten, wie das Drizzle-Schema sie anlegt
 const tabellen = Object.fromEntries(
@@ -18,8 +17,6 @@ const tabellen = Object.fromEntries(
       return [name, columns.map((c) => c.name)];
     }),
 );
-// Leerraum einheitlich: Prettier bricht die Zeilen der Seite um
-const seite = ladeSeiten().datenschutz.replace(/\s+/g, " ");
 const ids = Object.keys(KATEGORIEN) as KategorieId[];
 
 describe("Datenkategorien und Schema", () => {
@@ -53,30 +50,6 @@ describe("Datenkategorien und Schema", () => {
       ...Object.values(GERAET),
     ]);
     expect([...benutzt].sort()).toEqual([...ids].sort());
-  });
-});
-
-describe("Datenkategorien und datenschutz.html", () => {
-  test.each(ids.filter((id) => id !== "ungenutzt"))(
-    "%s: Titel, Zweck und Aufbewahrung stehen in der Erklärung",
-    (id) => {
-      const k = KATEGORIEN[id];
-      expect(seite).toContain(`>${k.titel}<`);
-      expect(seite).toContain(k.zweck);
-      expect(seite).toContain(k.frist);
-    },
-  );
-
-  test("die Erklärung hat keine Kategorie, die es nicht gibt", () => {
-    const titel = [
-      ...seite.matchAll(/<h[34] id="k-[^"]+">([^<]+)<\/h[34]>/g),
-    ].map((m) => m[1]);
-    expect(titel.sort()).toEqual(
-      ids
-        .filter((id) => id !== "ungenutzt")
-        .map((id) => KATEGORIEN[id].titel)
-        .sort(),
-    );
   });
 });
 

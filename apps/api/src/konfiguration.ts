@@ -88,7 +88,7 @@ const schema = z.object({
   WEBSITE_AUSGABE_PFAD: freiwillig(z.string().min(1)),
   WEBSITE_ABTEILUNG_ID: freiwillig(z.uuid()),
   WEBSITE_BASIS_URL: basisUrl(/^https?$/),
-  // Verantwortliche Stelle, ihre Anschrift und E-Mail-Adresse für /datenschutz, /konto-loeschen und /support; alle drei sind öffentlich, darum feste Vorgaben, die die Variablen überschreiben
+  // Verantwortliche Stelle, ihre Anschrift und E-Mail-Adresse für /konto-loeschen und /support; alle drei sind öffentlich, darum feste Vorgaben, die die Variablen überschreiben
   VERANTWORTLICHE_STELLE: mitVorgabe(
     z.string().trim().min(1).max(200),
     "Abteilungsleitung Cevi Stäfa-Hombi",
