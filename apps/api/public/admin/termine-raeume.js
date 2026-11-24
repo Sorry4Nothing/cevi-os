@@ -239,11 +239,14 @@ function zeichne(bereich, ctx, erste, neu) {
       raeume.push(...seite.raeume);
       weitere = seite.weitere;
       naechste = seite.naechste;
-      meldung.textContent = `${zaehlwort(seite.raeume.length, "weiterer Raum", "weitere Räume")} geladen.`;
+      ctx.melde(
+        `${zaehlwort(seite.raeume.length, "weiterer Raum", "weitere Räume")} geladen.`,
+      );
       zeichneListe();
     } catch (f) {
-      meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
+      ctx.melde(`${fehlertext(f)} Versuche es nochmals.`, "fehler");
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
     }

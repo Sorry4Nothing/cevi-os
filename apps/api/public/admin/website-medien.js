@@ -183,13 +183,11 @@ function zeichne(bereich, ctx, erste) {
   const raster = el("ul", { class: "medien", "aria-label": "Medien" });
   const weiterText = el("p", { class: "klein leise", role: "status" });
   const leer = el("div", { hidden: true });
-  const meldungsplatz = el("div", {});
   const auswahlPlatz = el("div", { class: "ws-auswahlplatz" });
   const mehr = knopf("Weitere Bilder laden", {
     klein: true,
     onclick: () => {
       nachladeFehler = false;
-      meldungsplatz.replaceChildren();
       ladeWeitere();
     },
   });
@@ -465,7 +463,6 @@ function zeichne(bereich, ctx, erste) {
     weitere = daten.weitere;
     nachladeFehler = false;
     stand = new Date();
-    meldungsplatz.replaceChildren();
     zeigeZustand();
     beobachte();
   }
@@ -476,22 +473,14 @@ function zeichne(bereich, ctx, erste) {
     return anfrage("GET", `${API}?${q}`);
   };
 
-  // Fehler beim Nachladen oder Suchen: sichtbar, mit «Nochmals versuchen»; das Raster bleibt, wie es ist
+  // Fehler beim Nachladen oder Suchen: Toast mit «Nochmals versuchen»; das Raster bleibt, wie es ist
   function zeigeFehler(f, nochmalsFn) {
-    meldungsplatz.replaceChildren(
-      band(
-        "warn",
-        f?.status === 0
-          ? `Keine Verbindung. Die Liste zeigt den Stand von ${uhrzeit.format(stand)}. Hochladen geht wieder, sobald du online bist.`
-          : fehlertext(f),
-        knopf("Nochmals versuchen", {
-          klein: true,
-          onclick: () => {
-            meldungsplatz.replaceChildren();
-            nochmalsFn();
-          },
-        }),
-      ),
+    ctx.melde(
+      f?.status === 0
+        ? `Keine Verbindung. Die Liste zeigt den Stand von ${uhrzeit.format(stand)}. Hochladen geht wieder, sobald du online bist.`
+        : fehlertext(f),
+      f?.status === 0 ? "warn" : "fehler",
+      { text: "Nochmals versuchen", onclick: nochmalsFn },
     );
   }
 
@@ -499,7 +488,6 @@ function zeichne(bereich, ctx, erste) {
     if (!raster.isConnected) return;
     const mein = ++lauf;
     frage = leiste.stand().suche;
-    meldungsplatz.replaceChildren();
     raster.setAttribute("aria-busy", "true");
     // Karten, die noch laden, statt einer leeren oder alten Liste
     raster.hidden = false;
@@ -1163,7 +1151,6 @@ function zeichne(bereich, ctx, erste) {
   zeigeZustand();
   bereich.append(
     werkzeuge,
-    meldungsplatz,
     leer,
     raster,
     el("div", { class: "ws-medienfuss" }, weiterText, mehr),

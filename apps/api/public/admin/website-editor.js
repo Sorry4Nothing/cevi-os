@@ -43,6 +43,7 @@ import {
   medienIds,
   typName,
 } from "./website-felder.js";
+import { ladePersonen, ladeTeam } from "./website-personenwahl.js";
 import { siehtAlles } from "./sicht.js";
 import { sichtbarkeitBlatt } from "./website-sichtbarkeit.js";
 import { mitSymbol, symbol } from "./website-symbole.js";
@@ -176,6 +177,8 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     personNamen: new Map(),
     // Die Leitenden zur Auswahl, einmal je Editor geladen (website-felder.js)
     personen: { laden: null, liste: null },
+    // Wer in einem Leitungsteam erscheint, je Gruppe einmal geladen (website-personenwahl.js); die Zeile in der Liste zeigt die Zahl
+    teams: { laden: new Map(), stand: new Map() },
     medien: new Map(),
     kannAlt: ctx.zugang.darf("medien.verwalten"),
     dok: gepuffert ? gepuffert.dok : (entwurf.dokument ?? leer()),
@@ -286,8 +289,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     eingabe.focus();
     eingabe.select();
   }
-
-  const ansage = el("p", { class: "nur-leser", role: "status" });
 
   // --- Stand: Zeichen im Kopf, Speicherstand unter dem Titel, Knöpfe oben
   const speichernKnopf = knopf("Speichern", { klein: true });
@@ -848,7 +849,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
           k.aenderung();
           zeichneListe();
           titelbild.querySelector("button")?.focus();
-          ansage.textContent = "Das Titelbild ist gesetzt.";
+          ctx.melde("Das Titelbild ist gesetzt.");
         }),
     });
     titelbild.replaceChildren(
@@ -962,7 +963,9 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
     k.dok.bausteine.splice(i + 1, 0, neu);
     k.aenderung();
     zeichneListe({ id: neu.id, was: "bearbeiten" });
-    ansage.textContent = `«${name(b)}» ist dupliziert. Die Kopie steht an Position ${i + 2}.`;
+    ctx.melde(
+      `«${name(b)}» ist dupliziert. Die Kopie steht an Position ${i + 2}.`,
+    );
   }
 
   // Mit «Rückgängig» (Toast, Strg+Z): Der Baustein verschwindet sofort aus dem Entwurf; zurückgeholt kommt er an dieselbe Stelle.
@@ -1082,7 +1085,6 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   kopfAktionen();
 
   wurzel.append(
-    ansage,
     konfliktPlatz,
     fehlerPlatz,
     el(
@@ -1112,6 +1114,24 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
       },
       () => {},
     );
+  }
+
+  // Die Zeilen nennen, was erscheint: Namen der gewählten Personen und Grösse der Leitungsteams. Je ein Abruf, nur wenn die Seite solche Bausteine hat; danach einmal neu zeichnen
+  const brauchtPersonen = k.dok.bausteine.some((b) =>
+    ["personen", "kontaktperson", "kontaktkarte"].includes(b.typ),
+  );
+  const teamIds = new Set(
+    k.dok.bausteine
+      .filter((b) => b.typ === "leitungsteam" && b.daten.tagId)
+      .map((b) => b.daten.tagId),
+  );
+  if (brauchtPersonen || teamIds.size > 0) {
+    Promise.allSettled([
+      ...(brauchtPersonen ? [ladePersonen(k)] : []),
+      ...[...teamIds].map((id) => ladeTeam(k, id)),
+    ]).then(() => {
+      if (wurzel.isConnected) zeichneListe();
+    });
   }
 
   // Strg+S oder Cmd+S speichert, solange der Editor sichtbar ist

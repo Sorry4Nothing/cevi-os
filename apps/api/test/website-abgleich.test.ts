@@ -1416,4 +1416,22 @@ describe("Personen mit Profilbild nach Rolle (#560, #610)", () => {
       '<span class="name">Flink</span><span class="funktion">Co-Leitung</span>',
     );
   });
+
+  test("Leitungsteam einer Stufe ohne Leitende bleibt leer und zeigt nicht die Mitglieder ohne Stufenrolle (#760)", async () => {
+    const stufe = await tagNeu("stufe", "Biber");
+    const ohne = await person("Clara Geheim", { ceviName: "Nebel" });
+    await rolle(ohne, stufe, null);
+    await seite({
+      adresse: "team",
+      inhalt: dok("Team", {
+        id: randomUUID(),
+        typ: "leitungsteam",
+        daten: { tagId: stufe },
+      }),
+    });
+    await lauf();
+    const html = await lies("team/index.html");
+    expect(html).not.toContain("Nebel");
+    expect(html).not.toContain('class="team"');
+  });
 });

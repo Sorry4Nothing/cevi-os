@@ -2,6 +2,7 @@
 
 import { fehlertext as standardFehlertext } from "./api.js";
 import { oeffneFluss } from "./fluss.js";
+import { melde } from "./melden.js";
 
 let zaehler = 0;
 export const neueId = (vorsatz) => `${vorsatz}-${++zaehler}`;
@@ -791,16 +792,17 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
   const titelId = neueId("titel");
   // Ein Absatz statt <output>: Das hätte die Rolle «status» und sagte das Passwort ungefragt an
   const anzeige = el("p", { class: "geheimnis" }, wert);
-  const rueck = el("p", { class: "hilfe", role: "status" });
   const kopieren = knopf("Kopieren", {
     symbol: "kopieren",
     onclick: async () => {
       try {
         await navigator.clipboard.writeText(wert);
-        rueck.textContent = "Kopiert.";
+        melde("Kopiert.");
       } catch {
-        rueck.textContent =
-          "Kopieren ist nicht möglich. Markiere das Passwort von Hand.";
+        melde(
+          "Kopieren ist nicht möglich. Markiere das Passwort von Hand.",
+          "fehler",
+        );
       }
     },
   });
@@ -820,7 +822,6 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
     el("h2", { id: titelId, tabindex: "-1" }, titel),
     el("p", { class: "beschreibung" }, beschreibung),
     anzeige,
-    rueck,
     el("div", { class: "dialog-knoepfe" }, kopieren, schliessen),
   );
   dialog.close = () => {
@@ -842,4 +843,27 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
   }).observe(ort.parentNode, { childList: true });
   dialog.scrollIntoView({ block: "nearest" });
   kopieren.focus();
+}
+
+// Relative Zeit in der passenden Einheit: «gerade eben», «vor 5 Minuten», «vor 3 Stunden», «gestern», «vor 4 Tagen», «vor 2 Wochen», «vor 3 Monaten», «vor 2 Jahren».
+// Die Einheit wächst mit dem Abstand, darum gibt es nie «vor 1000 Stunden». Das genaue Datum gehört in den Titel des Elements.
+const RELATIV_ZEIT = new Intl.RelativeTimeFormat("de-CH", { numeric: "auto" });
+const EINHEITEN = [
+  ["year", 345 * 86400],
+  ["month", 30 * 86400],
+  ["week", 7 * 86400],
+  ["day", 86400],
+  ["hour", 3600],
+  ["minute", 60],
+];
+export function vorZeit(iso, jetzt = Date.now()) {
+  const sekunden = Math.round((new Date(iso).getTime() - jetzt) / 1000);
+  const abs = Math.abs(sekunden);
+  if (abs < 60) return "gerade eben";
+  for (const [einheit, laenge] of EINHEITEN) {
+    if (abs >= laenge) {
+      return RELATIV_ZEIT.format(Math.round(sekunden / laenge), einheit);
+    }
+  }
+  return "gerade eben";
 }

@@ -83,7 +83,6 @@ export function zeige(bereich, ctx) {
     "aria-label": "Gesetzte Filter",
   });
   const treffer = el("p", { class: "klein leise", role: "status" });
-  const fehlerFeld = el("p", { class: "meta fehlerzeile", role: "status" });
   const listeFeld = el("div", { class: "pl-listenfeld" });
   const mehrFeld = el("div", { class: "pl-mehr" });
   const stand = el("p", { class: "meta stand" });
@@ -481,9 +480,8 @@ export function zeige(bereich, ctx) {
       eintraege = [...eintraege, ...d.eintraege];
       naechste = d.naechste;
       zeichneListe();
-      fehlerFeld.textContent = "";
     } catch (f) {
-      fehlerFeld.textContent = `Mehr laden nicht möglich: ${fehlertext(f)}`;
+      ctx.melde(`Mehr laden nicht möglich: ${fehlertext(f)}`, "fehler");
       zeichneListe();
     }
   }
@@ -500,7 +498,7 @@ export function zeige(bereich, ctx) {
         nurVerlauf ? null : holeListe(),
         holeVerlauf(),
       ]);
-      if (meine !== lauf) return;
+      if (meine !== lauf) return false;
       if (d) {
         eintraege = d.eintraege;
         naechste = d.naechste;
@@ -511,10 +509,11 @@ export function zeige(bereich, ctx) {
       zeichneListe();
       if (!nurVerlauf) baueBereichWahl();
       stand.textContent = standText();
-      fehlerFeld.textContent = "";
+      return true;
     } catch (f) {
-      if (meine !== lauf) return;
-      fehlerFeld.textContent = `Aktualisieren nicht möglich: ${fehlertext(f)}`;
+      if (meine !== lauf) return false;
+      ctx.melde(`Aktualisieren nicht möglich: ${fehlertext(f)}`, "fehler");
+      return false;
     } finally {
       if (meine === lauf) listeFeld.removeAttribute("aria-busy");
     }
@@ -523,7 +522,7 @@ export function zeige(bereich, ctx) {
   // ---- CSV ----
   const exportFeld = el("div", { class: "pl-export" });
   let blobUrl = null;
-  function zeichneExport(zustand = "bereit", info = "") {
+  function zeichneExport(zustand = "bereit") {
     const knoten = [];
     if (zustand === "fertig") {
       knoten.push(
@@ -554,9 +553,8 @@ export function zeige(bereich, ctx) {
     knoten.push(
       el(
         "p",
-        { class: "klein leise", role: "status" },
-        info ||
-          "Nur der gefilterte Ausschnitt, höchstens 5000 Einträge, ohne Namen von Personen und Herkunft. Der Export steht im Audit-Log.",
+        { class: "klein leise" },
+        "Nur der gefilterte Ausschnitt, höchstens 5000 Einträge, ohne Namen von Personen und Herkunft. Der Export steht im Audit-Log.",
       ),
     );
     exportFeld.replaceChildren(...knoten);
@@ -584,11 +582,13 @@ export function zeige(bereich, ctx) {
       }
       const blob = await antwort.blob();
       blobUrl = window.URL.createObjectURL(blob);
-      zeichneExport("fertig", "Der Export ist bereit.");
+      zeichneExport("fertig");
+      ctx.melde("Der Export ist bereit.");
     } catch (f) {
-      zeichneExport(
-        "bereit",
+      zeichneExport("bereit");
+      ctx.melde(
         `Export nicht möglich: ${fehlertext(f instanceof ApiFehler ? f : new ApiFehler(0, "NETZ"))}`,
+        "fehler",
       );
     }
   }
@@ -600,7 +600,7 @@ export function zeige(bereich, ctx) {
     { class: "pl-seite" },
     el("div", { class: "pl-reiter" }, reiterWahl.wurzel),
     erklaerung,
-    el("div", { class: "stand-zeile" }, stand, fehlerFeld),
+    el("div", { class: "stand-zeile" }, stand),
     kacheln,
     el(
       "section",
@@ -642,8 +642,7 @@ export function zeige(bereich, ctx) {
     knopf("Aktualisieren", {
       symbol: "aktualisieren",
       onclick: async () => {
-        await neuLaden();
-        if (!fehlerFeld.textContent) ctx.melde("Protokoll aktualisiert.");
+        if (await neuLaden()) ctx.melde("Protokoll aktualisiert.");
       },
     }),
   );

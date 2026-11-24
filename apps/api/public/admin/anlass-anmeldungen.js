@@ -238,14 +238,16 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
       zeichneFilter();
       exportZeile.aktualisiere();
       zeichneListe();
-      meldung.textContent = neu
-        ? ""
-        : `${zaehlwort(a.eintraege.length, "weitere Anmeldung", "weitere Anmeldungen")} geladen.`;
+      if (!neu) {
+        ctx.melde(
+          `${zaehlwort(a.eintraege.length, "weitere Anmeldung", "weitere Anmeldungen")} geladen.`,
+        );
+      }
       // Der Filter wurde neu gebaut: Der gedrückte Knopf bekommt den Fokus zurück
       if (vonFilter)
         filterHalter.querySelector('[aria-pressed="true"]')?.focus();
     } catch (f) {
-      meldung.textContent = `${fehlertext(f)} Versuche es nochmals.`;
+      ctx.melde(`${fehlertext(f)} Versuche es nochmals.`, "fehler");
       // Die Tabelle zeigt noch den alten Stand: Der Filter bleibt auch dort
       if (neu) {
         status = alt;
@@ -254,6 +256,7 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
           filterHalter.querySelector('[aria-pressed="true"]')?.focus();
       }
     } finally {
+      meldung.textContent = "";
       mehr.disabled = false;
       mehr.removeAttribute("aria-busy");
       liste.removeAttribute("aria-busy");

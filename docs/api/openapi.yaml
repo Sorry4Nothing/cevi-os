@@ -2590,6 +2590,36 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/website-personenwahl.js:
+    get:
+      operationId: getAdminWebsitePersonenwahlSkript
+      summary: Skript der Verwaltung – Bereich Website, Personenwahl mit Foto und Leitungsteam
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/melden.js:
+    get:
+      operationId: getAdminMeldenSkript
+      summary: Skript der Verwaltung – Rückmeldungen als Toast (für Dateien ohne ctx)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/website-sichtbarkeit.js:
     get:
       operationId: getAdminWebsiteSichtbarkeitSkript
@@ -9895,7 +9925,7 @@ paths:
       operationId: listeRedaktionPersonen
       summary: Leitende für die Auswahl im Editor
       description: |
-        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: nur Personen, die auf der Website erscheinen dürfen (aktives Konto und eine Rolle mit Aussenwirkung, `aufWebsite` ist immer `true`). Kinder und Personen ohne solche Rolle stehen nie in der Antwort. Je Person Id, Anzeigename (Cevi-Name, sonst der Vorname), Funktion (die Rolle am Tag), Gruppenname und Gruppen-ID. Nie Telefon, E-Mail, Benutzername oder die Rollen des Kontos.
+        Auswahlliste für Abteilungsleitung, Stufenleitung und Personen mit einem Recht auf Seiten: nur Personen, die auf der Website erscheinen dürfen (aktives Konto und eine Rolle mit Aussenwirkung, `aufWebsite` ist immer `true`). Kinder und Personen ohne solche Rolle stehen nie in der Antwort. Je Person Id, Anzeigename (Cevi-Name, sonst der Vorname), Funktion (die Rolle am Tag), Gruppenname, Gruppen-ID und `bildUrl` (der Pfad des Profilbilds über `GET /api/v1/redaktion/personen/{id}/bild`, `null` ohne Bild; die Auswahl lädt das Bild einzeln und erst, wenn die Zeile sichtbar wird). Nie Telefon, E-Mail, Benutzername oder die Rollen des Kontos.
 
         Ohne `tag`: alle Leitenden der Abteilung (Leitung oder Stufenleitung in einer Stufe, eine Zeile je Rolle), nach Gruppe und Anzeigename sortiert. Mit `tag`: die Personen dieser Gruppe, nach der Reihenfolge in der Gruppe, dann nach Name.
 
@@ -9920,6 +9950,89 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RedaktionPersonenListe"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/personen/{id}/bild:
+    get:
+      operationId: leseRedaktionPersonBild
+      summary: Profilbild einer Person für die Auswahl im Editor
+      description: |
+        Das Profilbild (JPEG) einer Person für die Personenwahl im Seiten-Editor. Nur für Personen, die auf der Website erscheinen dürfen (aktives Konto und eine Rolle mit Aussenwirkung); ihr Bild ist dort ohnehin öffentlich. Für alle anderen (Kinder, Eltern, Personen ohne Bild, unbekannte Personen, andere Abteilungen) antwortet die Route gleich mit 404. Zugang wie die übrigen Routen der Redaktion. Die Antwort trägt `Cache-Control: private, no-store` und `X-Content-Type-Options: nosniff`.
+
+        Reihenfolge der Prüfungen: Zugang (403), Pfad (400), Person und Bild (404).
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID der Person.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Bild.
+          headers:
+            Cache-Control:
+              description: Immer `private, no-store`.
+              schema:
+                type: string
+                const: private, no-store
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/redaktion/leitungsteam:
+    get:
+      operationId: leseRedaktionLeitungsteam
+      summary: Wer beim Baustein «Leitungsteam» erscheint
+      description: |
+        Die Personen, die die Website bei einem Baustein `leitungsteam` mit dieser Gruppe zeigt, in derselben Reihenfolge und aus demselben Code wie der Abgleich der Website. Eine Stufe (`stufe: true`) zeigt Leitung und Stufenleitung mit der Funktion «Leitung» oder «Stufenleitung», die Stufenleitung zuerst, dann nach der Reihenfolge der Kontakte und dem Namen, mit `bildUrl`. Jedes andere Team (`stufe: false`) zeigt seine Mitglieder mit Cevi-Name und der Rolle als Text, ohne Bild (`bildUrl` ist `null`). Die Gruppe eines Anlasses erscheint nie (leere Liste). Eine Stufe ohne Leitende hat eine leere Liste: Der Baustein bleibt leer. Höchstens 200 Personen. Nie Telefon, E-Mail oder Benutzername.
+
+        Reihenfolge der Prüfungen: Zugang (403), Query (400), Tag in der eigenen Abteilung (404, auch für Tags anderer Abteilungen).
+
+        Statuscodes: 200, 400, 401, 403, 404, 426.
+      tags:
+        - Redaktion
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: tag
+          in: query
+          required: true
+          description: Die Gruppe (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gruppenname und die Personen in der Reihenfolge der Website.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RedaktionLeitungsteam"
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "401":
@@ -40736,6 +40849,7 @@ components:
         - aufWebsite
         - gruppe
         - tagId
+        - bildUrl
       properties:
         id:
           type: string
@@ -40758,6 +40872,51 @@ components:
           type: string
           format: uuid
           description: Die Gruppe (Tag), zu der diese Zeile gehört. Eine Person mit Rollen in mehreren Gruppen steht mehrfach.
+        bildUrl:
+          type:
+            - string
+            - "null"
+          description: Pfad des Profilbilds (`GET /api/v1/redaktion/personen/{id}/bild?v=…`, `v` ändert sich mit jedem neuen Bild); `null` ohne Bild, dann zeigt die Auswahl Initialen.
+    RedaktionLeitungsteam:
+      type: object
+      required:
+        - gruppe
+        - stufe
+        - personen
+      properties:
+        gruppe:
+          type: string
+          description: Name der Gruppe.
+        stufe:
+          type: boolean
+          description: "`true`, wenn die Gruppe eine Stufe ist (Leitung und Stufenleitung mit Bild); sonst die einfache Liste der Mitglieder."
+        personen:
+          type: array
+          description: In der Reihenfolge, in der die Website sie zeigt.
+          items:
+            type: object
+            required:
+              - id
+              - anzeigename
+              - funktion
+              - bildUrl
+            properties:
+              id:
+                type: string
+                format: uuid
+              anzeigename:
+                type: string
+                description: Der Cevi-Name (bei einer Stufe sonst der Vorname).
+              funktion:
+                type:
+                  - string
+                  - "null"
+                description: Bei einer Stufe «Stufenleitung» oder «Leitung», sonst die Rolle als Text; `null` ohne Rolle.
+              bildUrl:
+                type:
+                  - string
+                  - "null"
+                description: Pfad des Profilbilds; nur bei einer Stufe und nur, wenn die Person eines hat.
     RedaktionPersonenListe:
       type: object
       required:

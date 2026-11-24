@@ -1,6 +1,6 @@
 // Rahmen der Verwaltung nach dem Design (A1, G4): Logozeile mit Konto, blaue Bereichsleiste, darunter die Unterleiste des aktiven Bereichs mit Zählern; dazu die Rückmeldungen.
 import { adresseVon } from "./navigation.js";
-import { avatar, el, icon, knopf, leere } from "./dom.js";
+import { avatar, el, icon, leere } from "./dom.js";
 
 // Marke im Kopf wie auf der Website (#578): das Logo der Abteilung (hell und, falls gesetzt, dunkel) oder die Wortmarke «CEVI» mit dem Namen.
 // Name und Logo kommen aus den Einstellungen der Website (GET /api/v1/redaktion/website) und stehen nie im Code; ohne sie (kein Recht auf die Einstellungen, nichts gesetzt) bleibt die Wortmarke «CEVI» allein.
@@ -148,7 +148,6 @@ export function setzeKontoBild(bildUrl) {
 
 // Das Menü ist ein details-Element (Offenlegungsmuster, wie auf der Website): Tab geht durch die Einträge, Pfeile ebenso, Esc schliesst und gibt den Fokus an den Knopf zurück, ein Klick daneben und das Verlassen mit Tab schliessen
 function erstelleKontoMenue({ konto, beiAbmelden }) {
-  const meldung = el("p", { class: "konto-meldung", role: "status" });
   const abmelden = el(
     "button",
     { type: "button" },
@@ -159,7 +158,6 @@ function erstelleKontoMenue({ konto, beiAbmelden }) {
     if (abmelden.getAttribute("aria-disabled") === "true") return;
     abmelden.setAttribute("aria-disabled", "true");
     abmelden.setAttribute("aria-busy", "true");
-    meldung.textContent = "";
     try {
       await beiAbmelden();
     } finally {
@@ -217,7 +215,6 @@ function erstelleKontoMenue({ konto, beiAbmelden }) {
         ),
         el("li", {}, abmelden),
       ),
-      meldung,
     ),
   );
   const zu = (fokusZurueck) => {
@@ -570,97 +567,23 @@ export function seitenkopf({ titel, untertitel }) {
   return { wurzel, h1, unter, aktion };
 }
 
-// Rückmeldungen: eine Live-Region, in die Hinweise gestapelt werden. Jede hat «Hinweis schliessen».
-// art: «ok», «info», «warn» oder «fehler» (Alert); aktion: { text, onclick } für «Beheben», «Nochmals versuchen» u. ä.
-// Erfolg und Info ohne Aktion gehen nach BLEIBT_MS von selbst (#570, Entscheid des Nutzers); Zeigen und Fokus halten die Zeit an, danach beginnt sie neu.
-// Warnungen, Fehler und alles mit einer Aktion bleiben, bis die Person sie schliesst: Dort gibt es etwas zu lesen oder zu entscheiden
-export const BLEIBT_MS = 6000;
-// So lange blendet die Meldung aus (geruest.css, nur bei erlaubter Bewegung sichtbar)
-const AUSBLENDEN_MS = 300;
-export const vergehtVonSelbst = (art, aktion) =>
-  (art === "ok" || art === "info") && !aktion;
+// Rückmeldungen nach einer Aktion sind Toasts (#761): eine feste Stelle, überall gleich, sie gehen von selbst (erstelleToasts unten).
+// art: «ok», «info», «warn» oder «fehler»; aktion: { text, onclick } für «Beheben», «Nochmals versuchen» u. ä.
+// Erfolg und Info bleiben 4 Sekunden, Warnung und Fehler 8 Sekunden (länger zum Lesen); Zeiger und Fokus halten die Zeit an (WCAG 2.2.1).
+// Mit einer Aktion bleibt die Meldung, bis man sie schliesst: Dort gibt es etwas zu entscheiden
+export const OK_MS = 4000;
+export const FEHLER_MS = 8000;
+// So viele Rückmeldungen sind höchstens zugleich sichtbar; die älteste geht zuerst (die Statusregion hat sie schon angesagt)
+export const TOAST_MAX = 3;
+// So lange blendet der Toast aus (toast.css, nur bei erlaubter Bewegung sichtbar)
+const AUSBLENDEN_MS = 200;
+// Wie lange die Meldung steht; 0 = bis man sie schliesst
+export const dauerVon = (art, aktion) =>
+  aktion ? 0 : art === "fehler" || art === "warn" ? FEHLER_MS : OK_MS;
 
-// Blendet einen Hinweis nach BLEIBT_MS aus und entfernt ihn. Zeiger oder Fokus darauf halten die Zeit an; nach dem Verlassen beginnt sie neu.
-// Die Statusregion hat den Text schon beim Einfügen vorgelesen, das Entfernen sagt nichts an. Mit «Bewegung reduzieren» verschwindet der Hinweis ohne Übergang
-function vergehe(hinweis) {
-  hinweis.dataset.vergeht = "";
-  let warte;
-  let weg;
-  let zeiger = false;
-  let fokus = false;
-  const halte = () => {
-    window.clearTimeout(warte);
-    window.clearTimeout(weg);
-    hinweis.classList.remove("hinweis--geht");
-  };
-  const starte = () => {
-    halte();
-    warte = window.setTimeout(() => {
-      const still = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
-      if (still) return hinweis.remove();
-      hinweis.classList.add("hinweis--geht");
-      weg = window.setTimeout(() => hinweis.remove(), AUSBLENDEN_MS);
-    }, BLEIBT_MS);
-  };
-  const pruefe = () => (zeiger || fokus ? halte() : starte());
-  hinweis.addEventListener("pointerenter", () => ((zeiger = true), pruefe()));
-  hinweis.addEventListener("pointerleave", () => ((zeiger = false), pruefe()));
-  hinweis.addEventListener("focusin", () => ((fokus = true), pruefe()));
-  hinweis.addEventListener("focusout", () => ((fokus = false), pruefe()));
-  starte();
-}
-export function erstelleRueckmeldungen() {
-  const wurzel = el("div", {
-    id: "rueckmeldung",
-    class: "rueckmeldung",
-    role: "status",
-  });
-  function melde(text, art = "ok", aktion) {
-    if (!text) {
-      leere(wurzel);
-      return;
-    }
-    // Gleicher Text: ersetzen statt stapeln
-    for (const alt of wurzel.querySelectorAll(".hinweis")) {
-      if (alt.dataset.text === text) alt.remove();
-    }
-    const hinweis = el(
-      "div",
-      {
-        class: `hinweis hinweis--${art}`,
-        role: art === "fehler" ? "alert" : undefined,
-        "data-text": text,
-      },
-      el("span", {}, text),
-      aktion &&
-        knopf(aktion.text, {
-          klein: true,
-          onclick: () => {
-            hinweis.remove();
-            aktion.onclick();
-          },
-        }),
-      el(
-        "button",
-        {
-          type: "button",
-          class: "knopf knopf--rund",
-          "aria-label": "Hinweis schliessen",
-          onclick: () => hinweis.remove(),
-        },
-        icon("schliessen"),
-      ),
-    );
-    wurzel.append(hinweis);
-    if (vergehtVonSelbst(art, aktion)) vergehe(hinweis);
-  }
-  return { wurzel, melde };
-}
-
-// Toasts mit «Rückgängig» (#578, Logik in rueckgaengig.js): unten links, gestapelt. Der Toast bekommt nie den Fokus. Erreichbar sind sie auf drei Wegen: «Rückgängig» ist ein Knopf im Seitenaufbau (die Region steht gleich nach dem Kopf, vor dem Inhalt),
+// Toasts (#578, #761): eine Region unten links, gestapelt. Sie trägt zwei Arten: Toasts mit «Rückgängig» (Logik in rueckgaengig.js) und die Rückmeldungen nach Aktionen (melde, ersetzt die Meldungen im Inhalt). Der Toast bekommt nie den Fokus. Erreichbar sind sie auf drei Wegen: «Rückgängig» ist ein Knopf im Seitenaufbau (die Region steht gleich nach dem Kopf, vor dem Inhalt),
 // Strg oder Cmd + Z nimmt die jüngste Aktion zurück (ausser in Eingabefeldern, dort gilt das Rückgängig des Feldes), F6 setzt den Fokus auf den ersten Knopf «Rückgängig». Die Statusregion sagt jede Aktion und die Möglichkeit zum Rückgängigmachen an.
+// Rückmeldungen: Statusregion (höflich) für Erfolg, Info und Warnung, Fehler sind role=alert (bestimmt, 4.1.3); Esc schliesst den Toast mit Fokus oder unter dem Zeiger.
 // steuerung: das Ergebnis von erstelleRueckgaengig (rueckgaengig.js)
 export function erstelleToasts(steuerung) {
   const liste = el("ul", { class: "toast-liste" });
@@ -674,13 +597,122 @@ export function erstelleToasts(steuerung) {
     {
       class: "toasts",
       role: "region",
-      "aria-label": "Rückgängig",
+      "aria-label": "Meldungen",
       tabindex: "-1",
     },
     status,
     liste,
   );
   const knoten = new Map();
+  const meldungen = [];
+  // Text für die Statusregion; leeren und neu setzen, damit auch ein gleicher Text wieder angesagt wird
+  function sage(text) {
+    status.textContent = "";
+    window.setTimeout(() => (status.textContent = text), 50);
+  }
+  const aktualisiere = () => {
+    wurzel.hidden = knoten.size === 0 && meldungen.length === 0;
+  };
+
+  // Rückmeldung nach einer Aktion: erscheint hier statt im Inhalt, geht von selbst (dauerVon), Zeiger und Fokus halten die Zeit an
+  function melde(text, art = "ok", aktion) {
+    if (!text) {
+      for (const m of [...meldungen]) m.entferne();
+      return;
+    }
+    if (!wurzel.isConnected) return;
+    // Gleicher Text: ersetzen statt stapeln
+    for (const alt of meldungen.filter((m) => m.text === text)) alt.entferne();
+    const dauer = dauerVon(art, aktion);
+    const zu = el(
+      "button",
+      {
+        type: "button",
+        class: "knopf knopf--rund",
+        "aria-label": "Hinweis schliessen",
+        onclick: () => m.schliesse(),
+      },
+      icon("schliessen"),
+    );
+    const li = el(
+      "li",
+      {
+        class: `toast toast--${art}`,
+        // Fehler sagt die Region sofort an (bestimmt), alles andere höflich über die Statusregion
+        role: art === "fehler" ? "alert" : undefined,
+      },
+      el("span", { class: "toast-text" }, text),
+      aktion &&
+        el(
+          "button",
+          {
+            type: "button",
+            class: "toast-aktion",
+            onclick: () => {
+              m.entferne();
+              aktion.onclick();
+            },
+          },
+          aktion.text,
+        ),
+      zu,
+    );
+    let warte;
+    let weg;
+    let zeiger = false;
+    let fokus = false;
+    const halte = () => {
+      window.clearTimeout(warte);
+      window.clearTimeout(weg);
+      li.classList.remove("toast--geht");
+    };
+    const starte = () => {
+      halte();
+      if (!dauer) return;
+      warte = window.setTimeout(() => {
+        // Mit «Bewegung reduzieren» verschwindet der Toast ohne Übergang
+        const still = window.matchMedia(
+          "(prefers-reduced-motion: reduce)",
+        ).matches;
+        if (still) return m.entferne();
+        li.classList.add("toast--geht");
+        weg = window.setTimeout(() => m.entferne(), AUSBLENDEN_MS);
+      }, dauer);
+    };
+    const pruefe = () => {
+      m.haelt = zeiger || fokus;
+      if (m.haelt) halte();
+      else starte();
+    };
+    const m = {
+      text,
+      li,
+      haelt: false,
+      entferne() {
+        halte();
+        li.remove();
+        const i = meldungen.indexOf(m);
+        if (i >= 0) meldungen.splice(i, 1);
+        aktualisiere();
+      },
+      // Der Fokus ging mit dem Knopf verloren: zum Titel der Seite statt ins Leere
+      schliesse() {
+        const hatteFokus = li.contains(document.activeElement);
+        m.entferne();
+        if (hatteFokus) document.querySelector("h1")?.focus();
+      },
+    };
+    li.addEventListener("pointerenter", () => ((zeiger = true), pruefe()));
+    li.addEventListener("pointerleave", () => ((zeiger = false), pruefe()));
+    li.addEventListener("focusin", () => ((fokus = true), pruefe()));
+    li.addEventListener("focusout", () => ((fokus = false), pruefe()));
+    meldungen.push(m);
+    while (meldungen.length > TOAST_MAX) meldungen[0].entferne();
+    liste.append(li);
+    aktualisiere();
+    starte();
+    if (art !== "fehler") sage(text);
+  }
 
   function baue(a) {
     let zeiger = false;
@@ -752,15 +784,28 @@ export function erstelleToasts(steuerung) {
       k.zu.disabled = a.phase === "laeuft";
       k.li.toggleAttribute("aria-busy", a.phase === "laeuft");
     }
-    wurzel.hidden = aktionen.length === 0;
+    aktualisiere();
   }
   wurzel.hidden = true;
 
   const tippt = (ziel) =>
     ziel?.closest?.("input, textarea, select, [contenteditable='true']");
   document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !e.defaultPrevented && !wurzel.hidden) {
+      // Esc schliesst den Toast, in dem der Fokus liegt, sonst den unter dem Zeiger
+      const m = meldungen.find(
+        (x) => x.li.contains(document.activeElement) || x.haelt,
+      );
+      if (m) {
+        e.preventDefault();
+        m.schliesse();
+      }
+      return;
+    }
     if (e.key === "F6" && !wurzel.hidden) {
-      const erster = wurzel.querySelector(".toast-aktion:not([hidden])");
+      const erster = wurzel.querySelector(
+        ".toast-aktion:not([hidden]), .toast .knopf--rund:not(:disabled)",
+      );
       if (erster) {
         e.preventDefault();
         erster.focus();
@@ -785,10 +830,7 @@ export function erstelleToasts(steuerung) {
   return {
     wurzel,
     zeichne,
-    // Text für die Statusregion; leeren und neu setzen, damit auch ein gleicher Text wieder angesagt wird
-    sage(text) {
-      status.textContent = "";
-      window.setTimeout(() => (status.textContent = text), 50);
-    },
+    melde,
+    sage,
   };
 }

@@ -279,14 +279,6 @@ main:focus {
   display: none;
 }
 
-/* Die Live-Region bleibt im Baum, auch wenn sie leer ist; leer nimmt sie keinen Platz */
-.rueckmeldung:empty {
-  height: 0;
-  margin-top: -24px;
-  padding: 0;
-  overflow: hidden;
-}
-
 #bereich {
   display: flex;
   flex-direction: column;

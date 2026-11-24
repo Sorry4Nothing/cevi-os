@@ -76,6 +76,8 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/website-felder-medien.js`         | Skript der Verwaltung – Bereich Website, Felder der Bilder und Medien                | **200** alle      |
 | `GET /admin/website-felder-text.js`           | Skript der Verwaltung – Bereich Website, Felder der Bausteine Text und Gestaltung    | **200** alle      |
 | `GET /admin/website-felder-dynamisch.js`      | Skript der Verwaltung – Bereich Website, Felder der Bausteine aus Cevi OS            | **200** alle      |
+| `GET /admin/website-personenwahl.js`          | Skript der Verwaltung – Bereich Website, Personenwahl mit Foto und Leitungsteam      | **200** alle      |
+| `GET /admin/melden.js`                        | Skript der Verwaltung – Rückmeldungen als Toast (Dateien ohne ctx)                   | **200** alle      |
 | `GET /admin/website-sichtbarkeit.js`          | Skript der Verwaltung – Bereich Website, Sichtbarkeit                                | **200** alle      |
 | `GET /admin/website-symbole.js`               | Skript der Verwaltung – Bereich Website, Symbole                                     | **200** alle      |
 | `GET /admin/website-veroeffentlichen.js`      | Skript der Verwaltung – Bereich Website, Veröffentlichen und Versionen               | **200** alle      |
@@ -298,6 +300,8 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /api/v1/redaktion/tags`                                   | Tags der Abteilung für die Auswahl im Editor         | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
 | `GET /api/v1/redaktion/baustein-auswahl`                       | Anlässe und Orte für die Bausteine aus Cevi OS       | **200** admin, slA, slB, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern                     |
 | `GET /api/v1/redaktion/personen`                               | Leitende für die Auswahl im Editor                   | **200** admin, slA, slB<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern<br>**404** demoAdmin           |
+| `GET /api/v1/redaktion/personen/:id/bild`                      | Profilbild einer Person für die Auswahl im Editor    | **401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern<br>**404** admin, slA, slB, demoAdmin                     |
+| `GET /api/v1/redaktion/leitungsteam`                           | Wer beim Baustein «Leitungsteam» erscheint           | **200** admin, slA, slB<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern<br>**404** demoAdmin           |
 
 ## App: plattform
 

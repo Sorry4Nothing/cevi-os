@@ -7,6 +7,7 @@ import { el, feld, icon, knopf, neueId } from "./dom.js";
 import { speicherLeiste } from "./kalenderhilfen.js";
 import { sk } from "./lader.js";
 import { feldFehler } from "./liste-hilfen.js";
+import { melde } from "./melden.js";
 import { rolleVon } from "./navigation.js";
 import { setzeKontoBild } from "./rahmen.js";
 import { zweiStufig } from "./rueckgaengig.js";
@@ -236,19 +237,16 @@ function abschnitt(titel, text, ...inhalt) {
   };
 }
 
-// Meldung im Abschnitt (Erfolg oder Fehler), nie nur Farbe: Symbol kommt aus dem CSS des Hinweises
+// Fehlerzusammenfassung des Formulars (bleibt offen), nie nur Farbe: Symbol kommt aus dem CSS des Hinweises. Erfolg kommt als Toast.
 function meldungsfeld() {
   const wurzel = el("div", { class: "kt-meldung" });
   return {
     wurzel,
-    zeige(art, text) {
+    zeige(text) {
       wurzel.replaceChildren(
         el(
           "p",
-          {
-            class: `hinweis hinweis--${art}`,
-            role: art === "fehler" ? "alert" : "status",
-          },
+          { class: "hinweis hinweis--fehler", role: "alert" },
           el("span", {}, text),
         ),
       );
@@ -894,8 +892,7 @@ function passwortBlock() {
       neu.eingabe.value = "";
       zeigen.checked = false;
       zeigen.dispatchEvent(new window.Event("change"));
-      meldung.zeige(
-        "ok",
+      melde(
         "Dein Passwort ist geändert. Auf allen anderen Geräten bist du abgemeldet.",
       );
     } catch (f) {
@@ -905,7 +902,7 @@ function passwortBlock() {
         feldFehler(ziel, bekannt[1]);
         ziel.eingabe.focus();
       } else {
-        meldung.zeige("fehler", fehlertext(f));
+        meldung.zeige(fehlertext(f));
       }
     } finally {
       senden.disabled = false;
@@ -960,7 +957,6 @@ function zweiterFaktorBlock(profil, beiStand) {
 
 // Überall abmelden: beendet alle Sitzungen, auch diese; eine Liste der Geräte gibt die API nicht her
 function sitzungenBlock(ctx) {
-  const meldung = meldungsfeld();
   const knopfEl = knopf("Auf allen Geräten abmelden", { symbol: "abmelden" });
   zweiStufig(knopfEl, {
     frage: "Wirklich überall abmelden?",
@@ -973,7 +969,7 @@ function sitzungenBlock(ctx) {
       } catch (f) {
         knopfEl.disabled = false;
         knopfEl.removeAttribute("aria-busy");
-        meldung.zeige("fehler", fehlertext(f));
+        ctx.melde(fehlertext(f), "fehler");
       }
     },
   });
@@ -987,6 +983,5 @@ function sitzungenBlock(ctx) {
       "Eine Sitzung bleibt bis zu 90 Tage gültig und verlängert sich mit der Nutzung. Mit dem Knopf beendest du alle, auch diese. Eine Liste der Geräte gibt es nicht.",
     ),
     el("div", { class: "kt-aktionen" }, knopfEl),
-    meldung.wurzel,
   );
 }

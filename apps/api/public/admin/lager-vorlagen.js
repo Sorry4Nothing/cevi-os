@@ -251,7 +251,7 @@ function editor(art, ctx, neu, start) {
     neuEingabe.value = "";
     zuletzt = null;
     zeigeRueck();
-    rueck.append(
+    ctx.melde(
       neue.length === 1
         ? "Eintrag hinzugefügt."
         : `${neue.length} Einträge hinzugefügt.`,

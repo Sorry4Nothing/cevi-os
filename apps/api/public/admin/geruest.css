@@ -335,16 +335,6 @@ a.bereichname:hover {
   opacity: 0.6;
 }
 
-.konto-meldung {
-  padding: 0.5rem 0.75rem 0.25rem;
-  color: var(--on-error-container);
-  font-size: 0.9375rem;
-}
-
-.konto-meldung:empty {
-  display: none;
-}
-
 @media (forced-colors: active) {
   .konto-tafel {
     border: 1px solid CanvasText;
@@ -1313,32 +1303,6 @@ a.bereichname:hover {
 .zustand-satz {
   font-size: 1.125rem;
   font-weight: 700;
-}
-
-/* Rückmeldungen: gestapelt, jede mit «Hinweis schliessen». Erfolg und Info gehen nach 6 Sekunden von selbst (rahmen.js), Warnung und Fehler bleiben */
-
-.rueckmeldung .hinweis--geht {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .rueckmeldung .hinweis--geht {
-    transition: opacity 0.3s ease-in;
-  }
-}
-
-.rueckmeldung {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.rueckmeldung .hinweis {
-  padding-right: 8px;
-}
-
-.rueckmeldung .hinweis > span {
-  flex: 1;
 }
 
 .hinweis--info {

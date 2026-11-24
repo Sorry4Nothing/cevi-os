@@ -280,6 +280,7 @@ export function personenBlock(
   const fehler = el("p", {
     class: "hinweis hinweis--fehler",
     role: "alert",
+    tabindex: "-1",
     hidden: true,
   });
   zuordnen.addEventListener("click", async () => {
@@ -308,12 +309,18 @@ export function personenBlock(
       );
       z.neu();
     } catch (f) {
-      fehler.textContent = `${ok > 0 ? `${personenText(ok)} sind zugeordnet. ` : ""}${text(f)}`;
-      fehler.hidden = false;
-      fehler.focus?.();
+      const satz = `${ok > 0 ? `${personenText(ok)} sind zugeordnet. ` : ""}${text(f)}`;
       zuordnen.disabled = false;
       zuordnen.removeAttribute("aria-busy");
-      if (ok > 0) z.neu();
+      // Nach Teilerfolg zeichnet z.neu() die Seite neu: Der Fehler stünde dann nirgends mehr
+      if (ok > 0) {
+        ctx.melde(satz, "fehler");
+        z.neu();
+      } else {
+        fehler.textContent = satz;
+        fehler.hidden = false;
+        fehler.focus?.();
+      }
     }
   });
   wurzel.append(
