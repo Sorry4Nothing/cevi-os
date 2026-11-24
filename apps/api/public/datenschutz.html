@@ -1879,6 +1879,48 @@
         </dl>
       </section>
 
+      <section class="kategorie" aria-labelledby="k-cevi-db">
+        <h4 id="k-cevi-db">Angaben aus der Cevi-Datenbank</h4>
+        <dl>
+          <dt>Daten</dt>
+          <dd>
+            Die Nummer deines Eintrags in der Cevi-Datenbank (bei dir oder
+            deinem Kind), bei einem Zusatzfeld der Anmeldung die Angabe, aus
+            welcher Angabe der Cevi-Datenbank es sich füllt, und je Abteilung
+            die Gruppe, der Zeitpunkt des letzten Abrufs, sein Ergebnis (ok oder
+            Fehler) und die Zahl der Personen. Die Angaben selbst (Geburtsdatum,
+            Telefon, Adresse, E-Mail) speichert Cevi OS nur, wenn du sie mit der
+            Anmeldung absendest. Zugangsdaten zur Cevi-Datenbank stehen nur in
+            der Umgebung des Servers.
+          </dd>
+          <dt>Zweck</dt>
+          <dd>
+            Die Anmeldung füllt Angaben vor, die du in der Cevi-Datenbank selbst
+            gemacht hast, damit du sie nicht noch einmal eintippst:
+            Geburtsdatum, Telefon, Adresse und E-Mail, aber nur die Angaben, die
+            der Anlass in der Anmeldung fragt. Der Server liest sie beim Öffnen
+            der Anmeldung mit dem Zugang der Abteilung, nur lesend, ordnet dich
+            nur bei einem eindeutigen Treffer zu und zeigt sie als Vorschlag,
+            den du ändern kannst. Gespeichert wird erst, was du mit der
+            Anmeldung absendest, dann wie jede andere Antwort.
+            Gesundheitsangaben holt Cevi OS nie. Was in der Cevi-Datenbank
+            fehlt, fragt die Anmeldung wie sonst. Zusätzlich merkt sich Cevi OS
+            die Nummer deines Eintrags in der Cevi-Datenbank, damit die nächste
+            Zuordnung eindeutig ist, und in den Einstellungen die Gruppe der
+            Abteilung und den Stand des letzten Abrufs (Zeitpunkt, Ergebnis und
+            Zahl der Personen).
+          </dd>
+          <dt>Aufbewahrung</dt>
+          <dd>
+            Die Personen aus der Cevi-Datenbank liegen höchstens 15 Minuten im
+            Arbeitsspeicher des Servers und nie in der Datenbank. Die Nummer
+            bleibt, bis das Konto oder das Kind gelöscht wird. Die übernommenen
+            Angaben löscht der Server mit der Anmeldung. Auf Anfrage löscht die
+            Leitung Daten.
+          </dd>
+        </dl>
+      </section>
+
       <h3 id="os-herkunft">11.3 Woher die Daten stammen</h3>
       <ul>
         <li>
@@ -1886,6 +1928,12 @@
           Leitung trägt sie ein. Die Kinder selbst geben nichts ein; ein Kind
           mit eigenem Konto kann nur die Programme seiner Stufe beantworten und,
           wenn die Abteilung es erlaubt, im Gruppenchat schreiben.
+        </li>
+        <li>
+          Angaben wie Geburtsdatum, Telefon, Adresse und E-Mail können aus der
+          Cevi-Datenbank stammen, wo du sie selbst angegeben hast. Die Anmeldung
+          füllt sie nur vor, wenn der Anlass sie fragt, und du kannst sie vor
+          dem Absenden ändern oder löschen.
         </li>
         <li>
           Die Konten legt die Leitung an. Name und Benutzername stammen von ihr,
@@ -1994,6 +2042,13 @@
         <li>
           Microsoft liefert den Kalender der Abteilung (Outlook). Cevi OS liest
           daraus die Programme und schickt nichts über Personen dorthin.
+        </li>
+        <li>
+          Für die Vorbefüllung der Anmeldung liest der Server mit dem Zugang der
+          Abteilung die Personen der eigenen Ebene aus der Cevi-Datenbank, nur
+          lesend, und hält sie höchstens 15 Minuten im Arbeitsspeicher. Die
+          Cevi-Datenbank erfährt nur die IP-Adresse des Servers und den Zugang
+          der Abteilung, nie, wer sich anmeldet oder wofür.
         </li>
         <li>
           Für das Wetter im Lager holt der Server die Vorhersage beim Dienst

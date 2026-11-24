@@ -839,6 +839,13 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "vergeben",
     gruppe: "zugeordnet",
   },
+  "POST /api/v1/admin/cevi-db/pruefen": {
+    titel: "Verbindung zur Cevi-Datenbank prüfen",
+    objekt: "Verbindung zur Cevi-Datenbank",
+    aktion: "geprüft",
+    gruppe: "status",
+    nicht: "pruefung",
+  },
   "POST /api/v1/admin/import": {
     titel: "Kinder und Leitende importieren",
     objekt: "Kinder und Leitende",
@@ -1490,6 +1497,12 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     titel: "Zusatzfelder eines Anlasses ersetzen",
     objekt: "Zusatzfelder eines Anlasses",
     aktion: "ersetzt",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/cevi-db": {
+    titel: "Gruppe der Abteilung in der Cevi-Datenbank festlegen",
+    objekt: "Gruppe der Abteilung in der Cevi-Datenbank",
+    aktion: "festgelegt",
     gruppe: "geaendert",
   },
   "PUT /api/v1/admin/kategorie-zuordnungen": {

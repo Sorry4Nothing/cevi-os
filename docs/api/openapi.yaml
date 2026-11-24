@@ -24761,6 +24761,159 @@ paths:
             text/css:
               schema:
                 type: string
+  # termine-pfade: cevi-db (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+  /api/v1/cevi-db/vorschlag:
+    get:
+      operationId: leseCeviDbVorschlag
+      summary: Vorschlag aus der Cevi-Datenbank für eine Anmeldung
+      description: |
+        Die Anmeldung ruft diese Route einmal beim Öffnen auf und füllt damit freiwillige Angaben vor, die die Person in der Cevi-Datenbank selbst gemacht hat. Nur lesend; es wird nichts gespeichert, erst das Absenden der Anmeldung speichert, wie jede Antwort.
+
+        Wer den Anlass sehen darf (wie bei der Anmeldung), darf den Vorschlag für sich (`anmeldungFuer: person`, ohne `kindId`) oder für das eigene aktive Kind (`anmeldungFuer: kind`, mit `kindId`) abrufen; jedes andere Kind und jeder unsichtbare oder fremde Anlass ist 404. Es gibt keine Suche und nie eine Auskunft über Dritte.
+
+        Der Server liefert nur Werte für Textfelder des Anlasses, die `ceviQuelle` gesetzt haben, und nie für ein Feld, das in der gespeicherten Anmeldung schon beantwortet ist (der eigene Wert gewinnt). Zugeordnet wird nur bei genau einem eindeutigen Treffer: über die gemerkte Nummer, sonst über die E-Mail (beim Kind die der Eltern) plus Vorname, sonst über Vorname, Nachname und Geburtsdatum. Ein Name allein genügt nie. Bei keinem oder mehreren Treffern ist `status` `kein_treffer`, ohne Hinweis, was von beidem zutrifft und ohne Namen Dritter.
+
+        `status`: `aus` (die Verbindung ist nicht eingerichtet oder der Anlass fragt nichts aus der Cevi-Datenbank), `ok` (zugeordnet; `felder` kann trotzdem leer sein), `kein_treffer`, `nicht_erreichbar` (die Cevi-Datenbank antwortet nicht; die Anmeldung geht trotzdem). `felder` ist ein Objekt vom Schlüssel des Feldes auf `{ wert, quelle: "cevi-db" }`; das Geburtsdatum steht als `TT.MM.JJJJ`.
+
+        Ratenbegrenzung: höchstens 10 Abrufe je Konto und Minute (429). Der Server holt die Personen der eigenen Ebene höchstens alle 15 Minuten bei der Cevi-Datenbank (Zwischenspeicher im Arbeitsspeicher, Zeitlimit 5 Sekunden, keine Weiterleitung). Audit: `cevi_db_vorschlag` mit den Kennungen von Anlass, der Art (Kind oder Person), dem Ausgang und der Zahl der Felder, nie Werte.
+
+        Abfragen: Anlass mit Feldern (1), Kind und Eltern (2, nur bei `kind`) oder Konto (1), bestehende Anmeldung (1), Audit (1); der Abruf bei der Cevi-Datenbank ist der Zwischenspeicher oder höchstens ein Abruf je 15 Minuten.
+
+        Statuscodes: 200 bei Erfolg (auch bei `aus`, `kein_treffer` und `nicht_erreichbar`). 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 für einen unbekannten oder unsichtbaren Anlass und ein fremdes Kind. 429 bei zu vielen Abrufen.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: anlassId
+          in: query
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: kindId
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Der Vorschlag.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CeviDbVorschlag"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/cevi-db:
+    get:
+      operationId: leseAdminCeviDb
+      summary: Stand der Verbindung zur Cevi-Datenbank
+      description: |
+        Nur mit dem Recht `cevi_db.verwalten` (Abteilungsleitung oder eine Rolle mit dem Recht, jeweils mit zweitem Faktor). `verbunden` heisst nur, dass Adresse und Token in der Umgebung des Servers stehen (`CEVI_DB_URL`, `CEVI_DB_TOKEN`); beide gibt keine Route heraus. Dazu die eingestellte Gruppe und der Stand des letzten Abrufs (Zeitpunkt, Ausgang `ok` oder `fehler`, Zahl der Personen), nie ein Fehlertext der Gegenseite.
+
+        Statuscodes: 200 bei Erfolg. 403 ohne das Recht (und für die Abteilungsleitung ohne zweiten Faktor, Code `ZWEITER_FAKTOR_FEHLT`).
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Der Stand.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CeviDbStand"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+    put:
+      operationId: setzeAdminCeviDb
+      summary: Gruppe der Abteilung in der Cevi-Datenbank festlegen
+      description: |
+        Nur mit dem Recht `cevi_db.verwalten` (mit zweitem Faktor). Stellt die Nummer der Gruppe (Ebene) der Abteilung ein; `null` löscht sie. Die Gruppe dient nur der Prüfung der Verbindung. Adresse und Token lassen sich hier nicht setzen. Audit: `cevi_db_einstellung_geaendert`.
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (nur Ziffern, höchstens 20). 403 ohne das Recht.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CeviDbEinstellung"
+      responses:
+        "204":
+          description: Gespeichert.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/cevi-db/pruefen:
+    post:
+      operationId: pruefeAdminCeviDb
+      summary: Verbindung zur Cevi-Datenbank prüfen
+      description: |
+        Nur mit dem Recht `cevi_db.verwalten` (mit zweitem Faktor). Fragt die Cevi-Datenbank einmal mit dem Token des Servers: ohne eingestellte Gruppe eine einzelne kleine Seite der Personen, mit Gruppe diese Gruppe. Die Antwort sagt nur Ja oder Nein und nennt weder Adresse noch Token noch Namen oder Texte der Gegenseite. `ergebnis`: `ok`, `nicht_eingerichtet` (Adresse oder Token fehlen auf dem Server), `abgelehnt` (Token ungültig oder ohne Recht), `nicht_erreichbar`, `antwort` (unerwartetes Format). Bei `ok` sagt `gruppe`, ob das Token die eingestellte Gruppe sieht (`null` ohne eingestellte Gruppe).
+
+        Ratenbegrenzung: höchstens 5 Prüfungen je Konto und Minute (429). Audit: `cevi_db_geprueft` mit dem Ausgang.
+
+        Statuscodes: 200 bei Erfolg (auch bei einem Fehler der Verbindung; er steht in `ergebnis`). 403 ohne das Recht. 429 bei zu vielen Prüfungen.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Das Ergebnis der Prüfung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CeviDbPruefung"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /admin/cevi-db.js:
+    get:
+      operationId: getAdminCeviDbSkript
+      summary: Skript der Verwaltung – Cevi-Datenbank
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
 components:
   schemas:
     Fehler:
@@ -37518,6 +37671,20 @@ components:
         pflicht:
           type: boolean
           default: false
+        ceviQuelle:
+          type:
+            - string
+            - "null"
+          enum:
+            - geburtsdatum
+            - telefon
+            - adresse
+            - plz
+            - ort
+            - email
+            - null
+          default: null
+          description: Aus welcher Angabe der Cevi-Datenbank die Anmeldung dieses Textfeld vorausfüllt. Nur bei `typ` `text`, sonst 400. Nie Gesundheitsdaten. Ohne Wert (`null`) füllt nichts vor.
     AdminAnlassFeld:
       type: object
       required:
@@ -37544,6 +37711,18 @@ components:
             type: string
         pflicht:
           type: boolean
+        ceviQuelle:
+          type:
+            - string
+            - "null"
+          enum:
+            - geburtsdatum
+            - telefon
+            - adresse
+            - plz
+            - ort
+            - email
+            - null
         reihenfolge:
           type: integer
           minimum: 0
@@ -37862,6 +38041,19 @@ components:
             type: string
         pflicht:
           type: boolean
+        ceviQuelle:
+          type:
+            - string
+            - "null"
+          description: "Gesetzt heisst: Die Seite fragt `GET /api/v1/cevi-db/vorschlag` einmal beim Öffnen und füllt das Feld vor, wenn es leer ist."
+          enum:
+            - geburtsdatum
+            - telefon
+            - adresse
+            - plz
+            - ort
+            - email
+            - null
     AnlassKontoWert:
       type: object
       description: Eine Angabe, die das Konto schon kennt. Die App zeigt sie als «aus deinem Konto», nicht editierbar.
@@ -40794,6 +40986,100 @@ components:
           type: string
           format: uuid
           nullable: true
+    # termine-schemas: cevi-db (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
+    CeviDbVorschlag:
+      type: object
+      required:
+        - status
+        - felder
+      properties:
+        status:
+          type: string
+          enum:
+            - aus
+            - ok
+            - kein_treffer
+            - nicht_erreichbar
+        felder:
+          type: object
+          description: Vom Schlüssel des Feldes auf den Vorschlag. Nur Felder, die der Anlass aus der Cevi-Datenbank füllt und die noch keine Antwort haben.
+          additionalProperties:
+            type: object
+            required:
+              - wert
+              - quelle
+            properties:
+              wert:
+                type: string
+                maxLength: 200
+              quelle:
+                type: string
+                enum:
+                  - cevi-db
+    CeviDbStand:
+      type: object
+      required:
+        - verbunden
+        - gruppeId
+        - letzterAbrufAm
+        - letzterStatus
+        - anzahlPersonen
+      properties:
+        verbunden:
+          type: boolean
+          description: Adresse und Token stehen in der Umgebung des Servers.
+        gruppeId:
+          type:
+            - string
+            - "null"
+          pattern: ^[0-9]{1,20}$
+        letzterAbrufAm:
+          type:
+            - string
+            - "null"
+          format: date-time
+        letzterStatus:
+          type:
+            - string
+            - "null"
+          enum:
+            - ok
+            - fehler
+            - null
+        anzahlPersonen:
+          type:
+            - integer
+            - "null"
+          minimum: 0
+    CeviDbEinstellung:
+      type: object
+      additionalProperties: false
+      required:
+        - gruppeId
+      properties:
+        gruppeId:
+          type:
+            - string
+            - "null"
+          pattern: ^[0-9]{1,20}$
+    CeviDbPruefung:
+      type: object
+      required:
+        - ergebnis
+      properties:
+        ergebnis:
+          type: string
+          enum:
+            - ok
+            - nicht_eingerichtet
+            - abgelehnt
+            - nicht_erreichbar
+            - antwort
+        gruppe:
+          type:
+            - boolean
+            - "null"
+          description: Nur bei `ok`. Sieht das Token die eingestellte Gruppe? `null` ohne eingestellte Gruppe.
   parameters:
     MedienLimit:
       name: limit

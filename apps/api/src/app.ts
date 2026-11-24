@@ -19,6 +19,9 @@ import {
   type AktivitaetVariablen,
 } from "./aktivitaet-middleware.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
+import type { CeviDbDienst } from "./cevi-db/dienst.js";
+import { erstelleCeviDbRouten } from "./routes/cevi-db.js";
+import { erstelleAdminCeviDbRouten } from "./routes/admin/cevi-db.js";
 import type { Db } from "./db/client.js";
 import { LagerAntwortFehler } from "./lager/sync.js";
 import { log } from "./log.js";
@@ -121,6 +124,7 @@ export function erstelleApp({
   db,
   auth,
   fcm,
+  ceviDb,
   wetter,
   jetzt,
   kodiereBild,
@@ -139,6 +143,8 @@ export function erstelleApp({
   db: Db;
   auth: ReturnType<typeof erstelleAuth>;
   fcm?: Fcm;
+  // Cevi-Datenbank (#691): Abruf der Personen der eigenen Ebene mit Zwischenspeicher; ohne Angabe ist die Funktion aus (die Anmeldung füllt nichts vor), die Tests spritzen einen Dienst mit einer Attrappe ein
+  ceviDb?: CeviDbDienst;
   // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
   wetter?: WetterHolen;
   // Uhr der Lager-Aggregate (#395); ohne Angabe die Systemzeit
@@ -311,11 +317,13 @@ export function erstelleApp({
         }),
       )
       .route("/api/v1/ich", erstelleIchRouten({ db }))
+      // Vorschlag aus der Cevi-Datenbank für die Anmeldung (#691)
+      .route("/api/v1/cevi-db", erstelleCeviDbRouten({ db, dienst: ceviDb }))
       .route("/api/v1/programme", erstelleProgrammRouten({ db, fcm }))
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
       .route("/api/v1/lager", erstelleLagerRouten({ db, fcm, wetter, jetzt }))
       // Termine (Epic #430): Einstieg bei /api/v1, die Module tragen den vollen Pfad (routes/termine/index.ts)
-      .route("/api/v1", erstelleTermineRouten({ db, fcm }))
+      .route("/api/v1", erstelleTermineRouten({ db, fcm, ceviDb }))
       // Lädeli (#566): Laden, Bestellungen und ihre Verwaltung
       .route("/api/v1", erstelleLadenRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
@@ -356,6 +364,11 @@ export function erstelleApp({
       )
       // Aktivitätsprotokoll (#637): nur der Entwickler, die Route prüft selbst
       .route("/api/v1/admin/protokoll", erstelleProtokollRouten({ db }))
+      // Verbindung zur Cevi-Datenbank prüfen, Gruppe einstellen (#691)
+      .route(
+        "/api/v1/admin/cevi-db",
+        erstelleAdminCeviDbRouten({ db, dienst: ceviDb }),
+      )
       .route(
         "/api/v1/admin/system",
         erstelleSystemRouten({ db, sql, metriken, syncs }),

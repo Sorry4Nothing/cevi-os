@@ -94,6 +94,8 @@ export const anlassFeld = pgTable(
       .default(sql`'{}'::text[]`),
     pflicht: boolean("pflicht").notNull().default(false),
     reihenfolge: integer("reihenfolge").notNull().default(0),
+    // Aus welcher Angabe der Cevi-Datenbank die Anmeldung dieses Textfeld vorausfüllt (#691); null = nie. Nie Gesundheit: Die Liste der Quellen ist fest (cevi-db/felder.ts)
+    ceviQuelle: text("cevi_quelle"),
   },
   (t) => [
     unique("anlass_feld_schluessel_eindeutig").on(t.anlassId, t.schluessel),
@@ -116,6 +118,10 @@ export const anlassFeld = pgTable(
     check(
       "anlass_feld_reihenfolge_check",
       sql`${t.reihenfolge} between 0 and 19`,
+    ),
+    check(
+      "anlass_feld_cevi_quelle_check",
+      sql`${t.ceviQuelle} is null or (${t.typ} = 'text' and ${t.ceviQuelle} in ('geburtsdatum', 'telefon', 'adresse', 'plz', 'ort', 'email'))`,
     ),
   ],
 );

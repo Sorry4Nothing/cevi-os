@@ -1440,3 +1440,19 @@
 .tm .fakten.karte dd {
   color: var(--on-surface);
 }
+
+/* Angaben aus der Cevi-Datenbank (#691): Herkunft unter dem Feld und Zeile über den Feldern; die Höhe bleibt immer reserviert, damit nichts springt */
+.tm .cevi-note,
+.tm .cevi-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 1.75rem;
+  margin: 0;
+  font-size: 0.9375rem;
+  line-height: 1.45;
+  color: var(--on-surface-variant);
+}
+.tm .cevi-note .skelett {
+  flex: 1;
+}

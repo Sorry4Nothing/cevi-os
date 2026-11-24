@@ -22,6 +22,39 @@ import { anlassAdresse, anlassId, geschlossenText, vorname } from "./anlass.js";
 export const MAX_TEXT = 500;
 const feldId = (f) => `a-${f.schluessel}`;
 
+// --- Angaben aus der Cevi-Datenbank (#691)
+// Hat ein Textfeld des Anlasses eine Quelle, fragt die Seite den Server einmal beim Öffnen nach einem Vorschlag und füllt nur leere Felder. Der eigene Wert gewinnt immer; die Person kann jeden Wert ändern. Gespeichert wird erst mit dem Absenden. Ohne JavaScript bleibt das Formular normal nutzbar, die Felder sind dann einfach leer.
+// c: { laedt: Schlüssel der Person oder null, fehler: Cevi-Datenbank antwortet nicht, herkunft: { feld: Wert aus der Cevi-Datenbank } }
+export const KEIN_CEVI = { laedt: null, fehler: false, herkunft: {} };
+export const hatCevi = (a) => a.felder.some((f) => f.ceviQuelle);
+
+// Die Zeile über den Feldern: Ladezustand, Fehler oder was übernommen wurde. Eine Region mit aria-live: Der Ausgang wird einmal angesagt
+export function ceviStatusInhalt(c) {
+  if (c.laedt) return ["Angaben aus der Cevi-Datenbank werden geholt …"];
+  if (c.fehler)
+    return [
+      icon("info"),
+      "Die Cevi-Datenbank antwortet gerade nicht. Bitte füll die Angaben selbst aus.",
+    ];
+  const n = Object.keys(c.herkunft).length;
+  if (n === 0) return [];
+  return [
+    icon("haken"),
+    `${n === 1 ? "1 Angabe" : `${n} Angaben`} aus der Cevi-Datenbank übernommen. Prüfe sie und ändere, was nicht stimmt.`,
+  ];
+}
+
+// Die Herkunft unter einem Feld: Symbol und Text, nie nur Farbe; beim Laden ein Platzhalter gleicher Höhe (kein Sprung)
+export function ceviNotizInhalt(f, c, text) {
+  if (!f.ceviQuelle) return [];
+  if (c.laedt) return [skelett(sk("t b40"))];
+  const her = c.herkunft[f.schluessel];
+  if (her === undefined) return [];
+  return text === her
+    ? [icon("haken"), "Aus der Cevi-Datenbank übernommen"]
+    : [icon("info"), "Aus der Cevi-Datenbank, von dir geändert"];
+}
+
 // Antworten aus den Eingaben prüfen und für die API aufbereiten. werte: Schlüssel → Text (Text, Auswahl) oder true/false (ja_nein)
 // Ergebnis: { fehler: [{id, feld, inline, summe}] } oder { antworten }
 export function pruefeAntworten(felder, werte) {
@@ -231,6 +264,7 @@ function feldView(f, z) {
     );
   }
   const text = typeof wert === "string" ? wert : "";
+  const cevi = z.cevi ?? KEIN_CEVI;
   return h(
     "div",
     { class: klasse },
@@ -251,7 +285,11 @@ function feldView(f, z) {
         class: "eingabe",
         id,
         "data-feld": f.schluessel,
-        "aria-describedby": [fehler ? `${id}-f` : null, `${id}-h`]
+        "aria-describedby": [
+          fehler ? `${id}-f` : null,
+          `${id}-h`,
+          f.ceviQuelle ? `${id}-c` : null,
+        ]
           .filter(Boolean)
           .join(" "),
         "aria-invalid": fehler ? "true" : null,
@@ -260,6 +298,13 @@ function feldView(f, z) {
       },
       text,
     ),
+    f.ceviQuelle
+      ? h(
+          "div",
+          { class: "cevi-note", id: `${id}-c` },
+          ceviNotizInhalt(f, cevi, text),
+        )
+      : null,
     fehlerText,
   );
 }
@@ -305,6 +350,17 @@ export function formularView(z) {
           "section",
           { class: "karte", "aria-labelledby": "tm-z-t" },
           h("h2", { id: "tm-z-t" }, "Zusätzliche Angaben"),
+          hatCevi(z.a)
+            ? h(
+                "p",
+                {
+                  class: "hilfe cevi-status",
+                  id: "tm-cevi-status",
+                  "aria-live": "polite",
+                },
+                ceviStatusInhalt(z.cevi ?? KEIN_CEVI),
+              )
+            : null,
           z.a.felder.map((f) => feldView(f, z)),
           bandView({
             art: "wa",
@@ -432,6 +488,8 @@ function start(doc, wurzel) {
     offline: false,
     band: null,
     bearbeiten: false,
+    // Vorschläge der Cevi-Datenbank: stand je Person (Schlüssel des Kindes oder «selbst») für die Dauer der Seite
+    cevi: { ...KEIN_CEVI, stand: new Map() },
   };
   const inhalt = doc.createElement("div");
   wurzel.replaceChildren(inhalt);
@@ -515,6 +573,7 @@ function start(doc, wurzel) {
         : {};
       z.fehler = {};
       z.zusammenfassung = [];
+      z.cevi = { ...KEIN_CEVI, stand: new Map() };
       doc.getElementById("tm-titel").textContent = `Anmeldung ${z.a.titel}`;
       modus = "form";
       melde(doc, "Die Anmeldung ist geladen.");
@@ -522,6 +581,78 @@ function start(doc, wurzel) {
     else if (r.status === 404 || r.status === 403) modus = "nichtGefunden";
     else modus = "fehler";
     zeichne(fokus);
+    if (modus === "form") ladeCevi();
+  }
+
+  const ceviSchluessel = () => z.a.teilnehmende[z.wahl]?.kindId ?? "selbst";
+
+  // Schreibt Werte, Notizen und die Zeile über den Feldern direkt ins Dokument, ohne neu zu zeichnen: Fokus und Eingaben bleiben
+  function zeigeCevi() {
+    for (const f of z.a.felder) {
+      if (!f.ceviQuelle) continue;
+      const feldEl = doc.getElementById(feldId(f));
+      if (!feldEl) continue;
+      const wert = z.werte[f.schluessel];
+      if (typeof wert === "string" && feldEl.value !== wert) {
+        feldEl.value = wert;
+        const zaehler = doc.getElementById(`${feldEl.id}-h`);
+        if (zaehler)
+          zaehler.textContent = `${wert.length} von ${MAX_TEXT} Zeichen`;
+      }
+      doc
+        .getElementById(`${feldEl.id}-c`)
+        ?.replaceChildren(
+          ...ceviNotizInhalt(f, z.cevi, feldEl.value).map((d) => baue(doc, d)),
+        );
+    }
+    doc
+      .getElementById("tm-cevi-status")
+      ?.replaceChildren(...ceviStatusInhalt(z.cevi).map((d) => baue(doc, d)));
+  }
+
+  // Holt den Vorschlag einmal je Person und füllt nur leere Felder (der eigene Wert gewinnt)
+  async function ladeCevi() {
+    if (modus !== "form" || !z.a || !hatCevi(z.a)) return;
+    if (sperreView(z, heute())) return;
+    const t = z.a.teilnehmende[z.wahl];
+    if (!t) return;
+    const key = ceviSchluessel();
+    z.cevi.herkunft = {};
+    z.cevi.fehler = false;
+    let r = z.cevi.stand.get(key);
+    if (!r) {
+      z.cevi.laedt = key;
+      zeigeCevi();
+      const antwort = await api(
+        `/cevi-db/vorschlag?anlassId=${id}${t.kindId ? `&kindId=${t.kindId}` : ""}`,
+      );
+      // Ein Fehler der Verbindung oder des Servers heisst: antwortet nicht; alles andere (zum Beispiel zu viele Abrufe) bleibt still
+      r =
+        antwort.status === 200
+          ? antwort.daten
+          : {
+              status:
+                antwort.status === 0 || antwort.status >= 500
+                  ? "nicht_erreichbar"
+                  : "aus",
+              felder: {},
+            };
+      z.cevi.stand.set(key, r);
+      // Die Person hat inzwischen gewechselt oder die Seite neu geladen: Dieser Vorschlag gehört nicht mehr hierher
+      if (ceviSchluessel() !== key || z.cevi.laedt !== key) return;
+      z.cevi.laedt = null;
+    }
+    lies();
+    z.cevi.fehler = r.status === "nicht_erreichbar";
+    for (const f of z.a.felder) {
+      const v = r.felder?.[f.schluessel]?.wert;
+      const eigen = z.werte[f.schluessel];
+      if (!f.ceviQuelle || typeof v !== "string") continue;
+      if (typeof eigen === "string" && eigen.trim() !== "") continue;
+      z.werte[f.schluessel] = v;
+      z.cevi.herkunft[f.schluessel] = v;
+    }
+    zeigeCevi();
   }
 
   async function sende() {
@@ -647,6 +778,16 @@ function start(doc, wurzel) {
     const zaehler = e.target.id && doc.getElementById(`${e.target.id}-h`);
     if (zaehler && e.target.dataset.feld)
       zaehler.textContent = `${e.target.value.length} von ${MAX_TEXT} Zeichen`;
+    // Die Herkunft zeigt, ob der Wert noch der aus der Cevi-Datenbank ist
+    const f = z.a?.felder.find((q) => q.schluessel === e.target.dataset?.feld);
+    if (f?.ceviQuelle)
+      doc
+        .getElementById(`${e.target.id}-c`)
+        ?.replaceChildren(
+          ...ceviNotizInhalt(f, z.cevi, e.target.value).map((d) =>
+            baue(doc, d),
+          ),
+        );
   });
   wurzel.addEventListener("click", (e) => {
     const ziel = e.target.closest?.("[data-ziel]");
@@ -667,8 +808,10 @@ function start(doc, wurzel) {
       z.fehler = {};
       z.zusammenfassung = [];
       z.bearbeiten = false;
+      z.cevi.laedt = null;
       zeichne();
       doc.querySelector(`[data-wer="${z.wahl}"]`)?.focus();
+      ladeCevi();
       return;
     }
     const pille = e.target.closest?.("[data-feld][data-i]");
@@ -695,6 +838,7 @@ function start(doc, wurzel) {
     else if (aktion === "ansehen") {
       z.bearbeiten = true;
       zeichne("tm-k-t");
+      ladeCevi();
     } else if (aktion === "abmelden") meldeAb();
   });
   // Auswahl mit Pfeiltasten (Radiogruppe): Pfeil wählt den Nachbarn

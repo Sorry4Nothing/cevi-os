@@ -757,6 +757,13 @@
       "when": 1793556900000,
       "tag": "0149_abteilungsleitung_rechte",
       "breakpoints": true
+    },
+    {
+      "idx": 157,
+      "version": "7",
+      "when": 1793557700000,
+      "tag": "0157_cevi_datenbank",
+      "breakpoints": true
     }
   ]
 }

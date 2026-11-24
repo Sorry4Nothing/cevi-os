@@ -26,14 +26,36 @@ const WEBSITE_PFLICHT = [
   "WEBSITE_ABTEILUNG_ID",
   "WEBSITE_BASIS_URL",
 ] as const;
+// Cevi-Datenbank (#691): ohne beide läuft die Anmeldung ohne Vorbefüllung, mit einer allein startet die API nicht
+const CEVI_DB_PFLICHT = ["CEVI_DB_URL", "CEVI_DB_TOKEN"] as const;
 const GRUPPEN: readonly (readonly (keyof z.infer<typeof schema>)[])[] = [
   MEDIEN_PFLICHT,
   WEBSITE_PFLICHT,
+  CEVI_DB_PFLICHT,
 ];
 // Nur die Herkunft, ohne Pfad und Schrägstrich am Ende: Daraus entstehen canonical und Sitemap
 const basisUrl = (protokoll: RegExp) =>
   freiwillig(
     z.url({ protocol: protokoll }).transform((u) => new URL(u).origin),
+  );
+
+// Adresse der Cevi-Datenbank: nur die Herkunft; http nur für den eigenen Rechner (Test-Double), sonst https. Die Produktion verlangt immer https
+const ceviDbUrl = (nurHttps: boolean) =>
+  freiwillig(
+    z
+      .url({ protocol: /^https?$/ })
+      .refine(
+        (u) => {
+          const x = new URL(u);
+          return (
+            x.protocol === "https:" ||
+            (!nurHttps &&
+              ["localhost", "127.0.0.1", "[::1]"].includes(x.hostname))
+          );
+        },
+        { message: "https verlangt" },
+      )
+      .transform((u) => new URL(u).origin),
   );
 
 // Pflicht und ohne Rückfall; die übrigen Variablen der Umgebung bleiben unbeachtet
@@ -75,6 +97,9 @@ const schema = z.object({
   PROTOKOLL_MAX_ZEILEN: freiwillig(
     z.coerce.number().int().min(10000).max(5_000_000),
   ),
+  // Cevi-Datenbank (#691): Adresse der Instanz und Dienstkonto-Token der Abteilung (nur lesen, Recht «Personen dieser Ebene»). Beides steht nur in der Umgebung, nie im Repo, nie in einer Antwort oder einem Log
+  CEVI_DB_URL: ceviDbUrl(false),
+  CEVI_DB_TOKEN: freiwillig(z.string().regex(/^\S{16,200}$/)),
   // Telefon der Abteilung für Fuss und Kontaktkarte der Website (#549); öffentlich, steht nur in der Umgebung, nie im Repo. Ohne Angabe fehlt es dort. Anschrift und E-Mail sind die der verantwortlichen Stelle
   KONTAKT_TELEFON: freiwillig(
     z
@@ -88,6 +113,7 @@ const schema = z.object({
 const produktion = schema.extend({
   BETTER_AUTH_URL: z.url({ protocol: /^https$/ }),
   WEBSITE_BASIS_URL: basisUrl(/^https$/),
+  CEVI_DB_URL: ceviDbUrl(true),
 });
 
 export function ladeKonfiguration(env: Record<string, string | undefined>) {

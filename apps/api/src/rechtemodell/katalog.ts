@@ -517,6 +517,14 @@ export const RECHTE_KATALOG = {
     "erweitert",
     ALLE,
   ),
+  // Cevi-Datenbank (#691): Die Verbindung liest nur; Adresse und Token stehen auf dem Server, nie in der Verwaltung
+  "cevi_db.verwalten": v(
+    "plattform",
+    "Cevi-Datenbank einrichten",
+    "Die Verbindung zur Cevi-Datenbank prüfen und die Gruppe der Abteilung einstellen. Die Verbindung liest nur; Adresse und Token stehen auf dem Server, nie in der Verwaltung.",
+    "erweitert",
+    ALLE,
+  ),
 } as const satisfies Record<string, RechtEintrag>;
 
 export type RechtId = keyof typeof RECHTE_KATALOG;

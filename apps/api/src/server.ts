@@ -7,6 +7,9 @@ import {
   systemzeileAus,
 } from "./aktivitaet.js";
 import { erstelleApp } from "./app.js";
+import { erstelleCeviDbClient } from "./cevi-db/client.js";
+import { erstelleCeviDbDienst } from "./cevi-db/dienst.js";
+import { speichereStand } from "./cevi-db/stand.js";
 import { erstelleAuth } from "./auth.js";
 import {
   erstelleAnmeldungGesperrt,
@@ -98,6 +101,17 @@ if (!medienspeicher)
   log(undefined, { ereignis: "medien", code: "ohne-speicher" });
 const sql = verbindeDatenbank(konfiguration.DATABASE_URL);
 const db = erstelleDb(sql);
+// Cevi-Datenbank (#691): ohne Adresse und Token (die Konfiguration prüft, dass beide oder keines gesetzt sind) füllt die Anmeldung nichts vor
+const ceviDb =
+  konfiguration.CEVI_DB_URL && konfiguration.CEVI_DB_TOKEN
+    ? erstelleCeviDbDienst({
+        client: erstelleCeviDbClient({
+          url: konfiguration.CEVI_DB_URL,
+          token: konfiguration.CEVI_DB_TOKEN,
+        }),
+        beiAbruf: speichereStand(db),
+      })
+    : undefined;
 // Wartungsmodus und Sperre (#424, #425): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet
 const schalter = erstelleSchalterZustand();
 await schalter.lade(db);
@@ -145,6 +159,7 @@ const app = erstelleApp({
   db,
   auth,
   fcm,
+  ceviDb,
   kodiereBild: kodiereProfilbild,
   kodiereLogo: kodiereStufenlogo,
   kodiereMedienbild,

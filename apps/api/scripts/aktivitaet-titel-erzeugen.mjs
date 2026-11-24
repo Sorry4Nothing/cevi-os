@@ -220,6 +220,11 @@ const AUSNAHMEN = {
     "angelegt",
   ],
   "POST /api/v1/admin/import/vorschau": ["Import", "geprüft", "status"],
+  "POST /api/v1/admin/cevi-db/pruefen": [
+    "Verbindung zur Cevi-Datenbank",
+    "geprüft",
+    "status",
+  ],
   "PUT /api/v1/admin/kinder/konto-einstellung": [
     "Einstellungen der Kinderkonten",
     "gespeichert",
@@ -855,6 +860,7 @@ const NICHT_ERFASST = {
   pruefung: [
     "POST /api/v1/admin/mitteilungen/vorschau",
     "POST /api/v1/admin/import/vorschau",
+    "POST /api/v1/admin/cevi-db/pruefen",
     "POST /api/v1/admin/rechte/gruppen/:p/rollen/vorschau",
     "POST /api/v1/redaktion/orte/vorschau",
     "POST /api/v1/lager/:p/schichtplan/vorschlag",

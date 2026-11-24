@@ -17,7 +17,7 @@ const BEREICH_NACH_RECHT: Record<string, readonly string[]> = {
     "laden.einstellungen",
   ],
   lager: ["lager.verwalten", "lager.vorlagen_pflegen"],
-  system: ["system.lesen", "zeitregeln.verwalten"],
+  system: ["system.lesen", "zeitregeln.verwalten", "cevi_db.verwalten"],
 };
 
 // Was die Verwaltung im Browser wissen muss (GET /api/v1/redaktion/ich); auch der Kopf der Website (GET /api/v1/website/konto) leitet daraus ab, ob die Person die Verwaltung öffnen darf

@@ -426,6 +426,7 @@ describe("Feldvalidierung", () => {
             typ: "text",
             optionen: [],
             pflicht: false,
+            ceviQuelle: null,
           },
         ]),
       ).toBeNull();

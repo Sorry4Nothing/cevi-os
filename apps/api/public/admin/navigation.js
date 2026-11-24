@@ -303,6 +303,13 @@ export const BEREICHE = [
         zugang: "recht:zeitregeln.verwalten",
       },
       {
+        schluessel: "cevi-db",
+        name: "Cevi-Datenbank",
+        modul: "./cevi-db.js",
+        untertitel: "Verbindung prüfen und die Gruppe der Abteilung einstellen.",
+        zugang: "recht:cevi_db.verwalten",
+      },
+      {
         schluessel: "protokoll",
         name: "Protokoll",
         modul: "./protokoll.js",

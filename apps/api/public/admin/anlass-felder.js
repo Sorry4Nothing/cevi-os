@@ -33,6 +33,17 @@ const TYPEN = [
   ["auswahl", "Auswahl aus einer Liste"],
 ];
 const TYP_TEXT = { text: "Text", ja_nein: "Ja/Nein", auswahl: "Auswahl" };
+// Aus welcher Angabe der Cevi-Datenbank die Anmeldung ein Textfeld vorausfüllt (#691). Nur diese; nie Gesundheit, nie Rollen
+const CEVI_QUELLEN = [
+  ["", "Nicht aus der Cevi-Datenbank"],
+  ["geburtsdatum", "Geburtsdatum"],
+  ["telefon", "Telefon"],
+  ["adresse", "Strasse und Nummer"],
+  ["plz", "Postleitzahl"],
+  ["ort", "Ort"],
+  ["email", "E-Mail"],
+];
+const CEVI_NAME = new Map(CEVI_QUELLEN);
 const UMLAUTE = { ä: "ae", ö: "oe", ü: "ue", ß: "ss" };
 
 // Schlüssel nur aus Kleinbuchstaben, Ziffern und «_» (wie der Server verlangt), eindeutig innerhalb des Anlasses
@@ -53,7 +64,7 @@ function schluesselAus(text, vergeben) {
 
 // «Ja/Nein · Pflicht», «Auswahl: 128, 140 · Pflicht», «Text · optional»
 const beschreibung = (f) =>
-  `${f.typ === "auswahl" ? `Auswahl: ${f.optionen.join(", ")}` : TYP_TEXT[f.typ]} · ${f.pflicht ? "Pflicht" : "optional"}`;
+  `${f.typ === "auswahl" ? `Auswahl: ${f.optionen.join(", ")}` : TYP_TEXT[f.typ]} · ${f.pflicht ? "Pflicht" : "optional"}${f.ceviQuelle ? ` · aus der Cevi-Datenbank: ${CEVI_NAME.get(f.ceviQuelle)}` : ""}`;
 
 // Fokus auf einen Text, der selbst kein Bedienelement ist (nach dem Neuzeichnen ist der Auslöser weg)
 function fokusAuf(knoten) {
@@ -69,6 +80,7 @@ const normal = (felder) =>
       f.typ,
       f.optionen,
       f.pflicht,
+      f.ceviQuelle ?? null,
     ]),
   );
 
@@ -272,9 +284,22 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
       gewaehlt: f?.pflicht ?? false,
       wert: "1",
     });
+    // Vorausfüllen aus der Cevi-Datenbank: nur bei Textfeldern; die Person kann den Wert in der Anmeldung ändern
+    const cevi = auswahl({
+      label: "Aus der Cevi-Datenbank füllen",
+      optionen: CEVI_QUELLEN,
+      wert: f?.ceviQuelle ?? "",
+    });
+    const ceviHilfe = el(
+      "p",
+      { class: "hilfe" },
+      "Die Anmeldung füllt dieses Feld mit der Angabe, die die Person in der Cevi-Datenbank selbst gemacht hat. Sie kann sie ändern. Fehlt die Angabe dort, bleibt das Feld leer. Gesundheitsangaben holt Cevi OS nie.",
+    );
+    const ceviWurzel = el("div", {}, cevi.wurzel, ceviHilfe);
     const meld = el("div", {});
     const zeigeOptionen = () => {
       optionen.wurzel.hidden = typ.eingabe.value !== "auswahl";
+      ceviWurzel.hidden = typ.eingabe.value !== "text";
     };
     typ.eingabe.addEventListener("change", zeigeOptionen);
     zeigeOptionen();
@@ -324,6 +349,8 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
         typ: typ.eingabe.value,
         optionen: typ.eingabe.value === "auswahl" ? o : [],
         pflicht: pflicht.eingabe.checked,
+        ceviQuelle:
+          typ.eingabe.value === "text" ? cevi.eingabe.value || null : null,
       };
       if (f) Object.assign(f, neu);
       else felder.push({ ...neu, _id: neueId("f") });
@@ -349,6 +376,7 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
         name.wurzel,
         typ.wurzel,
         optionen.wurzel,
+        ceviWurzel,
         pflicht.wurzel,
         el(
           "div",
@@ -389,6 +417,7 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
         typ: f.typ,
         optionen: f.typ === "auswahl" ? f.optionen : [],
         pflicht: f.pflicht,
+        ceviQuelle: f.typ === "text" ? (f.ceviQuelle ?? null) : null,
       };
     });
   }
