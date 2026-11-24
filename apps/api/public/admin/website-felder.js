@@ -10,6 +10,11 @@ import {
 import { sk } from "./lader.js";
 import { sortierListe } from "./sortieren.js";
 import { symbol } from "./website-symbole.js";
+import {
+  TEXT_FELDNAMEN,
+  TEXT_KATALOG,
+  TEXT_TYPEN,
+} from "./website-felder-text.js";
 
 // Felder und Typen der Bausteine (Boards E3 und E4). Ein Baustein hat einen Typ mit Name, Kurztext für die Liste, Prüfung und Formular.
 // Das Formular arbeitet auf einer Kopie des Bausteins (b) im Seitenblatt «Baustein bearbeiten»; erst «Übernehmen» schreibt ins Dokument.
@@ -44,10 +49,11 @@ const EINTRAG_NAMEN = {
   zahlen: "Zahl",
 };
 
-const kuerze = (text, n = 60) =>
+export const kuerze = (text, n = 60) =>
   text.length > n ? `${text.slice(0, n - 1).trimEnd()}…` : text;
-const anzahlText = (n, eins, viele) => (n === 1 ? eins : `${n} ${viele}`);
-const LINK_HILFE =
+export const anzahlText = (n, eins, viele) =>
+  n === 1 ? eins : `${n} ${viele}`;
+export const LINK_HILFE =
   "Eine Seite dieser Website (zum Beispiel /stufen/woelfe), eine Webadresse mit https, eine E-Mail-Adresse mit mailto: oder eine Telefonnummer mit tel:.";
 
 // Namen der Felder und Texte zu den Codes der Prüfung des Servers (zod und Verweisprüfung)
@@ -84,6 +90,7 @@ export const FELDNAMEN = {
   email: "Die E-Mail-Adresse",
   preis: "Der Preis",
   hinweis: "Der Hinweis",
+  ...TEXT_FELDNAMEN,
 };
 export const CODE_TEXTE = {
   too_small: "fehlt oder ist zu kurz.",
@@ -118,7 +125,7 @@ export const feldName = (pfad) =>
   ] ?? "Die Eingabe";
 
 // Ein Feld an die Fehler anmelden: Der Fehler verschwindet, sobald die Person das Feld ändert
-function anmelden(reg, pfad, f) {
+export function anmelden(reg, pfad, f) {
   reg(pfad, f.wurzel, f.eingabe);
   const weg = () => loescheFeldFehler(f.wurzel);
   f.eingabe.addEventListener("input", weg);
@@ -126,7 +133,7 @@ function anmelden(reg, pfad, f) {
 }
 
 // Textfeld oder Zahlfeld, das beim Tippen in die Kopie des Bausteins schreibt
-function eingabe(k, b, reg, schluessel, label, optionen = {}) {
+export function eingabe(k, b, reg, schluessel, label, optionen = {}) {
   const { optional, zahl, hilfe, ...rest } = optionen;
   const f = feld({
     label,
@@ -146,7 +153,7 @@ function eingabe(k, b, reg, schluessel, label, optionen = {}) {
 }
 
 // Wie eingabe(), für einen Eintrag einer Liste (Karte, Galeriebild)
-function teilEingabe(
+export function teilEingabe(
   k,
   b,
   reg,
@@ -195,7 +202,7 @@ function waehler({ label, optionen, wert }) {
 }
 
 // Auswahl aus wenigen Werten als Segment (Radios); Zahlen bleiben Zahlen
-function wahl(k, b, reg, schluessel, label, optionen) {
+export function wahl(k, b, reg, schluessel, label, optionen) {
   const name = neueId("segment");
   const wurzel = el(
     "fieldset",
@@ -297,7 +304,7 @@ export const groesseText = (bytes) =>
 // schluessel: Feld des Eintrags mit der Bild-ID; optional: das Bild darf fehlen (Stufenkarte), «Bild entfernen» erscheint
 // alt: «pflicht» (Bild, Karussell: ohne Alt-Text kein Übernehmen), «zeigen» (der Alt-Text steht da und lässt sich ändern) oder ein Satz, warum das Bild hier keinen braucht (Porträt)
 // name: Beschriftung («Bild», «Foto der Station», «Porträt»); klein: Vorschau in halber Höhe, für Einträge einer Liste
-function bildWahl(
+export function bildWahl(
   k,
   b,
   reg,
@@ -467,7 +474,7 @@ function altFeld(k, medium, alt, reg) {
 
 // Eine Liste von Teilen (Bilder, Karten) mit «Hinzufügen», «Entfernen» und der Reihenfolge wie bei den Bausteinen (Sortierliste: Griff, Tastatur, Hoch und Runter).
 // Jede Änderung der Liste zeichnet das Formular des Bausteins neu und setzt den Fokus auf den betroffenen Teil.
-function listenForm(
+export function listenForm(
   k,
   b,
   { liste, max, hinzuText, hinzu, zeile, name, pfadName, listeName },
@@ -698,7 +705,7 @@ function kartenForm(k, b, reg) {
 // --- Bausteine der Inhaltsseiten (#560): Listen von Einträgen mit Pflicht- und freiwilligen Feldern ---------------------------
 
 // Fehlt ein Pflichtfeld eines Eintrags, meldet die Prüfung den Pfad des Feldes
-const pflicht = (d, ...felder) => [
+export const pflicht = (d, ...felder) => [
   ...((d.eintraege ?? []).length === 0 ? [["daten.eintraege", "fehlt."]] : []),
   ...(d.eintraege ?? []).flatMap((x, i) =>
     felder.flatMap((f) =>
@@ -720,7 +727,7 @@ function bildOptional(k, b, reg, eintrag, pfad, bild) {
 }
 
 // felder: [Schlüssel, Beschriftung, Optionen von teilEingabe]; bild: der Eintrag hat ein freiwilliges Bild
-function eintraegeForm(k, b, reg, { name, max, felder, bild = false }) {
+export function eintraegeForm(k, b, reg, { name, max, felder, bild = false }) {
   return listenForm(k, b, {
     name,
     listeName: "Einträge",
@@ -884,7 +891,7 @@ function personWahl(k, b, reg) {
 }
 
 // Der Link des Hinweisbands ist ein Teilobjekt: Felder lesen und schreiben darin, fehlen beide, entfällt der ganze Link
-function linkTeil(b) {
+export function linkTeil(b) {
   return new Proxy(
     {},
     {
@@ -1515,6 +1522,8 @@ export const TYPEN = {
       ),
     ],
   },
+  // Text und Gestaltung (#741), website-felder-text.js
+  ...TEXT_TYPEN,
 };
 
 // Was «Baustein hinzufügen» anbietet (Reihenfolge und Texte wie im Design E3)
@@ -1645,6 +1654,7 @@ export const KATALOG = [
       "«Fragen? Melde dich bei uns.» mit Knöpfen für E-Mail und Telefon, Anschrift und Verweisen.",
     neu: () => ({}),
   },
+  ...TEXT_KATALOG,
 ].map((e) => ({ name: TYPEN[e.typ].name, ...e }));
 
 // Ein Karten-Baustein heisst nach seiner Darstellung («Zeitstrahl»): So findet man ihn in der Liste der Seite wieder

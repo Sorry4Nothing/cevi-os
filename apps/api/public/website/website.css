@@ -2667,3 +2667,501 @@ dialog.lichtkasten {
 .fakten.karte :focus-visible {
   outline-color: var(--on-secondary);
 }
+
+/* ===== Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, zwei Spalten, Bild und Text, Tabelle, Schritte, Checkliste =====
+   Nur Tokens, Tag und Nacht, Fokus wie überall. Die Zeichen entstehen aus Rahmen und Schrift (kein Bild, kein SVG): Das Skript für geschützte Bausteine kennt kein SVG. Bewegung nur ohne «Bewegung reduzieren» */
+
+/* Hinweisbox: Kasten mit dem Wort der Art (Info, Tipp, Wichtig, Achtung), einem Zeichen und einer Kante; die Farbe kommt dazu, trägt aber nichts allein */
+.hinweisbox {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+  max-width: 52rem;
+  padding: 1rem 1.25rem 1rem 1rem;
+  border-left: 0.3125rem solid currentcolor;
+  border-radius: var(--r-sm);
+  background: var(--hb-grund, var(--secondary-container));
+  color: var(--hb-text, var(--on-secondary-container));
+  font-size: 1.0625rem;
+  line-height: 1.625rem;
+}
+
+.hinweisbox--tipp {
+  --hb-grund: var(--success-container);
+  --hb-text: var(--on-success-container);
+}
+
+.hinweisbox--wichtig {
+  --hb-grund: var(--warning-container);
+  --hb-text: var(--on-warning-container);
+}
+
+.hinweisbox--achtung {
+  --hb-grund: var(--error-container);
+  --hb-text: var(--on-error-container);
+}
+
+.hb-zeichen {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 1.625rem;
+  height: 1.625rem;
+  margin-top: 0.0625rem;
+  border: 2px solid currentcolor;
+  border-radius: 50%;
+  box-sizing: border-box;
+  font-size: 0.9375rem;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.hinweisbox--info .hb-zeichen::before {
+  content: "i";
+}
+
+.hinweisbox--wichtig .hb-zeichen::before {
+  content: "!";
+}
+
+.hinweisbox--tipp .hb-zeichen::before {
+  width: 0.3125rem;
+  height: 0.625rem;
+  margin-top: -0.125rem;
+  border: solid currentcolor;
+  border-width: 0 2px 2px 0;
+  box-sizing: border-box;
+  transform: rotate(45deg);
+  content: "";
+}
+
+/* Achtung ist ein Dreieck: Es unterscheidet sich von den runden Zeichen auch ohne Farbe */
+.hinweisbox--achtung .hb-zeichen {
+  border: 0;
+  background: currentcolor;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+.hinweisbox--achtung .hb-zeichen::before {
+  padding-top: 0.375rem;
+  color: var(--hb-grund);
+  font-size: 0.8125rem;
+  content: "!";
+}
+
+.hb-inhalt {
+  flex: 1;
+  min-width: 0;
+}
+
+.hb-art {
+  font-size: 0.875rem;
+  line-height: 1.375rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.hb-titel {
+  font-size: 1.1875rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+}
+
+.hb-inhalt .text {
+  margin-top: 0.375rem;
+}
+
+/* Zitat: grosse Schrift mit Kante in der Akzentfarbe; darunter Person, Funktion und auf Wunsch ein rundes Foto */
+.zitat {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 54rem;
+  padding-left: clamp(1.25rem, 3vw, 2.25rem);
+  border-left: 0.375rem solid var(--accent);
+}
+
+.zitat-text {
+  margin: 0;
+}
+
+.zitat-text p {
+  color: var(--on-surface);
+  font-size: clamp(1.375rem, 1.05rem + 1.3vw, 2.125rem);
+  line-height: 1.3;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-wrap: balance;
+}
+
+.zitat-quelle {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.zitat-foto {
+  flex: none;
+  width: 4rem;
+  height: 4rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.zitat-person {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  font-size: 1.0625rem;
+  line-height: 1.5rem;
+}
+
+.zitat-name {
+  color: var(--on-surface);
+  font-weight: 700;
+}
+
+/* Fragen und Antworten: Aufklappliste mit dem Element «details», Zeilen von mindestens 56 px Höhe, der Pfeil dreht sich beim Öffnen */
+.fragen {
+  max-width: 60rem;
+  border-top: 1px solid var(--outline-variant);
+}
+
+.frage {
+  border-bottom: 1px solid var(--outline-variant);
+}
+
+.frage summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  min-height: 3.5rem;
+  padding: 0.875rem 0;
+  color: var(--on-surface);
+  font-size: 1.1875rem;
+  line-height: 1.4;
+  font-weight: 700;
+  cursor: pointer;
+  list-style: none;
+}
+
+.frage summary::-webkit-details-marker {
+  display: none;
+}
+
+.frage summary::after {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin: 0 0.25rem 0.25rem 0;
+  border: solid currentcolor;
+  border-width: 0 3px 3px 0;
+  box-sizing: border-box;
+  transform: rotate(45deg);
+  content: "";
+}
+
+.frage[open] summary::after {
+  margin: 0.25rem 0.25rem 0 0;
+  transform: rotate(-135deg);
+}
+
+.frage summary:hover {
+  color: var(--accent);
+}
+
+.frage .antwort {
+  max-width: 70ch;
+  padding: 0 0 1.25rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .frage summary::after {
+    transition: transform var(--dauer) var(--kurve);
+  }
+}
+
+/* Zwei Spalten: am Handy untereinander, ab 48 em nebeneinander */
+.zwei-spalten {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 2rem;
+}
+
+.zs-spalte .titel {
+  margin-bottom: 0.75rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+@media (min-width: 48em) {
+  .zwei-spalten {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 2rem var(--spalt);
+  }
+}
+
+/* Bild und Text: Im Markup steht das Bild zuerst (am Handy oben); «rechts» stellt es ab 48 em rechts neben den Text, ohne die Reihenfolge für Tastatur und Screenreader zu ändern */
+.bildtext {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.bt-bild {
+  margin: 0;
+}
+
+/* Mehrere Bild-Text-Blöcke hintereinander brauchen mehr Luft als zwei Absätze */
+.bildtext + .bildtext {
+  margin-top: clamp(1.5rem, 4vw, 3.5rem);
+}
+
+.bt-foto {
+  width: 100%;
+  max-height: 34rem;
+  border-radius: var(--r-md);
+  object-fit: cover;
+  background: var(--surface-container-high);
+}
+
+.bt-text .titel {
+  margin-bottom: 0.75rem;
+  font-size: clamp(1.5rem, 1.2rem + 1vw, 2.125rem);
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+.bt-text .knopf {
+  margin-top: 1.25rem;
+}
+
+@media (min-width: 48em) {
+  .bildtext {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+    gap: 2rem var(--spalt);
+  }
+
+  .bildtext--rechts {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+  }
+
+  .bildtext--rechts .bt-bild {
+    grid-column: 2;
+    grid-row: 1;
+  }
+
+  .bildtext--rechts .bt-text {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .bildtext--ohne-bild {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .bildtext--ohne-bild .bt-text {
+    grid-column: 1;
+  }
+}
+
+/* Tabelle: eine Fläche mit Rahmen, die bei Bedarf seitlich scrollt (mit der Tastatur erreichbar); Zahlen rechtsbündig mit gleich breiten Ziffern */
+.tabelle-rahmen {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-sm);
+  background: var(--surface-container-low);
+}
+
+.texttabelle {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 1.0625rem;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.texttabelle caption {
+  padding: 1rem 1rem 0.75rem;
+  color: var(--titel);
+  font-size: 1.25rem;
+  line-height: 1.4;
+  font-weight: 800;
+  text-align: left;
+}
+
+.texttabelle th,
+.texttabelle td {
+  min-width: 6.5rem;
+  padding: 0.75rem 1rem;
+  text-align: left;
+  vertical-align: top;
+  overflow-wrap: break-word;
+}
+
+.texttabelle thead th {
+  border-bottom: 2px solid var(--outline);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+  font-weight: 700;
+}
+
+.texttabelle tbody th {
+  font-weight: 700;
+}
+
+.texttabelle tbody tr + tr > * {
+  border-top: 1px solid var(--outline-variant);
+}
+
+.texttabelle .tab-zahl {
+  text-align: right;
+}
+
+/* Schritte: eine Zahl im Kreis vor jedem Schritt, eine Linie verbindet sie. Die Zahl kommt aus einem Zähler; der Screenreader hört sie aus der Liste */
+.schritte {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  max-width: 52rem;
+  counter-reset: schritt;
+}
+
+.schritt {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.25rem;
+  counter-increment: schritt;
+}
+
+.schritt::before {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  background: var(--secondary);
+  box-sizing: border-box;
+  color: var(--on-secondary);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1;
+  content: counter(schritt);
+  content: counter(schritt) / "";
+}
+
+.schritt:not(:last-child)::after {
+  position: absolute;
+  top: 3.25rem;
+  bottom: -1.5rem;
+  left: 1.375rem;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--outline-variant);
+  content: "";
+}
+
+.schritt-inhalt {
+  min-width: 0;
+  padding-top: 0.4375rem;
+}
+
+.schritt .titel {
+  font-size: 1.25rem;
+  line-height: 1.5rem;
+  font-weight: 700;
+}
+
+.schritt-inhalt > p + p {
+  margin-top: 0.375rem;
+}
+
+/* Checkliste: Haken («dabei», «inklusive») oder leere Kästchen zum Abhaken auf Papier (Packliste) */
+.checkliste {
+  max-width: 52rem;
+}
+
+.checkliste .titel {
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  line-height: 1.25;
+  font-weight: 800;
+}
+
+.checkliste ul {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.checkliste li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.875rem;
+}
+
+.cl-zeichen {
+  position: relative;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  margin-top: 0.125rem;
+  border: 2px solid var(--accent);
+  border-radius: 0.25rem;
+  box-sizing: border-box;
+}
+
+.checkliste--haken .cl-zeichen {
+  background: var(--accent);
+}
+
+.checkliste--haken .cl-zeichen::after {
+  position: absolute;
+  top: 45%;
+  left: 50%;
+  width: 0.375rem;
+  height: 0.75rem;
+  border: solid var(--on-accent);
+  border-width: 0 3px 3px 0;
+  box-sizing: border-box;
+  transform: translate(-50%, -55%) rotate(45deg);
+  content: "";
+}
+
+.cl-text {
+  min-width: 0;
+}
+
+/* Gedruckt zählt die Linie, nicht die Fläche: Die Zeichen behalten ihre Form */
+@media print {
+  .checkliste--haken .cl-zeichen {
+    background: none;
+  }
+
+  .checkliste--haken .cl-zeichen::after {
+    border-color: currentcolor;
+  }
+}
+
+/* Hoher Kontrast des Systems: Flächen entfallen, das Dreieck von «Achtung» behält seine Farbe */
+@media (forced-colors: active) {
+  .hinweisbox--achtung .hb-zeichen {
+    background: CanvasText;
+    forced-color-adjust: none;
+  }
+
+  .hinweisbox--achtung .hb-zeichen::before {
+    color: Canvas;
+  }
+}

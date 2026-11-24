@@ -6,6 +6,7 @@ import {
   MAX_SEITENTITEL,
   type Baustein,
 } from "./bausteine.js";
+import { textVerweise } from "./bausteine-text.js";
 
 // Seitendokument Version 1 (#349): Titel und geordnete Bausteine. Das Feld `v` trägt spätere Schemawechsel.
 export const seitendokumentSchema = z
@@ -130,6 +131,7 @@ export function sammleVerweise(dok: Seitendokument): Verweise {
         }
         break;
       default:
+        textVerweise(b, medien, ziel);
         break;
     }
   }
