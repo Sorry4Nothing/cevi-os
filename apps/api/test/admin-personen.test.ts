@@ -881,9 +881,11 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
   test("ein gelöschter Entwickler zählt nicht: danach gilt die Abteilungsleitung allein", async () => {
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
     const entwickler = await legeEntwicklerAn(eigene);
+    // Die Abteilungsleitung löscht keinen Entwickler (403 KONTO_GESCHUETZT, #771): Die Zeile fällt von Hand weg
     expect(
       (await anfrage(ersterAdmin, "DELETE", `/${entwickler.id}`)).status,
-    ).toBe(204);
+    ).toBe(403);
+    await db.delete(schema.user).where(eq(schema.user.id, entwickler.id!));
     expect(
       (
         await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
