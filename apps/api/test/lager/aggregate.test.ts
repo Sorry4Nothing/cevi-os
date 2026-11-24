@@ -17,6 +17,7 @@ import {
   tageBis,
 } from "../../src/lager/aggregate.js";
 import type { WetterTag } from "../../src/lager/wetter-openmeteo.js";
+import { aufgeloest, dienst } from "./wetter-hilfen.js";
 import { ladeSeiten } from "../../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "../hilfen/auth.js";
 import { API_URL } from "../hilfen/datenbank.js";
@@ -54,10 +55,10 @@ const app = erstelleApp({
   auth,
   seiten: ladeSeiten(),
   jetzt: () => jetzt,
-  wetter: async () => {
+  wetter: dienst(async () => {
     wetterAbrufe++;
     return [wetterTag(HEUTE)];
-  },
+  }),
 });
 afterAll(() => sql.end());
 
@@ -91,8 +92,7 @@ async function neuesLager(
       von: "2041-06-20",
       bis: "2041-07-04",
       status: p.status ?? "aktiv",
-      breite: p.ort ? 47.38 : undefined,
-      laenge: p.ort ? 8.54 : undefined,
+      ...(p.ort ? aufgeloest(47.38, 8.54) : {}),
     })
     .returning({ id: schema.lager.id });
   const id = zeile!.id;

@@ -726,11 +726,6 @@ const AUSNAHMEN = {
     "gesetzt",
     "geaendert",
   ],
-  "PUT /api/v1/lager/:p/wetter/ort": [
-    "Ort für das Wetter",
-    "gesetzt",
-    "geaendert",
-  ],
   "PUT /api/v1/admin/kategorie-zuordnungen": [
     "Kategorie eines Tags",
     "zugeordnet",

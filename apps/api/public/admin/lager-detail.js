@@ -13,6 +13,8 @@ import {
   meldung,
   merkeMeldung,
   symbol,
+  wetterOrtProblem,
+  wetterOrtZeile,
   zeigeWartende,
   zeitraum,
 } from "./lager-gemeinsam.js";
@@ -72,12 +74,26 @@ function aendernDialog(lager, ctx, neu) {
       fehler.forEach((e, i) => feldFehler(e.f, e.text, { fokus: i === 0 }));
       return fehler.length > 0;
     },
-    senden: () =>
-      anfrage("PATCH", `${BASIS}/${lager.id}`, g.koerper({ aendern: true })),
+    // Nach dem Speichern bestimmt der Server den Wetterort; das Lager sagt, ob er ihn gefunden hat
+    senden: async () => {
+      await anfrage(
+        "PATCH",
+        `${BASIS}/${lager.id}`,
+        g.koerper({ aendern: true }),
+      );
+      return anfrage("GET", `${BASIS}/${lager.id}`).catch(() => null);
+    },
     fehlertext: meldung,
-    danach: () => {
+    danach: (neuesLager) => {
       neu();
-      ctx.melde("Die Angaben sind gespeichert.");
+      const w = neuesLager?.wetterOrt;
+      const text = "Die Angaben sind gespeichert.";
+      if (w && w.status !== "kein_ort") {
+        ctx.melde(
+          `${text} ${wetterOrtZeile(w)}`,
+          wetterOrtProblem(w) ? "warn" : undefined,
+        );
+      } else ctx.melde(text);
     },
   });
 }
@@ -361,6 +377,7 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neuModul) {
           ],
           ["Ort", lager.ort ?? "–"],
           ["Adresse", lager.adresse ?? "–"],
+          ["Wetter", wetterOrtZeile(lager.wetterOrt)],
         ]),
         !geschlossen &&
           el(

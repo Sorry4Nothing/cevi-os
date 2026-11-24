@@ -547,12 +547,6 @@ tr.lm-erledigt th label {
   gap: 4px 12px;
 }
 
-.lm-ortform {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
 @media (max-width: 900px) {
   .lm-tagesraster {
     grid-template-columns: minmax(0, 1fr);

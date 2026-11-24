@@ -65,7 +65,7 @@ import {
 import { erstelleEditorRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
-import type { WetterHolen } from "./lager/wetter-openmeteo.js";
+import type { Wetterdienst } from "./lager/wetter-openmeteo.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleIcalRoute } from "./routes/termine/ical.js";
 import { erstelleLadenRouten } from "./routes/laden/index.js";
@@ -140,7 +140,7 @@ export function erstelleApp({
   auth: ReturnType<typeof erstelleAuth>;
   fcm?: Fcm;
   // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
-  wetter?: WetterHolen;
+  wetter?: Wetterdienst;
   // Uhr der Lager-Aggregate (#395); ohne Angabe die Systemzeit
   jetzt?: () => Date;
   // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
@@ -323,7 +323,7 @@ export function erstelleApp({
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db, auth }))
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
       .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
-      .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db }))
+      .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db, wetter }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/vorlagen", erstelleAdminVorlagenRouten({ db }))
       .route(

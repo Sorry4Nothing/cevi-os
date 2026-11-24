@@ -13,7 +13,7 @@ import { darf, type LagerZugriff } from "./policy.js";
 import { ladeSchichtplan } from "./schichtplan.js";
 import { ladeTagesseite } from "./tagesseiten.js";
 import { ladeWetter } from "./wetter.js";
-import type { WetterHolen } from "./wetter-openmeteo.js";
+import type { Wetterdienst } from "./wetter-openmeteo.js";
 import { ladeZeitplan } from "./zeitplan.js";
 
 // Aggregate für die Apps (#395): «Heute», «Meine Woche» und der Start der Lagerleitung. Reine Ansichten über die Lesefunktionen der Module, ohne eigene Tabelle und ohne Schreibzugriff. Notfall-Kontakte gehören nur zu #393 und stehen hier nicht.
@@ -49,7 +49,7 @@ export async function ladeHeute(
   db: Leser,
   zugriff: LagerZugriff,
   jetzt: Date,
-  holen: WetterHolen,
+  dienst: Wetterdienst,
 ) {
   const lagerId = zugriff.lager.id;
   const heute = datumInZuerich(jetzt);
@@ -74,10 +74,10 @@ export async function ladeHeute(
     .where(and(eq(lagertag.lagerId, lagerId), eq(lagertag.datum, heute)));
 
   const [seite, wetter, anwesenheit, plan, hoecks] = await Promise.all([
-    mitSeite && tag ? ladeTagesseite(db, zugriff, tag.id, holen) : undefined,
+    mitSeite && tag ? ladeTagesseite(db, zugriff, tag.id, dienst) : undefined,
     // Mit Tagesseite steckt das Wetter des Tages schon darin
     mitWetter && !(mitSeite && tag)
-      ? ladeWetter(db, zugriff.lager, holen)
+      ? ladeWetter(db, zugriff.lager, dienst)
       : undefined,
     mitAnwesenheit && tag
       ? ladeZusammenfassung(db, lagerId, tag.id)

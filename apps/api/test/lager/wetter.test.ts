@@ -26,6 +26,15 @@ import {
   holeOpenMeteo,
   type WetterTag,
 } from "../../src/lager/wetter-openmeteo.js";
+import {
+  NEUER_ORTSVERSUCH_MINUTEN,
+  ortAnfrage,
+} from "../../src/lager/wetter-ort.js";
+import {
+  sucheOpenMeteo,
+  waehleTreffer,
+  type OrtTreffer,
+} from "../../src/lager/wetter-geocoding.js";
 import { ladeSeiten } from "../../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "../hilfen/auth.js";
 import { API_URL } from "../hilfen/datenbank.js";
@@ -36,6 +45,7 @@ import {
   type Welt,
 } from "../hilfen/personas.js";
 import { KONTO_FUER, LAGER_PERSONAS, type LagerPersona } from "./matrix.js";
+import { aufgeloest, dienst, treffer } from "./wetter-hilfen.js";
 
 bereiteAuthTestsVor();
 
@@ -46,6 +56,9 @@ const auth = erstelleTestAuth(db);
 // Eine Attrappe statt des Wetterdienstes: Kein Netz, jeder Abruf wird gezählt
 let abrufe: [number, number][] = [];
 let antwort: () => Promise<WetterTag[]>;
+// Ebenso für die Ortssuche: Jede Suche wird mit dem gesendeten Namen gezählt
+let suchen: string[] = [];
+let suchAntwort: (name: string) => Promise<OrtTreffer[]>;
 const tag = (datum: string, werte: Partial<WetterTag> = {}): WetterTag => ({
   datum,
   code: 1,
@@ -61,10 +74,16 @@ const app = erstelleApp({
   db,
   auth,
   seiten: ladeSeiten(),
-  wetter: async (breite, laenge) => {
-    abrufe.push([breite, laenge]);
-    return antwort();
-  },
+  wetter: dienst(
+    async (breite, laenge) => {
+      abrufe.push([breite, laenge]);
+      return antwort();
+    },
+    async (name) => {
+      suchen.push(name);
+      return suchAntwort(name);
+    },
+  ),
 });
 afterAll(() => sql.end());
 
@@ -73,7 +92,9 @@ let konten: Record<LagerPersona, PersonaKonto>;
 
 beforeEach(() => {
   abrufe = [];
+  suchen = [];
   antwort = async () => [tag("2041-06-01")];
+  suchAntwort = async () => [treffer()];
   vi.spyOn(console, "log").mockImplementation(() => {});
 });
 afterEach(() => vi.restoreAllMocks());
@@ -90,6 +111,9 @@ async function neuesLager(
     status?: "aktiv" | "abgeschlossen";
     breite?: number;
     laenge?: number;
+    // Ein Lagerort, der noch nicht aufgelöst ist
+    ort?: string;
+    adresse?: string;
     abteilungId?: string;
   } = {},
 ) {
@@ -102,8 +126,11 @@ async function neuesLager(
       von: "2027-07-10",
       bis: "2027-07-24",
       status: p.status ?? "aktiv",
-      breite: p.breite,
-      laenge: p.laenge,
+      ...(p.breite !== undefined && p.laenge !== undefined
+        ? aufgeloest(p.breite, p.laenge)
+        : {}),
+      ...(p.ort !== undefined && { ort: p.ort }),
+      adresse: p.adresse,
     })
     .returning({ id: schema.lager.id });
   const id = zeile!.id;
@@ -170,106 +197,309 @@ describe("Rechte", () => {
     fremdeAbteilung: 404,
     ohneLogin: 401,
   };
-  const ortSetzen: Record<LagerPersona, number> = {
-    abteilungsleitung: 200,
-    lagerleitung: 200,
-    leitung: 403,
-    team: 403,
-    lesen: 403,
-    ohneMitgliedschaft: 404,
-    fremdeAbteilung: 404,
-    ohneLogin: 401,
-  };
   test.each(LAGER_PERSONAS)("%s: Wetter lesen", async (p) => {
     const l = await neuesLager();
     expect((await anfrage(konten[p], "GET", W(l))).status).toBe(lesen[p]);
   });
-  test.each(LAGER_PERSONAS)("%s: Ort setzen", async (p) => {
-    const l = await neuesLager();
-    const a = await anfrage(konten[p], "PUT", `${W(l)}/ort`, {
-      breite: 47.3769,
-      laenge: 8.5417,
-    });
-    expect(a.status).toBe(ortSetzen[p]);
-    const [stand] = await db
-      .select({ breite: schema.lager.breite })
-      .from(schema.lager)
-      .where(eq(schema.lager.id, l));
-    // Wer nicht darf, ändert nichts
-    expect(stand!.breite).toBe(ortSetzen[p] === 200 ? 47.38 : null);
-  });
-  test("im geschlossenen Lager ist Lesen erlaubt, Ort setzen 409", async () => {
+  test("im geschlossenen Lager ist Lesen erlaubt", async () => {
     const l = await neuesLager({ status: "abgeschlossen" });
     expect((await anfrage(konten.team, "GET", W(l))).status).toBe(200);
-    expect(
-      (
-        await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-          breite: 47,
-          laenge: 8,
-        })
-      ).status,
-    ).toBe(409);
   });
   test("ein fremdes Lager ist 404", async () => {
     const l = await neuesLager({ abteilungId: welt.demoAbteilungId });
     expect((await anfrage(konten.lagerleitung, "GET", W(l))).status).toBe(404);
-    expect(
-      (
-        await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-          breite: 47,
-          laenge: 8,
-        })
-      ).status,
-    ).toBe(404);
+  });
+  test("keine manuelle Eingabe: die Route zum Setzen des Ortes gibt es nicht mehr", async () => {
+    const l = await neuesLager({ ort: "Musterstadt" });
+    for (const p of ["abteilungsleitung", "lagerleitung"] as const) {
+      const a = await anfrage(konten[p], "PUT", `${W(l)}/ort`, {
+        breite: 47.3769,
+        laenge: 8.5417,
+      });
+      expect(a.status).toBe(404);
+    }
+    const [stand] = await db
+      .select({ breite: schema.lager.breite })
+      .from(schema.lager)
+      .where(eq(schema.lager.id, l));
+    expect(stand!.breite).toBeNull();
+    expect(suchen).toHaveLength(0);
   });
 });
 
-describe("Ort", () => {
-  test("setzen rundet auf zwei Stellen, ins Protokoll kommt nur «gesetzt»", async () => {
-    const l = await neuesLager();
-    const a = await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-      breite: 46.94809,
-      laenge: 7.44744,
+describe("Ort aus dem Lagerort", () => {
+  const lagerZeile = async (id: string) =>
+    (await db.select().from(schema.lager).where(eq(schema.lager.id, id)))[0]!;
+  const ADMIN = "/api/v1/admin/lager";
+
+  test("ein eindeutiger Ort wird gefunden, gerundet gespeichert und nur einmal gesucht", async () => {
+    const l = await neuesLager({ ort: "Musterstadt" });
+    const a = await anfrage(konten.team, "GET", W(l));
+    expect(a.body.ort).toEqual({
+      status: "gefunden",
+      name: "Musterstadt, Kanton Beispiel",
     });
-    expect(a.body).toEqual({ breite: 46.95, laenge: 7.45 });
-    const eintrag = (
-      await db
-        .select()
-        .from(schema.auditLog)
-        .where(eq(schema.auditLog.zielId, l))
-    ).find((e) => e.aktion === "lager_wetter_ort");
-    expect(eintrag?.details).toEqual({ gesetzt: true });
-    const b = await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-      breite: null,
-      laenge: null,
+    expect(a.body.tage).toHaveLength(1);
+    // Die Vorhersage kommt für den gerundeten Ort
+    expect(abrufe).toEqual([[47.38, 8.54]]);
+    expect(await lagerZeile(l)).toMatchObject({
+      breite: 47.38,
+      laenge: 8.54,
+      wetterOrtErgebnis: "gefunden",
     });
-    expect(b.body).toEqual({ breite: null, laenge: null });
-    const spaeter = (
-      await db
-        .select()
-        .from(schema.auditLog)
-        .where(eq(schema.auditLog.zielId, l))
-    ).filter((e) => e.aktion === "lager_wetter_ort");
-    expect(spaeter.map((e) => e.details)).toEqual(
-      expect.arrayContaining([{ gesetzt: true }, { gesetzt: false }]),
-    );
+    await anfrage(konten.lesen, "GET", W(l));
+    expect(suchen).toEqual(["Musterstadt"]);
   });
-  test("ungültige Werte sind 400: nur ein Wert, ausserhalb der Grenzen, fremde Felder", async () => {
+
+  test("gleichzeitige Anfragen teilen sich eine Suche", async () => {
+    const l = await neuesLager({ ort: "Musterstadt" });
+    await Promise.all(
+      [1, 2, 3, 4].map(() => anfrage(konten.team, "GET", W(l))),
+    );
+    expect(suchen).toHaveLength(1);
+  });
+
+  test("zwei gleich grosse Orte gleichen Namens sind nicht eindeutig: kein Wetter, keine neue Suche", async () => {
+    suchAntwort = async () => [
+      treffer({ bevoelkerung: 300, breite: 47.1, laenge: 8.1, plz: ["9990"] }),
+      treffer({ bevoelkerung: 280, breite: 46.2, laenge: 7.2, plz: ["9991"] }),
+    ];
+    const l = await neuesLager({ ort: "Musterstadt" });
+    const a = await anfrage(konten.team, "GET", W(l));
+    expect(a.body).toEqual({
+      ort: { status: "mehrdeutig", name: null },
+      stand: null,
+      tage: [],
+    });
+    expect(abrufe).toHaveLength(0);
+    await anfrage(konten.team, "GET", W(l));
+    expect(suchen).toHaveLength(1);
+  });
+
+  test("die Postleitzahl aus der Adresse unterscheidet Treffer, die Adresse selbst geht nicht hinaus", async () => {
+    suchAntwort = async () => [
+      treffer({ bevoelkerung: 300, breite: 47.1, laenge: 8.1, plz: ["9990"] }),
+      treffer({ bevoelkerung: 280, breite: 46.2, laenge: 7.2, plz: ["9991"] }),
+    ];
+    const l = await neuesLager({
+      ort: "Musterstadt",
+      adresse: "Pfadiweg 7, 9991 Musterstadt",
+    });
+    const a = await anfrage(konten.team, "GET", W(l));
+    expect(a.body.ort.status).toBe("gefunden");
+    expect(abrufe).toEqual([[46.2, 7.2]]);
+    expect(suchen).toEqual(["Musterstadt"]);
+  });
+
+  test("ein unbekannter Ort ist «nicht gefunden»", async () => {
+    suchAntwort = async () => [];
+    const l = await neuesLager({ ort: "Ortohnetreffer" });
+    const a = await anfrage(konten.team, "GET", W(l));
+    expect(a.body.ort).toEqual({ status: "nicht_gefunden", name: null });
+    expect(a.body.tage).toEqual([]);
+    expect(abrufe).toHaveLength(0);
+  });
+
+  test("ohne Lagerort: «kein_ort», keine Suche, kein Abruf", async () => {
     const l = await neuesLager();
-    for (const body of [
-      { breite: 47, laenge: null },
-      { breite: null, laenge: 8 },
-      { breite: 91, laenge: 8 },
-      { breite: 47, laenge: -181 },
-      { breite: "47", laenge: 8 },
-      { breite: 47, laenge: 8, name: "Lagerhaus" },
-      { breite: 47 },
-      {},
-    ]) {
-      expect(
-        (await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, body)).status,
-      ).toBe(400);
-    }
+    const a = await anfrage(konten.team, "GET", W(l));
+    expect(a.body).toEqual({
+      ort: { status: "kein_ort", name: null },
+      stand: null,
+      tage: [],
+    });
+    expect(suchen).toHaveLength(0);
+    expect(abrufe).toHaveLength(0);
+  });
+
+  test("von Hand gesetzte Koordinaten ohne Lagerort zählen nicht mehr", async () => {
+    const l = await neuesLager();
+    await db
+      .update(schema.lager)
+      .set({ breite: 47, laenge: 8 })
+      .where(eq(schema.lager.id, l));
+    const a = await anfrage(konten.team, "GET", W(l));
+    expect(a.body.ort.status).toBe("kein_ort");
+    expect(abrufe).toHaveLength(0);
+  });
+
+  test("bestehende Koordinaten ohne Schlüssel werden aus dem Lagerort neu bestimmt", async () => {
+    const l = await neuesLager({ ort: "Musterstadt" });
+    await db
+      .update(schema.lager)
+      .set({ breite: 10, laenge: 10 })
+      .where(eq(schema.lager.id, l));
+    await anfrage(konten.team, "GET", W(l));
+    expect(abrufe).toEqual([[47.38, 8.54]]);
+  });
+
+  test("ändert sich der Lagerort, sucht der Server gleich neu und die Verwaltung zeigt den Stand", async () => {
+    const l = await neuesLager({ ort: "Musterstadt" });
+    await anfrage(konten.team, "GET", W(l));
+    suchAntwort = async (name) => [
+      treffer({ name, breite: 46.0021, laenge: 7.0049 }),
+    ];
+    const p = await anfrage(
+      konten.abteilungsleitung,
+      "PATCH",
+      `${ADMIN}/${l}`,
+      { ort: "Beispieldorf" },
+    );
+    expect(p.status).toBe(204);
+    expect(suchen).toEqual(["Musterstadt", "Beispieldorf"]);
+    const g = await anfrage(konten.abteilungsleitung, "GET", `${ADMIN}/${l}`);
+    expect(g.body.wetterOrt).toEqual({
+      status: "gefunden",
+      name: "Beispieldorf, Kanton Beispiel",
+    });
+    // Das Wetter gilt dem neuen Ort
+    await anfrage(konten.team, "GET", W(l));
+    expect(abrufe).toEqual([
+      [47.38, 8.54],
+      [46, 7],
+    ]);
+    // Ort leeren: kein Wetter mehr
+    await anfrage(konten.abteilungsleitung, "PATCH", `${ADMIN}/${l}`, {
+      ort: null,
+    });
+    const leer = await anfrage(konten.team, "GET", W(l));
+    expect(leer.body.ort.status).toBe("kein_ort");
+    expect(leer.body.tage).toEqual([]);
+  });
+
+  test("ändert sich nur die Postleitzahl der Adresse, sucht der Server neu; ein anderes Feld löst keine Suche aus", async () => {
+    const l = await neuesLager({ ort: "Musterstadt", adresse: "Weg 1" });
+    await anfrage(konten.team, "GET", W(l));
+    await anfrage(konten.abteilungsleitung, "PATCH", `${ADMIN}/${l}`, {
+      titel: "Anderer Titel",
+    });
+    expect(suchen).toHaveLength(1);
+    await anfrage(konten.abteilungsleitung, "PATCH", `${ADMIN}/${l}`, {
+      adresse: "Weg 1, 9999 Musterstadt",
+    });
+    expect(suchen).toHaveLength(2);
+  });
+
+  test("beim Anlegen mit Ort bestimmt der Server den Wetterort gleich", async () => {
+    const a = await anfrage(konten.abteilungsleitung, "POST", ADMIN, {
+      titel: "Neues Wetterlager",
+      von: "2027-07-10",
+      bis: "2027-07-24",
+      ort: "Musterstadt",
+    });
+    expect(a.status).toBe(201);
+    const g = await anfrage(
+      konten.abteilungsleitung,
+      "GET",
+      `${ADMIN}/${a.body.id}`,
+    );
+    expect(g.body.wetterOrt.status).toBe("gefunden");
+  });
+
+  test("ist der Ortsdienst nicht erreichbar: «nicht_erreichbar», höchstens ein Versuch je Viertelstunde, danach klappt es", async () => {
+    suchAntwort = async () => {
+      throw new Error(
+        "https://geocoding-api.open-meteo.com/v1/search?name=Musterstadt",
+      );
+    };
+    const l = await neuesLager({ ort: "Musterstadt" });
+    const a = await anfrage(konten.team, "GET", W(l));
+    expect(a.status).toBe(200);
+    expect(a.body).toEqual({
+      ort: { status: "nicht_erreichbar", name: null },
+      stand: null,
+      tage: [],
+    });
+    expect(JSON.stringify(a.body)).not.toContain("geocoding");
+    await Promise.all([1, 2, 3].map(() => anfrage(konten.team, "GET", W(l))));
+    expect(suchen).toHaveLength(1);
+    await db
+      .update(schema.lager)
+      .set({
+        wetterOrtVersuchAm: new Date(
+          Date.now() - (NEUER_ORTSVERSUCH_MINUTEN + 1) * 60_000,
+        ),
+      })
+      .where(eq(schema.lager.id, l));
+    suchAntwort = async () => [treffer()];
+    const b = await anfrage(konten.team, "GET", W(l));
+    expect(suchen).toHaveLength(2);
+    expect(b.body.ort.status).toBe("gefunden");
+    expect(b.body.tage).toHaveLength(1);
+  });
+});
+
+describe("Ortsname für den Dienst", () => {
+  test("nur der Ortsname geht hinaus: ohne Ziffern, ohne Hausnummer, ohne Adresse", () => {
+    expect(ortAnfrage("Musterstadt", null)).toMatchObject({
+      namen: ["Musterstadt"],
+      plz: null,
+    });
+    expect(
+      ortAnfrage("9999 Musterstadt, Pfadiweg 7", "Hauptstrasse 3"),
+    ).toMatchObject({ namen: ["Musterstadt"], plz: "9999" });
+    // Die Postleitzahl der Adresse bleibt beim Server
+    expect(
+      ortAnfrage("Musterstadt", "Pfadiweg 7, 9991 Musterstadt"),
+    ).toMatchObject({ namen: ["Musterstadt"], plz: "9991" });
+    // Ohne Postleitzahl: erster und letzter Teil, nie ein Wort mit Ziffer
+    expect(ortAnfrage("Pfadiheim 12, Musterstadt", null)?.namen).toEqual([
+      "Pfadiheim",
+      "Musterstadt",
+    ]);
+    // Nur eine Postleitzahl: der Dienst sucht nach ihr
+    expect(ortAnfrage("9999", null)?.namen).toEqual(["9999"]);
+    expect(ortAnfrage("  ", "Weg 1")).toBeNull();
+    expect(ortAnfrage(null, "Weg 1")).toBeNull();
+    expect(ortAnfrage("x".repeat(300), null)!.namen[0]).toHaveLength(100);
+  });
+
+  test("der Schlüssel ändert sich mit Ort und Postleitzahl, nicht mit der Grossschreibung", () => {
+    const a = ortAnfrage("Musterstadt", null)!.schluessel;
+    expect(ortAnfrage("MUSTERSTADT", null)!.schluessel).toBe(a);
+    expect(ortAnfrage("Musterstadt", "Weg 1, 9999 Ort")!.schluessel).not.toBe(
+      a,
+    );
+    expect(ortAnfrage("Beispieldorf", null)!.schluessel).not.toBe(a);
+  });
+
+  test("Auswahl: genauer Name vor Anfang des Namens, gleicher Ort zählt einmal, grosser Ort gewinnt klar", () => {
+    const t = (p: Partial<OrtTreffer>) => treffer(p);
+    // «Muster» findet beim Dienst auch «Musterstadt»; der genaue Name zählt
+    const genau = waehleTreffer(
+      [
+        t({ name: "Musterstadtberg", bevoelkerung: 90_000 }),
+        t({ name: "Musterstadt", bevoelkerung: 500, breite: 46, laenge: 7 }),
+      ],
+      "musterstadt",
+      null,
+    );
+    expect(genau).toMatchObject({ art: "gefunden", treffer: { breite: 46 } });
+    // Gemeinde und Siedlung derselben Stelle sind ein Ort
+    expect(
+      waehleTreffer(
+        [t({}), t({ breite: 47.3769 + 0.02, bevoelkerung: 0 })],
+        "Musterstadt",
+        null,
+      ).art,
+    ).toBe("gefunden");
+    // Dreimal so gross: eindeutig; weniger: nicht
+    const weit = { breite: 46, laenge: 7 };
+    expect(
+      waehleTreffer(
+        [t({ bevoelkerung: 3000 }), t({ ...weit, bevoelkerung: 1000 })],
+        "Musterstadt",
+        null,
+      ).art,
+    ).toBe("gefunden");
+    expect(
+      waehleTreffer(
+        [t({ bevoelkerung: 2999 }), t({ ...weit, bevoelkerung: 1000 })],
+        "Musterstadt",
+        null,
+      ).art,
+    ).toBe("mehrdeutig");
+    expect(waehleTreffer([], "Musterstadt", null).art).toBe("keiner");
   });
 });
 
@@ -277,7 +507,11 @@ describe("Wetter und Zwischenspeicher", () => {
   test("ohne Ort kein Abruf und eine leere Antwort", async () => {
     const l = await neuesLager();
     const a = await anfrage(konten.team, "GET", W(l));
-    expect(a.body).toEqual({ ort: null, stand: null, tage: [] });
+    expect(a.body).toEqual({
+      ort: { status: "kein_ort", name: null },
+      stand: null,
+      tage: [],
+    });
     expect(abrufe).toHaveLength(0);
     expect(await zeile(l)).toBeUndefined();
   });
@@ -297,7 +531,10 @@ describe("Wetter und Zwischenspeicher", () => {
     // Es geht nur der gerundete Ort hinaus
     expect(abrufe).toEqual([[47.38, 8.54]]);
     const a = alle[0]!.body;
-    expect(a.ort).toEqual({ breite: 47.3769, laenge: 8.5417 });
+    expect(a.ort).toEqual({
+      status: "gefunden",
+      name: "Musterstadt, Kanton Beispiel",
+    });
     expect(a.stand).not.toBeNull();
     expect(a.tage).toEqual([
       {
@@ -336,27 +573,6 @@ describe("Wetter und Zwischenspeicher", () => {
     });
   });
 
-  test("ändert die Lagerleitung den Ort, gilt der alte Stand nicht mehr", async () => {
-    const l = await neuesLager({ breite: 47.3769, laenge: 8.5417 });
-    await anfrage(konten.team, "GET", W(l));
-    await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-      breite: 46.0,
-      laenge: 7.0,
-    });
-    await anfrage(konten.team, "GET", W(l));
-    expect(abrufe).toEqual([
-      [47.38, 8.54],
-      [46, 7],
-    ]);
-    // Eine Änderung unter der Rundung ist derselbe Ort
-    await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-      breite: 46.001,
-      laenge: 7.001,
-    });
-    await anfrage(konten.team, "GET", W(l));
-    expect(abrufe).toHaveLength(2);
-  });
-
   test("fällt der Dienst aus: kein Wetter statt eines Fehlers, und höchstens ein Versuch je Viertelstunde", async () => {
     const l = await neuesLager({ breite: 47, laenge: 8 });
     antwort = async () => {
@@ -366,7 +582,7 @@ describe("Wetter und Zwischenspeicher", () => {
     expect(a.status).toBe(200);
     expect(a.body.tage).toEqual([]);
     expect(a.body.stand).toBeNull();
-    expect(a.body.ort).toEqual({ breite: 47, laenge: 8 });
+    expect(a.body.ort.status).toBe("gefunden");
     // Auch viele weitere Anfragen lösen keinen neuen Abruf aus
     await Promise.all([1, 2, 3].map(() => anfrage(konten.team, "GET", W(l))));
     expect(abrufe).toHaveLength(1);
@@ -415,10 +631,13 @@ describe("Wetter und Zwischenspeicher", () => {
     antwort = async () => {
       throw new Error("Aus");
     };
-    await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-      breite: 10,
-      laenge: 10,
-    });
+    suchAntwort = async () => [treffer({ breite: 10, laenge: 10 })];
+    await anfrage(
+      konten.abteilungsleitung,
+      "PATCH",
+      `/api/v1/admin/lager/${l}`,
+      { ort: "Beispieldorf" },
+    );
     const a = await anfrage(konten.team, "GET", W(l));
     expect(a.body.tage).toEqual([]);
     expect(await zeile(l)).toMatchObject({
@@ -439,23 +658,27 @@ describe("Wetter und Zwischenspeicher", () => {
 
   test("ladeWetter mit fester Zeit: Grenzen der Fristen", async () => {
     const l = await neuesLager({ breite: 47, laenge: 8 });
-    const lager = { id: l, breite: 47, laenge: 8 };
+    const [lager] = await db
+      .select()
+      .from(schema.lager)
+      .where(eq(schema.lager.id, l));
     const t0 = new Date("2041-06-01T08:00:00Z");
     const holen = vi.fn(async () => [tag("2041-06-01")]);
-    await ladeWetter(db, lager, holen, t0);
+    const wetter = dienst(holen);
+    await ladeWetter(db, lager!, wetter, t0);
     // Knapp unter der Frist: aus dem Speicher
     await ladeWetter(
       db,
-      lager,
-      holen,
+      lager!,
+      wetter,
       new Date(t0.getTime() + (WETTER_STUNDEN * 60 - 1) * 60_000),
     );
     expect(holen).toHaveBeenCalledTimes(1);
     // Ab der Frist: neu
     await ladeWetter(
       db,
-      lager,
-      holen,
+      lager!,
+      wetter,
       new Date(t0.getTime() + WETTER_STUNDEN * 3_600_000),
     );
     expect(holen).toHaveBeenCalledTimes(2);
@@ -592,8 +815,26 @@ describe("Abruf bei Open-Meteo (ohne Netz)", () => {
     await expect(holeOpenMeteo(47, 8)).rejects.toThrow(/zu gross/);
   });
 
-  test("der echte Abruf läuft nie ohne eingespritzten Dienst, wenn kein Ort gesetzt ist", async () => {
-    const f = stub(Response.json(antwortKoerper));
+  test("ohne eingespritzten Dienst geht nichts hinaus, solange das Lager keinen Ort hat; mit Ort nur der Ortsname und danach zwei Zahlen, jeweils zum festen Host", async () => {
+    const f = vi.fn<
+      (url: URL | string, init?: RequestInit) => Promise<Response>
+    >(async (url) =>
+      new URL(String(url)).host === "geocoding-api.open-meteo.com"
+        ? Response.json({
+            results: [
+              {
+                name: "Musterstadt",
+                latitude: 47.3769,
+                longitude: 8.5417,
+                admin1: "Kanton Beispiel",
+                population: 9000,
+                postcodes: ["9999"],
+              },
+            ],
+          })
+        : Response.json(antwortKoerper),
+    );
+    vi.stubGlobal("fetch", f);
     const eigeneApp = erstelleApp({
       appMinVersion: "1.2.0",
       sql,
@@ -601,24 +842,65 @@ describe("Abruf bei Open-Meteo (ohne Netz)", () => {
       auth,
       seiten: ladeSeiten(),
     });
-    const l = await neuesLager();
-    const res = await eigeneApp.request(W(l), {
+    const ohne = await neuesLager();
+    const res = await eigeneApp.request(W(ohne), {
       headers: konten.team.headers,
     });
     expect(res.status).toBe(200);
     expect(f).not.toHaveBeenCalled();
-    // Mit Ort geht der Abruf über den echten Weg (hier die Attrappe von fetch), nie über eine andere Adresse
-    await anfrage(konten.lagerleitung, "PUT", `${W(l)}/ort`, {
-      breite: 47.3769,
-      laenge: 8.5417,
+    const l = await neuesLager({
+      ort: "Musterstadt",
+      adresse: "Pfadiweg 7, 9999 Musterstadt",
     });
     const mitOrt = await eigeneApp.request(W(l), {
       headers: konten.team.headers,
     });
     expect(mitOrt.status).toBe(200);
-    expect(f).toHaveBeenCalledTimes(1);
-    expect(new URL(String(f.mock.calls[0]![0])).host).toBe(
+    expect(f).toHaveBeenCalledTimes(2);
+    const such = f.mock.calls[0]!;
+    const u = new URL(String(such[0]));
+    expect(u.protocol).toBe("https:");
+    expect(u.host).toBe("geocoding-api.open-meteo.com");
+    expect(u.pathname).toBe("/v1/search");
+    // Genau diese Parameter: nur der Ortsname, nichts über Lager, Adresse, Personen oder Konto
+    expect(Object.fromEntries(u.searchParams)).toEqual({
+      name: "Musterstadt",
+      count: "10",
+      language: "de",
+      countryCode: "CH",
+      format: "json",
+    });
+    expect(such[1]?.redirect).toBe("error");
+    expect(such[1]?.signal).toBeInstanceOf(AbortSignal);
+    expect(such[1]?.headers).toEqual({ accept: "application/json" });
+    expect(such[1]?.body).toBeUndefined();
+    expect(String(such[0])).not.toMatch(/Pfadiweg|9999|Wetterlager/);
+    expect(new URL(String(f.mock.calls[1]![0])).host).toBe(
       "api.open-meteo.com",
     );
+  });
+
+  test("die Ortssuche wirft bei Fehlerstatus, Netzfehler, kaputtem oder falsch geformtem JSON und bei zu grosser Antwort", async () => {
+    const stub = (res: Response | Error) =>
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => {
+          if (res instanceof Error) throw res;
+          return res;
+        }),
+      );
+    stub(new Response("Fehler", { status: 500 }));
+    await expect(sucheOpenMeteo("Musterstadt")).rejects.toThrow();
+    stub(new Error("getaddrinfo ENOTFOUND"));
+    await expect(sucheOpenMeteo("Musterstadt")).rejects.toThrow();
+    stub(new Response("kein json"));
+    await expect(sucheOpenMeteo("Musterstadt")).rejects.toThrow();
+    stub(Response.json({ results: [{ name: "Ohne Lage" }] }));
+    await expect(sucheOpenMeteo("Musterstadt")).rejects.toThrow();
+    stub(new Response("x".repeat(70 * 1024)));
+    await expect(sucheOpenMeteo("Musterstadt")).rejects.toThrow(/zu gross/);
+    // Kein Treffer: Der Dienst lässt «results» weg
+    stub(Response.json({ generationtime_ms: 0.2 }));
+    expect(await sucheOpenMeteo("Ortohnetreffer")).toEqual([]);
   });
 });

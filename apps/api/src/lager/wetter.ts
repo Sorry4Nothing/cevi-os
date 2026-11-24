@@ -1,25 +1,26 @@
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { wetterCache } from "../db/schema.js";
-import type { WetterHolen, WetterTag } from "./wetter-openmeteo.js";
+import { rundeOrt } from "./wetter-geocoding.js";
+import type {
+  WetterHolen,
+  WetterTag,
+  Wetterdienst,
+} from "./wetter-openmeteo.js";
+import {
+  mussSuchen,
+  sucheWetterOrt,
+  wetterOrt,
+  type LagerOrt,
+  type WetterOrt,
+} from "./wetter-ort.js";
 
-// Wetter für das Lager (#391). Der Server holt die Vorhersage für den Ort des Lagers beim Wetterdienst (wetter-openmeteo.ts) und hält sie je Lager in wetter_cache: höchstens ein Abruf je Lager und WETTER_STUNDEN, egal wie viele Mitglieder und Aufrufe. Kein Polling: Der Abruf geschieht beim Lesen, wenn der Stand zu alt ist. Fällt der Dienst aus, gibt es höchstens WETTER_STAND_MAX_STUNDEN alte Werte, danach kein Wetter statt eines Fehlers, und der nächste Versuch kommt frühestens nach NEUER_VERSUCH_MINUTEN.
+// Wetter für das Lager (#391). Den Ort bestimmt der Server aus dem Lagerort (wetter-ort.ts, #694), niemand gibt Koordinaten ein. Der Server holt die Vorhersage für den Ort des Lagers beim Wetterdienst (wetter-openmeteo.ts) und hält sie je Lager in wetter_cache: höchstens ein Abruf je Lager und WETTER_STUNDEN, egal wie viele Mitglieder und Aufrufe. Kein Polling: Der Abruf geschieht beim Lesen, wenn der Stand zu alt ist. Fällt der Dienst aus, gibt es höchstens WETTER_STAND_MAX_STUNDEN alte Werte, danach kein Wetter statt eines Fehlers, und der nächste Versuch kommt frühestens nach NEUER_VERSUCH_MINUTEN.
 export const WETTER_STUNDEN = 6;
 export const NEUER_VERSUCH_MINUTEN = 15;
 export const WETTER_STAND_MAX_STUNDEN = 24;
 // Schwellen der Warnungen (Entscheid vom 22.11.2026): Gewitter, Böen ab 60 km/h, Hitze ab 30 Grad, Regen ab 20 mm am Tag
 export const SCHWELLEN = { boeen: 60, hitze: 30, regen: 20 } as const;
-
-export const ortSetzen = z
-  .strictObject({
-    breite: z.number().min(-90).max(90).nullable(),
-    laenge: z.number().min(-180).max(180).nullable(),
-  })
-  .refine((o) => (o.breite === null) === (o.laenge === null));
-
-// Zwei Stellen (rund ein Kilometer): Mehr braucht die Vorhersage nicht, und es geht nie die genaue Lage eines Hauses hinaus
-export const rundeOrt = (x: number) => Math.round(x * 100) / 100;
 
 export type Warnung = "gewitter" | "boeen" | "hitze" | "regen";
 
@@ -55,7 +56,6 @@ export const wetterTagAnsicht = (t: WetterTag) => ({
 });
 export type WetterTagAnsicht = ReturnType<typeof wetterTagAnsicht>;
 
-type Ort = { id: string; breite: number | null; laenge: number | null };
 type Leseschreiber = Pick<Db, "select" | "insert" | "update">;
 
 type Stand = { tage: WetterTag[]; stand: Date };
@@ -150,19 +150,28 @@ async function lies(
   return { zeile, gleichOrt, aktuell: frisch || gesperrt };
 }
 
-// Das Wetter des Lagers: eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang. Ohne Ort oder bei Ausfall des Dienstes eine leere Liste, nie ein Fehler
+// Das Wetter des Lagers: Ist der Ort noch nicht bestimmt (neu oder geändert), sucht der Server ihn zuerst aus dem Lagerort. Dann eine Abfrage auf den Zwischenspeicher, nur bei zu altem Stand ein Abruf und ein Schreibvorgang. Ohne gefundenen Ort oder bei Ausfall der Dienste eine leere Liste, nie ein Fehler
 export async function ladeWetter(
   db: Leseschreiber,
-  lager: Ort,
-  holen: WetterHolen,
+  lager: LagerOrt,
+  dienst: Wetterdienst,
   jetzt = new Date(),
 ): Promise<{
-  ort: { breite: number; laenge: number } | null;
+  ort: WetterOrt;
   stand: Date | null;
   tage: WetterTagAnsicht[];
 }> {
-  if (lager.breite === null || lager.laenge === null) {
-    return { ort: null, stand: null, tage: [] };
+  const holen = dienst.holen;
+  if (mussSuchen(lager, jetzt)) {
+    lager = await sucheWetterOrt(db, lager, dienst.suchen, jetzt);
+  }
+  const ort = wetterOrt(lager);
+  if (
+    ort.status !== "gefunden" ||
+    lager.breite === null ||
+    lager.laenge === null
+  ) {
+    return { ort, stand: null, tage: [] };
   }
   const abruf = {
     id: lager.id,
@@ -194,7 +203,7 @@ export async function ladeWetter(
     ergebnis = await lauf;
   }
   return {
-    ort: { breite: lager.breite, laenge: lager.laenge },
+    ort,
     stand: ergebnis?.stand ?? null,
     tage: (ergebnis?.tage ?? []).map(wetterTagAnsicht),
   };

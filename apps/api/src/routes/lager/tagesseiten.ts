@@ -19,7 +19,7 @@ import {
   seiteAnlegen,
   type TagesseiteFehler,
 } from "../../lager/tagesseiten.js";
-import type { WetterHolen } from "../../lager/wetter-openmeteo.js";
+import type { Wetterdienst } from "../../lager/wetter-openmeteo.js";
 
 const lagerPfad = z.strictObject({ id: z.uuid() });
 const tagPfad = z.strictObject({ id: z.uuid(), lagertagId: z.uuid() });
@@ -40,7 +40,7 @@ export function erstelleTagesseitenRouten({
   wetter,
 }: {
   db: Db;
-  wetter: WetterHolen;
+  wetter: Wetterdienst;
 }) {
   const lesen = lagerZugriff(db, { recht: "tagesseiten.lesen" });
   const bearbeiten = lagerZugriff(db, { recht: "tagesseiten.bearbeiten" });

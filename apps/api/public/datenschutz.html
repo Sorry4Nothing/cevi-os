@@ -1528,25 +1528,30 @@
         <dl>
           <dt>Daten</dt>
           <dd>
-            Der Ort des Lagers als Breite und Länge, und je Lager die zuletzt
-            abgerufene Vorhersage (Tageswerte für Wettercode, Temperatur, Regen
-            und Böen) mit dem Zeitpunkt des Abrufs.
+            Der Wetterort des Lagers als Breite und Länge (der Server bestimmt
+            ihn aus dem Ort des Lagers), der gefundene Ortsname, das Ergebnis
+            der Suche und je Lager die zuletzt abgerufene Vorhersage (Tageswerte
+            für Wettercode, Temperatur, Regen und Böen) mit dem Zeitpunkt des
+            Abrufs.
           </dd>
           <dt>Zweck</dt>
           <dd>
             Das Wetter am Lagerort anzeigen und vor Gewitter, starkem Wind,
-            Hitze und viel Regen warnen. Die Lagerleitung legt den Ort des
-            Lagers als Breite und Länge fest. Der Server holt die Vorhersage
-            dafür beim Wetterdienst Open-Meteo und speichert sie je Lager
-            zwischen, damit nicht jeder Aufruf einen Abruf auslöst. An den
-            Wetterdienst gehen nur die beiden Zahlen des Ortes, auf zwei Stellen
-            gerundet, keine Namen und keine Angaben zu Personen.
+            Hitze und viel Regen warnen. Niemand gibt Koordinaten ein: Der
+            Server bestimmt den Wetterort aus dem Ort des Lagers. Dazu sucht er
+            den Ortsnamen beim Ortsdienst von Open-Meteo (gesendet wird nur der
+            Ortsname, nie die Adresse) und speichert Breite und Länge auf zwei
+            Stellen gerundet, den gefundenen Namen und das Ergebnis der Suche am
+            Lager. Die Vorhersage holt er dafür beim Wetterdienst Open-Meteo und
+            speichert sie je Lager zwischen, damit nicht jeder Aufruf einen
+            Abruf auslöst. An den Wetterdienst gehen nur die beiden Zahlen des
+            Ortes, keine Namen und keine Angaben zu Personen.
           </dd>
           <dt>Aufbewahrung</dt>
           <dd>
-            Der Ort, bis die Lagerleitung ihn löscht oder das Lager gelöscht
-            wird. Die Vorhersage im Zwischenspeicher wird bei jedem Abruf
-            ersetzt und geht mit dem Lager. Auf Anfrage löscht die Leitung
+            Der Wetterort, bis sich der Ort des Lagers ändert oder das Lager
+            gelöscht wird. Die Vorhersage im Zwischenspeicher wird bei jedem
+            Abruf ersetzt und geht mit dem Lager. Auf Anfrage löscht die Leitung
             Daten.
           </dd>
         </dl>
@@ -2000,7 +2005,10 @@
           Open-Meteo. Der Dienst erfährt nur die Breite und Länge des Lagerorts
           auf zwei Stellen gerundet und die IP-Adresse des Servers, nie Namen,
           Konten oder Angaben zu Personen. Ein Abruf erfolgt höchstens einmal in
-          sechs Stunden je Lager.
+          sechs Stunden je Lager. Den Wetterort bestimmt der Server aus dem Ort
+          des Lagers: Dazu fragt er den Ortsdienst von Open-Meteo einmal nach
+          dem Ortsnamen (nur der Name, nie die Adresse, und nur wenn sich der
+          Ort ändert).
         </li>
         <li>
           Pushes laufen über Firebase Cloud Messaging von Google und, auf dem
