@@ -490,7 +490,7 @@ Die Regeln für Scrollleisten stehen **einmal** in `tokens.css` und gelten für 
 
 - Chrome, Edge und Safari zeichnen den Griff über `::-webkit-scrollbar`; Firefox bekommt `scrollbar-width` und `scrollbar-color` in `@supports not selector(::-webkit-scrollbar)`. Beide Wege gelten nie zugleich.
 - Mit Finger oder Stift (`pointer: coarse`) und in erzwungenen Farben bleibt die Leiste des Systems.
-- Ein neuer Scrollbereich braucht nichts ausser `overflow: auto`.
+- Ein neuer Scrollbereich braucht `overflow: auto`. Enthält er absolut gesetzte Knoten wie `.nur-leser`, bekommt er auch `position: relative`: Sonst bleibt der Bezugsrahmen ausserhalb, der Knoten wird nicht beschnitten und verlängert die ganze Seite um die Höhe des Bereichs (leere Fläche unter dem Inhalt, #723).
 - **Zwei Spalten, zwei Scrollbereiche:** Im Editor einer Seite hat ab 1100 px jede Spalte (Bausteine, Vorschau und Einstellungen) einen eigenen Scrollbereich in der Höhe des Fensters unter der Navigation (`.ws-editor`, `website-editor.css`); die Seite scrollt nur, bis der Editor oben steht. Innen bleibt Platz für den Fokusring (`padding: 4px`), `scrollbar-gutter: stable` hält die Breite.
 
 ## Auswahlfelder (#578)
