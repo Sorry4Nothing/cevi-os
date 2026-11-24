@@ -2605,6 +2605,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/melden.js:
+    get:
+      operationId: getAdminMeldenSkript
+      summary: Skript der Verwaltung – Rückmeldungen als Toast (für Dateien ohne ctx)
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/website-sichtbarkeit.js:
     get:
       operationId: getAdminWebsiteSichtbarkeitSkript
