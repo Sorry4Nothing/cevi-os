@@ -1119,3 +1119,20 @@ Gilt für das Konto-Menü im Kopf der öffentlichen Website (Vorlage in `src/web
 ### Stand der Prüfung (#669)
 
 Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung gesehen: Menü der Leitung (mit «Verwaltung») und der Eltern (ohne) bei 1440 und 390 Pixel, Hell und Dunkel, «Zur Website» in der Verwaltung bei 1440, 800 und 390 Pixel. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), erzwungene Farben im Browser (nur der Quelltext), 200 Prozent Zoom am Gerät, Kontrastwerte mit einem Messwerkzeug. Bekannt, nicht von diesem Abschnitt: Die Logozeile der Verwaltung läuft bei 390 Pixel schon ohne «Zur Website» über (Umschalter Hell und Dunkel).
+
+## 67. Anmeldung: Angaben aus der Cevi-Datenbank (#691)
+
+Gilt für die Seite «Anlass-Anmeldung» der Website (`public/website/anmeldung.js`, Stil im Abschnitt «Angaben aus der Cevi-Datenbank» von `termine.css`) und den Editor der Zusatzfelder in der Verwaltung (`public/admin/anlass-felder.js`) sowie die Seite «Cevi-Datenbank» unter System (`public/admin/cevi-db.js`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
+
+- [ ] **67.1** Die Herkunft eines vorbefüllten Feldes steht als Text mit Symbol unter dem Feld («Aus der Cevi-Datenbank übernommen», nach einer Änderung «Aus der Cevi-Datenbank, von dir geändert»), nie nur über Farbe; die Notiz ist Teil der Beschreibung des Feldes (`aria-describedby`).
+- [ ] **67.2** Eine Zeile über den Feldern (`aria-live="polite"`) sagt einmal an, was geschah: «Angaben aus der Cevi-Datenbank werden geholt …», dann «2 Angaben aus der Cevi-Datenbank übernommen. Prüfe sie und ändere, was nicht stimmt.» oder «Die Cevi-Datenbank antwortet gerade nicht. Bitte füll die Angaben selbst aus.» Der Hinweis bei einem Fehler ist ruhig (kein `role="alert"`), die Anmeldung bleibt bedienbar.
+- [ ] **67.3** Kein Layoutsprung: Notiz und Zeile über den Feldern haben immer die Mindesthöhe von 1,75 rem; beim Laden steht ein Platzhalter (Skeleton, für Screenreader versteckt) gleicher Höhe, und beim Eintreffen der Werte wird nicht neu gezeichnet: Fokus, Cursor und bereits getippter Text bleiben.
+- [ ] **67.4** Der eigene Wert gewinnt: Was die Person schon getippt hat, überschreibt der Vorschlag nie. Jedes vorbefüllte Feld bleibt ein normales, änderbares Feld mit Beschriftung, Zeichenzähler und Fehlermeldung.
+- [ ] **67.5** Ohne JavaScript, bei Fehlern, Zeitüberschreitung und Funktion «aus» ist das Formular unverändert benutzbar; die Felder sind dann leer und tragen ihre normale Frage.
+- [ ] **67.6** Verwaltung, Editor der Zusatzfelder: Das Auswahlfeld «Aus der Cevi-Datenbank füllen» hat eine sichtbare Beschriftung und eine Hilfe («… Sie kann sie ändern … Gesundheitsangaben holt Cevi OS nie»); es erscheint nur bei Textfeldern; die Quelle steht auch in der Zeile des Feldes als Text.
+- [ ] **67.7** Verwaltung, Seite «Cevi-Datenbank»: Der Zustand der Verbindung steht als Chip mit Text und Symbol (eingerichtet, nicht eingerichtet, letzter Abruf ok oder Fehler); das Ergebnis von «Verbindung prüfen» steht in einer Statusregion (`role="status"`) in Worten; der Knopf zeigt `aria-busy` und ist 44 Pixel hoch; die Fehlermeldung der Gruppen-ID hängt am Feld (`aria-invalid`) und holt den Fokus dorthin.
+- [ ] **67.8** Hell, Dunkel und erzwungene Farben; 390 bis 1920 Pixel ohne waagrechtes Scrollen; 200 % Zoom ohne Verlust.
+
+### Stand der Prüfung (#691)
+
+Im Browser (Chromium, headless) gegen eine Kopie der Demo-Datenbank mit einem lokalen Test-Double der Cevi-Datenbank (erfundene Personen) gesehen; siehe die Angaben im Pull Request. Nicht geprüft: Screenreader, Kontrastmessung mit Werkzeug, Windows-Hochkontrast.

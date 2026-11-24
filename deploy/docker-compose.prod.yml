@@ -40,6 +40,9 @@ services:
       KONTAKT_EMAIL:
       # Telefon im Fuss und in der Kontaktkarte der Website (leer = nicht gesetzt)
       KONTAKT_TELEFON:
+      # Cevi-Datenbank (#691): Adresse und Dienstkonto-Token der Abteilung; beide oder keines (leer = Anmeldung füllt nichts vor)
+      CEVI_DB_URL:
+      CEVI_DB_TOKEN:
       PORT: "3000"
     # Für den Cache von tsx
     tmpfs:
