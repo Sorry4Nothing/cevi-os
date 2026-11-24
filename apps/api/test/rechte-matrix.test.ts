@@ -197,6 +197,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-editor.css": { erwartet: alle(200) },
   "GET /admin/website-richtext.js": { erwartet: alle(200) },
   "GET /admin/website-vorschau.css": { erwartet: alle(200) },
+  "GET /admin/website-vorschau.js": { erwartet: alle(200) },
   "GET /admin/website-medien.js": { erwartet: alle(200) },
   "GET /admin/website-medien.css": { erwartet: alle(200) },
   "GET /admin/website-stufenfakten.js": { erwartet: alle(200) },
@@ -1619,6 +1620,27 @@ const MATRIX: Record<string, Zeile> = {
       ...alle(404),
       adminOhneZweitenFaktor: 403,
       mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Vorschau einzelner Bausteine (#739): Zugang zur Website-Verwaltung wie bei den Seiten, ohne Seite nur Platzhalter. Die Wirkung steht in test/redaktion-bausteine-vorschau.test.ts
+  "POST /api/v1/redaktion/bausteine/vorschau": {
+    body: () => ({
+      bausteine: [
+        {
+          id: randomUUID(),
+          typ: "ueberschrift",
+          daten: { ebene: 2, text: "Matrix" },
+        },
+      ],
+    }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
     },

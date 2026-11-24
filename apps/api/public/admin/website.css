@@ -188,17 +188,140 @@ dialog.ws-fenster--breit {
   align-items: center;
 }
 
-/* Karte «Baustein hinzufügen» (E3): Wahlkarten als Knöpfe in drei Spalten */
-.ws-katalog {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+/* Katalog «Baustein hinzufügen» (E3, #739): Kacheln mit Vorschau in Gruppen. --kachel ist die Breite einer Kachel in px (ohne Einheit); der Rahmen zeigt die Website 1100 px breit und verkleinert ihn auf diese Breite */
+.ws-katalog-gruppe {
+  display: flex;
+  flex-direction: column;
   gap: 12px;
+}
+
+.ws-katalog-gruppe[hidden] {
+  display: none;
+}
+
+.ws-katalog-gruppe h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.ws-katalog {
+  --kachel: 300;
+
+  display: grid;
+  grid-template-columns: repeat(auto-fill, calc(var(--kachel) * 1px));
+  gap: 16px;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.ws-katalog .wahlkarte,
+.ws-kachel {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: calc(var(--kachel) * 1px);
+  max-width: 100%;
+  overflow: hidden;
+  background: var(--karte);
+  border: 1px solid var(--rand-leise);
+  border-radius: 16px;
+}
+
+.ws-kachel[hidden] {
+  display: none;
+}
+
+.ws-kachel:hover {
+  background: var(--leiste);
+  border-color: var(--rand);
+}
+
+/* Der Fokus steht an der ganzen Kachel, nicht nur am Text */
+.ws-kachel:has(.ws-kachel-knopf:focus-visible) {
+  outline: 3px solid var(--akzent);
+  outline-offset: 2px;
+}
+
+.ws-kachel-bild {
+  position: relative;
+  width: calc(var(--kachel) * 1px);
+  max-width: 100%;
+  height: calc(var(--kachel) * 0.63px);
+  overflow: hidden;
+  background: #fff;
+  border-bottom: 1px solid var(--rand-leise);
+}
+
+.ws-kachel-bild .ws-bausteinrahmen {
+  width: 1100px;
+  height: 693px;
+  zoom: calc(var(--kachel) / 1100);
+  pointer-events: none;
+}
+
+.ws-kachel-bild .ws-vorschau-laden {
+  padding: 16px;
+}
+
+.ws-kachel-leer {
+  display: grid;
+  place-items: center;
+  height: 100%;
+  margin: 0;
+  color: #5b6573;
+  font-size: 0.875rem;
+}
+
+/* Der Knopf deckt die ganze Kachel (Text zuerst im Lesefluss, Fläche über ein Pseudoelement) */
+.ws-kachel-knopf {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  padding: 12px 14px 14px;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws-kachel-knopf::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+}
+
+.ws-kachel-knopf:focus-visible {
+  outline: none;
+}
+
+.ws-kachel-knopf strong {
+  font-size: 0.9375rem;
+}
+
+.ws-kachel-knopf span {
+  color: var(--leise);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .ws-kachel {
+    transition:
+      background-color 0.15s ease-out,
+      border-color 0.15s ease-out;
+  }
+}
+
+.ws-bausteinrahmen {
+  display: block;
+  border: 0;
+  background: #fff;
+}
+
 .ws-wahlbild {
   width: 100%;
   height: 100%;
@@ -208,7 +331,6 @@ dialog.ws-fenster--breit {
   text-align: left;
 }
 
-.ws-katalog .wahlkarte:hover,
 .ws-wahlbild:hover {
   background: var(--leiste);
 }
@@ -345,18 +467,15 @@ dialog.ws-fenster--breit {
 }
 
 @media (max-width: 760px) {
-  .ws-katalog {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
   dialog.ws-fenster {
     padding: 16px;
   }
 }
 
-@media (min-width: 761px) and (max-width: 1000px) {
+/* Schmale Bildschirme: eine Kachel füllt die Breite des Fensters nicht ganz, passt aber hinein */
+@media (max-width: 480px) {
   .ws-katalog {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    --kachel: 260;
   }
 }
 

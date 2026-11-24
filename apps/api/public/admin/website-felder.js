@@ -1526,133 +1526,317 @@ export const TYPEN = {
   ...TEXT_TYPEN,
 };
 
-// Was «Baustein hinzufügen» anbietet (Reihenfolge und Texte wie im Design E3)
+// Die Gruppen des Katalogs in der Reihenfolge, in der der Dialog «Baustein hinzufügen» sie zeigt
+export const GRUPPEN = [
+  "Text",
+  "Bilder und Medien",
+  "Karten und Listen",
+  "Handlung",
+  "Personen",
+  "Dynamisch",
+  "Gestaltung",
+];
+
+// Beispiele für die Vorschau im Katalog: feste IDs, die der Server durch Platzhalterbilder und Platzhalternamen ersetzt (nie echte Medien, Personen oder Namen)
+const bspId = (nr) => `00000000-0000-4000-8000-${String(nr).padStart(12, "0")}`;
+const bspBild = (nr, unterschrift) => ({
+  mediumId: bspId(nr),
+  ...(unterschrift && { unterschrift }),
+});
+const bspAbsatz = (...abschnitte) => ({ typ: "absatz", inhalt: abschnitte });
+const bspKarten = (darstellung, eintraege) => ({ darstellung, eintraege });
+
+// Was «Baustein hinzufügen» anbietet (Reihenfolge und Texte wie im Design E3).
+// gruppe: Überschrift im Dialog (GRUPPEN). beispiel: Beispieldaten des Bausteins (das Feld «daten»), die der Server mit dem Renderer der Website zeigt; Platzhaltertexte, Bilder nur als Beispiel-ID. Jeder neue Eintrag braucht beides
 export const KATALOG = [
   {
     typ: "ueberschrift",
+    gruppe: "Text",
     beschreibung: "Ein Titel, um die Seite zu gliedern.",
     neu: () => ({ ebene: 2, text: "" }),
+    beispiel: () => ({ ebene: 2, text: "Das machen wir im Cevi" }),
   },
   {
     typ: "text",
+    gruppe: "Text",
     beschreibung: "Absätze mit Fett, Kursiv, Listen und Links.",
     neu: () => ({ inhalt: [] }),
+    beispiel: () => ({
+      inhalt: [
+        bspAbsatz(
+          { text: "Wir treffen uns jeden Samstag. " },
+          { text: "Alle sind willkommen", fett: true },
+          { text: ", auch wenn sie noch niemanden kennen." },
+        ),
+        {
+          typ: "liste",
+          geordnet: false,
+          eintraege: [
+            [{ text: "Spielen und Basteln" }],
+            [{ text: "Draussen unterwegs sein" }],
+          ],
+        },
+      ],
+    }),
   },
   {
     typ: "bild",
+    gruppe: "Bilder und Medien",
     beschreibung: "Ein Bild mit Alt-Text und Bildunterschrift.",
     neu: () => ({}),
+    beispiel: () => bspBild(1, "Bildunterschrift zum Beispielbild"),
   },
   {
     typ: "galerie",
+    gruppe: "Bilder und Medien",
     beschreibung: "Mehrere Bilder, je mit Alt-Text.",
     neu: () => ({ bilder: [{}] }),
+    beispiel: () => ({ bilder: [2, 3, 4, 5].map((nr) => bspBild(nr)) }),
   },
   {
     typ: "karussell",
+    gruppe: "Bilder und Medien",
     beschreibung: "3 bis 8 Bilder, die sich langsam abwechseln.",
     neu: () => ({ bilder: [{}, {}, {}] }),
+    beispiel: () => ({ bilder: [6, 7, 8].map((nr) => bspBild(nr)) }),
   },
   ...[
-    ["karten", "Kästchen mit Titel, Text und Link «Mehr zu …»."],
-    ["liste", "Zeilen mit Titel und Text, der Titel als Link."],
+    [
+      "karten",
+      "Kästchen mit Titel, Text und Link «Mehr zu …».",
+      () =>
+        bspKarten(
+          "karten",
+          ["Erster", "Zweiter", "Dritter"].map((t) => ({
+            titel: `${t} Beispieltitel`,
+            text: "Ein kurzer Text zur Karte.",
+            link: "/",
+          })),
+        ),
+    ],
+    [
+      "liste",
+      "Zeilen mit Titel und Text, der Titel als Link.",
+      () =>
+        bspKarten(
+          "liste",
+          ["Erste", "Zweite", "Dritte"].map((t) => ({
+            titel: `${t} Zeile`,
+            text: "Ein kurzer Text zur Zeile.",
+            link: "/",
+          })),
+        ),
+    ],
     [
       "stufen",
       "Karten mit Foto, Etikett im Bild und Link, zum Beispiel für Stufen.",
+      () =>
+        bspKarten(
+          "stufen",
+          [9, 10, 11].map((nr, i) => ({
+            titel: `Beispielstufe ${i + 1}`,
+            text: "Ein kurzer Text zur Stufe.",
+            alter: `${i + 2}. Klasse`,
+            bild: bspId(nr),
+            link: "/",
+          })),
+        ),
     ],
     [
       "merkmale",
       "Stichworte mit kurzem Text im blauen Band, auf Wunsch mit Foto.",
+      () =>
+        bspKarten(
+          "merkmale",
+          ["Gemeinschaft", "Abenteuer", "Glaube"].map((t) => ({
+            titel: t,
+            text: "Ein kurzer Satz dazu, was das für uns heisst.",
+          })),
+        ),
     ],
-    ["zeitstrahl", "Stationen einer Geschichte mit Jahr, Text und Foto."],
-    ["zahlen", "Wenige grosse Zahlen mit kurzer Beschriftung."],
-  ].map(([darstellung, beschreibung]) => ({
+    [
+      "zeitstrahl",
+      "Stationen einer Geschichte mit Jahr, Text und Foto.",
+      () =>
+        bspKarten(
+          "zeitstrahl",
+          [
+            ["1890", "Der Anfang"],
+            ["1950", "Das erste Lager"],
+            ["2020", "Heute"],
+          ].map(([jahr, text]) => ({ titel: jahr, text })),
+        ),
+    ],
+    [
+      "zahlen",
+      "Wenige grosse Zahlen mit kurzer Beschriftung.",
+      () =>
+        bspKarten("zahlen", [
+          { titel: "120", text: "Kinder und Jugendliche" },
+          { titel: "30", text: "Leitende" },
+          { titel: "50", text: "Jahre Cevi" },
+        ]),
+    ],
+  ].map(([darstellung, beschreibung, beispiel]) => ({
     typ: "karten",
+    gruppe: "Karten und Listen",
     name: KARTEN_ARTEN[darstellung],
     beschreibung,
     neu: () => ({ darstellung, eintraege: [{ titel: "" }] }),
+    beispiel,
   })),
   {
     typ: "schaltflaeche",
+    gruppe: "Handlung",
     beschreibung: "Führt auf eine andere Seite oder Adresse.",
     neu: () => ({ darstellung: "schaltflaeche", beschriftung: "", ziel: "" }),
+    beispiel: () => ({
+      darstellung: "schaltflaeche",
+      beschriftung: "Jetzt anmelden",
+      ziel: "/anmelden",
+    }),
   },
   {
     typ: "datei",
+    gruppe: "Handlung",
     beschreibung:
       "Zum Beispiel ein PDF im SharePoint, mit Name, Grösse und Typ.",
     neu: () => ({ titel: "", link: "" }),
+    beispiel: () => ({
+      titel: "Beispieldatei zum Herunterladen",
+      link: "https://beispiel.sharepoint.com/datei.pdf",
+      typ: "PDF",
+      groesse: 240000,
+    }),
   },
   {
     typ: "personen",
+    gruppe: "Personen",
     beschreibung: "Ansprechpersonen mit Foto, Name, Funktion und E-Mail.",
     neu: () => ({ eintraege: [{}] }),
+    beispiel: () => ({
+      eintraege: [12, 13, 14].map((nr) => ({
+        personId: bspId(nr),
+        funktion: "Leitung",
+        email: "leitung@beispiel.example",
+      })),
+    }),
   },
   {
     typ: "artikel",
+    gruppe: "Karten und Listen",
     beschreibung: "Karten mit Bild, Name und Preis.",
     neu: () => ({ eintraege: [{}] }),
+    beispiel: () => ({
+      eintraege: [15, 16, 17].map((nr, i) => ({
+        name: `Beispielartikel ${i + 1}`,
+        preis: `${(i + 2) * 10}.–`,
+        mediumId: bspId(nr),
+      })),
+    }),
   },
   {
     typ: "kontaktperson",
+    gruppe: "Personen",
     beschreibung: "Eine Person mit Cevi-Name und Funktion.",
     neu: () => ({ zusatz: [] }),
+    beispiel: () => ({ personId: bspId(18), zusatz: [] }),
   },
   {
     typ: "leitungsteam",
+    gruppe: "Personen",
     beschreibung: "Die Leitenden einer Gruppe.",
     neu: () => ({ zusatz: [] }),
+    beispiel: () => ({ tagId: bspId(19), zusatz: [] }),
   },
   {
     typ: "terminliste",
+    gruppe: "Dynamisch",
     beschreibung: "Die nächsten 3 bis 10 Termine, auch nur einer Gruppe.",
     neu: () => ({ anzahl: 5 }),
+    beispiel: () => ({ anzahl: 3 }),
   },
   {
     typ: "trenner",
+    gruppe: "Gestaltung",
     beschreibung: "Mehr Luft oder eine Linie zwischen Bausteinen.",
     neu: () => ({ art: "abstand" }),
+    beispiel: () => ({ art: "linie" }),
   },
   {
     typ: "videolink",
+    gruppe: "Bilder und Medien",
     beschreibung: "Nur als Link, ohne Einbetten.",
     neu: () => ({ art: "video", beschriftung: "", url: "" }),
+    beispiel: () => ({
+      art: "video",
+      beschriftung: "Beispielvideo ansehen",
+      url: "https://www.beispiel.example/video",
+    }),
   },
   {
     typ: "stufenfakten",
+    gruppe: "Dynamisch",
     beschreibung: "Datum, Treffpunkt und Mitnehmen der Stufe.",
     neu: () => ({}),
+    beispiel: () => ({}),
   },
   {
     typ: "laden",
+    gruppe: "Dynamisch",
     beschreibung: "Das Lädeli: Artikel, Warenkorb und Bestellung.",
     neu: () => ({}),
+    beispiel: () => ({}),
   },
   {
     typ: "fotoalben",
+    gruppe: "Dynamisch",
     beschreibung: "Fotoalben aus Flickr, nur für angemeldete Personen.",
     neu: () => ({}),
+    beispiel: () => ({}),
   },
   {
     typ: "hinweis",
+    gruppe: "Gestaltung",
     beschreibung: "Ein Satz mit Symbol, zum Beispiel «Anmeldung offen».",
     neu: () => ({ text: "" }),
+    beispiel: () => ({
+      text: "Anmeldung offen bis zum Beispieldatum",
+      link: { beschriftung: "Zur Anmeldung", ziel: "/anmelden" },
+    }),
   },
   {
     typ: "eckdaten",
+    gruppe: "Karten und Listen",
     beschreibung: "Datum, Ort, Kosten und mehr auf einen Blick.",
     neu: () => ({ eintraege: [{ bezeichnung: "", wert: "" }] }),
+    beispiel: () => ({
+      eintraege: [
+        { bezeichnung: "Datum", wert: "Beispieldatum" },
+        { bezeichnung: "Ort", wert: "Beispielort" },
+        { bezeichnung: "Kosten", wert: "CHF 00.–" },
+      ],
+    }),
   },
   {
     typ: "aufruf",
+    gruppe: "Handlung",
     beschreibung: "Ein farbiges Band mit Titel, Text und Schaltfläche.",
     neu: () => ({ titel: "", beschriftung: "", ziel: "" }),
+    beispiel: () => ({
+      titel: "Komm vorbei!",
+      text: "Schnuppern ist jederzeit möglich.",
+      beschriftung: "Mehr erfahren",
+      ziel: "/",
+    }),
   },
   {
     typ: "kontaktkarte",
+    gruppe: "Personen",
     beschreibung:
       "«Fragen? Melde dich bei uns.» mit Knöpfen für E-Mail und Telefon, Anschrift und Verweisen.",
     neu: () => ({}),
+    beispiel: () => ({ titel: "Fragen? Melde dich bei uns." }),
   },
   ...TEXT_KATALOG,
 ].map((e) => ({ name: TYPEN[e.typ].name, ...e }));

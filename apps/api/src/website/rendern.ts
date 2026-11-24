@@ -992,6 +992,15 @@ export function rendereBausteine(
   return ordneZweispaltig(rendereEintraege(dok, seiteId, daten, pfad));
 }
 
+// Die Abschnitte der Bausteine wie auf der Seite, ohne Titel, Kopf und Fuss: die Vorschau einzelner Bausteine im Editor (#739). Der Aufrufer prüft die Bausteine; geschützte erscheinen offen, wenn er ihre Sichtbarkeit auf «erbt» setzt
+export function rendereAbschnittsfolge(
+  dok: Seitendokument,
+  seiteId: string,
+  daten: Daten,
+): string {
+  return rendereAbschnitte(rendereEintraege(dok, seiteId, daten, "/vorschau"));
+}
+
 // Knoten für das Nachladen (#354): die Bausteine in der Reihenfolge der Seite, für die `erlaubt` wahr ist.
 // Ein Baustein ohne Inhalt (Medium fehlt, leere Daten) entfällt; die Überschriftenebene läuft über die gelieferten Bausteine
 export function rendereGeschuetzte(
