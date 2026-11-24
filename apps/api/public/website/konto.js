@@ -663,12 +663,13 @@ export function kontoView(s) {
       telefonKarte(s),
       passwortKarte(s),
       hilfeKarte(s),
-      abmeldenKarte(s),
     ),
+    // Eigener Block nach den Karten (Reihenfolge im Dokument), im Raster unter der Profilkarte
+    h("div", { class: "kto-ende" }, abmeldenKarte(s)),
   );
 }
 
-// Skelett in der Form der Seite: links die Profilkarte, rechts vier Karten
+// Skelett in der Form der Seite: links die Profilkarte und eine Karte darunter, rechts drei Karten
 export function ladeView() {
   const karteSk = h(
     "div",
@@ -688,6 +689,7 @@ export function ladeView() {
       ),
     ),
     h("div", { class: "kto-rechts" }, karteSk, karteSk, karteSk),
+    h("div", { class: "kto-ende" }, karteSk),
   );
 }
 
