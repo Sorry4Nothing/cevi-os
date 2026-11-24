@@ -84,6 +84,14 @@ async function meldeAn(benutzername: string, passwort: string) {
   return sitzung?.user.id;
 }
 
+async function istInTabelle(userId: string) {
+  const zeilen = await db
+    .select()
+    .from(schema.abteilungsleitungPerson)
+    .where(eq(schema.abteilungsleitungPerson.userId, userId));
+  return zeilen.length === 1;
+}
+
 async function benutzerMitNamen(benutzername: string) {
   return db
     .select()
@@ -127,6 +135,8 @@ test("die CLI legt Abteilung und Abteilungsleitung an, und die Anmeldung mit dem
   abteilungA = { name: abteilungsname, id: abteilung.id };
 
   const [benutzer] = await benutzerMitNamen(benutzername);
+  // Quelle ist die Tabelle, role der Spiegel (#720)
+  expect(await istInTabelle(benutzer.id)).toBe(true);
   expect(benutzer.role).toBe("admin");
   expect(benutzer.ceviName).toBe("Wolke");
   expect(benutzer.abteilungId).toBe(abteilung.id);
@@ -176,6 +186,7 @@ test("die CLI legt in einer bestehenden Abteilung einen weiteren Abteilungsleitu
   expect(ergebnis.status).toBe(0);
   const startpasswort = startpasswortAus(ergebnis.stdout);
   const [benutzer] = await benutzerMitNamen(benutzername);
+  expect(await istInTabelle(benutzer.id)).toBe(true);
   expect(benutzer.role).toBe("admin");
   expect(benutzer.abteilungId).toBe(abteilungA.id);
   expect(await meldeAn(benutzername, startpasswort)).toBe(benutzer.id);

@@ -22,6 +22,11 @@ import {
   speichereAbteilungsleitung,
 } from "../../rechtemodell/abteilungsleitung.js";
 import { darf, verlange } from "../../rechtemodell/darf.js";
+import {
+  beendeSitzungenBeiNeuerPflicht,
+  personenDerGruppenrolle,
+  personenDerPlattformRolle,
+} from "../../rechtemodell/faktor-pflicht.js";
 import { pruefeEigeneRechte } from "../../rechtemodell/eskalation.js";
 import {
   mitgliederDerRollen,
@@ -490,6 +495,14 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
                 409,
               );
             }
+            // Verlangt ein Recht der Rolle jetzt den zweiten Faktor, melden sich die Personen ohne ihn neu an (#715)
+            if (rechte) {
+              await beendeSitzungenBeiNeuerPflicht(
+                db,
+                person.abteilungId,
+                await personenDerGruppenrolle(db, person.abteilungId, rolle.id),
+              );
+            }
             return c.json({ version: ergebnis.version });
           } catch (fehler) {
             if (pgCode(fehler) === "23505") return c.json(NAME_VERGEBEN, 409);
@@ -638,6 +651,11 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
               },
             });
           });
+          if (rolle) {
+            await beendeSitzungenBeiNeuerPflicht(db, person.abteilungId, [
+              userId,
+            ]);
+          }
           return c.body(null, 204);
         },
       )
@@ -865,6 +883,17 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
                   aktuell: { version: aktuell?.version ?? null },
                 },
                 409,
+              );
+            }
+            if (rechte) {
+              await beendeSitzungenBeiNeuerPflicht(
+                db,
+                person.abteilungId,
+                await personenDerPlattformRolle(
+                  db,
+                  person.abteilungId,
+                  rolle.id,
+                ),
               );
             }
             return c.json({ version: ergebnis.version });

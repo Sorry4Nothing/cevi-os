@@ -1,6 +1,21 @@
-import { and, eq, sql } from "drizzle-orm";
+import { type AnyColumn, and, eq, sql } from "drizzle-orm";
 import type { Db } from "./db/client.js";
-import { abteilung, user } from "./db/schema.js";
+import { abteilung, abteilungsleitungPerson, user } from "./db/schema.js";
+
+// Ob das Konto zur Abteilungsleitung gehört, als Ausdruck für Auswahlen und Bedingungen. Die Quelle ist allein die Tabelle abteilungsleitung_person, nie user.role (#720)
+export const istAbteilungsleitungSql = (userId: AnyColumn) =>
+  sql<boolean>`exists (select 1 from ${abteilungsleitungPerson} where ${abteilungsleitungPerson.userId} = ${userId})`;
+
+export async function istAbteilungsleitung(
+  db: Pick<Db, "select">,
+  userId: string,
+) {
+  const [zeile] = await db
+    .select({ id: abteilungsleitungPerson.userId })
+    .from(abteilungsleitungPerson)
+    .where(eq(abteilungsleitungPerson.userId, userId));
+  return zeile !== undefined;
+}
 
 // Serialisiert das Entfernen von der Abteilungsleitung einer Abteilung (#18): erst die Abteilungszeile sperren, dann zählen.
 // Zwei Statements, weil unter READ COMMITTED nur ein nach dem Warten gestartetes Statement den fremden Commit sieht.
@@ -17,10 +32,13 @@ export async function aktiveAdminIds(
   const zeilen = await tx
     .select({ id: user.id })
     .from(user)
+    .innerJoin(
+      abteilungsleitungPerson,
+      eq(abteilungsleitungPerson.userId, user.id),
+    )
     .where(
       and(
         eq(user.abteilungId, abteilungId),
-        eq(user.role, "admin"),
         // banned ist nullable, «is not true» zählt auch null als aktiv
         sql`${user.banned} is not true`,
       ),

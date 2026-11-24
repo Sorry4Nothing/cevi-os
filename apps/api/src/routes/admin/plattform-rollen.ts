@@ -12,6 +12,10 @@ import {
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import {
+  beendeSitzungenBeiNeuerPflicht,
+  personenDerPlattformRolle,
+} from "../../rechtemodell/faktor-pflicht.js";
+import {
   istPlattformRecht,
   PLATTFORM_RECHT_NAMEN,
   PLATTFORM_RECHTE,
@@ -307,6 +311,14 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
           if (pgCode(fehler) === "23505") return c.json(NAME_VERGEBEN, 409);
           throw fehler;
         }
+        // Verlangt ein Recht der Rolle jetzt den zweiten Faktor, melden sich die Personen ohne ihn neu an (#715)
+        if (aenderung.rechte !== undefined) {
+          await beendeSitzungenBeiNeuerPflicht(
+            db,
+            person.abteilungId,
+            await personenDerPlattformRolle(db, person.abteilungId, rolle.id),
+          );
+        }
         return c.body(null, 204);
       },
     )
@@ -368,6 +380,7 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
           details: { rolleId: rolle.id },
         });
       });
+      await beendeSitzungenBeiNeuerPflicht(db, person.abteilungId, [userId]);
       return c.body(null, 204);
     })
     .delete(

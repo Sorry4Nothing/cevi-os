@@ -142,7 +142,8 @@ export function erstelleIchRouten({ db }: { db: Db }) {
           ...rest,
           ...(person.rollen.length > 0 && { pushAnmeldungen }),
           admin: person.admin,
-          zweiterFaktor: person.zweiterFaktor,
+          // Das Konto hat ihn eingerichtet; ob diese Sitzung den Code geprüft hat, steht nicht hier (App-Sitzungen nie, #721)
+          zweiterFaktor: person.zweiterFaktorKonto ?? person.zweiterFaktor,
           rollen: person.rollen,
           rechte,
           stufen,

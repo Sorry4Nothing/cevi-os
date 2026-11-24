@@ -2241,6 +2241,51 @@ paths:
             text/css:
               schema:
                 type: string
+  /admin/qr.js:
+    get:
+      operationId: getAdminQrSkript
+      summary: Skript der Verwaltung – QR-Code zeichnen
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zweiter-faktor-einrichten.js:
+    get:
+      operationId: getAdminZweiterFaktorEinrichtenSkript
+      summary: Skript der Verwaltung – Zweiten Faktor einrichten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/zweiter-faktor.css:
+    get:
+      operationId: getAdminZweiterFaktorStilvorlage
+      summary: Stilvorlage der Verwaltung – Zweiten Faktor einrichten
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
   /admin/zuschneiden.js:
     get:
       operationId: getAdminZuschneidenSkript
@@ -3242,10 +3287,19 @@ paths:
         **Sitzung.** Bei Erfolg setzt die Antwort ein Session-Cookie (siehe Sicherheitsschema `sitzung`).
         Das Cookie ist 90 Tage gültig (`Max-Age=7776000`). Alle weiteren Aufrufe tragen es als `Cookie`-Header.
 
-        **Zweiter Faktor.** Hat die Person den zweiten Faktor eingerichtet (heute nur die Abteilungsleitung), setzt die
-        Antwort noch *keine* Sitzung. Sie gibt `twoFactorRedirect: true` zurück und setzt ein Zwischen-Cookie
-        (`two_factor`). Die App schickt es mit dem Code an `POST /api/auth/two-factor/verify-totp` oder
-        `POST /api/auth/two-factor/verify-backup-code`; erst dann entsteht die Sitzung.
+        **Zweiter Faktor.** Hat die Person den zweiten Faktor eingerichtet, hängt die Antwort von der Herkunft ab.
+        Meldet sich die **App** an (Kopfzeile `Origin` oder `expo-origin` mit dem Schema `cevi-os://`), gibt es die
+        Sitzung sofort, ohne Code und ohne `twoFactorRedirect`: Die Apps brauchen den zweiten Faktor nicht. Diese
+        Sitzung ist als «zweiter Faktor nicht geprüft» markiert (`session.zweiterFaktorGeprueft` ist `false` in
+        `GET /api/auth/get-session`). Mit ihr geht alles, was die Person ohne zweiten Faktor dürfte; die Verwaltung
+        (`/api/v1/admin/*`) und jedes Recht mit «erweitert» antworten mit 403 `ZWEITER_FAKTOR_SITZUNG`. Der Code lässt
+        sich in dieser Sitzung nicht nachholen (`verify-totp` und `verify-backup-code` antworten 403
+        `ZWEITER_FAKTOR_SITZUNG`).
+        Jede **andere** Herkunft (die Verwaltung im Browser, kein `Origin`) bekommt noch *keine* Sitzung. Die Antwort
+        gibt `twoFactorRedirect: true` zurück und setzt ein Zwischen-Cookie (`two_factor`). Der Browser schickt es mit
+        dem Code an `POST /api/auth/two-factor/verify-totp` oder `POST /api/auth/two-factor/verify-backup-code`; erst
+        dann entsteht die Sitzung, und sie ist geprüft (`zweiterFaktorGeprueft: true`). Die Kopfzeile ist keine
+        Sicherheitsgrenze (ein Skript setzt sie frei, ein Browser nicht); sicher ist die Markierung der Sitzung.
 
         **Startpasswort.** Hat die Person noch ein Startpasswort (`mussPasswortAendern` in
         `GET /api/auth/get-session` und `GET /api/v1/ich`), zählen bei der Eingabe Gross-/Kleinschreibung,
@@ -3498,9 +3552,18 @@ paths:
         `POST /api/auth/two-factor/verify-totp` mit dem ersten Code aktiv (`twoFactorEnabled` wird erst dann `true`).
         Ein Aufruf allein schaltet nichts ein und entsperrt die Verwaltungsrouten nicht.
 
-        Nur Die Abteilungsleitung richtet den zweiten Faktor ein. Für alle anderen Personen (auch ohne Sitzung) antwortet der Pfad
-        mit 404 `NICHT_GEFUNDEN`, als gäbe es ihn nicht. Die Abteilungsleitung braucht den Faktor für alle Routen unter
-        `/api/v1/admin`; ohne ihn antworten diese mit 403 `ZWEITER_FAKTOR_FEHLT`.
+        Jedes Konto mit Sitzung richtet den zweiten Faktor ein, nur das eigene Konto eines Kindes nicht. Ohne Sitzung und für das
+        Konto eines Kindes antwortet der Pfad mit 404 `NICHT_GEFUNDEN`, als gäbe es ihn nicht. Pflicht ist er für die
+        Abteilungsleitung (alle Routen unter `/api/v1/admin`) und für jede Person mit einem Recht, das ihn verlangt («erweitert»
+        und «fest» im Rechtekatalog, auch der Entwickler); ohne ihn antworten diese Routen mit 403 `ZWEITER_FAKTOR_FEHLT`.
+        Die Verwaltung im Browser zeigt dann die Seite «Zweiten Faktor einrichten» (QR-Code, Schlüssel als Text, Code, Ersatzcodes).
+        Die Website und die Apps brauchen den zweiten Faktor nicht: Die Anmeldung der App gibt auch einem Konto mit
+        zweitem Faktor eine Sitzung ohne Code (siehe `POST /api/auth/sign-in/username`), die weder die Verwaltung noch ein
+        Recht mit «erweitert» öffnet. Ob der Faktor in der Sitzung zählt, entscheidet `session.zweiterFaktorGeprueft`,
+        nicht nur das Konto: Hat das Konto den Faktor und die Sitzung hat keinen Code geprüft, lautet der Code
+        `ZWEITER_FAKTOR_SITZUNG` statt `ZWEITER_FAKTOR_FEHLT` (die Verwaltung führt dann zur neuen Anmeldung mit Code, nicht zur
+        Einrichtung). Ändern sich die Rechte einer Person so, dass er Pflicht wird,
+        und hat sie keinen, beendet der Server ihre Sitzungen; sie meldet sich neu an und richtet ihn ein.
 
         Der Link `totpURI` (`otpauth://`) trägt «Cevi OS» als Aussteller und den Benutzernamen als Kontonamen,
         6 Stellen und 30 Sekunden. Er enthält das Geheimnis und wird nur einmal gezeigt. Die zehn Ersatzcodes
@@ -3513,8 +3576,8 @@ paths:
         Wird der Faktor mit dem ersten Code bestätigt, beendet der Server alle anderen Sitzungen der Person
         und stellt ein neues Session-Cookie aus.
 
-        **Rollen.** Nur die Abteilungsleitung (auch ohne bisherigen zweiten Faktor). Statuscodes: 200, 400, 404 (keine Abteilungsleitung oder
-        keine Sitzung), 426, 429.
+        **Rollen.** Jedes Konto, ausser dem eigenen Konto eines Kindes. Statuscodes: 200, 400, 404 (keine Sitzung oder Konto eines
+        Kindes), 426, 429.
       requestBody:
         required: true
         content:
@@ -3560,7 +3623,7 @@ paths:
            Zwischen-Cookie `two_factor` und den Code. Bei einem richtigen Code entsteht die Sitzung (`Set-Cookie`),
            das Zwischen-Cookie wird gelöscht. Pro Zwischen-Cookie sind 5 Versuche erlaubt, danach 400
            `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE` und die App meldet sich neu an. Wiederholte Fehlversuche sperren
-           das Konto vorübergehend (429).
+           das Konto vorübergehend (429). Die Sitzung gilt als geprüft (`session.zweiterFaktorGeprueft`).
         2. **Einrichtung.** In einer laufenden Sitzung nach `POST /api/auth/two-factor/enable` bestätigt der erste
            richtige Code den Faktor. Der Server beendet alle anderen Sitzungen der Person und stellt ein neues
            Session-Cookie aus, das das alte ersetzt. In dieser Verwendung zählt der Server keine Fehlversuche.
@@ -3568,9 +3631,13 @@ paths:
         «Gerät vertrauen» (`trustDevice`) gibt es nicht: Der Server ignoriert das Feld, jede Anmeldung auf einem
         neuen Gerät fragt nach dem Code.
 
+        Eine laufende Sitzung, deren Konto den Faktor hat, die den Code aber nicht geprüft hat (die Anmeldung der App),
+        holt ihn hier nicht nach: 403 `ZWEITER_FAKTOR_SITZUNG`. Der Weg zu einer geprüften Sitzung ist die neue Anmeldung
+        im Browser. Sonst könnte jemand mit Passwort und App-Sitzung Codes raten, ohne dass die Sperre der Anmeldung greift.
+
         Limit: 5 Anfragen je 15 Minuten und Client-IP (429).
 
-        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung; im Betrieb die Abteilungsleitung. Statuscodes: 200, 400, 401, 426, 429.
+        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung. Statuscodes: 200, 400, 401, 403, 426, 429.
         Bekannte Fehlercodes: 401 `INVALID_CODE` (falscher Code), 401 `INVALID_TWO_FACTOR_COOKIE` (weder Sitzung noch
         gültiges Zwischen-Cookie), 400 `TOTP_NOT_ENABLED` (kein Faktor eingerichtet),
         400 `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE`.
@@ -3606,6 +3673,13 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fehler"
+        "403":
+          description: |
+            Code `ZWEITER_FAKTOR_SITZUNG`: Die Sitzung hat den Code nicht geprüft und holt ihn nicht nach.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -3628,7 +3702,9 @@ paths:
         Bei Erfolg entsteht die Sitzung (`Set-Cookie`). `trustDevice` ignoriert der Server.
         Limit: 5 Anfragen je 15 Minuten und Client-IP (429).
 
-        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung; im Betrieb die Abteilungsleitung. Statuscodes: 200, 400, 401, 426, 429.
+        Wie bei `verify-totp` holt eine Sitzung ohne geprüften Code ihn hier nicht nach (403 `ZWEITER_FAKTOR_SITZUNG`).
+
+        **Rollen.** Alle mit Zwischen-Cookie oder Sitzung. Statuscodes: 200, 400, 401, 403, 426, 429.
         Bekannte Fehlercodes: 401 `INVALID_BACKUP_CODE`, 401 `INVALID_TWO_FACTOR_COOKIE`,
         400 `BACKUP_CODES_NOT_ENABLED`, 400 `TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE`.
       requestBody:
@@ -26189,6 +26265,12 @@ components:
           type: string
           format: date-time
           description: Ablauf der Sitzung (90 Tage ab der letzten Verlängerung).
+        zweiterFaktorGeprueft:
+          type: boolean
+          description: |
+            `true`, wenn diese Sitzung mit dem Code des zweiten Faktors begann (Anmeldung im Browser, Einrichten des
+            Faktors). `false` nach der Anmeldung der App und bei Konten ohne Faktor. Gilt der Faktor nur am Konto
+            (`user.twoFactorEnabled`) und nicht in der Sitzung, bleiben die Verwaltung und Rechte mit «erweitert» zu.
         createdAt:
           type: string
           format: date-time
@@ -26213,7 +26295,7 @@ components:
     AuthZweiterFaktorAufforderung:
       type: object
       description: |
-        Zweiter Faktor verlangt. Es gibt noch keine Sitzung; das Zwischen-Cookie `two_factor` steht im `Set-Cookie`-Header.
+        Zweiter Faktor verlangt (nur für Anmeldungen, die nicht von der App kommen). Es gibt noch keine Sitzung; das Zwischen-Cookie `two_factor` steht im `Set-Cookie`-Header.
       required:
         - twoFactorRedirect
         - twoFactorMethods
@@ -26486,7 +26568,7 @@ components:
           type: boolean
         zweiterFaktor:
           type: boolean
-          description: Ob der zweite Faktor eingerichtet ist. Die Abteilungsleitung braucht ihn für `/api/v1/admin`.
+          description: Ob das Konto den zweiten Faktor eingerichtet hat. Die Abteilungsleitung braucht ihn für `/api/v1/admin`. Sagt nichts über die Sitzung. Eine App-Sitzung hat den Code nie geprüft (Verwaltung und Rechte mit «erweitert» antworten dann 403 `ZWEITER_FAKTOR_SITZUNG`).
         rollen:
           type: array
           description: Stufenrollen der Person (Leitende und Stufenleitung); für Eltern und die Abteilungsleitung ohne Stufenrolle leer.
@@ -42678,7 +42760,10 @@ components:
       in: header
       required: false
       description: |
-        Herkunft der App für die Schutzprüfung von better-auth. Jeder POST an `/api/auth/*`, der ein
+        Herkunft der App. Sie dient der Schutzprüfung von better-auth und kennzeichnet die Anmeldung der App: Mit diesem
+        Schema entsteht auch bei einem Konto mit zweitem Faktor eine Sitzung ohne Code (nicht geprüft, ohne Zugang zur
+        Verwaltung). Jede andere Herkunft verlangt den Code.
+        Schutzprüfung von better-auth: Jeder POST an `/api/auth/*`, der ein
         `Cookie` mitschickt, braucht eine vertraute Herkunft, sonst 403 (`MISSING_OR_NULL_ORIGIN` oder
         `INVALID_ORIGIN`). Vertraut ist das App-Schema `cevi-os://` (auch mit Host und Port, z. B.
         `cevi-os://192.0.2.1:8081` für Entwicklungs-Builds). Statt `Origin` genügt `expo-origin` mit demselben

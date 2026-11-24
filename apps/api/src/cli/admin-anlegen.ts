@@ -116,6 +116,7 @@ if (!argumente) {
           email: platzhalterEmail(),
           password: normalisiereStartpasswort(startpasswort),
           name,
+          // Spiegel (#720): Die Zuordnung steht in abteilungsleitung_person, role schreibt der Übergang weiter
           role: "admin",
           data: {
             username: benutzername,
@@ -125,6 +126,9 @@ if (!argumente) {
           },
         },
       });
+      await tx
+        .insert(schema.abteilungsleitungPerson)
+        .values({ userId: user.id });
       await tx.insert(schema.auditLog).values({
         abteilungId,
         akteurId: "cli",

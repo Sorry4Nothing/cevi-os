@@ -649,15 +649,11 @@ describe("GET /api/v1/lager/{id}/ereignisse", () => {
       [
         "einem Konto, das Abteilungsleitung wird",
         (id: string) =>
-          db
-            .update(schema.user)
-            .set({ role: "admin" })
-            .where(eq(schema.user.id, id)),
+          db.insert(schema.abteilungsleitungPerson).values({ userId: id }),
         (id: string) =>
           db
-            .update(schema.user)
-            .set({ role: "user" })
-            .where(eq(schema.user.id, id)),
+            .delete(schema.abteilungsleitungPerson)
+            .where(eq(schema.abteilungsleitungPerson.userId, id)),
       ],
       [
         "abgelaufener Sitzung",

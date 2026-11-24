@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import { istAbteilungsleitung } from "./admins.js";
 import type { Db } from "./db/client.js";
 import {
   bereichsschalter,
@@ -193,12 +194,8 @@ export function erstelleAnmeldungGesperrt({
   db: Db;
   zustand: SchalterZustand;
 }) {
-  return async (nutzer: {
-    id: string;
-    abteilungId: string;
-    role?: string | null;
-  }) =>
+  return async (nutzer: { id: string; abteilungId: string }) =>
     zustand.trifft(nutzer.abteilungId, null, "sperre") !== undefined &&
-    nutzer.role !== "admin" &&
+    !(await istAbteilungsleitung(db, nutzer.id)) &&
     !(await istEntwickler(db, nutzer));
 }

@@ -113,6 +113,13 @@ const anmelden = (benutzername: string, passwort: string) =>
     returnHeaders: true,
   });
 
+const istInTabelle = async (id: string) =>
+  (
+    await db
+      .select()
+      .from(schema.abteilungsleitungPerson)
+      .where(eq(schema.abteilungsleitungPerson.userId, id))
+  ).length === 1;
 const userZeile = async (id: string) =>
   (await db.select().from(schema.user).where(eq(schema.user.id, id)))[0];
 const sitzungen = (id: string) =>
@@ -132,6 +139,8 @@ describe("POST /api/v1/admin/personen", () => {
     expect(angelegt.startpasswort).toMatch(STARTPASSWORT_FORM);
 
     const person = await userZeile(angelegt.id);
+    // Quelle ist die Tabelle, role der Spiegel für den Übergang (#720)
+    expect(await istInTabelle(angelegt.id)).toBe(true);
     expect(person).toMatchObject({
       name: "Vreni Muster",
       username: roh.toLowerCase(),
@@ -455,6 +464,7 @@ describe("PATCH /api/v1/admin/personen/:id", () => {
       name: "Neues Name",
       role: "admin",
     });
+    expect(await istInTabelle(angelegt.id)).toBe(true);
     expect(
       await db
         .select({ stufeId: schema.rolle.stufeId, typ: schema.rolle.typ })
@@ -701,6 +711,7 @@ describe("Schutz des letzte Abteilungsleitungs", () => {
     expect(antwort.status).toBe(409);
     expect(await antwort.json()).toMatchObject({ code: "LETZTER_ADMIN" });
     expect((await userZeile(ersterAdmin.id!)).role).toBe("admin");
+    expect(await istInTabelle(ersterAdmin.id!)).toBe(true);
   });
 
   test("mit zwei die Abteilungsleitung geht das Entfernen des einen, der letzte bleibt; deaktivierte zählen nicht", async () => {
