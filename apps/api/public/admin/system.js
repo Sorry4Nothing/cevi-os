@@ -12,6 +12,7 @@ import {
   el,
   filterGruppe,
   icon,
+  vorZeit,
   knopf,
   neueId,
   tabelle,
@@ -34,7 +35,6 @@ const UHR_SEKUNDEN = new Intl.DateTimeFormat("de-CH", {
   minute: "2-digit",
   second: "2-digit",
 });
-const RELATIV = new Intl.RelativeTimeFormat("de-CH", { numeric: "auto" });
 
 export const zahl = (n) =>
   n === null || n === undefined ? "–" : ZAHL.format(n);
@@ -52,15 +52,8 @@ export function dauer(sekunden) {
   return `${sekunden} Sek.`;
 }
 
-// «vor 3 Minuten»; das Datum steht zusätzlich im Titel des Elements
-export function vor(iso) {
-  const sekunden = Math.round((new Date(iso).getTime() - Date.now()) / 1000);
-  const abs = Math.abs(sekunden);
-  if (abs < 60) return RELATIV.format(Math.round(sekunden / 10) * 10, "second");
-  if (abs < 3600) return RELATIV.format(Math.round(sekunden / 60), "minute");
-  if (abs < 86400) return RELATIV.format(Math.round(sekunden / 3600), "hour");
-  return RELATIV.format(Math.round(sekunden / 86400), "day");
-}
+// «vor 3 Minuten», «gestern», «vor 2 Wochen»; das Datum steht zusätzlich im Titel des Elements
+export const vor = vorZeit;
 
 export async function ladeBetrieb() {
   const [system, anfragen] = await Promise.all([

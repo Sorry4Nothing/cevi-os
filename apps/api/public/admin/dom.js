@@ -843,3 +843,26 @@ export function geheimnisDialog({ titel, beschreibung, wert }) {
   dialog.scrollIntoView({ block: "nearest" });
   kopieren.focus();
 }
+
+// Relative Zeit in der passenden Einheit: «gerade eben», «vor 5 Minuten», «vor 3 Stunden», «gestern», «vor 4 Tagen», «vor 2 Wochen», «vor 3 Monaten», «vor 2 Jahren».
+// Die Einheit wächst mit dem Abstand, darum gibt es nie «vor 1000 Stunden». Das genaue Datum gehört in den Titel des Elements.
+const RELATIV_ZEIT = new Intl.RelativeTimeFormat("de-CH", { numeric: "auto" });
+const EINHEITEN = [
+  ["year", 345 * 86400],
+  ["month", 30 * 86400],
+  ["week", 7 * 86400],
+  ["day", 86400],
+  ["hour", 3600],
+  ["minute", 60],
+];
+export function vorZeit(iso, jetzt = Date.now()) {
+  const sekunden = Math.round((new Date(iso).getTime() - jetzt) / 1000);
+  const abs = Math.abs(sekunden);
+  if (abs < 60) return "gerade eben";
+  for (const [einheit, laenge] of EINHEITEN) {
+    if (abs >= laenge) {
+      return RELATIV_ZEIT.format(Math.round(sekunden / laenge), einheit);
+    }
+  }
+  return "gerade eben";
+}
