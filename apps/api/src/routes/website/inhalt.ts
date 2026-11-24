@@ -10,6 +10,7 @@ import {
   sichtbarkeitAusSpalten,
 } from "../../sichtbarkeit.js";
 import { ladeDaten } from "../../website/abgleich.js";
+import { ladeDynamischeBausteine } from "../../website/dynamisch-daten.js";
 import { ladeStufenfaktenGemerkt } from "../../website/stufenfakten.js";
 import type { Baustein } from "../../website/bausteine.js";
 import { pruefeDokument } from "../../website/dokument.js";
@@ -116,9 +117,18 @@ export function erstelleInhaltRoute({ db }: { db: Db }) {
       const fakten = sichtbare.some((b) => b.typ === "stufenfakten")
         ? await ladeStufenfaktenGemerkt(db, abteilungId, zeile.id)
         : undefined;
-      const daten = fakten
-        ? { ...geladen, stufenfakten: new Map([[zeile.id, fakten]]) }
-        : geladen;
+      // Bausteine mit Daten aus Cevi OS (#740): öffentliche Daten, nur für die gelieferten Bausteine
+      const { dynamisch } = await ladeDynamischeBausteine(
+        db,
+        abteilungId,
+        [zeile.id],
+        new Map([[zeile.id, { ...dokument, bausteine: sichtbare }]]),
+      );
+      const daten = {
+        ...geladen,
+        ...(fakten && { stufenfakten: new Map([[zeile.id, fakten]]) }),
+        ...(dynamisch && { dynamisch }),
+      };
       const bausteine = rendereGeschuetzte(dokument, zeile.id, daten, (b) =>
         sichtbare.includes(b),
       );

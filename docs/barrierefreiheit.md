@@ -1292,6 +1292,32 @@ Im Browser (Chromium, headless, Kopie der Demo-Datenbank, Tag und Nacht) geprüf
 - **Nicht geprüft:** Safari und Firefox; Bildschirmleser; Touch (der Hinweis `data-tipp` erscheint dort nicht, die Information steht im Namen oder im Text); jede einzelne Zeile der Seiten, die nur mit Daten erreichbar sind, die die Demo-Datenbank nicht enthält.
 - **Bleibt unvermeidlich:** der Dialog des Browsers beim Schliessen oder Neuladen des Tabs mit echten ungespeicherten Änderungen, und der Systemdialog der Dateiwahl.
 
+## 74. Website und Verwaltung: Bausteine mit Daten aus Cevi OS (#740)
+
+Gilt für die Bausteine «Nächster Anlass», «Anlässe», «Lager-Karte», «Countdown», «Treffpunkte», «Dokumente» und «Cevi in Zahlen» (`src/website/dynamisch.ts`, Stil `public/website/dynamisch.css`) und ihre Felder im Editor (`public/admin/website-felder-dynamisch.js`). Massstab WCAG 2.2 AA; die Seiten sind statisch und ohne Skript benutzbar.
+
+**Website**
+
+- [ ] **74.1** Jede Karte hat eine Überschrift (Anlass, Ort) auf der Ebene unter der letzten Überschrift der Seite, höchstens `h3`; Datum, Zeit, Ort, Anmeldeschluss und Kosten stehen als Beschreibungsliste (`dl`), das Datum als `<time datetime>`.
+- [ ] **74.2** Das Datumsfeld ist `aria-hidden`; derselbe Inhalt steht als Text in den Angaben. Der Zustand «Anmeldung offen» steht als Wort im Etikett, nicht nur als Farbe; die Art (Anlass, Lager) ebenfalls.
+- [ ] **74.3** Jeder Knopf nennt sein Ziel für Screenreader («Anmelden zu Sommerlager», `nur-sr`), auch in einer Liste mit mehreren gleichen Knöpfen; nur der erste rote Knopf der Seite ist Hauptaktion.
+- [ ] **74.4** Countdown: ein Satz im Fliesstext («Noch 12 Tage bis …»), Datum als Text daneben; kein Zähler im Browser, nichts blinkt oder wird angesagt; «Heute» und «1 Tag» stimmen in der Einzahl.
+- [ ] **74.5** Treffpunkte: der Link zur Karte steht als Verweis mit dem Zeichen für «fremde Seite» und dem Namen des Orts für Screenreader («Auf Google Maps ansehen: Pfadiheim»); keine eingebettete Karte.
+- [ ] **74.6** Dokumente: jeder Link nennt den Titel und «(externe Seite)»; Typ und Grösse stehen als Text dahinter; die Trefferfläche ist mindestens 44 Pixel hoch.
+- [ ] **74.7** «Cevi in Zahlen»: grosse Zahl mit Beschriftung im Text (Einzahl und Mehrzahl richtig), Kontrast mindestens 4,5 : 1 in Hell und Dunkel, Zahl nie allein ohne Wort.
+- [ ] **74.8** Leere Liste: «Im Moment sind keine Anlässe eingetragen.» als Zustand, nie eine leere Fläche.
+- [ ] **74.9** 390, 1280 und 1920 Pixel ohne Seitenscroll, 200 Prozent Zoom, Hell und Dunkel nur über Tokens; die Karte stapelt sich unter 47.5 em (Datum über dem Text); erzwungene Farben: Rand statt Fläche.
+
+**Verwaltung**
+
+- [ ] **74.10** Die Wahl des Anlasses ist ein Auswahlfeld mit Label; sie meldet Laden («Anlässe werden geladen …», `role="status"`), Fehler (`role="alert"` mit «Nochmals versuchen») und Leere (Hinweis, wo man den Anlass anlegt). Ein gewählter Anlass, der nicht mehr öffentlich ist, bleibt sichtbar als «Gewählter Anlass (nicht mehr öffentlich oder gelöscht)».
+- [ ] **74.11** Orte und Zahlen sind Ankreuzlisten in einer Gruppe (`fieldset`, `legend`), jede Zeile mindestens 44 Pixel hoch, das Label ist das Ziel; ein Fehler steht beim Feld.
+- [ ] **74.12** Fehler der Verweisprüfung (`ANLASS_UNBEKANNT`, `ANLASS_NICHT_OEFFENTLICH`, `ORT_UNBEKANNT`) erscheinen als Satz beim Baustein; kein Browserdialog.
+
+### Stand der Prüfung (#740)
+
+Im Browser (Chromium, Playwright) gegen die Demo-Abteilung: Seite mit allen sieben Bausteinen in der Vorschau und als erzeugte Datei bei 390, 1280 und 1920 Pixel, Hell und Dunkel. Nicht geprüft: Screenreader (VoiceOver, TalkBack, NVDA) und echte Geräte; Kontraste aus den Tokens der Website, nicht neu gemessen. Befunde: PR zu #740.
+
 ## 72. Website: feste Seite «Datenschutz: Cevi OS, App, Verwaltung und Website» (#712)
 
 Gilt für `/datenschutz-cevi-os` (`datenschutz-cevi-os.ts`, `datenschutz.css`) und die neuen Links auf sie (Fuss, Mein Konto, `/support`, `/konto-loeschen`). Massstab WCAG 2.2 AA. Es ist eine lange Seite aus Text ohne Skript und ohne Formular.
@@ -1334,3 +1360,24 @@ Gilt für die Bausteine «Bildraster», «Bild mit Text», «Bildvergleich», «
 ### Stand der Prüfung (#742)
 
 Im Browser (Chromium, headless, Playwright, Kopie der Demo-Datenbank mit ihren Bildern, eine Testseite mit allen neuen Bausteinen veröffentlicht und die erzeugte Datei geprüft) bei 1280, 1920 und 390 px, Hell und Dunkel gesehen: 76.3, 76.5 (Tastatur, Maus, Namen und Wert), 76.7, 76.9 und 76.10; Grossansicht aus Raster, Streifen und breitem Bild mit Folge, Esc und Fokus zurück; geschützte Bausteine nach der Anmeldung nachgeladen (Gruppe mit Namen, Schieber, Grossansicht); kein Seitenscroll, keine Fehler in der Konsole ausser dem erwarteten 401 ohne Sitzung, keine Verstösse gegen die CSP; Felder im Editor für alle Bausteine geöffnet. **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), echtes Touch-Gerät (Wischen am Schieber und im Streifen), Safari und Firefox, Kontrastwerte mit einem Messwerkzeug (die Werte in 76.3 sind gerechnet), 200 % Zoom am Gerät, erzwungene Farben am Gerät.
+
+## 77. Website und Verwaltung: Bausteine «Text und Gestaltung» (#741)
+
+Gilt für die Bausteine `hinweisbox`, `zitat`, `fragen`, `spalten`, `bildneben`, `tabelle`, `schritte` und `checkliste` auf der Website (`src/website/bausteine-text-rendern.ts`, Abschnitt «Text und Gestaltung» in `public/website/website.css`) und für ihre Felder im Seiten-Editor (`public/admin/website-felder-text.js`). Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss. Kein Skript: Die Aufklappliste ist das Element `details`.
+
+### Prüfpunkte
+
+- [ ] **77.1** Hinweisbox: Das Wort der Art («Info», «Tipp», «Wichtig», «Achtung») steht immer im Kasten; das Zeichen ist `aria-hidden`, die Farbe nur Zugabe (WCAG 1.4.1). Text auf Grund mindestens 4.5:1 in Tag und Nacht (gemessen, niedrigster Wert 5.41:1); «Achtung» ist ein Dreieck, die anderen sind rund. Bei hohem Kontrast des Systems behält das Dreieck seine Farbe.
+- [ ] **77.2** Zitat: `figure` mit `blockquote` und `figcaption`; Anführungszeichen «…» im Text. Das runde Foto hat einen leeren Alt-Text, wenn dieser nur den Namen daneben wiederholt; sonst steht der des Mediums. Im Editor weist ein Hinweis darauf hin, dass Namen von Kindern nur mit Einwilligung der Eltern stehen.
+- [ ] **77.3** Fragen und Antworten: `details` und `summary`, mit Enter und Leertaste zu öffnen und zu schliessen, der Fokusring (3 px) ist sichtbar, die Zeile ist mindestens 56 px hoch. Nichts ist von Anfang an offen. Der Pfeil dreht nur bei erlaubter Bewegung; bei «Bewegung reduzieren» wechselt er ohne Übergang. Jede Frage hat einen Anker in der Adresse; er führt zur Frage (öffnet sie nicht).
+- [ ] **77.4** Zwei Spalten und Bild neben Text: Die Reihenfolge im Markup ist die Lesereihenfolge (Bild zuerst, linke Spalte vor der rechten); «rechts» ändert nur die Anordnung ab 48 em. Am Handy stehen die Teile untereinander (Reflow ab 320 px). Der Alt-Text liegt am Medium; fehlt das Bild, steht der Text allein. Titel liegen eine Ebene unter der letzten Überschrift, höchstens Ebene 3.
+- [ ] **77.5** Tabelle: `caption` mit der Beschriftung, `th scope="col"` für die Kopfzeile und `th scope="row"` für den Zeilenkopf, nie Zellen als Überschriften. Die scrollbare Fläche ist `role="region"` mit Namen (Beschriftung oder «Tabelle») und `tabindex="0"`; der Fokusring ist sichtbar (WCAG 2.1.1, 2.4.7). Bei 390 px scrollt die Tabelle in ihrer Fläche, die Seite nicht (WCAG 1.4.10, Tabellen sind ausgenommen). Zahlenspalten stehen rechtsbündig, Ziffern gleich breit.
+- [ ] **77.6** Schritte: geordnete Liste (`ol`, `role="list"`, weil Safari sonst die Liste nicht nennt); die Zahl im Kreis kommt aus einem Zähler mit leerer Alternative, der Screenreader liest sie nicht doppelt. Ein Link im Schritt ist ein Verweis mit mindestens 44 px Höhe und Pfeil.
+- [ ] **77.7** Checkliste: Liste mit `role="list"`; die Zeichen (Haken, leeres Kästchen) sind `aria-hidden`, der Punkt steht als Text. Haken und Kästchen unterscheiden sich in der Form, nicht nur in der Farbe. Gedruckt behalten die Zeichen ihre Form.
+- [ ] **77.8** Nacht und Kontrast: Alle Paare aus Tokens, in Tag und Nacht mindestens 4.5:1 für Text und 3:1 für Zeichen und Kanten; Fokusringe wie überall (3 px, `--focus`).
+- [ ] **77.9** Editor: Jedes Feld hat eine sichtbare Beschriftung; Fehler stehen am Feld und in der Zusammenfassung oben mit Sprungmarken (WCAG 3.3.1, 3.3.3). Die Art der Hinweisbox, die Seite des Bildes und die Zeichen der Checkliste sind Segmente (Radiogruppe mit Pfeiltasten). Zellen einer Tabelle heissen wie ihre Spalte (die Beschriftung folgt dem Kopf), nach «Spalte hinzufügen» steht der Fokus im neuen Feld. Kein Browserdialog, kein `innerHTML`.
+- [ ] **77.10** Geschützte Bausteine: Nach der Anmeldung laden dieselben Elemente und Attribute (`knoten.js`); Tabelle, Aufklappliste und Zitat bleiben bedienbar.
+
+### Stand der Prüfung (#741)
+
+Im Browser (Chromium, headless, Kopie der Demo-Datenbank, erfundene Texte, Bilder aus der Demo-Medienbibliothek) bei 1280, 1920 und 390 px, hell und dunkel: Eine Seite mit allen acht Bausteinen (in jeder Art der Hinweisbox, beide Darstellungen der Checkliste, Bild links und rechts, Tabelle mit Zeilenkopf und Zahlenspalten) wurde im Editor Baustein für Baustein angelegt, gespeichert und veröffentlicht; die erzeugte Seite wurde angesehen. Tastatur: Enter und Leertaste öffnen und schliessen die Fragen, der Fokusring der Fragen und der Tabellenfläche ist sichtbar (3 px), die Tabellenfläche ist nach vier Tabs erreichbar. Überschriftenfolge: H1, H2, H3 ohne Sprung. Kein seitliches Scrollen der Seite bei 390 px. Der Server lehnte einen Link auf eine Seite ab, die es nicht gibt (Meldung am Baustein). Per Test: Schema mit allen Grenzen und Ablehnungen, Verweise, Maskierung (kein Markup aus Daten), kein Skript und kein `style`, jedes Element und Attribut der Renderer passiert `knoten.js`. **Nicht geprüft:** Screenreader (VoiceOver, TalkBack, NVDA), 200 % und 400 % Zoom, echtes Touch-Gerät, Firefox und Safari (das Verhalten von `details` bei einem Anker in der Adresse ist dort unbestätigt), hoher Kontrast des Systems (nur die Regel ist gesetzt).

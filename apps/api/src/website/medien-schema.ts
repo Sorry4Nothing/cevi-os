@@ -1,18 +1,18 @@
 import { z } from "zod";
 import { LINK_MAX, pruefeLink } from "../link-pruefung.js";
 import type {
-  Baustein,
   baustein,
   bildEintrag,
   kurztext,
   link,
   linkAlle,
   mediumId,
-} from "./bausteine.js";
+} from "./bausteine-basis.js";
+import type { Baustein } from "./bausteine.js";
 
 // Bausteine für Bilder und Medien (#742): Bildraster, Bild mit Text, Bildvergleich, Logo-Reihe, breites Bild, Bildstreifen, Bilderpaket.
 // Wie der übrige Katalog: strenge Schemas ohne HTML, der Alt-Text liegt am Medium, nie am Baustein; die Verweisprüfung steht in verweise.ts, der Renderer in medien-bausteine.ts.
-// Die Hilfen kommen von bausteine.ts, das diese Datei einbindet: Sie werden übergeben, nicht importiert, damit zwischen den Dateien kein Kreis entsteht.
+// Die Hilfen (bausteine-basis.ts) übergibt bausteine.ts, das diese Datei einbindet: Sie werden übergeben, nicht importiert, damit zwischen den Dateien kein Kreis entsteht.
 
 // Obergrenzen (shortcut: geschätzt, bei Bedarf anheben; sie schützen Speicher, Renderer und Editor)
 export const MIN_BILDRASTER = 2;

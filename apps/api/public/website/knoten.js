@@ -24,6 +24,17 @@ const TAGS = new Set([
   "dl",
   "dt",
   "dd",
+  // Text und Gestaltung (#741): Zitat, Aufklappliste, Tabelle
+  "blockquote",
+  "details",
+  "summary",
+  "table",
+  "caption",
+  "thead",
+  "tbody",
+  "tr",
+  "th",
+  "td",
 ]);
 
 const MAX_TIEFE = 20;
@@ -55,11 +66,16 @@ const ATTRIBUTE = {
   width: (tag, w) => tag === "img" && /^[0-9]{1,5}$/.test(w),
   height: (tag, w) => tag === "img" && /^[0-9]{1,5}$/.test(w),
   loading: (tag, w) => tag === "img" && w === "lazy",
+  decoding: (tag, w) => tag === "img" && w === "async",
   class: (_tag, w) => typeof w === "string" && /^[a-z0-9 _-]{1,60}$/.test(w),
   "aria-hidden": (_tag, w) => w === "true",
   // Safari und VoiceOver nennen eine Liste mit «list-style: none» nur mit dieser Rolle eine Liste (#645); eine Gruppe mit Namen ist der Bildstreifen (#742)
   role: (tag, w) =>
-    (tag === "ul" && w === "list") || (tag === "div" && w === "group"),
+    ((tag === "ul" || tag === "ol") && w === "list") ||
+    (tag === "div" && (w === "region" || w === "group")),
+  // Tabelle (#741): Kopfzellen für Spalte oder Zeile; die scrollbare Fläche ist mit der Tastatur erreichbar und benannt
+  scope: (tag, w) => tag === "th" && (w === "col" || w === "row"),
+  tabindex: (tag, w) => tag === "div" && w === "0",
   "aria-label": (tag, w) =>
     tag === "div" && typeof w === "string" && w.length <= 200,
 };

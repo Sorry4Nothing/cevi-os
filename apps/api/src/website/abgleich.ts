@@ -22,6 +22,7 @@ import {
 } from "../db/schema.js";
 import { fehlerCode } from "../kalender/fehler.js";
 import { log } from "../log.js";
+import { setzeSeitenpfade } from "./dynamisch-daten.js";
 import { istAusgabePfad, type Ausgabe } from "./ausgabe.js";
 import {
   pruefeDokument,
@@ -598,6 +599,8 @@ export async function erzeugeWebsite(
       if (pfad) t.seitePfad = pfad;
     }
   }
+  // Dasselbe für die Anlässe der Bausteine aus Cevi OS (#740)
+  setzeSeitenpfade(daten.dynamisch, (id) => sichtbar.get(id)?.pfad);
   // Impressum und Datenschutz stehen im Fuss, nicht in der Leiste; ohne Seite «Datenschutz» führt der Fuss auf die Erklärung der Plattform, ein Impressum nennt er nur, wenn es die Seite gibt
   const fusspfad = (adresse: string) =>
     [...sichtbar.values()].find((z) => z.pfad === `/${adresse}`)?.pfad;

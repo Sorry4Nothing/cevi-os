@@ -70,7 +70,8 @@ export function ladeSeiten(kontakt: Kontakt = {}) {
     lade("website/lichtkasten.css") +
     lade("website/karussell.css") +
     lade("website/inhalt.css") +
-    lade("website/medien.css");
+    lade("website/medien.css") +
+    lade("website/dynamisch.css");
   // Der Stil liegt einmal in seite.css; die CSP-freien Seiten setzen ihn ein, statt ihn zu laden
   const stil = lade("seite.css");
   const seite = (datei: string) =>

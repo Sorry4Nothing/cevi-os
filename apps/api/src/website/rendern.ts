@@ -16,8 +16,20 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
+import { istDynamisch } from "./bausteine-dynamisch.js";
+import type { DynamischErgebnis } from "./dynamisch-daten.js";
+import {
+  BREITE_DYNAMISCHE,
+  rendereDynamischenBaustein,
+  STIL_DYNAMISCH,
+} from "./dynamisch.js";
 import { kopf, STIL_KOPF } from "./kopf.js";
 import { fuss, kontaktkarte, STIL_FUSS } from "./kontakt.js";
+import {
+  istBreitText,
+  istTextBaustein,
+  rendereTextBaustein,
+} from "./bausteine-text-rendern.js";
 import {
   rendereLaden,
   SKRIPT_LADEN,
@@ -138,6 +150,8 @@ export type Daten = {
   ladenUebergabe: ReadonlyMap<string, true>;
   // Die Einstellungen des Lädelis (#642) unter dem Schlüssel «e»; ohne Eintrag gelten die Vorgaben
   ladenEinstellung: ReadonlyMap<"e", LadenEinstellung>;
+  // Je Baustein mit Daten aus Cevi OS (#740, nach der ID des Bausteins) das Ergebnis; fehlt der Eintrag, entfällt der Baustein
+  dynamisch: ReadonlyMap<string, DynamischErgebnis>;
 };
 export const keineDaten = (): Daten => ({
   medien: new Map(),
@@ -151,6 +165,7 @@ export const keineDaten = (): Daten => ({
   laden: new Map(),
   ladenUebergabe: new Map(),
   ladenEinstellung: new Map(),
+  dynamisch: new Map(),
 });
 
 // Logo der Abteilung (#550): ein öffentliches Bild aus der Medienbibliothek; fehlt es, zeigt der Kopf die Wortmarke
@@ -238,7 +253,7 @@ export function verlinke(
   return [el("a", klasse ? { ...h, class: klasse } : h, ...innen, ...extern)];
 }
 
-function textBlock(b: TextBlock): HtmlKnoten {
+export function textBlock(b: TextBlock): HtmlKnoten {
   const abschnitte = (liste: Extract<TextBlock, { typ: "absatz" }>["inhalt"]) =>
     liste.flatMap((a) => {
       let k: HtmlKnoten = a.text;
@@ -368,7 +383,7 @@ function stufenkarte(
 }
 
 // Anker einer Überschrift der Ebene 2 (#560): ihr Text als Adresse («Unsere Lager» wird «unsere-lager»); ein doppelter bekommt «-2»
-function anker(text: string, vergeben: Set<string>): string | null {
+export function anker(text: string, vergeben: Set<string>): string | null {
   const basis = text
     .toLowerCase()
     .replace(/ä/g, "ae")
@@ -447,10 +462,13 @@ function rendereBaustein(
   }
   // Bilder und Medien (#742)
   if (istMedienBaustein(b)) return rendereMedienBaustein(b, daten, letzte);
+  // Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, Spalten, Bild und Text, Tabelle, Schritte, Checkliste
+  if (istTextBaustein(b)) return rendereTextBaustein(b, daten, letzte);
   if (b.typ === "laden") {
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
   if (b.typ === "fotoalben") return rendereFotoalben();
+  if (istDynamisch(b)) return rendereDynamischenBaustein(b, daten, letzte);
   switch (b.typ) {
     case "ueberschrift": {
       const ebene = Math.min(b.daten.ebene, letzte.ebene + 1);
@@ -1087,9 +1105,11 @@ const LISTEN_BAUSTEINE = new Set<Baustein["typ"]>([
   "logoreihe",
 ]);
 const istBreit = (b: Baustein) =>
+  istBreitText(b) ||
   b.typ === "artikel" ||
   b.typ === "laden" ||
   b.typ === "fotoalben" ||
+  BREITE_DYNAMISCHE.has(b.typ) ||
   b.typ === "galerie" ||
   b.typ === "karussell" ||
   MEDIEN_BREIT.has(b.typ) ||
@@ -1404,6 +1424,10 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         ? [STIL_INHALT]
         : []),
       ...(mitLaden ? STILE_LADEN : []),
+      // Bausteine mit Daten aus Cevi OS (#740): der Stil nur auf Seiten, die einen davon zeigen
+      ...(eintraege.some((e) => istDynamisch(e.b) && e.knoten !== null)
+        ? [STIL_DYNAMISCH]
+        : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
     ...((geschuetzt || mitLaden || mitFotos) && {
