@@ -105,7 +105,7 @@ Alle drei Variablen oder keine; mit einzelnen startet die API nicht. Ohne sie l�
 
 **Fuss und Kontaktkarte** (#549) nehmen ihre Angaben aus der Konfiguration des Servers, nicht aus einer Tabelle: Anschrift (`VERANTWORTLICHE_ADRESSE`) und E-Mail (`KONTAKT_EMAIL`) sind die der verantwortlichen Stelle (siehe [betrieb.md](betrieb.md)), das Telefon ist neu und freiwillig (`KONTAKT_TELEFON`, etwa `+41 00 000 00 00`; ohne Wert fehlt es). Der Name ist der der Abteilung in der Datenbank. «Impressum» und «Datenschutz» im Fuss führen auf die Seiten des Seitenbaums mit den Adressen `impressum` und `datenschutz-website` (beide auf der obersten Ebene); sie stehen dann nicht zusätzlich in der Leiste. Gibt es `impressum` nicht, nennt der Fuss kein Impressum; gibt es `datenschutz-website` nicht, führt «Datenschutz» auf die Erklärung der Plattform `/datenschutz`.
 
-Die Vorlage für die lokale Entwicklung mit Kommentar steht in `apps/api/.env.example`. `deploy/.env.example` und `deploy/docker-compose.prod.yml` führen die Variablen noch nicht: Der Compose-Stack reicht nur die Variablen durch, die er aufzählt, und der Ort der Dateien (siehe «Offene Punkte») steht nicht fest. Mit dieser Entscheidung kommen dazu: die drei Variablen in beiden Dateien, ein beschreibbares Volume für den Dienst `api` (er läuft mit `read_only: true`) und der lesende Einbau im Edge-Caddy.
+Die Vorlage für die lokale Entwicklung mit Kommentar steht in `apps/api/.env.example`. Im Betrieb führen `deploy/.env.example` und `deploy/docker-compose.prod.yml` die Variablen (#705): `WEBSITE_AUSGABE_PFAD` ist dort fest `/srv/website` (das Volume `cevi-os_website`) und wird nur mit gesetzter `WEBSITE_ABTEILUNG_ID` übergeben. Einrichtung: `docs/betrieb.md`, «Website» und «Edge-Caddy».
 
 ## Vorschau im Editor
 
@@ -173,7 +173,7 @@ Besucher fragen die Datenbank nie ab. Ein Lauf des Abgleichs (beim Start, nach e
 
 ## Vorschlag für den Edge-Caddy
 
-Nicht umgesetzt und nicht getestet: vor der Übernahme mit `caddy validate` prüfen (`docs/betrieb.md`, «Edge-Caddy»). Annahmen: Der Edge-Caddy kann die Dateien lesen (der Ordner ist zum Beispiel ein Volume, das die API beschreibt und der Caddy nur lesend einbindet), und die Website läuft unter derselben Domain wie die API.
+Umgesetzt in [`deploy/edge/cevi-os.caddy`](../deploy/edge/cevi-os.caddy) (#705), dort mit der Domain der API und dem Verzeichnis `/srv/website` aus dem Volume; die Datei ist mit `caddy validate` geprüft, aber nicht auf einem Server ausgerollt. Der Vorschlag unten gilt für eine eigene Domain der Website: Die Annahmen sind, dass der Edge-Caddy die Dateien lesen kann und die Website unter derselben Domain wie die API läuft.
 
 ```caddy
 www.example.org {
