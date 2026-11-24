@@ -69,6 +69,7 @@ import { erstelleEditorRouten } from "./routes/redaktion/index.js";
 import { erstelleWebsiteRouten } from "./routes/website/index.js";
 import { erstelleIchRouten } from "./routes/ich.js";
 import type { WetterHolen } from "./lager/wetter-openmeteo.js";
+import type { OrtssucheHolen } from "./ortssuche/index.js";
 import { erstelleLagerRouten } from "./routes/lager/index.js";
 import { erstelleIcalRoute } from "./routes/termine/ical.js";
 import { erstelleLadenRouten } from "./routes/laden/index.js";
@@ -126,6 +127,7 @@ export function erstelleApp({
   fcm,
   ceviDb,
   wetter,
+  ortssuche,
   jetzt,
   kodiereBild,
   kodiereLogo,
@@ -147,6 +149,8 @@ export function erstelleApp({
   ceviDb?: CeviDbDienst;
   // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
   wetter?: WetterHolen;
+  // Adresssuche der Orte (#695); ohne Angabe antwortet die Suche mit 503, server.ts setzt die Suche des Bundes ein, die Tests eine Attrappe
+  ortssuche?: OrtssucheHolen;
   // Uhr der Lager-Aggregate (#395); ohne Angabe die Systemzeit
   jetzt?: () => Date;
   // sharp steckt in bild-sharp.ts: Schon ein Import zöge dessen Typen von Node in dieses Programm; ohne Kodierer antwortet der Upload mit 501
@@ -353,6 +357,7 @@ export function erstelleApp({
           db,
           medien: medienHandler,
           kontakt: websiteKontakt,
+          ortssuche,
         }),
       )
       // Geschützte Bausteine der Website nachladen (#354): hinter der Sitzung

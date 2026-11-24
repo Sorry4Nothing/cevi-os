@@ -86,6 +86,8 @@ const app = erstelleApp({
   kodiereLogo: kodiereStufenlogo,
   kodiereMedienbild,
   medienspeicher,
+  // Eine Attrappe statt der Ortssuche des Bundes (#695)
+  ortssuche: async () => [],
   // Eine Attrappe statt firebase-admin: Ohne Push-Dienst antwortet die Mitteilung mit 503, und kein Test der Matrix soll ins Netz gehen
   fcm: {
     sendEach: async (nachrichten) => ({
@@ -199,6 +201,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/website-orte.js": { erwartet: alle(200) },
   "GET /admin/website-orte.css": { erwartet: alle(200) },
   "GET /admin/orte-logik.js": { erwartet: alle(200) },
+  "GET /admin/ort-suche.js": { erwartet: alle(200) },
   "GET /admin/bildwahl.js": { erwartet: alle(200) },
   "GET /admin/bildwahl.css": { erwartet: alle(200) },
   "GET /admin/website-einstellungen.css": { erwartet: alle(200) },
@@ -279,6 +282,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/lager-einteilung-laden.js": { erwartet: alle(200) },
   "GET /admin/lager-bewegung.js": { erwartet: alle(200) },
   "GET /admin/lager-skeleton.js": { erwartet: alle(200) },
+  "GET /admin/lager-status.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-detail.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-gemeinsam.js": { erwartet: alle(200) },
   "GET /admin/lager-aufgaben-logik.js": { erwartet: alle(200) },
@@ -1539,6 +1543,19 @@ const MATRIX: Record<string, Zeile> = {
       slA: 201,
       slB: 201,
       demoAdmin: 201,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Adresssuche (#695): wie die Orte; der Dienst ist eine Attrappe (kein Abruf im Test). Die Wirkung steht in test/redaktion-orte.test.ts
+  "GET /api/v1/redaktion/orte/suche": {
+    url: () => "/api/v1/redaktion/orte/suche?q=Beispielweg",
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      slA: 200,
+      slB: 200,
+      demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
     },

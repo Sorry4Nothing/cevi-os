@@ -21,6 +21,13 @@ import {
   type Standort,
   type StandortGrund,
 } from "../../karten-standort.js";
+import { log } from "../../log.js";
+import {
+  MAX_SUCHTEXT,
+  MIN_SUCHTEXT,
+  OrtssucheBegrenzt,
+  type OrtssucheHolen,
+} from "../../ortssuche/index.js";
 import { hatPlattformRecht } from "../../plattform.js";
 import type { Person } from "../../rechte.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
@@ -74,6 +81,18 @@ const reihenfolgeSchema = z.strictObject({
   ids: z.array(z.uuid()).min(1).max(MAX_ORTE),
 });
 const vorschauSchema = z.strictObject({ standort: standortFeld });
+// Der Suchtext für die Adresssuche (#695): mindestens drei Zeichen, höchstens zehn Wörter (mehr nimmt der Dienst nicht)
+const sucheSchema = z.strictObject({
+  q: z
+    .string()
+    .trim()
+    .min(MIN_SUCHTEXT)
+    .max(MAX_SUCHTEXT)
+    .regex(OHNE_STEUERZEICHEN)
+    .refine((t) => t.split(/\s+/).length <= 10),
+});
+// Je Konto höchstens so viele Suchen je Minute (die Eingabe im Browser wartet kurz, bevor sie fragt)
+const SUCHEN_PRO_MINUTE = 20;
 const pfad = () => z.strictObject({ id: z.uuid() });
 
 const MELDUNG_STANDORT: Record<StandortGrund, string> = {
@@ -87,6 +106,11 @@ const standortFehler = (grund: StandortGrund) =>
     code: "ORT_STANDORT_UNGUELTIG",
     message: MELDUNG_STANDORT[grund],
   }) as const;
+const SUCHE_NICHT_ERREICHBAR = {
+  code: "ORTSSUCHE_NICHT_ERREICHBAR",
+  message:
+    "Die Adresssuche ist gerade nicht erreichbar. Du kannst den Standort auch von Hand eintragen.",
+} as const;
 const NAME_VERGEBEN = {
   code: "ORT_NAME_VERGEBEN",
   message: "Einen Ort mit diesem Namen gibt es schon.",
@@ -156,7 +180,32 @@ export async function darfOrteVerwalten(db: Db, person: Person) {
   return zeile !== undefined;
 }
 
-export function erstelleOrteRouten({ db }: { db: Db }) {
+export function erstelleOrteRouten({
+  db,
+  ortssuche,
+}: {
+  db: Db;
+  // Fehlt der Dienst (Tests ohne Attrappe), antwortet die Suche mit «nicht erreichbar»
+  ortssuche?: OrtssucheHolen;
+}) {
+  // Zeitpunkte der letzten Suchen je Konto; im Arbeitsspeicher, mit dem Neustart leer
+  const suchen = new Map<string, number[]>();
+  const darfSuchen = (personId: string) => {
+    const jetzt = Date.now();
+    const neu = (suchen.get(personId) ?? []).filter((t) => t > jetzt - 60_000);
+    if (neu.length >= SUCHEN_PRO_MINUTE) {
+      suchen.set(personId, neu);
+      return false;
+    }
+    suchen.set(personId, [...neu, jetzt]);
+    // Konten, die lange nicht gesucht haben, nicht ewig behalten
+    if (suchen.size > 500) {
+      for (const [id, zeiten] of suchen) {
+        if (zeiten.every((t) => t <= jetzt - 60_000)) suchen.delete(id);
+      }
+    }
+    return true;
+  };
   const pruefeRecht = async (person: Person) => {
     if (!(await darfOrteVerwalten(db, person))) throw new HTTPException(403);
   };
@@ -273,6 +322,26 @@ export function erstelleOrteRouten({ db }: { db: Db }) {
             verwendung: (je.get(z.id) ?? []).slice(0, MAX_NUTZUNG_ANZEIGE),
           })),
         });
+      })
+      // Adresssuche mit Vorschlägen (#695): Der Browser fragt nur den eigenen Server; dieser fragt die Ortssuche des Bundes und gibt nur Bezeichnung, Strasse, PLZ, Ort und Koordinaten weiter. Der Suchtext steht in keinem Protokoll
+      .get("/suche", eingabe("query", sucheSchema), async (c) => {
+        const person = c.get("person");
+        await pruefeRecht(person);
+        if (!darfSuchen(person.id)) throw new HTTPException(429);
+        c.header("Cache-Control", "no-store");
+        try {
+          if (!ortssuche) throw new Error("Keine Ortssuche");
+          return c.json({
+            vorschlaege: await ortssuche(c.req.valid("query").q),
+          });
+        } catch (f) {
+          if (f instanceof OrtssucheBegrenzt) throw new HTTPException(429);
+          log(c, {
+            ereignis: "ortssuche_fehler",
+            fehler: f instanceof Error ? f.name : "unbekannt",
+          });
+          return c.json(SUCHE_NICHT_ERREICHBAR, 503);
+        }
       })
       // Was der Server aus der Eingabe liest, ohne zu speichern: Die Verwaltung zeigt es beim Tippen (Art, Link zur Karte)
       .post("/vorschau", eingabe("json", vorschauSchema), async (c) => {

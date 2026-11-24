@@ -78,11 +78,13 @@ export function hochladen(pfad, datei, { beiFortschritt, signal } = {}) {
   });
 }
 
-export async function anfrage(methode, pfad, body) {
+// signal: bricht die Anfrage ab (Suche mit Vorschlägen: eine neue Eingabe ersetzt die alte); die Antwort ist dann ein AbortError
+export async function anfrage(methode, pfad, body, signal) {
   let antwort;
   try {
     antwort = await fetch(pfad, {
       method: methode,
+      signal,
       credentials: "same-origin",
       cache: "no-store",
       keepalive: verlassen || undefined,
@@ -96,7 +98,8 @@ export async function anfrage(methode, pfad, body) {
           ? body
           : JSON.stringify(body),
     });
-  } catch {
+  } catch (f) {
+    if (signal?.aborted) throw f;
     throw new ApiFehler(0, "NETZ");
   }
   if (antwort.status === 204) return null;
