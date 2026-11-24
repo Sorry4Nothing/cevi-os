@@ -393,6 +393,7 @@ export function bearbeitenBlatt(k, b, position, opt = {}) {
     tagNamen: k.tagNamen,
     personNamen: k.personNamen,
     personen: k.personen,
+    teams: k.teams,
     medien: k.medien,
     kannAlt: k.kannAlt,
     waehleBild: (beiWahl) => bildDialog(k, beiWahl, { in: blatt }),

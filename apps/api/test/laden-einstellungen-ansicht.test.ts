@@ -123,7 +123,8 @@ describe("Texte der Abteilung", () => {
         bestaetigt: { uebergabe: "x", summeRappen: 0, positionen: [] },
       },
     );
-    expect(uebersicht(ohne)).toContain("Deine Bestellung ist eingegangen.");
+    // Dass die Bestellung eingegangen ist, sagt der Toast (#762)
+    expect(uebersicht(ohne)).toContain("Bestellung gesendet");
     expect(uebersicht(ohne)).not.toContain("Du bezahlst");
   });
 });

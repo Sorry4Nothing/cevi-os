@@ -16,6 +16,7 @@ import {
   sk,
   zustandView,
 } from "./tm.js";
+import { toast } from "./toast.js";
 import { anlassAdresse, anlassDatum, anlassId } from "./anlass.js";
 
 export const terminAdresse = (id) => `/termin/?id=${id}`;
@@ -350,19 +351,7 @@ function start(doc, wurzel) {
     doc.title = `${t.titel} | ${doc.title.split(" | ").slice(1).join(" | ")}`;
   };
   const zeichne = (fokus) => {
-    zeige(
-      terminView({
-        ...zustand,
-        fehler: zustand.fehler
-          ? bandView({
-              art: "fe",
-              symbol: "warnung",
-              titel: zustand.fehler,
-              rolle: "alert",
-            })
-          : null,
-      }),
-    );
+    zeige(terminView(zustand));
     if (fokus) {
       doc
         .querySelector(
@@ -408,7 +397,6 @@ function start(doc, wurzel) {
   async function antworte(wer, status) {
     if (zustand.beschaeftigt) return;
     zustand.beschaeftigt = wer;
-    zustand.fehler = null;
     zeichne({ wer, status });
     const pfad =
       wer === "ich"
@@ -418,9 +406,8 @@ function start(doc, wurzel) {
     zustand.beschaeftigt = null;
     const fehler = speicherFehler(r);
     if (fehler) {
-      zustand.fehler = fehler;
-      melde(doc, fehler);
       zeichne({ wer, status });
+      toast(fehler, "fehler");
       return;
     }
     if (wer === "ich") zustand.t.eigeneAnmeldung = status;
@@ -428,8 +415,8 @@ function start(doc, wurzel) {
       zustand.t.kinder = zustand.t.kinder.map((k) =>
         `kind:${k.id}` === wer ? { ...k, status } : k,
       );
-    melde(doc, `Gespeichert: ${ANTWORT[status]}.`);
     zeichne({ wer, status });
+    toast(`Antwort gespeichert: ${ANTWORT[status]}.`);
     // Zahlen der Leitenden nachziehen, wenn sie sichtbar sind
     if (zustand.zusagen) {
       const z = await api(`/programme/${id}/teilnahmen`);

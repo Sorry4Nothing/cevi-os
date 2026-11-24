@@ -3620,3 +3620,113 @@ a.seitenwechsel-link:hover .seitenwechsel-titel {
   min-height: 2.75rem;
   font-weight: 600;
 }
+
+/* ===== Toasts (#762) =====
+   Rückmeldung nach einer Aktion: eine feste Stelle (unten in der Mitte, am Handy über die Breite), überall gleich. Verhalten und Regel: toast.js, docs/website-design.md «Rückmeldungen».
+   Farben aus tokens.css: Erfolg und Info auf --inverse-surface (Tag 10.4:1, Nacht 16.6:1), Fehler auf --error-container (6.8:1 und 7.5:1). Das Symbol (Haken, Kreis, Dreieck) trägt die Art, nie nur die Farbe. */
+.toasts {
+  position: fixed;
+  right: max(1rem, env(safe-area-inset-right));
+  bottom: max(1rem, env(safe-area-inset-bottom));
+  left: max(1rem, env(safe-area-inset-left));
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  margin-inline: auto;
+  max-width: 32rem;
+  pointer-events: none;
+}
+
+/* Der Lädeli-Knopf schwebt unten rechts: Die Toasts stehen darüber, nie darauf */
+body:has(.laden-schwebe) .toasts {
+  bottom: max(5rem, calc(4rem + env(safe-area-inset-bottom)));
+}
+
+/* In einem offenen Dialog steht der Toast oben: Unten stehen dort Summe und Knöpfe */
+dialog > .toasts {
+  top: max(1rem, env(safe-area-inset-top));
+  bottom: auto;
+}
+
+.toast-liste {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  width: 100%;
+}
+
+.toast-liste:empty {
+  display: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 3.5rem;
+  padding: 0.25rem 0.25rem 0.25rem 1rem;
+  border-radius: var(--r-md);
+  background: var(--inverse-surface);
+  box-shadow: var(--schatten);
+  color: var(--inverse-on-surface);
+  font-size: 1rem;
+  line-height: 1.375rem;
+  pointer-events: auto;
+}
+
+.toast--fehler {
+  background: var(--error-container);
+  color: var(--on-error-container);
+}
+
+.toast-text {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.toast-zu {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: var(--r-full);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.toast-zu:hover {
+  background: color-mix(in srgb, currentcolor 20%, transparent);
+}
+
+.toast :focus-visible {
+  outline-color: currentcolor;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toast {
+    animation: toast-ein var(--dauer) var(--kurve);
+  }
+
+  @keyframes toast-ein {
+    from {
+      opacity: 0;
+      transform: translateY(0.5rem);
+    }
+  }
+}
+
+@media (forced-colors: active) {
+  .toast {
+    border: 1px solid CanvasText;
+  }
+}
