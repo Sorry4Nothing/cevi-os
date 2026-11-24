@@ -226,7 +226,8 @@ describe("Lager: Status mit klaren Schritten (#693)", () => {
     const q = quelle("lager-status.js");
     expect(q).not.toMatch(/text: "Aktivieren"|text: "Archivieren"/);
     expect(q).toContain("Rückgängig");
-    expect(q).not.toMatch(/confirm\(|alert\(/);
+    expect(q).not.toContain("confirm(");
+    expect(q).not.toContain("alert(");
     // Die Schritte erscheinen nur mit dem Recht «lager.verwalten»
     expect(q).toContain('"lager.verwalten"');
     // Der Kopf des Arbeitsbereichs zeigt den Status, die Angaben nicht mehr
