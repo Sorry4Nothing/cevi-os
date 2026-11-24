@@ -78,11 +78,16 @@ describe("Zuordnung", () => {
       ],
       anfrage,
     );
-    expect(z).toEqual({ art: "treffer", person: expect.objectContaining({ id: "1" }) });
+    expect(z).toEqual({
+      art: "treffer",
+      person: expect.objectContaining({ id: "1" }),
+    });
   });
 
   test("ohne Treffer: keiner", () => {
-    expect(ordneZu([person("1", { email: "fremd@example.org" })], anfrage)).toEqual({
+    expect(
+      ordneZu([person("1", { email: "fremd@example.org" })], anfrage),
+    ).toEqual({
       art: "keiner",
     });
   });
@@ -103,9 +108,11 @@ describe("Zuordnung", () => {
       ordneZu([person("1")], { ...anfrage, emails: [], geburtsdatum: null }),
     ).toEqual({ art: "keiner" });
     // auch nicht mit gleichem Namen und anderer E-Mail
-    expect(ordneZu([person("1", { email: "x@example.org" })], anfrage)).toEqual({
-      art: "keiner",
-    });
+    expect(ordneZu([person("1", { email: "x@example.org" })], anfrage)).toEqual(
+      {
+        art: "keiner",
+      },
+    );
   });
 
   test("Name plus Geburtsdatum entscheidet, wenn die E-Mail nichts sagt", () => {
@@ -118,7 +125,10 @@ describe("Zuordnung", () => {
       emails: [],
       geburtsdatum: "2014-05-17",
     });
-    expect(z).toEqual({ art: "treffer", person: expect.objectContaining({ id: "1" }) });
+    expect(z).toEqual({
+      art: "treffer",
+      person: expect.objectContaining({ id: "1" }),
+    });
   });
 
   test("Zwillinge: gleiche E-Mail und Vorname, das Geburtsdatum entscheidet", () => {
@@ -133,7 +143,10 @@ describe("Zuordnung", () => {
   });
 
   test("die gemerkte Nummer gilt zuerst; eine unbekannte Nummer fällt auf die E-Mail zurück", () => {
-    const personen = [person("1", { email: "eltern@example.org" }), person("7")];
+    const personen = [
+      person("1", { email: "eltern@example.org" }),
+      person("7"),
+    ];
     expect(ordneZu(personen, { ...anfrage, ceviDbId: "7" })).toEqual({
       art: "treffer",
       person: expect.objectContaining({ id: "7" }),
@@ -165,7 +178,10 @@ describe("Client", () => {
     const holen = vi.fn(async () => seite([]));
     const client = erstelleCeviDbClient({ url: URL_, token: TOKEN, holen });
     await client.personen();
-    const [ziel, optionen] = holen.mock.calls[0] as unknown as [URL, RequestInit];
+    const [ziel, optionen] = holen.mock.calls[0] as unknown as [
+      URL,
+      RequestInit,
+    ];
     expect(String(ziel)).not.toContain(TOKEN);
     expect(new URL(ziel).origin).toBe(URL_);
     expect(new URL(ziel).pathname).toBe(ANNAHMEN.pfadPersonen);
@@ -181,7 +197,13 @@ describe("Client", () => {
       if (nr === "1")
         return seite(
           [roh(1, {}, "x"), roh(2)],
-          [{ id: "p1", type: "phone_numbers", attributes: { number: "079 000 00 00" } }],
+          [
+            {
+              id: "p1",
+              type: "phone_numbers",
+              attributes: { number: "079 000 00 00" },
+            },
+          ],
         );
       if (nr === "2") return seite([roh(3)]);
       return seite([]);
@@ -329,7 +351,11 @@ describe("Dienst (Zwischenspeicher im Arbeitsspeicher)", () => {
     const dienst = erstelleCeviDbDienst({
       client: { personen, pruefe: async () => ({ gruppe: null }) },
     });
-    await Promise.all([dienst.personen("a"), dienst.personen("a"), dienst.personen("a")]);
+    await Promise.all([
+      dienst.personen("a"),
+      dienst.personen("a"),
+      dienst.personen("a"),
+    ]);
     expect(personen).toHaveBeenCalledTimes(1);
     log.mockRestore();
   });
@@ -405,10 +431,7 @@ describe("Konfiguration", () => {
   });
 
   test("eine allein ist ein Fehler, und die Meldung nennt nur Namen", () => {
-    for (const env of [
-      { CEVI_DB_URL: URL_ },
-      { CEVI_DB_TOKEN: TOKEN },
-    ]) {
+    for (const env of [{ CEVI_DB_URL: URL_ }, { CEVI_DB_TOKEN: TOKEN }]) {
       let meldung = "";
       try {
         ladeKonfiguration({ ...BASIS, ...env });

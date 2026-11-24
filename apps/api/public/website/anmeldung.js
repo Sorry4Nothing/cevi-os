@@ -40,7 +40,7 @@ export function ceviStatusInhalt(c) {
   if (n === 0) return [];
   return [
     icon("haken"),
-    `${n === 1 ? "1 Angabe" : `${n} Angaben`} aus der Cevi-Datenbank übernommen. Prüfe sie und ändere, was nicht stimmt.`,
+    `${n === 1 ? "1 Angabe" : `${n} Angaben`} aus der Cevi-Datenbank übernommen. Bitte prüfen.`,
   ];
 }
 

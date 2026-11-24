@@ -306,7 +306,8 @@ export const BEREICHE = [
         schluessel: "cevi-db",
         name: "Cevi-Datenbank",
         modul: "./cevi-db.js",
-        untertitel: "Verbindung prüfen und die Gruppe der Abteilung einstellen.",
+        untertitel:
+          "Verbindung prüfen und die Gruppe der Abteilung einstellen.",
         zugang: "recht:cevi_db.verwalten",
       },
       {
