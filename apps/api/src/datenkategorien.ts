@@ -1500,6 +1500,9 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   plattform_entwickler: {
     rollen: ["user_id", "erstellt_am"],
   },
+  abteilungsleitung_person: {
+    rollen: ["user_id", "erstellt_am"],
+  },
   abteilungsleitung_recht: {
     rollen: ["abteilung_id", "ohne", "version", "geaendert_am"],
   },
