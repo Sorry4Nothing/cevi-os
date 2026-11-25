@@ -57,7 +57,7 @@ FLICKR_KONTO=
 
 ## Schritt 5: Seite auf der Website anlegen
 
-Im Editor eine Seite anlegen (zum Beispiel «Fotos», Adresse `/fotos`), den Baustein **Fotoalben** einfügen und veröffentlichen. Die Seite ist für alle sichtbar, der Inhalt erscheint nur angemeldeten Personen. Ein Album hat eine teilbare Adresse: `/fotos?album=<Kennung>`. Wer nicht angemeldet ist, kommt nach der Anmeldung zum selben Album zurück.
+Im Editor eine Seite anlegen (zum Beispiel «Fotos», Adresse `/fotos`), den Baustein **Fotoalben** einfügen und veröffentlichen. Die Seite ist für alle sichtbar, der Inhalt erscheint nur angemeldeten Personen. Ein Album hat eine teilbare Adresse: `/fotos?album=<Kennung>`. Wer nicht angemeldet ist, kommt nach der Anmeldung zum selben Album zurück. Ab 9 sichtbaren Alben zeigt die Seite sie nach Jahr gruppiert (das Datum kommt von Flickr) mit einer Suche; im Album erscheinen 48 Fotos, mehr mit «Weitere Fotos anzeigen».
 
 ## Was bei Flickr gelten muss
 
