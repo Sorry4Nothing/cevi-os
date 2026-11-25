@@ -250,6 +250,16 @@ const ZEILEN: Zeile[] = [
     },
   },
   {
+    // Eine Seite öffentlich zu stellen ist ein Veröffentlichen (#776): «Seiten bearbeiten» allein genügt nicht
+    name: "PATCH /seiten/:id (Sichtbarkeit auf «öffentlich»)",
+    baue: async () => ({
+      methode: "PATCH",
+      pfad: `${R}/seiten/${await neueSeite()}`,
+      body: { sichtbarkeit: { art: "oeffentlich" } },
+    }),
+    erwartet: { admin: 204, voll: 204, ...FREMD },
+  },
+  {
     name: "PATCH /seiten/:id (auf die oberste Ebene setzen)",
     baue: async () => {
       const eltern = await neueSeite();

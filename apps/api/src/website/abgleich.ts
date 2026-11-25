@@ -25,6 +25,7 @@ import { aufWebsiteEreignis } from "./ereignisse.js";
 import {
   ladeWebsitePersonen,
   PERSON_DATEI,
+  hatAussenrolle,
   personenIn,
   sichtbarePerson,
   teamZeilen,
@@ -292,6 +293,8 @@ export async function ladeDaten(
           eq(user.abteilungId, abteilungId),
           inArray(user.id, [...personenIds]),
           sichtbarePerson,
+          // Kontaktperson und Kontaktkarte wie «personen»: nur Leitende mit Rolle mit Aussenwirkung, nie ein Kind-Konto, auch nicht in einer schon gespeicherten Seite (#776)
+          hatAussenrolle,
         ),
       );
     const rollen = await db

@@ -115,8 +115,8 @@ export async function pruefeVerweise(
     for (const id of klein(v.personen)) {
       const p = personen.get(id);
       if (!p) fehler.push({ pfad, code: "PERSON_UNBEKANNT" });
-      // Im Baustein «personen» erscheinen nur Leitende (#610): jemand ohne Rolle mit Aussenwirkung stünde nie auf der Seite
-      else if (b.typ === "personen" && !p.aufWebsite) {
+      // In jedem Baustein mit einer Person (personen, kontaktperson, kontaktkarte) erscheinen nur Leitende (#610, #776): jemand ohne Rolle mit Aussenwirkung, auch ein Kind-Konto, stünde nie auf der Seite
+      else if (!p.aufWebsite) {
         fehler.push({ pfad, code: "PERSON_NICHT_AUF_WEBSITE" });
       }
     }
