@@ -327,6 +327,14 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
               }
             }
             if (felder.sichtbarkeit) {
+              // Eine Seite öffentlich zu stellen ist ein Veröffentlichen: Wer nur bearbeiten darf, stellt eine für Angemeldete veröffentlichte Seite nicht per Umschalten ins Netz (#776)
+              if (
+                felder.sichtbarkeit.art === "oeffentlich" &&
+                sichtbarkeitAusSpalten(alt).art !== "oeffentlich" &&
+                !(await darfSeite(tx, person, alt, { veroeffentlichen: true }))
+              ) {
+                throw new HTTPException(403);
+              }
               await pruefeSichtbarkeit(person, felder.sichtbarkeit);
             }
             if (elternId !== alt.elternId || adresse !== alt.adresse) {

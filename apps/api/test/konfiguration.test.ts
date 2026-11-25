@@ -279,7 +279,7 @@ describe("WEBSITE_* (#351)", () => {
   });
 });
 
-// Fotos aus Flickr (#690): Geheimnisse nur aus der Umgebung; Schlüssel und Secret, Token und Token-Secret gehören zusammen
+// Fotos aus Flickr (#690): Geheimnisse nur aus der Umgebung; Schlüssel und Secret, Token, Token-Secret und Konto des Tokens gehören zusammen
 describe("Flickr", () => {
   const SCHLUESSEL = {
     FLICKR_API_KEY: "TestSchluesselNurFuerTests",
@@ -288,6 +288,7 @@ describe("Flickr", () => {
   const TOKEN = {
     FLICKR_OAUTH_TOKEN: "72157600000000000-0123456789abcdef",
     FLICKR_OAUTH_TOKEN_SECRET: "fedcba9876543210",
+    FLICKR_KONTO: "12345678@N00",
   };
 
   test("ohne alle vier Werte gibt es keine Fotos, und das ist erlaubt", () => {
@@ -325,8 +326,20 @@ describe("Flickr", () => {
         FLICKR_OAUTH_TOKEN: TOKEN.FLICKR_OAUTH_TOKEN,
       }),
     ).toBe(
-      "Fehlende oder ungültige Umgebungsvariablen: FLICKR_OAUTH_TOKEN_SECRET",
+      "Fehlende oder ungültige Umgebungsvariablen: FLICKR_OAUTH_TOKEN_SECRET, FLICKR_KONTO",
     );
+    // Das Konto des Tokens gehört dazu (#777): Nur für dieses Konto signiert der Server
+    expect(
+      meldung({
+        ...GUELTIG,
+        ...SCHLUESSEL,
+        FLICKR_OAUTH_TOKEN: TOKEN.FLICKR_OAUTH_TOKEN,
+        FLICKR_OAUTH_TOKEN_SECRET: TOKEN.FLICKR_OAUTH_TOKEN_SECRET,
+      }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: FLICKR_KONTO");
+    expect(
+      meldung({ ...GUELTIG, ...SCHLUESSEL, ...TOKEN, FLICKR_KONTO: "abc" }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: FLICKR_KONTO");
     // Ein Token ohne Schlüssel kann nichts signieren
     const ohneSchluessel = meldung({ ...GUELTIG, ...TOKEN });
     expect(ohneSchluessel).toContain("FLICKR_API_KEY");

@@ -110,6 +110,7 @@ const fotos = konfiguration.FLICKR_API_KEY
       apiSecret: konfiguration.FLICKR_API_SECRET,
       token: konfiguration.FLICKR_OAUTH_TOKEN,
       tokenSecret: konfiguration.FLICKR_OAUTH_TOKEN_SECRET,
+      tokenKonto: konfiguration.FLICKR_KONTO,
       apiBasis: konfiguration.FLICKR_API_BASIS,
       bildBasis: konfiguration.FLICKR_BILD_BASIS,
     })

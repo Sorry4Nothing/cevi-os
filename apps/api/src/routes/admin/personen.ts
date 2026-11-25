@@ -38,6 +38,7 @@ import { beendeSitzungenBeiNeuerPflicht } from "../../rechtemodell/faktor-pflich
 import {
   geschuetzteKonten,
   personenSicht,
+  schuetzeUeberKonto,
   sichtbareKinderStufen,
   stufeObjekt,
 } from "../../rechtemodell/personenrechte.js";
@@ -151,7 +152,7 @@ export function erstellePersonenRouten({
     person.abteilungsleitung || (await istEntwickler(db, person));
 
   // Ziel in SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650: «Personen verwalten», nicht mehr nur die Abteilungsleitung)
-  async function ladeZiel(person: Person, id: string) {
+  async function ladeZielOhneRecht(person: Person, id: string) {
     const [ziel] = await db
       .select({
         id: user.id,
@@ -166,13 +167,16 @@ export function erstellePersonenRouten({
         ),
       );
     if (!ziel) throw new HTTPException(404);
+    return ziel;
+  }
+
+  async function ladeZiel(person: Person, id: string) {
+    const ziel = await ladeZielOhneRecht(person, id);
     await verlange(db, person, "personen.verwalten", {
       abteilungId: person.abteilungId,
     });
-    // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst, dazu der Entwickler (#722)
-    if (ziel.abteilungsleitung && !(await betreutKontenMitRechten(person))) {
-      throw new HTTPException(403);
-    }
+    // Eskalationsschutz: Konten von Entwicklern verändert nur ein Entwickler, die der Abteilungsleitung nur sie selbst oder ein Entwickler (#722, #777); gilt für jede Route hier
+    await schuetzeUeberKonto(db, person, id);
     return ziel;
   }
 
@@ -735,6 +739,7 @@ export function erstellePersonenRouten({
       if (!ziel) throw new HTTPException(404);
       // Das Recht «profilbild.entfernen» (Katalog): Abteilungsleitung und Entwickler, beide mit zweitem Faktor; die einzige Stelle dieser Regel
       await verlange(db, person, "profilbild.entfernen");
+      await schuetzeUeberKonto(db, person, id);
       const entfernt = await db.transaction(async (tx) => {
         const weg = await tx
           .delete(profilbild)
@@ -835,10 +840,13 @@ export function erstellePersonenRouten({
     .delete("/:id", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const { id } = c.req.valid("param");
-      await ladeZiel(person, id);
-      // Konto löschen ist fest (konto.loeschen): Abteilungsleitung und Entwickler (#650, #722); das eigene Konto nie
-      await verlange(db, person, "konto.loeschen");
+      // Konto löschen ist ein eigenes, verteilbares Recht (konto.loeschen, #771) und gilt ohne «Personen verwalten»; geschützt bleibt, wer über dem Löschenden steht
+      await ladeZielOhneRecht(person, id);
+      await verlange(db, person, "konto.loeschen", {
+        abteilungId: person.abteilungId,
+      });
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
+      await schuetzeUeberKonto(db, person, id, "löschen");
       try {
         await db.transaction(async (tx) => {
           await sperreLetzteAbteilungsleitung(tx, person.abteilungId, id);

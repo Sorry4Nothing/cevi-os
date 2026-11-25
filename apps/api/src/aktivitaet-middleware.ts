@@ -6,6 +6,7 @@ import {
   sicherAngaben,
   type AenderungsDetails,
 } from "./aktivitaet-beschreibung.js";
+import { clientIp } from "./client-ip.js";
 
 // Änderungsprotokoll (#637, #662), die Seite der Anfrage: Eine Middleware an einer Stelle (app.ts) erfasst, was eine Anfrage wirklich geändert hat: jede erfolgreiche schreibende Anfrage (2xx bei POST, PUT, PATCH, DELETE), ausser Vorschau, Anmelden und Alltagseingaben (Katalog in aktivitaet-titel.ts, Feld «nicht»). Abgelehnte und fehlgeschlagene Anfragen, lesende Zugriffe und der Erfolg beim Anmelden stehen nicht darin. Fehlgeschlagene Anmeldungen, Fehler beim zweiten Faktor und die Begrenzung (429) sind keine Änderungen, sondern Sicherheitsereignisse: eigene Art, in der Ablage je Konto und Stunde zusammengezogen.
 // Ohne node:* und process, wie app.ts: Die App prüft deren Importe über AppType. Die Ablage (Puffer, Datenbank, Hash) steht in aktivitaet.ts.
@@ -258,10 +259,7 @@ export function aktivitaetMiddleware(senke: AktivitaetSenke) {
       const unbekannt = route.includes("*");
       const aktion = `${methode} ${unbekannt ? "(unbekannte Route)" : route}`;
       const dauerMs = Math.round(performance.now() - start);
-      const ip = (c.req.header("x-forwarded-for") ?? "")
-        .split(",")
-        .at(-1)
-        ?.trim();
+      const ip = clientIp(c.req.header("x-forwarded-for"));
       const nutzerId = c.get("nutzerId");
       const gemeinsam = {
         zeit,

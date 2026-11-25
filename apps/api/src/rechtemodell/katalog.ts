@@ -451,10 +451,13 @@ export const RECHTE_KATALOG = {
     "erweitert",
     ALLE,
   ),
-  "konto.loeschen": f(
+  // Verteilbar seit #771 (Entscheid vom 24.11.2026: der Entwickler ist der Admin, alle anderen bekommen Rechte). Der Schutz vor Eskalation steht in der Route, nicht im Recht: das eigene Konto nie, Konten von Entwicklern nur durch einen Entwickler, Konten der Abteilungsleitung nur durch Abteilungsleitung oder Entwickler, die letzte Verwaltung bleibt
+  "konto.loeschen": v(
     "personen",
-    "Konten löschen",
-    "Konten löschen und Daten einer Person vergessen. Das lässt sich nicht rückgängig machen.",
+    "Konten endgültig löschen",
+    "Ein Konto samt Anmeldung, Chats und Verknüpfungen endgültig löschen. Das lässt sich nicht rückgängig machen. Gib es nur Personen, denen du das zutraust. Konten von Entwicklern löscht nur ein Entwickler, Konten der Abteilungsleitung nur die Abteilungsleitung oder ein Entwickler, das eigene Konto niemand.",
+    "erweitert",
+    ALLE,
   ),
   // Konten von Kindern (#644): Erstellen, Übergeben, Sperren, Entfernen und die Einstellungen der Abteilung. Fest, weil es Kinderdaten und die Aufsicht der Eltern betrifft
   "kinder.konto_verwalten": f(

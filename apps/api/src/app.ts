@@ -42,6 +42,7 @@ import {
   zweiterFaktorPflicht,
 } from "./rechte.js";
 import { ZweiterFaktorFehlt } from "./rechtemodell/darf.js";
+import { KontoGeschuetzt } from "./rechtemodell/personenrechte.js";
 import { erstelleBearbeiterRouten } from "./routes/admin/bearbeiter.js";
 import { erstellePlattformRollenRouten } from "./routes/admin/plattform-rollen.js";
 import { erstelleRechteRouten } from "./routes/admin/rechte.js";
@@ -479,6 +480,8 @@ export function erstelleApp({
             403,
           );
         }
+        // 403 KONTO_GESCHUETZT: Das Konto steht über dem Handelnden (#777)
+        if (fehler instanceof KontoGeschuetzt) return c.json(fehler.body, 403);
         if (fehler instanceof HTTPException) {
           return c.json(
             FEHLER[fehler.status] ?? {

@@ -40,10 +40,11 @@ FLICKR_API_KEY=
 FLICKR_API_SECRET=
 FLICKR_OAUTH_TOKEN=
 FLICKR_OAUTH_TOKEN_SECRET=
+FLICKR_KONTO=
 ```
 
-- Schlüssel und Secret gehören zusammen, ebenso Token und Token-Secret; sonst startet der Server nicht und nennt die fehlenden **Namen** (nie die Werte).
-- Ohne die vier Werte läuft alles weiter, nur ohne Fotos: Die Seite zeigt «Hier gibt es noch keine Fotos.», die Verwaltung eine Anleitung.
+- Schlüssel und Secret gehören zusammen, ebenso Token, Token-Secret und `FLICKR_KONTO` (die Kennung des Kontos, dem das Token gehört, aus Schritt 2, zum Beispiel `12345678@N00`); sonst startet der Server nicht und nennt die fehlenden **Namen** (nie die Werte).
+- Ohne diese Werte läuft alles weiter, nur ohne Fotos: Die Seite zeigt «Hier gibt es noch keine Fotos.», die Verwaltung eine Anleitung.
 - `FLICKR_API_BASIS` und `FLICKR_BILD_BASIS` gibt es nur für Tests und lokale Läufe mit einer Attrappe von Flickr. In Produktion sind sie verboten: Dort sind die Adressen von Flickr fest im Code.
 
 ## Schritt 4: Konto und Alben in der Verwaltung wählen

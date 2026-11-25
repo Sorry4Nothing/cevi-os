@@ -121,6 +121,8 @@ export type FlickrOptionen = {
   apiSecret?: string;
   token?: string;
   tokenSecret?: string;
+  // Kennung des Kontos, dem das Token gehört: Nur Abrufe für dieses Konto sind signiert, alle anderen sehen nur Öffentliches
+  tokenKonto?: string;
   // Nur für Tests und lokale Läufe (die Konfiguration erlaubt sie nicht in Produktion)
   apiBasis?: string;
   bildBasis?: string;
@@ -189,7 +191,8 @@ export function erstelleFlickr(o: FlickrOptionen): FotoQuelle {
       format: "json",
       nojsoncallback: "1",
     };
-    if (signiert) {
+    // Nur für das Konto des Tokens: Eine andere Abteilung sähe sonst über den Server dessen nicht öffentliche Fotos (#777)
+    if (signiert && o.tokenKonto === parameter.user_id) {
       p.oauth_consumer_key = o.apiKey;
       p.oauth_token = o.token!;
       p.oauth_nonce = randomBytes(16).toString("hex");

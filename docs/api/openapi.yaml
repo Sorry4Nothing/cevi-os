@@ -5225,7 +5225,7 @@ paths:
       operationId: aendereAdminPerson
       summary: Name, Recht der Abteilungsleitung, Stufenrollen und Kinder einer Person ändern
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst; `abteilungsleitung` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst, das Konto eines Entwicklers nur ein Entwickler (403 `KONTO_GESCHUETZT`, #777); `abteilungsleitung` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Ziel in der eigenen Abteilung (404), dann Recht der Abteilungsleitung (403), dann Stufen- und Kind-IDs (400).
 
@@ -5266,9 +5266,11 @@ paths:
       operationId: loescheAdminPerson
       summary: Person löschen
       description: |
-        Nur die Abteilungsleitung (festes Recht `konto.loeschen`), nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
+        Verlangt das Recht `konto.loeschen` («erweitert», vergebbar seit #771: Entwickler und Abteilungsleitung haben es, einer Rolle oder Person gibt es der Rechte-Editor) und den zweiten Faktor; «Personen verwalten» ist nicht nötig. Nur Personen der eigenen Abteilung. Löscht das Konto samt Rollen, Verknüpfungen zu Kindern, Sitzungen und Push-Tokens sowie die Nachrichten der Person und bei Eltern den Einzelchat. Die Person löscht ihr Konto nicht selbst; das tut auf Anfrage die Leitung über diese Route.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
+        Der Schutz gilt unabhängig vom Recht: Konten von Entwicklern löscht nur ein Entwickler, Konten der Abteilungsleitung nur die Abteilungsleitung oder ein Entwickler (403 mit Code `KONTO_GESCHUETZT`).
+
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 ohne das Recht, ohne zweiten Faktor (`ZWEITER_FAKTOR_FEHLT`) oder bei einem geschützten Konto (`KONTO_GESCHUETZT`). 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
         - Verwaltung
       parameters:
@@ -5282,7 +5284,11 @@ paths:
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
-          $ref: "#/components/responses/KeineBerechtigung403"
+          description: Das Recht `konto.loeschen` fehlt (`KEINE_BERECHTIGUNG`), der zweite Faktor fehlt (`ZWEITER_FAKTOR_FEHLT`), oder das Konto ist geschützt (`KONTO_GESCHUETZT`, Text «Dieses Konto darf nur ein Entwickler löschen.» oder «Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen.»).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
@@ -5300,7 +5306,7 @@ paths:
       operationId: setzeAdminStartpasswortNeu
       summary: Neues Startpasswort für eine Person erzeugen
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung. Konten mit Rechten (Abteilungsleitung, Entwickler, Plattformrolle, Rolle in einer Gruppe, Sonderrecht) setzt nur die Abteilungsleitung und der Entwickler zurück (403 sonst, #650, #722). Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung. Konten mit Rechten (Abteilungsleitung, Entwickler, Plattformrolle, Rolle in einer Gruppe, Sonderrecht) setzt nur die Abteilungsleitung und der Entwickler zurück (403 sonst, #650, #722); Konten von Entwicklern nur ein Entwickler (403 `KONTO_GESCHUETZT`, #777). Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -5340,7 +5346,7 @@ paths:
       operationId: deaktiviereAdminPerson
       summary: Person deaktivieren
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung, Konten von Entwicklern nur ein Entwickler (403 sonst, bei Konten von Entwicklern und der Abteilungsleitung mit Code `KONTO_GESCHUETZT`, #650, #777). Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
@@ -5374,7 +5380,7 @@ paths:
       operationId: aktiviereAdminPerson
       summary: Deaktivierte Person wieder aktivieren
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Hebt die Sperre auf und setzt dabei ein neues Startpasswort: Das alte gilt nicht mehr. Wie bei `POST /api/v1/admin/personen/{id}/startpasswort` enden alle Sitzungen der Person, der nächste Login verlangt einen Passwortwechsel, das Passwort gilt 7 Tage und die Bremse für Fehlversuche beginnt von vorn. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt und setzt dann ebenfalls ein neues Startpasswort.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung, Konten von Entwicklern nur ein Entwickler (403 sonst, bei Konten von Entwicklern und der Abteilungsleitung mit Code `KONTO_GESCHUETZT`, #650, #777). Hebt die Sperre auf und setzt dabei ein neues Startpasswort: Das alte gilt nicht mehr. Wie bei `POST /api/v1/admin/personen/{id}/startpasswort` enden alle Sitzungen der Person, der nächste Login verlangt einen Passwortwechsel, das Passwort gilt 7 Tage und die Bremse für Fehlversuche beginnt von vorn. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt und setzt dann ebenfalls ein neues Startpasswort.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -5414,7 +5420,7 @@ paths:
       operationId: setzeAdminZweitenFaktorZurueck
       summary: Zweiten Faktor einer Person zurücksetzen
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Entfernt den zweiten Faktor der Person. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung, Konten von Entwicklern nur ein Entwickler (403 sonst, bei Konten von Entwicklern und der Abteilungsleitung mit Code `KONTO_GESCHUETZT`, #650, #777). Entfernt den zweiten Faktor der Person und beendet alle ihre Sitzungen (#777). Kein Request-Body.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENER_ZWEITER_FAKTOR` für den eigenen Faktor (eine andere Person der Abteilungsleitung setzt ihn zurück) oder `KEIN_ZWEITER_FAKTOR`, wenn die Person keinen hat.
       tags:
@@ -5450,7 +5456,7 @@ paths:
       description: |
         Abteilungsleitung (mit zweitem Faktor) und Entwickler (mit zweitem Faktor), nur Personen der eigenen Abteilung. Die Person setzt ihr Bild selbst; das Entfernen löscht es und lässt die Website beim nächsten Abgleich das Bild vergessen. Hatte die Person ein Bild, steht der Eintrag `profilbild_entfernt` (Ziel: die Person, nie das Bild) im Protokoll. Ohne Bild ebenfalls 204, ohne Eintrag. Kein Request-Body.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle ausser Abteilungsleitung und Entwickler, ohne zweiten Faktor mit Code `ZWEITER_FAKTOR_FEHLT`. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört (vor dem 403).
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle ausser Abteilungsleitung und Entwickler, ohne zweiten Faktor mit Code `ZWEITER_FAKTOR_FEHLT`; das Bild eines Entwicklers entfernt nur ein Entwickler (`KONTO_GESCHUETZT`, #777). 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört (vor dem 403).
       tags:
         - Verwaltung
       parameters:
@@ -6684,7 +6690,7 @@ paths:
       operationId: loescheAdminKind
       summary: Kind löschen
       description: |
-        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen. Hat das Kind ein eigenes Konto, geht das Konto mit seinen Sitzungen und Nachrichten mit.
+        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen. Hat das Kind ein eigenes Konto, geht das Konto mit seinen Sitzungen und Nachrichten mit. Nicht mit: Namenskopien in den Teilnehmenden von Lagern. Sie hängen nicht am Kind und müssen im Lager getrennt gelöscht werden (sie gehen sonst sechs Monate nach Lagerende).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn das Kind unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -7300,7 +7306,7 @@ paths:
       operationId: entzieheAdminTag
       summary: Tag einer Person entziehen
       description: |
-        Wer `gruppen.mitglieder` für diese Gruppe hat, nur Tags der eigenen Abteilung. Entfernt die Zuordnung; der Entzug steht im Audit-Log.
+        Wer `gruppen.mitglieder` für diese Gruppe hat, nur Tags der eigenen Abteilung. Entfernt die Zuordnung; der Entzug steht im Audit-Log. Hat die Person in der Gruppe eine Rolle mit Rechten (Gruppenrolle, Stufenleitung, «verantwortlich»), entzieht sie nur, wer auch Rechte vergeben darf (`rechte.verwalten`, 403 sonst, #777).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn der Tag unbekannt ist, zu einer anderen Abteilung gehört oder die Person ihn nicht trägt.
       tags:
@@ -8158,7 +8164,7 @@ paths:
       description: |
         Nur die Abteilungsleitung. Weist einer Person der eigenen Abteilung die Rolle zu; schon vergeben ist kein Fehler und schreibt keine zweite Audit-Zeile. Wer eine Rolle vergibt, muss ihre Rechte selbst haben. Das Zuweisen steht im Audit-Log (`plattform_rolle_vergeben`, Person und Rolle).
 
-        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403), eigene Rechte (403).
+        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403), Konto geschützt (403 `KONTO_GESCHUETZT`: Konten von Entwicklern ändert nur ein Entwickler, #777), eigene Rechte (403).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn Rolle oder Person unbekannt sind oder zu einer anderen Abteilung gehören.
       tags:
@@ -8188,7 +8194,7 @@ paths:
       description: |
         Nur die Abteilungsleitung. Der Entzug wirkt bei der nächsten Anfrage der Person und steht im Audit-Log (`plattform_rolle_entzogen`).
 
-        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403).
+        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403), Konto geschützt (403 `KONTO_GESCHUETZT`: Konten von Entwicklern ändert nur ein Entwickler, #777).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn Rolle oder Person unbekannt sind, zu einer anderen Abteilung gehören oder die Person die Rolle nicht trägt.
       tags:
@@ -8323,9 +8329,9 @@ paths:
       description: |
         Ändert Titel, Adresse, Elternseite, Reihenfolge, Sichtbarkeit oder Gruppe; nur die gesendeten Felder. Die Änderung wirkt sofort, auch das Zurückziehen einer Sichtbarkeit. Den Inhalt ändert diese Route nie.
 
-        Wer die Seite bearbeiten darf (siehe `GET`), darf Titel, Adresse, Reihenfolge und Sichtbarkeit ändern. Eine andere Elternseite setzt voraus, dass die Person auch diese bearbeiten darf; auf die oberste Ebene (`elternId: null`) setzt nur die Abteilungsleitung oder wer `seiten.anlegen_loeschen` hat. Die Gruppe (`tagId`) ändern ebenfalls nur diese, weil sie festlegt, welche Stufenleitung die Seite bearbeitet. Die Regeln für Adresse, Tiefe und Tags wie beim Anlegen; zusätzlich lässt sich eine Seite nicht unter sich selbst oder eine ihrer Unterseiten legen (`SEITE_ZYKLUS`). Strukturänderungen einer Abteilung laufen nacheinander.
+        Wer die Seite bearbeiten darf (siehe `GET`), darf Titel, Adresse, Reihenfolge und Sichtbarkeit ändern. Eine Seite auf «öffentlich» zu stellen, die es bisher nicht war, ist ein Veröffentlichen: Dazu braucht die Person zusätzlich das Recht, die Seite zu veröffentlichen (403 ohne). Andere Wechsel der Sichtbarkeit und das Zurückziehen brauchen nur das Recht zum Bearbeiten. Eine andere Elternseite setzt voraus, dass die Person auch diese bearbeiten darf; auf die oberste Ebene (`elternId: null`) setzt nur die Abteilungsleitung oder wer `seiten.anlegen_loeschen` hat. Die Gruppe (`tagId`) ändern ebenfalls nur diese, weil sie festlegt, welche Stufenleitung die Seite bearbeitet. Die Regeln für Adresse, Tiefe und Tags wie beim Anlegen; zusätzlich lässt sich eine Seite nicht unter sich selbst oder eine ihrer Unterseiten legen (`SEITE_ZYKLUS`). Strukturänderungen einer Abteilung laufen nacheinander.
 
-        Reihenfolge der Prüfungen: Pfad und Body (400), Seite in der eigenen Abteilung (404), Recht an der Seite (403), neue Elternseite (404, 403), Gruppe (403, 404), Tags der Sichtbarkeit (400), Adresse, Zyklus und Tiefe (400), Eindeutigkeit (409). Das Audit-Log (`seite_geaendert`) nennt nur die Namen der geänderten Felder.
+        Reihenfolge der Prüfungen: Pfad und Body (400), Seite in der eigenen Abteilung (404), Recht an der Seite (403), neue Elternseite (404, 403), Gruppe (403, 404), Recht zum Veröffentlichen bei einem Wechsel auf «öffentlich» (403), Tags der Sichtbarkeit (400), Adresse, Zyklus und Tiefe (400), Eindeutigkeit (409). Das Audit-Log (`seite_geaendert`) nennt nur die Namen der geänderten Felder.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe (unbekannte Felder, kein Feld) oder wegen `ADRESSE_RESERVIERT`, `SEITE_ZYKLUS`, `SEITE_ZU_TIEF`. 403 ohne Recht. 404 für unbekannte Seite, Elternseite oder Gruppe. 409 mit `ADRESSE_VERGEBEN` oder `TAG_VERGEBEN`.
       tags:
@@ -8536,7 +8542,7 @@ paths:
 
         Das Dokument besteht aus Bausteinen des Katalogs (strenge Schemas, kein HTML). Ein ungültiges Dokument antwortet 400 `DOKUMENT_UNGUELTIG` mit `fehler` (je Eintrag der Pfad, zum Beispiel `bausteine.2.daten.ziel`, und der Code der Prüfung, nie Werte der Eingabe, höchstens 20).
 
-        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild, Galerie und Karussell brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `MEDIUM_ALT_FEHLT`: im Baustein Karussell (3 bis 8 Bilder) ist ein dekoratives Bild ohne Alt-Text nicht erlaubt. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `PERSON_NICHT_AUF_WEBSITE`: im Baustein `personen` steht eine Person ohne Rolle mit Aussenwirkung oder mit deaktiviertem Konto; sie würde nie erscheinen. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
+        Verweisprüfung beim Speichern (und noch einmal beim Veröffentlichen), je Baustein mit Pfad `bausteine.<n>`. Fehler antworten 422; `code` ist der erste Fehlercode, `fehler` nennt alle. `MEDIUM_UNBEKANNT`: das Medium gibt es nicht oder gehört einer anderen Abteilung (beides gleich). `MEDIUM_FORMAT`: Bild, Galerie und Karussell brauchen ein Bild (kein altes PDF-Medium). `MEDIUM_NICHT_OEFFENTLICH`: in einem öffentlichen Baustein (eigene Sichtbarkeit «öffentlich» oder «erbt» auf einer öffentlichen Seite) darf nur ein öffentliches Medium stehen. `MEDIUM_ALT_FEHLT`: im Baustein Karussell (3 bis 8 Bilder) ist ein dekoratives Bild ohne Alt-Text nicht erlaubt. `TAG_UNBEKANNT`, `PERSON_UNBEKANNT`: nicht in der eigenen Abteilung. `PERSON_NICHT_AUF_WEBSITE`: in einem Baustein `personen`, `kontaktperson` oder `kontaktkarte` steht eine Person ohne Rolle mit Aussenwirkung, mit deaktiviertem Konto oder das Konto eines Kindes; sie würde nie erscheinen. `SEITE_UNBEKANNT`: ein Link auf eine Seitenadresse, die es in der Abteilung nicht gibt (die Startseite `/` lässt sich nicht prüfen). Den Alt-Text sichert das Medium selbst (Pflicht oder «dekorativ» beim Hochladen).
 
         Je Person höchstens 120 Speicherungen in der Minute (429). Das Speichern steht nicht im Audit-Log. Die Anfrage darf höchstens 512 KiB gross sein (413 `ZU_GROSS`); das Schema begrenzt Mengen und Längen, nicht die Bytes.
 
@@ -26062,7 +26068,7 @@ paths:
       description: |
         Nur mit dem Recht `fotos.verwalten`. Ein frischer Abruf der Albumliste bei Flickr (der Speicher wird übergangen und geleert). Mit `flickrKonto` prüft die Route ein Konto, das noch nicht gespeichert ist; sonst das gespeicherte. Antwortet immer 200: Das Ergebnis steht im Body (`ok`, bei Erfolg die Zahl der Alben, sonst `art`), und es enthält nie ein Geheimnis. Die Route ändert nichts und steht nicht im Änderungsprotokoll.
 
-        Statuscodes: 200. 400 bei ungültiger Eingabe. 401, 403.
+        Statuscodes: 200. 400 bei ungültiger Eingabe. 401, 403. 409 mit Code `FLICKR_KONTO_VERGEBEN`, wenn das Konto schon einer anderen Abteilung gehört (#777).
 
         Datenbanklast: eine Abfrage; ein Abruf bei Flickr.
       tags:
@@ -26088,6 +26094,12 @@ paths:
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Das Konto gehört schon einer anderen Abteilung (`FLICKR_KONTO_VERGEBEN`, #777).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoKonflikt"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -26099,7 +26111,7 @@ paths:
       description: |
         Nur mit dem Recht `fotos.verwalten`. Ersetzt das Flickr-Konto (Kennung wie `12345678@N00`, `null` entfernt es) und den Schalter «Album auf Flickr öffnen» (Vorgabe aus). `version` ist die aus dem Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`. Die Entscheide zu Alben bleiben bei einem Kontowechsel bestehen, gelten aber nur für ihre Kennungen. Der Speicher des Servers wird geleert.
 
-        Statuscodes: 200 mit der neuen Version. 400, 401, 403, 409.
+        Statuscodes: 200 mit der neuen Version. 400, 401, 403, 409 (`VERSION_KONFLIKT`, oder `FLICKR_KONTO_VERGEBEN`, wenn das Konto schon einer anderen Abteilung gehört, #777).
 
         Datenbanklast: eine Transaktion mit Lesen und Upsert.
       tags:
@@ -26122,7 +26134,7 @@ paths:
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "409":
-          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`).
+          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`), oder das Konto gehört schon einer anderen Abteilung (`FLICKR_KONTO_VERGEBEN`, #777).
           content:
             application/json:
               schema:
@@ -42884,6 +42896,7 @@ components:
           type: string
           enum:
             - VERSION_KONFLIKT
+            - FLICKR_KONTO_VERGEBEN
         message:
           type: string
     FotoVersion:

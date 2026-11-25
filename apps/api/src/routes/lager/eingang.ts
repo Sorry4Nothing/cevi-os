@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
+import { meldeAenderung } from "../../aktivitaet-middleware.js";
 import type { Db } from "../../db/client.js";
 import { eingang } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
@@ -45,7 +46,7 @@ const fehlerAntwort = (code: keyof typeof FEHLER_TEXT) => ({
   message: FEHLER_TEXT[code],
 });
 
-// Eingang eines Lagers (#383), Beschreibung in lager/eingang.ts. Senden und «eigene» lesen braucht eingang.senden, alles andere eingang.lesen, Antworten und Zuordnen zusätzlich eingang.antworten (lager/rechte-katalog.ts). Anonym heisst: Die Route schreibt keine Person, kein Audit und keinen Eintrag im Änderungsfeed. Die Tabelle läuft nicht durch lager/sync.ts (Begründung in db/schema-lager.ts), die Version prüft die Route selbst (409 VERSION_KONFLIKT)
+// Eingang eines Lagers (#383), Beschreibung in lager/eingang.ts. Senden und «eigene» lesen braucht eingang.senden, alles andere eingang.lesen, Antworten und Zuordnen zusätzlich eingang.antworten (lager/rechte-katalog.ts). Anonym heisst: Die Route schreibt keine Person, kein Audit, keine Zeile im Änderungsprotokoll und keinen Eintrag im Änderungsfeed. Die Tabelle läuft nicht durch lager/sync.ts (Begründung in db/schema-lager.ts), die Version prüft die Route selbst (409 VERSION_KONFLIKT)
 export function erstelleEingangRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   const senden = lagerZugriff(db, { recht: "eingang.senden" });
   // Die Antwort auf eine Rückfrage gibt es auch im abgeschlossenen Lager (nur lesend, trotz POST)
@@ -91,6 +92,8 @@ export function erstelleEingangRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
             person.id,
             felder,
           );
+          // Anonym: keine Zeile im Änderungsprotokoll, sonst stünde die Person dort mit Name und Zeit (SR-41)
+          if (felder.anonym) meldeAenderung(c, { keine: true });
           // Anonym: weder ID noch Person in der Antwort, nur der Code, einmal
           return c.json(
             felder.anonym

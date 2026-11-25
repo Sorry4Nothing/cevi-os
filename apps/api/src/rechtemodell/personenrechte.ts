@@ -1,5 +1,6 @@
 import { HTTPException } from "hono/http-exception";
-import { sql, type SQL } from "drizzle-orm";
+import { inArray, sql, type SQL } from "drizzle-orm";
+import { istAbteilungsleitung } from "../admins.js";
 import type { Db } from "../db/client.js";
 import {
   abteilungsleitungPerson,
@@ -74,6 +75,43 @@ export async function personenSicht(
     "personen.sehen",
   ]);
   return recht === "personen.verwalten" ? "voll" : "lesen";
+}
+
+// 403 mit dem Code KONTO_GESCHUETZT; app.ts übersetzt sie in den Body der App
+export class KontoGeschuetzt extends HTTPException {
+  readonly body: { code: "KONTO_GESCHUETZT"; message: string };
+  constructor(
+    wer: "ein Entwickler" | "die Abteilungsleitung oder ein Entwickler",
+    was: string,
+  ) {
+    super(403);
+    this.body = {
+      code: "KONTO_GESCHUETZT",
+      message: `Dieses Konto darf nur ${wer} ${was}.`,
+    };
+  }
+}
+
+// Der Schutz der Konten über dem Handelnden, an einer Stelle für jede Route, die ein fremdes Konto verändert (#777, SR-10): Konten von Entwicklern verändert nur ein Entwickler, Konten der Abteilungsleitung nur die Abteilungsleitung oder ein Entwickler. Gilt unabhängig vom Recht der Route; «was» ist das Verb im Text der Antwort
+export async function schuetzeUeberKonto(
+  db: Pick<Db, "select">,
+  person: Pick<Person, "id" | "abteilungId" | "abteilungsleitung">,
+  zielId: string,
+  was = "ändern",
+): Promise<void> {
+  const entwickler = new Set(
+    (
+      await db
+        .select({ id: plattformEntwickler.userId })
+        .from(plattformEntwickler)
+        .where(inArray(plattformEntwickler.userId, [person.id, zielId]))
+    ).map((z) => z.id),
+  );
+  if (entwickler.has(person.id)) return;
+  if (entwickler.has(zielId)) throw new KontoGeschuetzt("ein Entwickler", was);
+  if (!person.abteilungsleitung && (await istAbteilungsleitung(db, zielId))) {
+    throw new KontoGeschuetzt("die Abteilungsleitung oder ein Entwickler", was);
+  }
 }
 
 // Konten, die nur die Abteilungsleitung betreut (Eskalationsschutz, #650): wer zurücksetzen, deaktivieren oder ändern darf, übernimmt sonst ein Konto mit Rechten, die er selbst nicht hat. Das sind die Abteilungsleitung, Entwickler, Personen mit einer Plattformrolle, einer Rolle in einer Gruppe (auch einer Stufenrolle) und Personen mit einem Sonderrecht an einer Seite. Eine Abfrage; nur Kennungen

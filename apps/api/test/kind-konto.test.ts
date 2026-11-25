@@ -276,6 +276,26 @@ describe("POST /api/v1/admin/kinder/:id/konto", () => {
     expect((await einstellen()).status).toBe(204);
   });
 
+  test("das Konto eines Kindes ist nie Elternteil eines Kindes: PATCH mit seiner ID gibt 400, nichts verknüpft (#777)", async () => {
+    const kontoKind = await neuesKind();
+    await legeKontoAn(kontoKind);
+    const [k] = await db
+      .select({ userId: schema.kind.userId })
+      .from(schema.kind)
+      .where(eq(schema.kind.id, kontoKind));
+    const anderes = await neuesKind();
+    const antwort = await anfrage(admin, "PATCH", `${KINDER}/${anderes}`, {
+      eltern: [k.userId],
+    });
+    expect(antwort.status).toBe(400);
+    expect(
+      await db
+        .select()
+        .from(schema.kindEltern)
+        .where(eq(schema.kindEltern.kindId, anderes)),
+    ).toEqual([]);
+  });
+
   test("legt ein gewöhnliches Konto ohne Rolle an: Teilnehmer, keine Eltern-Verknüpfung, Startpasswort einmal, Audit ohne Namen", async () => {
     const kindId = await neuesKind();
     const angelegt = await legeKontoAn(kindId);
