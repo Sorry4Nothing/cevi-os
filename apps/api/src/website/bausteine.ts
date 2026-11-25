@@ -12,6 +12,7 @@ import {
   richText,
   zusatz,
 } from "./bausteine-basis.js";
+import { formularBausteine } from "./bausteine-formular.js";
 import { textBausteine } from "./bausteine-text.js";
 import { medienBausteine } from "./medien-schema.js";
 
@@ -282,6 +283,8 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
   }),
   // Text und Gestaltung (#741): Hinweisbox, Zitat, Fragen, Spalten, Bild und Text, Tabelle, Schritte, Checkliste
   ...textBausteine,
+  // Formular (#819): Angaben einholen, die Antworten gehen in die Verwaltung (bausteine-formular.ts)
+  ...formularBausteine,
   // Bausteine mit Daten aus Cevi OS (#740): bausteine-dynamisch.ts
   ...dynamischeBausteine,
 ]);

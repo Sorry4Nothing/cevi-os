@@ -943,6 +943,9 @@ export * from "./schema-laden.js";
 // Fotos aus Flickr (#690)
 export * from "./schema-fotos.js";
 
+// Antworten auf den Baustein «formular» (#819)
+export * from "./schema-formular.js";
+
 // Aktivitätsprotokoll (#637)
 export * from "./schema-aktivitaet.js";
 

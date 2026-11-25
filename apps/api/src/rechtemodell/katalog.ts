@@ -349,6 +349,29 @@ export const RECHTE_KATALOG = {
     ALLE,
   ),
 
+  // Antworten auf Formulare der Website (#819): Personendaten, darum nie automatisch bei der Redaktion
+  "formular.antworten_sehen": v(
+    "website",
+    "Antworten auf Formulare ansehen",
+    "Die Antworten auf die Formulare der Website lesen. Sie können Namen und Angaben von Personen enthalten, auch von Kindern. Wer Seiten bearbeitet, sieht sie damit nicht automatisch.",
+    "erweitert",
+    ALLE,
+  ),
+  "formular.antworten_exportieren": v(
+    "website",
+    "Antworten auf Formulare exportieren",
+    "Die Antworten eines Formulars als CSV-Datei herunterladen. Die Daten verlassen damit das System.",
+    "erweitert",
+    ALLE,
+  ),
+  "formular.antworten_loeschen": v(
+    "website",
+    "Antworten auf Formulare löschen",
+    "Einzelne Antworten oder alle Antworten eines Formulars löschen. Das lässt sich nicht rückgängig machen.",
+    "erweitert",
+    ALLE,
+  ),
+
   // Lager (Verwaltung der Abteilung). Mitglieder und Rollen eines Lagers vergibt nur die Abteilungsleitung (rechte.verwalten); die Rechte im Lager stellt die Lagerleitung je Lager ein (lager/rechte-katalog.ts, Anhang A)
   "lager.verwalten": v(
     "lager",

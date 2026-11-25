@@ -3,6 +3,7 @@ import { z } from "zod";
 import type { Db } from "../db/client.js";
 import { CEVI_QUELLEN } from "../cevi-db/felder.js";
 import { anlassFeld } from "../db/schema.js";
+import { enthaeltGesundheitswort } from "../gesundheit-sperrliste.js";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -41,40 +42,10 @@ export const felderSchema = z
   );
 export type FeldEingabe = z.infer<typeof feld>;
 
-// Keine Gesundheitsdaten in Zusatzfeldern (Datenschutz): Eine kleine Sperrliste prüft Beschriftung und Optionen, ohne Gross-/Kleinschreibung und Umlaute.
-// shortcut: Wortstämme, kein Verständnis von Sprache; Fehlalarme (z. B. «Krankenwagen») und Umgehungen sind möglich. Der Editor (#445) weist zusätzlich darauf hin, bei Bedarf Liste erweitern.
-const SPERRLISTE = [
-  "allerg",
-  "krank",
-  "medikament",
-  "diagnos",
-  "gesundheit",
-  "impf",
-  "behinder",
-  "handicap",
-  "unvertraeglich",
-  "intoleranz",
-  "therapie",
-  "epilep",
-  "diabet",
-  "asthma",
-  "psych",
-  "schwanger",
-];
-const normal = (text: string) =>
-  text
-    .toLowerCase()
-    .replace(/ä/g, "ae")
-    .replace(/ö/g, "oe")
-    .replace(/ü/g, "ue")
-    .replace(/ß/g, "ss");
-
 // Der Schlüssel des ersten Feldes, das nach Gesundheitsdaten fragt, sonst null
 export function findeGesundheitsfeld(felder: readonly FeldEingabe[]) {
   const treffer = felder.find((f) =>
-    [f.beschriftung, ...f.optionen].some((t) =>
-      SPERRLISTE.some((wort) => normal(t).includes(wort)),
-    ),
+    [f.beschriftung, ...f.optionen].some(enthaeltGesundheitswort),
   );
   return treffer?.schluessel ?? null;
 }

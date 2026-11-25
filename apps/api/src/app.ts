@@ -23,6 +23,8 @@ import {
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
 import type { AppNachweisDienst } from "./app-nachweis/dienst.js";
 import { erstelleAppNachweisRouten } from "./routes/app-nachweis.js";
+import { erstelleAdminFormularRouten } from "./routes/formular/admin.js";
+import { erstelleFormularOeffentlichRoute } from "./routes/formular/oeffentlich.js";
 import type { CeviDbDienst } from "./cevi-db/dienst.js";
 import { erstelleCeviDbRouten } from "./routes/cevi-db.js";
 import { erstelleAdminCeviDbRouten } from "./routes/admin/cevi-db.js";
@@ -39,6 +41,7 @@ import {
   type ZeichenDateien,
 } from "./website/zeichen.js";
 import {
+  optionalePersonAusSitzung,
   personAusSitzung,
   zweiterFaktorFehlt,
   zweiterFaktorPflicht,
@@ -337,6 +340,12 @@ export function erstelleApp({
         "/api/v1/app/nachweis",
         erstelleAppNachweisRouten({ dienst: appNachweis }),
       )
+      // Antworten auf Formulare der Website (#819): auch ohne Anmeldung; eine vorhandene Sitzung liest die Route mit. Sperre und Wartung prüft sie selbst, denn erst das Formular nennt die Abteilung
+      .use("/api/v1/formulare/*", optionalePersonAusSitzung(auth, db))
+      .route(
+        "/api/v1/formulare",
+        erstelleFormularOeffentlichRoute({ db, schalter, jetzt }),
+      )
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
       // Gleich nach der Sitzung, vor jeder Route: Wartung und Sperre gelten für alles dahinter
@@ -369,6 +378,7 @@ export function erstelleApp({
       // Fotos aus Flickr (#690): nur angemeldet; die Verwaltung erbt den zweiten Faktor
       .route("/api/v1/fotos", fotoRouten.oeffentlich)
       .route("/api/v1/admin/fotos", fotoRouten.verwaltung)
+      .route("/api/v1/admin/formulare", erstelleAdminFormularRouten({ db }))
       .route("/api/v1/admin/personen", erstellePersonenRouten({ db, auth }))
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db, auth }))

@@ -21,6 +21,7 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
+import { rendereFormular, SKRIPT_FORMULAR, STIL_FORMULAR } from "./formular.js";
 import { istDynamisch } from "./bausteine-dynamisch.js";
 import type { DynamischErgebnis } from "./dynamisch-daten.js";
 import {
@@ -497,6 +498,8 @@ function rendereBaustein(
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
   if (b.typ === "fotoalben") return rendereFotoalben();
+  // Formular (#819)
+  if (b.typ === "formular") return rendereFormular(b, letzte);
   if (istDynamisch(b)) return rendereDynamischenBaustein(b, daten, letzte);
   switch (b.typ) {
     case "ueberschrift": {
@@ -1451,6 +1454,8 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
   // Fotoalben (#690): der Baustein ist nur ein Behälter; das Skript holt die Alben nach der Anmeldung (auch in einem geschützten Baustein, den geschuetzt.js erst nachlädt)
   const mitFotos = s.dokument.bausteine.some((b) => b.typ === "fotoalben");
+  // Formular (#819): Stil und Skript auch dann, wenn der Baustein nur für Angemeldete ist und erst nachgeladen wird
+  const mitFormular = s.dokument.bausteine.some((b) => b.typ === "formular");
   return rahmen(k, {
     titel: s.dokument.titel,
     aktuell: s.pfad,
@@ -1474,6 +1479,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         ...(mitFotos || medien.lichtkasten ? [STIL_LICHTKASTEN] : []),
       ]),
       ...(mitFotos ? [STIL_FOTOS] : []),
+      ...(mitFormular ? [STIL_FORMULAR] : []),
       ...medien.stile,
       // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
       ...(s.dokument.bausteine.some(
@@ -1488,11 +1494,12 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
-    ...((geschuetzt || mitLaden || mitFotos) && {
+    ...((geschuetzt || mitLaden || mitFotos || mitFormular) && {
       skript: [
         ...(geschuetzt ? [SKRIPT_GESCHUETZT] : []),
         ...(mitLaden ? [SKRIPT_LADEN] : []),
         ...(mitFotos ? [SKRIPT_FOTOS] : []),
+        ...(mitFormular ? [SKRIPT_FORMULAR] : []),
       ],
     }),
     ...(geschuetzt && { hauptAttr: ` data-pfad="${esc(s.pfad)}"` }),
@@ -1530,10 +1537,16 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     aktuell: null,
     robots: "noindex",
     // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell oder Fotoalbum findet Stil und Skript vor
-    skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS],
+    skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS, SKRIPT_FORMULAR],
     hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
     zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL, SKRIPT_VERGLEICH],
-    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS, STIL_MEDIEN],
+    stile: [
+      STIL_LICHTKASTEN,
+      STIL_KARUSSELL,
+      STIL_FOTOS,
+      STIL_MEDIEN,
+      STIL_FORMULAR,
+    ],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>
