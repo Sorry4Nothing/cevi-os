@@ -3,3 +3,48 @@
 .liste-zeilen .text > .name.tm-roh {
   display: block;
 }
+
+/* Sammelaktion «Tags setzen» (#835): Auswahl in der Zeile und Aktionsleiste über der Tabelle */
+.tm-wahlzeile {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 44px;
+  cursor: pointer;
+}
+
+.tm-aktionsleiste {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  margin-block: 12px;
+  padding: 8px 16px;
+  background: var(--surface-container);
+  border: 1px solid var(--outline-variant);
+  border-radius: 16px;
+}
+
+.tm-aktionsleiste .wahl {
+  min-height: 44px;
+}
+
+.tm-wahlzahl {
+  flex: 1 1 auto;
+  font-weight: 700;
+}
+
+/* «Alle auswählen» mit einem Teil gewählt: Strich statt Haken, der Zustand steht auch im Wort («3 ausgewählt») */
+.tm-aktionsleiste input[type="checkbox"]:indeterminate {
+  background: var(--blau);
+  border-color: var(--blau);
+}
+
+.tm-aktionsleiste input[type="checkbox"]:indeterminate::after {
+  width: 10px;
+  height: 0;
+  margin-top: 0;
+  opacity: 1;
+  transform: none;
+  border-left: 0;
+}

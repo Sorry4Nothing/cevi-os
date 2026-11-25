@@ -793,3 +793,9 @@ th[aria-sort] .tm-sortknopf {
   max-width: 28ch;
   overflow-wrap: anywhere;
 }
+
+/* «Tags ändern» im Eintrag der Tagesliste (#835) */
+.tm-eintrag > .knopf {
+  justify-self: start;
+  margin-top: 8px;
+}

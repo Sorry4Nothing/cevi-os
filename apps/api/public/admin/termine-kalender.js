@@ -1,5 +1,6 @@
 import { anfrage, fehlertext } from "./api.js";
 import {
+  aktionenZelle,
   auswahl,
   chip,
   el,
@@ -28,10 +29,11 @@ import {
   filtere,
   monatsAnsicht,
 } from "./termine-monat.js";
+import { darfTags, tagsAnzeige, tagsKnopf } from "./termine-tags.js";
 import { ersetzeAdresse, schiebeAdresse } from "./verlauf.js";
 import { leerKarte } from "./zustaende.js";
 
-// Unterseite «Kalender» (A8, #590, #608): Alle kommenden Termine der Abteilung, auch die ohne Gruppe. Standard ist die Monatsansicht (Raster mit Terminchips und Tagesliste, termine-monat.js); die Tabelle bleibt als Ansicht «Liste». Oben im Kopf wechselt der Umschalter «Alle Termine / Meine Termine»: Meine sind die Termine der Gruppen der angemeldeten Person. Die Antwort von GET /api/v1/termine/alle trägt dafür je Termin das Feld «meine»; es braucht keine weitere Abfrage. Nur lesen: Die Termine kommen aus Outlook.
+// Unterseite «Kalender» (A8, #590, #608): Alle kommenden Termine der Abteilung, auch die ohne Gruppe. Standard ist die Monatsansicht (Raster mit Terminchips und Tagesliste, termine-monat.js); die Tabelle bleibt als Ansicht «Liste». Oben im Kopf wechselt der Umschalter «Alle Termine / Meine Termine»: Meine sind die Termine der Gruppen der angemeldeten Person. Die Antwort von GET /api/v1/termine/alle trägt dafür je Termin das Feld «meine»; es braucht keine weitere Abfrage. Die Termine kommen aus Outlook; wer das Recht «Kalender-Kategorien zuordnen» hat, ändert ihre Tags mit «Tags ändern» (termine-tags.js, #835).
 // Adressen: #termine/kalender (dieser Monat) · …/2027-01 (Monat) · …/2027-01-16 (Monat, Tag gewählt) · …/liste (Tabelle, 3 Monate) · …/liste/12 (12 Monate; die alte Adresse …/12 gilt weiter). Meine Termine: dieselben Adressen mit «meine» nach «kalender», z. B. #termine/kalender/meine/2027-01.
 // Abfragen: 1 Abruf der Gruppen für den Filter (30 Sekunden im Speicher); Monat: je Monat 1 Abfrage (bis 100 Termine, 2 Minuten im Speicher); Liste: je Seite von 100 Terminen 1 Abfrage beim Öffnen und je «Weitere laden». Umschalter, Suche, Filter, Sortierung und Blättern laufen im Browser. Kein Polling.
 
@@ -83,6 +85,7 @@ export function zeige(bereich, ctx) {
     nur: meine ? "meine" : "alle",
     beiWechsel: () => {},
     adresse: () => adresseVon(ansicht),
+    ctx,
   };
   ctx.kopfAktion(umfangswahl(umfang).wurzel);
   ctx.lade(
@@ -139,6 +142,10 @@ const gruppenFilter = (gruppen) => ({
   ],
 });
 
+// Wer die Tags ändern darf, bekommt es gesagt; alles andere ändert sich weiter nur in Outlook
+const tagsHinweis = (umfang) =>
+  darfTags(umfang.ctx) ? ", ausser den Tags." : ".";
+
 function zeichne(bereich, ansicht, gruppen, heute, umfang) {
   const quelle = el("p", { class: "klein leise tm-quelle" });
   const schreibeQuelle = () =>
@@ -146,8 +153,8 @@ function zeichne(bereich, ansicht, gruppen, heute, umfang) {
       quelle,
       icon("kalender"),
       umfang.nur === "meine"
-        ? "Meine Termine sind die Termine deiner Gruppen. Die Termine kommen aus Outlook, Änderungen machst du dort."
-        : "Die Termine kommen aus Outlook. Änderungen machst du dort.",
+        ? `Meine Termine sind die Termine deiner Gruppen. Die Termine kommen aus Outlook, Änderungen machst du dort${tagsHinweis(umfang)}`
+        : `Die Termine kommen aus Outlook. Änderungen machst du dort${tagsHinweis(umfang)}`,
     );
   schreibeQuelle();
   bereich.append(
@@ -180,6 +187,12 @@ function monatsSeite(ansicht, gruppen, heute, umfang, schreibeQuelle) {
     heute,
     zustand,
     holeSeite,
+    tagsKnopf: (t, neuzeichnen) =>
+      tagsKnopf({
+        ctx: umfang.ctx,
+        termin: t,
+        beiAenderung: tagsAnzeige(neuzeichnen),
+      }),
     ansichtswahl: el(
       "div",
       { class: "tm-ansichtsgruppe" },
@@ -287,6 +300,7 @@ function zeichneListe(
   schreibeQuelle,
 ) {
   const termine = [...erste.termine];
+  const mitTags = darfTags(umfang.ctx);
   let weitere = erste.weitere;
   let naechste = erste.naechste;
   let richtung = "ascending";
@@ -351,6 +365,14 @@ function zeichneListe(
       ),
       el("td", {}, t.ort ?? el("span", { class: "leise" }, "–")),
       el("td", {}, gruppenChips(t.tags)),
+      mitTags &&
+        aktionenZelle(
+          tagsKnopf({
+            ctx: umfang.ctx,
+            termin: t,
+            beiAenderung: tagsAnzeige(() => zeichneTabelle()),
+          }),
+        ),
     );
   }
 
@@ -385,7 +407,13 @@ function zeichneListe(
     const [a, b] = seiten.fenster(treffer.length);
     const t = termineTabelle({
       beschriftung: "Kommende Termine",
-      spalten: ["Datum", "Titel", "Ort", "Gruppen"],
+      spalten: [
+        "Datum",
+        "Titel",
+        "Ort",
+        "Gruppen",
+        ...(mitTags ? ["Aktionen"] : []),
+      ],
       zeilen: treffer.slice(a, b).map(zeile),
     });
     // Sortieren geht nur, solange alle Termine geladen sind; sonst stünde «absteigend» für einen Ausschnitt
