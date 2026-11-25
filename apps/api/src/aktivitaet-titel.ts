@@ -1647,6 +1647,18 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "zugewiesen",
     gruppe: "zugeordnet",
   },
+  "PUT /api/v1/admin/termine/:p/tags": {
+    titel: "Tags eines bestehenden Termins setzen",
+    objekt: "Tags eines bestehenden Termins",
+    aktion: "gesetzt",
+    gruppe: "geaendert",
+  },
+  "PUT /api/v1/admin/termine/tags": {
+    titel: "Dieselben Tags für mehrere Termine setzen (Sammelaktion)",
+    objekt: "Dieselben Tags für mehrere Termine",
+    aktion: "gesetzt",
+    gruppe: "geaendert",
+  },
   "PUT /api/v1/anlaesse/:p/anmeldung": {
     titel: "Zu einem Anlass anmelden oder die Anmeldung ändern",
     objekt: "Anmeldung zu einem Anlass",

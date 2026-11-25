@@ -17,6 +17,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Fotos in der Verwaltung (Albumliste mit Suche, Filter und Sammelaktionen): Abschnitt 87, im Browser geprüft.
 - Funktionen im Blatt der Person (Verwaltung, Personen) und Rollenseite nur zum Lesen: Abschnitt 89, im Browser geprüft.
 - Rufname in der Verwaltung (Personenliste, Blatt, Kontomenü, Suche, Personenwahl): Abschnitt 94, im Browser geprüft.
+- Tags bestehender Termine ändern (Verwaltung, Termine: Kalender, Monat, Warnliste, Sammelaktion): Abschnitt 96, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1872,3 +1873,29 @@ Im Browser (Chromium, Playwright, eigener Dev-Server auf der Testdatenbank mit e
 - **Beim Prüfen gefunden und behoben:** Nach dem Senden fehlte ein Symbol, das Skript brach ab und liess das Formular ohne Meldung verschwinden. Jetzt entsteht die Meldung vor dem Ausblenden, und ein Test prüft, dass jedes gezeichnete Symbol existiert.
 
 **Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 %, Kontrast 95.10 nicht gemessen (Werte aus den Tokens), 95.8 Pfeiltasten und Tab-Reihenfolge nur im Markup, 95.13 geschütztes Formular (Nachladen) nur im Test (`knoten.js` kennt alle Elemente), 95.14 Bewegung reduziert, 95.15 bis 95.17 die Verwaltung (Editor des Bausteins und Seite «Formulare») nur über die Schnittstelle getestet, nicht im Browser, weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlte.
+
+## 96. Verwaltung: Tags bestehender Termine ändern (#835)
+
+Ein Termin bekommt andere Tags («Tags ändern» im Kalender, im Monat und in der Warnliste) oder mehrere Termine der Warnliste bekommen auf einmal dieselben Tags («Tags setzen»). Die Bedienelemente erscheinen nur mit dem Recht «Kalender-Kategorien zuordnen»; der Server prüft es in jedem Fall. Das Modul ist `termine-tags.js`; die Auswahl ist die Suche mit Liste der Gewählten wie bei den Mitgliedern einer Gruppe (`personen-wahl.js`).
+
+### Prüfpunkte
+
+- [ ] **96.1** Jeder Knopf «Tags ändern» trägt den Titel des Termins im Namen («Tags ändern: <Titel>»); der Name beginnt mit dem sichtbaren Text. Ohne das Recht gibt es weder die Knöpfe noch die Spalte «Aktionen» noch die Auswahlfelder.
+- [ ] **96.2** Beim Öffnen zeigt der Knopf den Ladezustand (`aria-busy`, deaktiviert) und nimmt keinen zweiten Klick an. Schlägt das Laden der Tags fehl, steht ein Toast mit Text und «Versuche es nochmals.»; gibt es noch keine Tags, sagt ein Toast, wo man sie anlegt.
+- [ ] **96.3** Der Dialog ist eine Seite im Fluss mit Titel («Tags ändern» oder «Tags setzen»), dem Termin im Satz darunter, einem Suchfeld mit Label, der Liste der Gewählten (`aria-label`) und «Speichern» und «Abbrechen». Der Fokus startet im Suchfeld und kehrt nach dem Schliessen zum Auslöser zurück oder, wenn der Auslöser weg ist, zur Überschrift der Ansicht.
+- [ ] **96.4** Tastatur: Suchfeld, «Hinzufügen» je Treffer, «Entfernen» je Gewähltem sind Knöpfe in der Tab-Reihenfolge; nach dem Hinzufügen oder Entfernen steht der Fokus im Suchfeld. Esc und «Zurück» fragen bei ungespeicherten Eingaben nach.
+- [ ] **96.5** Jede Änderung der Auswahl sagt eine Statusregion an («‹Wölfe› ist gewählt.», «‹Wölfe› ist entfernt.»); die Zahl der Gewählten steht als Text («2 gewählt, höchstens 20»). Bei 20 Tags sagt die Suche, warum nichts mehr zu wählen ist.
+- [ ] **96.6** Leerzustände sind Text: «Kein Tag gewählt.» (einzeln, ein Termin ohne Tag ist erlaubt), «Keine Treffer für ‹…›.» in der Suche. Die Sammelaktion verlangt mindestens einen Tag und meldet es im Dialog als Fehler (`role="alert"`, Fokus auf der Meldung), ohne Eingaben zu verlieren.
+- [ ] **96.7** «Speichern» zeigt die Änderung sofort (Chips des Termins, Zeile verschwindet aus der Warnliste) und führt sie erst nach der Frist von «Rückgängig» aus. «Rückgängig» (Knopf oder Strg Z) stellt Chips und Zeile wieder her; ein Fehler bei der Ausführung tut dasselbe und sagt es im Toast.
+- [ ] **96.8** Nach dem Ausführen sagt ein Toast, wo der Termin gespeichert ist, im Wort und nicht nur in der Farbe: «In Cevi OS und Outlook gespeichert.», «In Cevi OS gespeichert. Outlook wird nachgeführt.» oder «Nur in Cevi OS gespeichert, nicht in Outlook.». Die Sammelaktion nennt die Zahl je Zustand.
+- [ ] **96.9** Der Hinweis im Dialog («Outlook gewinnt beim nächsten Abgleich») steht als normaler Text, nicht als Tooltip, mit Kontrast mindestens 4,5 : 1 in Hell und Dunkel.
+- [ ] **96.10** Warnliste: Jede Zeile hat ein Kästchen mit dem Namen «Termin ‹Titel› auswählen»; die ganze Zeile des Titels ist anklickbar (mindestens 44 px hoch). «Alle geladenen Termine auswählen» steht sichtbar neben dem Kästchen und zeigt bei einem Teil den gemischten Zustand (Strich und Text «3 ausgewählt», nicht nur Form).
+- [ ] **96.11** Die Zahl der Gewählten steht in einer Statusregion («3 ausgewählt», «Noch keine Termine ausgewählt»); «Tags setzen» erscheint erst mit mindestens einem gewählten Termin. Nach dem Setzen fehlen die Zeilen, der Zähler der Unterleiste stimmt, und die Auswahl ist leer.
+- [ ] **96.12** Kalender (Liste): Die Spalte «Aktionen» steht rechts, bei 320 px scrollt der Rahmen der Tabelle waagrecht und ist mit der Tastatur erreichbar. Monat: «Tags ändern» steht im Eintrag der Tagesliste unter den Chips und ist mindestens 44 px hoch.
+- [ ] **96.13** Fokus sichtbar (mindestens 3 : 1), 200 % Zoom, 320 px Breite und «Bewegung reduzieren»: kein waagrechtes Scrollen der Seite, nichts abgeschnitten, keine Bewegung ausser dem Fokus.
+
+### Stand der Prüfung (#835)
+
+Geprüft im Quelltext und mit Tests (`test/admin-termine-tags-panel.test.ts`, `test/admin-termine-panel.test.ts`, `test/admin-toasts.test.ts`): die Texte der Zustände, die Zahl je Zustand der Sammelaktion, die Anzeige und das Zurücknehmen der Tags am Termin, dass die Bedienelemente nur mit dem Recht entstehen, dass die Namen der Kästchen und Knöpfe den Titel tragen, kein Polling, keine Inline-Stile, kein HTML aus Daten.
+
+**Nicht geprüft:** alles im Browser und mit Bildschirmleser (96.1 bis 96.13 als Verhalten: Fokusführung, Ansagen, gemischter Zustand des Kästchens, Zoom, 320 px, Hell und Dunkel, Kontrast 96.9), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt und die Route zum Zeitpunkt der Oberfläche noch nicht auf dem Dev-Server lief. Offen: Nach «Speichern» im Monat und in der Liste ist die Zeile des Auslösers neu gezeichnet; der Fokus landet dann auf der Überschrift der Ansicht statt auf dem Knopf (zu prüfen und gegebenenfalls anzupassen).

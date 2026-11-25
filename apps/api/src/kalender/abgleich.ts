@@ -47,32 +47,6 @@ function zeitpunkt(zeit: ICAL.Time) {
   return zeit.toJSDate();
 }
 
-const ZUERICH_TAG = new Intl.DateTimeFormat("en-CA", {
-  timeZone: "Europe/Zurich",
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-});
-
-// Die Abteilung führt nur Samstage: Ein Termin zählt, wenn einer seiner Tage (Schweizer Zeit) ein Samstag ist.
-// Ganztägiges endet exklusiv am Folgetag; ein Termin mit Zeit endet auf die Millisekunde vor dem Ende
-export function liegtAmSamstag(
-  ganztaegig: boolean,
-  beginn: Date,
-  schluss: Date,
-): boolean {
-  const tag = (d: Date) =>
-    ganztaegig ? d.getTime() : Date.parse(`${ZUERICH_TAG.format(d)}T00:00:00Z`);
-  const erster = tag(beginn);
-  const letzter = Math.max(erster, tag(new Date(schluss.getTime() - 1)));
-  // Ab einer Woche ist ein Samstag sicher dabei
-  if (letzter - erster >= 6 * TAG_MS) return true;
-  for (let t = erster; t <= letzter; t += TAG_MS) {
-    if (new Date(t).getUTCDay() === 6) return true;
-  }
-  return false;
-}
-
 function ortVon(termin: ICAL.Event) {
   const ort = termin.location?.trim();
   return ort ? ort.slice(0, MAX_ORT) : null;
@@ -113,7 +87,6 @@ function abbilden(ics: string, jetzt: Date) {
     const schluss = zeitpunkt(ende);
     // Das Fenster hält gestrige und laufende Termine; Ganztägiges endet exklusiv am Folgetag
     if (schluss.getTime() <= von || beginn.getTime() >= bis) return;
-    if (!liegtAmSamstag(ganztaegig, beginn, schluss)) return;
     let tagBis: string | null = null;
     if (ganztaegig) {
       const letzter = ende.clone();

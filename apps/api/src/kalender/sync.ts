@@ -15,7 +15,14 @@ import { gleicheAb } from "./abgleich.js";
 import { fehlerCode, fehlerText, UNERWARTET } from "./fehler.js";
 import { holeKalender } from "./abruf.js";
 import { findeNachfolger } from "./nachfolger.js";
+import {
+  type MitKategorienOderNull,
+  ordneKategorienZu,
+} from "./graph-kategorien.js";
+import type { ProgrammAusKalender } from "./abgleich.js";
 import { ordneTagsZu } from "./tags-zuordnen.js";
+import type { OutlookDienst } from "../outlook/dienst.js";
+import { fehlerCodeVon } from "../outlook/fehler.js";
 
 // Beliebige feste Zahl: pg_try_advisory_lock braucht einen Schlüssel, der in der ganzen Datenbank nur diesem Job gehört
 const SPERRE_KALENDER = 740_027;
@@ -24,9 +31,12 @@ const SPERRE_KALENDER = 740_027;
 export async function synchronisiere({
   datenbankUrl,
   jetzt = new Date(),
+  outlook,
 }: {
   datenbankUrl: string;
   jetzt?: Date;
+  // Mit der Graph-Anbindung (#835) kommen die Kategorien der Termine von Outlook statt aus dem Feed
+  outlook?: OutlookDienst;
 }): Promise<"fertig" | "gesperrt"> {
   // Eigene Verbindung mit max 1: Sperre und Freigabe müssen auf derselben Sitzung laufen
   const sql = verbindeDatenbank(datenbankUrl, { max: 1 });
@@ -35,7 +45,7 @@ export async function synchronisiere({
       await sql`select pg_try_advisory_lock(${SPERRE_KALENDER}) as erhalten`;
     if (!sperre.erhalten) return "gesperrt";
     try {
-      await lauf(erstelleDb(sql), jetzt);
+      await lauf(erstelleDb(sql), jetzt, outlook);
       return "fertig";
     } finally {
       // Scheitert nur mit der Verbindung, und dann fällt die Sperre mit ihr
@@ -46,7 +56,7 @@ export async function synchronisiere({
   }
 }
 
-async function lauf(db: Db, jetzt: Date) {
+async function lauf(db: Db, jetzt: Date, outlook?: OutlookDienst) {
   const abteilungen = await db
     .select({ id: abteilung.id, adresse: abteilung.googleKalenderId })
     .from(abteilung)
@@ -57,13 +67,18 @@ async function lauf(db: Db, jetzt: Date) {
   for (const eine of abteilungen) {
     if (eine.adresse === null) continue;
     try {
-      const { programme, absagen } = gleicheAb(
-        await holeKalender(eine.adresse),
+      const abgleich = gleicheAb(await holeKalender(eine.adresse), jetzt);
+      const { absagen } = abgleich;
+      // Kategorien von Graph, wenn verbunden; fällt Graph aus, bleiben sie unbekannt (null) und die Termine behalten ihre bisherigen Kategorien und Tags, nie leer (#835)
+      const programme = await mitGraphKategorien(
+        abgleich.programme,
+        outlook,
+        eine.id,
         jetzt,
       );
       // Doppelte IDs: Der letzte Eintrag gewinnt, denn ein Upsert, der dieselbe Zeile zweimal trifft, scheitert
       const proId = new Map(programme.map((p) => [p.googleEventId, p]));
-      const zeilen = [...proId.values()].map((p) => ({
+      const eintraege = [...proId.values()].map((p) => ({
         ...p,
         abteilungId: eine.id,
       }));
@@ -96,9 +111,22 @@ async function lauf(db: Db, jetzt: Date) {
         );
         const { uebernahmen, pruefen } = findeNachfolger(
           fehlende,
-          zeilen,
+          eintraege,
           bekannt,
         );
+        // Unbekannte Kategorien (null) bleiben, was die Zeile schon trägt, auch eine umgeschlüsselte
+        const bisherKategorien = new Map(
+          vorhandene.map((v) => [v.googleEventId, v.kategorien]),
+        );
+        for (const u of uebernahmen) {
+          const alt = fehlende.find((f) => f.id === u.programmId);
+          if (alt) bisherKategorien.set(u.googleEventId, alt.kategorien);
+        }
+        const zeilen = eintraege.map((p) => ({
+          ...p,
+          kategorien:
+            p.kategorien ?? bisherKategorien.get(p.googleEventId) ?? [],
+        }));
         // Übernehmen heisst umschlüsseln: Die Zeile behält id, Tags und Teilnahmen, der Upsert unten trifft sie über die neue Event-ID
         for (const u of uebernahmen) {
           await tx
@@ -160,6 +188,33 @@ async function lauf(db: Db, jetzt: Date) {
     } catch (fehler) {
       await merkeFehler(db, eine.id, fehler);
     }
+  }
+}
+
+// Ohne Graph (Schalter aus oder Abteilung nicht verbunden) gelten die Kategorien des Feeds wie bisher. Mit Graph gelten die von Outlook für jeden Termin, den Graph kennt; alle anderen und alle bei einem Ausfall sind unbekannt (null)
+async function mitGraphKategorien(
+  programme: ProgrammAusKalender[],
+  outlook: OutlookDienst | undefined,
+  abteilungId: string,
+  jetzt: Date,
+): Promise<MitKategorienOderNull[]> {
+  const client = outlook ? await outlook.fuer(abteilungId) : null;
+  if (!client) return programme;
+  try {
+    // Dasselbe Fenster wie gleicheAb: gestern bis 400 Tage voraus
+    const graph = await client.leseTerminKategorien(
+      new Date(jetzt.getTime() - 86_400_000),
+      new Date(jetzt.getTime() + 400 * 86_400_000),
+    );
+    return ordneKategorienZu(programme, graph);
+  } catch (fehler) {
+    log(undefined, {
+      ereignis: "kalender",
+      abteilungId,
+      art: "graph-kategorien",
+      code: fehlerCodeVon(fehler),
+    });
+    return programme.map((p) => ({ ...p, kategorien: null }));
   }
 }
 

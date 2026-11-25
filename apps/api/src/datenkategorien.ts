@@ -660,6 +660,36 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
   kategorie_zuordnung: {
     programme: ["id", "abteilung_id", "kategorie", "tag_id"],
   },
+  // Schreibanbindung an Outlook (#835): keine Personendaten; das Refresh-Token liegt nur verschlüsselt hier
+  outlook_verbindung: {
+    technik: [
+      "abteilung_id",
+      "refresh_token",
+      "status",
+      "verbunden_am",
+      "erneuert_am",
+      "kategorien_offen",
+      "akteur_id",
+      "versuche",
+      "naechster_versuch",
+      "letzter_fehler",
+    ],
+  },
+  outlook_kategorie: {
+    programme: ["abteilung_id", "name_klein", "name", "outlook_id"],
+  },
+  outlook_aenderung: {
+    programme: [
+      "programm_id",
+      "abteilung_id",
+      "akteur_id",
+      "geaendert_am",
+      "geschrieben_am",
+      "versuche",
+      "naechster_versuch",
+      "letzter_fehler",
+    ],
+  },
   termin_vorschlag: {
     terminvorschlaege: [
       "id",

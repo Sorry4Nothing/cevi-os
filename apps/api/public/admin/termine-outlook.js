@@ -3,7 +3,7 @@ import { chip, el, knopf } from "./dom.js";
 import { stempel, vorText } from "./kalenderhilfen.js";
 import { skeletonFlaeche } from "./lader.js";
 
-// Unterseite «Outlook» (A13): Stand der Verbindung zum Kalender der Abteilung. Lesen: Stand des Abgleichs und «Abgleich starten». Schreiben nach Outlook gibt es nicht: Termine trägt die Abteilungsleitung von Hand ein (siehe «Vorschläge»).
+// Unterseite «Outlook» (A13): Stand der Verbindung zum Kalender der Abteilung. Lesen: Stand des Abgleichs und «Abgleich starten». Termine legt Cevi OS nie in Outlook an: Die Abteilungsleitung trägt sie von Hand ein (siehe «Vorschläge»). Kategorien schreibt Cevi OS seit #835 nur mit der Anbindung an Microsoft Graph (docs/betrieb.md); die Seite zeigt ihren Stand noch nicht.
 // Abfragen: eine beim Öffnen (GET /api/v1/admin/system/syncs), eine je «Abgleich starten» (POST) und danach eine zum Nachladen. Kein Polling.
 // Lücke gegenüber dem Design: «Davon ohne Kategorie» fehlt, denn die API liefert keine Gesamtzahl; die Zahl steht in der Unterleiste bei «Ohne Kategorie».
 

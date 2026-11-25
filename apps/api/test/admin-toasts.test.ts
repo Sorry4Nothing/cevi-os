@@ -121,7 +121,7 @@ const ERLAUBT: Record<string, [number, number, number, number, string]> = {
   "termine-outlook.js": [1, 0, 0, 0, "dauerhaft"],
   "termine-raeume.js": [1, 1, 0, 1, "dauerhaft+absenden"],
   "termine-vorschlaege.js": [3, 0, 0, 2, "zustand+dauerhaft"],
-  "termine-warnliste.js": [3, 0, 0, 1, "dauerhaft+zustand"],
+  "termine-warnliste.js": [4, 0, 0, 1, "dauerhaft+zustand+ansage"],
   "uebersicht-diagramme.js": [0, 0, 1, 0, "ansage"],
   "uebersicht-kacheln.js": [3, 0, 0, 1, "zustand"],
   "uebersicht-kommend.js": [4, 0, 0, 0, "zustand"],

@@ -272,6 +272,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/kalenderhilfen.js": { erwartet: alle(200) },
   "GET /admin/termine-kalender.js": { erwartet: alle(200) },
   "GET /admin/termine-monat.js": { erwartet: alle(200) },
+  "GET /admin/termine-tags.js": { erwartet: alle(200) },
   "GET /admin/termine-outlook.js": { erwartet: alle(200) },
   "GET /admin/termine-anfragen.js": { erwartet: alle(200) },
   "GET /admin/termine-anmeldungen.js": { erwartet: alle(200) },

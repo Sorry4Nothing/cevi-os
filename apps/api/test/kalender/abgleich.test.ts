@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { gleicheAb, liegtAmSamstag } from "../../src/kalender/abgleich.js";
+import { gleicheAb } from "../../src/kalender/abgleich.js";
 import {
   ANTWORT_UNGUELTIG,
   KalenderFehler,
@@ -142,7 +142,7 @@ describe("Abbildung einzelner Termine", () => {
     expect(programme.map((p) => p.titel)).toEqual(["Läuft noch"]);
   });
 
-  test("nur Termine, die auf einen Samstag fallen, werden übernommen", () => {
+  test("Termine jedes Wochentags werden übernommen, es gibt keinen Samstagsfilter mehr (#835)", () => {
     const tag = (uid: string, titel: string, von: string, bis: string) =>
       vevent(uid, [
         `SUMMARY:${titel}`,
@@ -158,7 +158,12 @@ describe("Abbildung einzelner Termine", () => {
       ),
       JETZT,
     );
-    expect(programme.map((p) => p.titel)).toEqual(["Samstag", "Lager"]);
+    expect(programme.map((p) => p.titel).sort()).toEqual([
+      "Freitag",
+      "Lager",
+      "Samstag",
+      "Sonntag",
+    ]);
   });
 
   test.each<[string, string[]]>([
@@ -286,92 +291,9 @@ describe("Serien", () => {
   });
 
   test("eine endlose Serie bricht am Fensterende ab", () => {
-    // Täglich wiederholt, aber nur die Samstage zählen: rund 57 in 400 Tagen
+    // Täglich wiederholt: jeder Tag im Fenster (gestern bis 400 Tage voraus) zählt, rund 400
     const { programme } = serie(["RRULE:FREQ=DAILY"]);
-    expect(programme.length).toBeGreaterThan(50);
-    expect(programme.length).toBeLessThan(65);
-  });
-});
-
-describe("liegtAmSamstag", () => {
-  const tage = (von: string, bis: string) =>
-    liegtAmSamstag(
-      true,
-      new Date(`${von}T00:00:00Z`),
-      new Date(`${bis}T00:00:00Z`),
-    );
-
-  test.each<[string, string, string, boolean]>([
-    ["Freitag", "2027-09-03", "2027-09-04", false],
-    ["Samstag", "2027-09-04", "2027-09-05", true],
-    ["Sonntag", "2027-09-05", "2027-09-06", false],
-    ["Freitag bis Montag", "2027-09-03", "2027-09-07", true],
-    ["Montag bis Freitag", "2027-09-06", "2027-09-11", false],
-    ["Sonntag bis Samstag (eine Woche)", "2027-09-05", "2027-09-12", true],
-    ["drei Wochen", "2027-09-06", "2027-09-27", true],
-  ])("ganztägig: %s", (_, von, bis, erwartet) => {
-    expect(tage(von, bis)).toBe(erwartet);
-  });
-
-  // Schweizer Zeit: im September UTC+2, im Dezember UTC+1
-  test.each<[string, string, string, boolean]>([
-    [
-      "Sommerzeit: Freitag 00:00",
-      "2027-09-02T22:00:00Z",
-      "2027-09-02T23:00:00Z",
-      false,
-    ],
-    [
-      "Sommerzeit: Samstag 00:00",
-      "2027-09-03T22:00:00Z",
-      "2027-09-03T23:00:00Z",
-      true,
-    ],
-    [
-      "Sommerzeit: endet um Mitternacht auf den Samstag",
-      "2027-09-03T20:00:00Z",
-      "2027-09-03T22:00:00Z",
-      false,
-    ],
-    [
-      "Sommerzeit: endet um Mitternacht auf den Sonntag",
-      "2027-09-04T12:00:00Z",
-      "2027-09-04T22:00:00Z",
-      true,
-    ],
-    [
-      "Sommerzeit: beginnt um Mitternacht auf den Sonntag",
-      "2027-09-04T22:00:00Z",
-      "2027-09-05T10:00:00Z",
-      false,
-    ],
-    [
-      "Winterzeit: Samstag 00:00",
-      "2027-12-03T23:00:00Z",
-      "2027-12-04T01:00:00Z",
-      true,
-    ],
-    [
-      "Winterzeit: endet um Mitternacht auf den Samstag",
-      "2027-12-03T21:00:00Z",
-      "2027-12-03T23:00:00Z",
-      false,
-    ],
-    [
-      "Freitag Abend bis Sonntag Morgen",
-      "2027-09-03T18:00:00Z",
-      "2027-09-05T06:00:00Z",
-      true,
-    ],
-    ["zwei Wochen", "2027-09-06T10:00:00Z", "2027-09-20T10:00:00Z", true],
-  ])("mit Zeit: %s", (_, von, bis, erwartet) => {
-    expect(liegtAmSamstag(false, new Date(von), new Date(bis))).toBe(erwartet);
-  });
-
-  test("ein Termin ohne Dauer zählt am Tag seines Beginns", () => {
-    const samstag = new Date("2027-09-04T10:00:00Z");
-    expect(liegtAmSamstag(false, samstag, samstag)).toBe(true);
-    const freitag = new Date("2027-09-03T10:00:00Z");
-    expect(liegtAmSamstag(false, freitag, freitag)).toBe(false);
+    expect(programme.length).toBeGreaterThan(395);
+    expect(programme.length).toBeLessThan(405);
   });
 });

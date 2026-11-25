@@ -46,6 +46,7 @@ test("liest die Werte samt festen Vorgaben und übergeht andere Variablen", () =
     VERANTWORTLICHE_ADRESSE: "Oetwilerstrasse 35, 8634 Hombrechtikon",
     KONTAKT_EMAIL: "cevi-al@cevi-staefa-hombi.ch",
     APP_NACHWEIS: "aus",
+    OUTLOOK_GRAPH: "false",
   });
 });
 
@@ -471,5 +472,63 @@ describe("APP_NACHWEIS (#785)", () => {
         ANDROID_NACHWEIS_MIN_GERAETE: "MEETS_STRONG_INTEGRITY",
       }).ANDROID_NACHWEIS_MIN_GERAETE,
     ).toBe("MEETS_STRONG_INTEGRITY");
+  });
+});
+
+describe("OUTLOOK_GRAPH (#835)", () => {
+  const IDS = {
+    OUTLOOK_TENANT_ID: "11111111-2222-3333-4444-555555555555",
+    OUTLOOK_CLIENT_ID: "aaaaaaaa-bbbb-4ccc-8ddd-eeeeeeeeeeee",
+  };
+
+  test("Vorgabe aus: ohne Angaben startet die API wie bisher", () => {
+    expect(ladeKonfiguration(GUELTIG).OUTLOOK_GRAPH).toBe("false");
+    expect(
+      ladeKonfiguration({ ...GUELTIG, OUTLOOK_GRAPH: "" }).OUTLOOK_GRAPH,
+    ).toBe("false");
+  });
+
+  test("mit true sind Mandant und Client-ID Pflicht, und die Meldung nennt nur die Namen", () => {
+    const m = meldung({ ...GUELTIG, OUTLOOK_GRAPH: "true" });
+    expect(m).toBe(
+      "Fehlende oder ungültige Umgebungsvariablen: OUTLOOK_TENANT_ID, OUTLOOK_CLIENT_ID",
+    );
+    expect(
+      ladeKonfiguration({ ...GUELTIG, OUTLOOK_GRAPH: "true", ...IDS })
+        .OUTLOOK_GRAPH,
+    ).toBe("true");
+  });
+
+  test("beide IDs gehören zusammen; ein anderer Wert als true oder false und ein Sammelmandant sind ungültig", () => {
+    expect(
+      meldung({ ...GUELTIG, OUTLOOK_TENANT_ID: IDS.OUTLOOK_TENANT_ID }),
+    ).toBe("Fehlende oder ungültige Umgebungsvariablen: OUTLOOK_CLIENT_ID");
+    expect(meldung({ ...GUELTIG, OUTLOOK_GRAPH: "ja" })).toContain(
+      "OUTLOOK_GRAPH",
+    );
+    for (const tenant of ["common", "organizations", "consumers", "x"]) {
+      expect(
+        meldung({ ...GUELTIG, ...IDS, OUTLOOK_TENANT_ID: tenant }),
+      ).toContain("OUTLOOK_TENANT_ID");
+    }
+  });
+
+  test("eigene Adressen für Tests: lokal erlaubt, in Produktion verboten", () => {
+    const basis = {
+      ...GUELTIG,
+      ...IDS,
+      OUTLOOK_GRAPH_BASIS: "http://127.0.0.1:4999",
+      OUTLOOK_LOGIN_BASIS: "http://127.0.0.1:4999",
+    };
+    expect(ladeKonfiguration(basis).OUTLOOK_GRAPH_BASIS).toBe(
+      "http://127.0.0.1:4999",
+    );
+    const produktion = meldung({
+      ...basis,
+      NODE_ENV: "production",
+      BETTER_AUTH_URL: "https://api.example.org",
+    });
+    expect(produktion).toContain("OUTLOOK_GRAPH_BASIS");
+    expect(produktion).toContain("OUTLOOK_LOGIN_BASIS");
   });
 });
