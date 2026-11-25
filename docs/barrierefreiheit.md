@@ -1771,3 +1771,32 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, Kopie der Demo-Da
 - **94.7:** kein waagrechtes Scrollen bei beiden Grössen (`scrollWidth` gleich `clientWidth`), Ansichten von Liste, Blatt und Kontomenü angeschaut.
 
 **Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (Tokens unverändert), 94.5 (Personenwahl) und 94.6 (Vorschau beim Tippen) nicht im Browser, Tabellenansicht der Personen nur über denselben Baustein.
+
+## 95. Website und Verwaltung: Baustein «Formular» (#819)
+
+Ein Formular auf einer Seite der Website (Umfrage, Rückmeldung, Bedarfsabfrage) und die Antworten in der Verwaltung. Das Formular ist für alle gedacht, auch ohne Anmeldung; darum gilt hier der Massstab WCAG 2.2 AA ohne Abstriche. Es nutzt `formular.js` und `formular.css` (Website) und `website-formulare.js` (Verwaltung).
+
+### Prüfpunkte
+
+- [ ] **95.1** Jedes Feld hat ein sichtbares Label über dem Feld (`label for`), nie nur einen Platzhalter. Gruppen (Optionsfelder, Mehrfachwahl, Ja oder Nein) sind `fieldset` mit `legend`. Freiwillige Felder tragen «(optional)», Pflichtfelder nichts.
+- [ ] **95.2** Hilfetexte hängen per `aria-describedby` am Feld; Fehlertexte kommen beim Fehler dazu und fallen beim Beheben weg. Der Bildschirmleser liest Label, Hilfe und Fehler.
+- [ ] **95.3** `autocomplete` nur, wo es stimmt: E-Mail `email`, Telefon `tel`; freie Felder `off`. Passende Tastatur am Handy (`inputmode`, `type="email"`, `type="tel"`), Einfügen ist nie blockiert.
+- [ ] **95.4** Absenden mit Fehlern: Der Fokus geht auf die Zusammenfassung oben (`role="alert"`, `tabindex="-1"`) mit einem Link je Fehler; der Link führt in das Feld. Jedes fehlerhafte Feld trägt Text mit Symbol und `aria-invalid`, nicht nur Farbe oder Rand.
+- [ ] **95.5** Geprüft wird beim Absenden und beim Verlassen eines Feldes (blur), nie beim ersten Tippen; nach einem Fehler gilt die Prüfung live, und die Meldung verschwindet, sobald es stimmt.
+- [ ] **95.6** Die Eingaben bleiben bei jedem Fehler stehen (Prüffehler, Netz, 422, 429, 409). Der Absende-Knopf bleibt aktiv, zeigt «Sende …» (`aria-busy`) und nimmt keinen zweiten Klick an.
+- [ ] **95.7** Nach dem Senden ersetzt eine Statusregion («Gesendet» mit dem Text der Redaktion) das Formular und bekommt den Fokus; der Bildschirmleser sagt sie an. Es gibt keine Meldung, die von selbst verschwindet; Netzfehler und «zu viele Versuche» sind ein Toast (Statusregion, Schliessen-Knopf).
+- [ ] **95.8** Tastatur: Tab-Reihenfolge wie die Lesereihenfolge, Pfeiltasten in Optionsfeldern, Leertaste in Kästchen, Enter sendet. Die Falle gegen Skripte (`homepage`) ist nie fokussierbar (`tabindex="-1"`, `aria-hidden`, ausserhalb des Bildes) und wird nicht vorgelesen.
+- [ ] **95.9** Zielgrösse: Zeilen von Optionsfeldern, Kästchen und Zustimmung sind mindestens 44 px hoch, die ganze Zeile ist anklickbar; Eingabefelder 52 px, Knopf 48 px. Fokus sichtbar (3 px, Kontrast mindestens 3 : 1) in Hell und Dunkel.
+- [ ] **95.10** Kontrast des Datenschutzhinweises, der Hilfen, der Fehlertexte und der Platzhalter in Hell und Dunkel mindestens 4,5 : 1; Fehler nie nur über Farbe.
+- [ ] **95.11** 390, 1280 und 2560 Pixel, Zoom 200 % und 400 % bei 320 px: kein waagrechtes Scrollen, der Knopf füllt am Handy die Breite, die Felder brechen nicht aus der Spalte.
+- [ ] **95.12** Ohne Skript steht «Zum Ausfüllen braucht diese Seite JavaScript.» statt eines Formulars, das nicht senden kann; die Seite bleibt lesbar. Das Formular sendet nie selbst (CSP `form-action 'none'`).
+- [ ] **95.13** Geschlossenes Formular: «Dieses Formular ist geschlossen.» als Band, das Formular fehlt; ein Formular nur für Angemeldete zeigt ohne Anmeldung «Nur angemeldet sichtbar» mit Link, nach der Anmeldung das Formular, und alles oben gilt auch für das nachgeladene.
+- [ ] **95.14** «Bewegung reduzieren»: keine Bewegung ausser dem Fokus; die Formularseite ist hell und dunkel gleich bedienbar.
+- [ ] **95.15** Verwaltung, Editor des Bausteins: Felder lassen sich mit Tastatur und Griff ordnen (Sortierliste mit «Nach oben» und «Nach unten», Ansage der Position); die Art des Feldes ist ein natives Auswahlfeld; Fehler stehen am Feld, Fehlendes (Datenschutzhinweis, Beschriftung, zu wenige Antworten, Gesundheitswort) wird mit Text gemeldet.
+- [ ] **95.16** Verwaltung, Seite «Formulare»: Liste mit Zuständen leer, lädt, Fehler; je Antwort ein aufklappbarer Eintrag (`details`) mit Zeit, Person (oder «Anonym») und den Antworten als Definitionsliste; «Weitere Antworten laden» mit Ansage. Löschen fragt mit einem Dialog («Alle Antworten löschen» nennt das Formular und die Zahl), der Fokus springt danach auf den nächsten Eintrag, die Zahl ändert sich in einer Statusregion.
+- [ ] **95.17** Verwaltung: Der Text der Antworten wird nur als Text gezeigt (kein HTML); lange Wörter brechen um (`overflow-wrap`), der Mensch bleibt in der Spalte.
+
+### Stand der Prüfung (#819)
+
+Siehe unten: wird mit dem PR nachgeführt. Im Test (kein Browser): 95.1 bis 95.3 und 95.8 im Markup (`test/website-formular.test.ts`), 95.12 und 95.13 im Skript und im Renderer.
+

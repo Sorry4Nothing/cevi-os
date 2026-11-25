@@ -26719,8 +26719,560 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /api/v1/formulare/{id}/antworten:
+    post:
+      operationId: sendeFormularAntwort
+      summary: Antwort auf ein Formular der Website senden
+      description: |
+        Die einzige Route unter `/api/v1`, die ohne Anmeldung schreibt (#819). Eine vorhandene Sitzung liest sie mit: Wer angemeldet ist, sendet mit dem eigenen Konto, alle anderen anonym (ohne Person, ohne IP-Adresse). Nur POST mit JSON; eine fremde `Origin` ist 403.
+
+        `id` ist die ID des Bausteins «Formular» im Dokument einer veröffentlichten Seite. Der Server prüft jede Antwort gegen die veröffentlichte Definition aus der Datenbank, nie gegen etwas aus der Anfrage; jede unbekannte Feld-ID ist ein Fehler. Wer ausfüllen darf, bestimmt die Sichtbarkeit der Seite und des Bausteins (öffentlich, angemeldet, bestimmte Gruppen). Ein Formular, das es nicht gibt, nicht veröffentlicht ist oder das die Person nicht sehen darf, antwortet gleich: 404 `NICHT_GEFUNDEN`.
+
+        Schutz vor Missbrauch ohne Dienst von Dritten: `homepage` ist eine Falle und muss leer sein (gefüllt antwortet der Server 201, speichert aber nichts); `dauerMs` ist die Zeit seit dem Laden der Seite, unter 2000 ms ist 422 `ZU_SCHNELL`; Zähler im Arbeitsspeicher (30 Versuche je Adresse in 10 Minuten, 10 je Adresse und Formular, 10 je Person und Formular, 300 anonyme je Formular, danach 429 `ZU_OFT`); je Formular eine Obergrenze der Antworten (409 `FORMULAR_VOLL`). Mit `eineProPerson` ist die zweite Antwort einer angemeldeten Person 409 `BEREITS_BEANTWORTET`. Nach dem letzten Tag (`schliesstAm`, Zürcher Zeit) ist 410 `FORMULAR_GESCHLOSSEN`. Die Sperre der Website ist 423, die Wartung 503. Höchstens 64 KB Body (413).
+
+        Fehler in den Antworten (422 `ANTWORTEN_UNGUELTIG`) nennen nur die Feld-ID und einen Code (`UNBEKANNT`, `PFLICHT`, `TYP`, `FORMAT`, `ZU_LANG`, `ZU_KURZ`, `BEREICH`, `OPTION`, `ANZAHL`, `STEUERZEICHEN`), nie den Wert.
+
+        Statuscodes: 201 gespeichert (`{ ok: true }`, ohne ID). 400, 403, 404, 409, 410, 413, 422, 423, 429, 503.
+
+        Datenbanklast: eine Abfrage für die veröffentlichte Definition, bei Sitzung die Abfragen der Person, eine Transaktion mit Sperre je Formular (Zählen, Einfügen).
+      tags:
+        - Website
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FormularAntwortEingabe"
+      responses:
+        "201":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                properties:
+                  ok:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Formular ist voll (`FORMULAR_VOLL`) oder die Person hat es schon beantwortet (`BEREITS_BEANTWORTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "410":
+          description: Das Formular nimmt keine Antworten mehr an (`FORMULAR_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "413":
+          description: Der Body ist grösser als 64 KB.
+        "422":
+          description: Die Antworten passen nicht (`ANTWORTEN_UNGUELTIG` mit `fehler`) oder das Formular wurde zu schnell gesendet (`ZU_SCHNELL`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularAntwortFehler"
+        "423":
+          description: Die Website ist gesperrt (`GESPERRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "503":
+          description: Die Website ist in Wartung (`IN_WARTUNG`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+  /api/v1/admin/formulare:
+    get:
+      operationId: listeAdminFormulare
+      summary: Formulare der Website mit der Zahl ihrer Antworten
+      description: |
+        Nur mit dem Recht `formular.antworten_sehen` (Abteilungsleitung und Entwickler, dazu vergebbar an Rollen; die Redaktion hat es nicht automatisch, denn Antworten enthalten Personendaten). Alle Formulare der veröffentlichten Seiten der Abteilung und alle mit Antworten, auch wenn der Baustein inzwischen fehlt (`veroeffentlicht` falsch).
+
+        Statuscodes: 200. 401, 403 (auch `ZWEITER_FAKTOR_FEHLT`).
+
+        Datenbanklast: zwei Abfragen, bei Formularen ohne Baustein eine dritte.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Formulare.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - formulare
+                properties:
+                  formulare:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FormularZeile"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/admin/formulare/{id}:
+    get:
+      operationId: getAdminFormular
+      summary: Ein Formular mit seinen Feldern und den Rechten der Person
+      description: |
+        Nur mit dem Recht `formular.antworten_sehen`. Ein Formular einer anderen Abteilung oder ein unbekanntes ist 404 (erst das Objekt, dann das Recht). `rechte` sagt, ob die Person die Antworten auch exportieren und löschen darf; die Oberfläche blendet Knöpfe ohne das Recht aus.
+
+        Statuscodes: 200. 400, 401, 403, 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Formular.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularAnsicht"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/admin/formulare/{id}/antworten:
+    get:
+      operationId: listeAdminFormularAntworten
+      summary: Antworten eines Formulars, neueste zuerst
+      description: |
+        Nur mit dem Recht `formular.antworten_sehen`. Je Antwort die Beschriftungen der Version der Seite, mit der sie entstand (spätere Änderungen am Formular machen sie nicht kaputt), und die Person (Cevi-Name, sonst Vorname) oder `null` für eine anonyme Antwort. Seitenweise: `limit` (1 bis 100, vorgegeben 25) und `nach` (ID der letzten Antwort der Vorseite).
+
+        Statuscodes: 200. 400, 401, 403, 404.
+
+        Datenbanklast: eine Abfrage für die Liste der Formulare, eine für die Antworten, eine für die Versionen.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: nach
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Eine Seite Antworten.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularAntwortenSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    delete:
+      operationId: loescheAdminFormularAntworten
+      summary: Alle Antworten eines Formulars löschen
+      description: |
+        Nur mit dem Recht `formular.antworten_loeschen`. Löscht endgültig alle Antworten des Formulars; das Formular bleibt auf der Seite. Es bleibt eine Zeile im Audit-Protokoll mit der Zahl, nie mit Inhalten.
+
+        Statuscodes: 200 mit der Zahl. 400, 401, 403, 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelöscht.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - geloescht
+                properties:
+                  geloescht:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/admin/formulare/{id}/antworten.csv:
+    get:
+      operationId: exportiereAdminFormularAntworten
+      summary: Antworten eines Formulars als CSV
+      description: |
+        Nur mit dem Recht `formular.antworten_exportieren`. UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF, in Blöcken zu 500 Zeilen. Die Spalten sind «Eingang», «Person» und die Felder (die aktuelle Definition zuerst, dann Felder älterer Versionen). Jede Zelle, die mit `=`, `+`, `-`, `@`, Tabulator oder Zeilenumbruch beginnt, bekommt ein führendes Hochkomma (Schutz vor Formeln in Tabellenprogrammen). Je Person höchstens 10 Exporte in 10 Minuten (429). Im Audit-Protokoll steht eine Zeile mit der Zahl.
+
+        Statuscodes: 200. 400, 401, 403, 404, 429.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Die Datei (`text/csv; charset=utf-8`, `Content-Disposition: attachment`)."
+          content:
+            text/csv:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/formulare/{id}/antworten/{antwortId}:
+    delete:
+      operationId: loescheAdminFormularAntwort
+      summary: Eine Antwort löschen
+      description: |
+        Nur mit dem Recht `formular.antworten_loeschen`. Löscht eine Antwort endgültig. Eine unbekannte Antwort oder die eines fremden Formulars ist 404.
+
+        Statuscodes: 204. 400, 401, 403, 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+        - name: antwortId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /admin/website-formulare.js:
+    get:
+      operationId: getAdminWebsiteFormulareSkript
+      summary: Skript der Verwaltung – Bereich Website, Formulare
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-formulare.css:
+    get:
+      operationId: getAdminWebsiteFormulareStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Formulare
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-felder-formular.js:
+    get:
+      operationId: getAdminWebsiteFelderFormularSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder des Bausteins «Formular»
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
 components:
   schemas:
+    FormularAntwortEingabe:
+      type: object
+      additionalProperties: false
+      required:
+        - antworten
+        - homepage
+        - dauerMs
+      properties:
+        antworten:
+          type: object
+          description: Feld-ID (UUID) zu Wert. Text, Zahl, Datum (`JJJJ-MM-TT`), Auswahl als Text, Mehrfachwahl als Liste von Texten, Ja oder Nein und Zustimmung als Wahrheitswert. Freiwillige Felder ohne Antwort fehlen. Höchstens 30 Schlüssel, die Antwort als JSON höchstens 16000 Zeichen.
+          additionalProperties: true
+        homepage:
+          type: string
+          maxLength: 200
+          description: Die Falle gegen Skripte, bleibt leer. Menschen sehen das Feld nie.
+        dauerMs:
+          type: integer
+          minimum: 0
+          description: Millisekunden seit dem Laden der Seite, vom Skript gemessen (unter 2000 ist 422 `ZU_SCHNELL`).
+    FormularAntwortFehler:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - ANTWORTEN_UNGUELTIG
+            - ZU_SCHNELL
+        message:
+          type: string
+        fehler:
+          type: array
+          description: Nur Feld-ID und Code, nie der Wert.
+          items:
+            type: object
+            required:
+              - feld
+              - code
+            properties:
+              feld:
+                type: string
+              code:
+                type: string
+                enum:
+                  - UNBEKANNT
+                  - PFLICHT
+                  - TYP
+                  - FORMAT
+                  - ZU_LANG
+                  - ZU_KURZ
+                  - BEREICH
+                  - OPTION
+                  - ANZAHL
+                  - STEUERZEICHEN
+    FormularZeile:
+      type: object
+      required:
+        - formularId
+        - seiteId
+        - seitenTitel
+        - titel
+        - veroeffentlicht
+        - schliesstAm
+        - aufbewahrenTage
+        - anzahl
+        - letzteAm
+      properties:
+        formularId:
+          type: string
+          format: uuid
+        seiteId:
+          type: string
+          format: uuid
+        seitenTitel:
+          type: string
+        titel:
+          type: string
+          nullable: true
+        veroeffentlicht:
+          type: boolean
+          description: Steht der Baustein in der veröffentlichten Version der Seite? Sonst nimmt das Formular nichts mehr an.
+        schliesstAm:
+          type: string
+          nullable: true
+          description: Letzter Tag für Antworten (`JJJJ-MM-TT`, Zürcher Zeit).
+        aufbewahrenTage:
+          type: integer
+        anzahl:
+          type: integer
+        letzteAm:
+          type: string
+          format: date-time
+          nullable: true
+    FormularAnsicht:
+      type: object
+      required:
+        - formular
+        - rechte
+        - felder
+      properties:
+        formular:
+          $ref: "#/components/schemas/FormularZeile"
+        rechte:
+          type: object
+          required:
+            - exportieren
+            - loeschen
+          properties:
+            exportieren:
+              type: boolean
+            loeschen:
+              type: boolean
+        felder:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - beschriftung
+              - typ
+            properties:
+              id:
+                type: string
+                format: uuid
+              beschriftung:
+                type: string
+              typ:
+                type: string
+    FormularAntwortenSeite:
+      type: object
+      required:
+        - antworten
+        - weitere
+        - naechste
+      properties:
+        antworten:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - erstelltAm
+              - person
+              - eintraege
+            properties:
+              id:
+                type: string
+                format: uuid
+              erstelltAm:
+                type: string
+                format: date-time
+              person:
+                type: string
+                nullable: true
+                description: Cevi-Name, sonst Vorname; `null` bei einer anonymen Antwort oder gelöschtem Konto.
+              eintraege:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - feldId
+                    - beschriftung
+                    - typ
+                    - wert
+                  properties:
+                    feldId:
+                      type: string
+                      format: uuid
+                    beschriftung:
+                      type: string
+                    typ:
+                      type: string
+                    wert:
+                      type: string
+        weitere:
+          type: boolean
+        naechste:
+          type: string
+          format: uuid
+          nullable: true
     Fehler:
       type: object
       required:

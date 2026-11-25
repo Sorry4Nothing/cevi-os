@@ -10,6 +10,7 @@ import {
 import { pruefeDokument } from "../src/website/dokument.js";
 import { rendereGeschuetzte, serialisiere } from "../src/website/rendern.js";
 import { keineDaten, rendereBausteine } from "../src/website/rendern.js";
+// @ts-expect-error TS7016: kein Typ für die JavaScript-Datei
 import { baueKnoten } from "../public/website/knoten.js";
 
 // Baustein «formular» (#819): Schema, Prüfung der Antworten, Renderer und die Elemente, die knoten.js beim Nachladen kennt

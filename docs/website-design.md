@@ -373,6 +373,17 @@ Das erste Bild einer Seite ist ihr Titelbild und geht bis zum Fensterrand; der S
 - Die Vorschau im Editor nutzt dieselben Stile wie die Website: `/admin/website-vorschau.css` ist `website.css`, `kopf.css`, `lichtkasten.css`, `karussell.css` und die Stile der Inhaltsbausteine hintereinander, die Schrift Archivo liefert die Verwaltung selbst (`/admin/archivo-latin.woff2`). Die Vorschau ist immer hell, zeigt Termin-Liste, «Zur Anmeldung» und Kontakt (Telefon, E-Mail, Adresse aus der Konfiguration) wie die Website und hat weder Menü noch Skripte. Das Titelbild der Seite stellt der Editor als eigene Fläche «Titelbild» über der Bausteinliste ein; es ist der Baustein «Bild» zuoberst.
 - Nach einer Änderung an Renderer oder Stilvorlage schreibt der Abgleich alle Dateien beim nächsten Lauf neu (der Hash ändert sich).
 
+### Formular (#819)
+
+Der Baustein «Formular» (`formular.ts`, `formular.js`, `formular.css`) ist ein einspaltiger Block bis 40 rem Breite aus den Tokens der Website. Das Markup steht statisch in der Seite (Felder, Beschriftungen, Hilfen, Datenschutzhinweis); `formular.js` prüft und sendet als JSON an `POST /api/v1/formulare/<Baustein>/antworten`. Ist der Baustein nur für Angemeldete, steht an seiner Stelle der Platzhalter, und `geschuetzt.js` baut das Formular nach der Anmeldung aus Knoten (`knoten.js` kennt dafür `form`, `input`, `label` und weitere, immer mit geprüften Attributen).
+
+- **Felder:** Label sichtbar über dem Feld, Hilfetext zwischen Label und Feld (`aria-describedby`), freiwillige Felder tragen «(optional)», Pflichtfelder nichts. Optionsfelder, Mehrfachwahl und «Ja oder Nein» sind Gruppen (`fieldset`, `legend`) mit Zeilen von mindestens 44 px Höhe, die ganze Zeile ist anklickbar. Die Zustimmung ist ein Kästchen mit dem Text als Label. `autocomplete` nur dort, wo es stimmt (`email`, `tel`).
+- **Fehler:** Geprüft wird beim Absenden und danach beim Verlassen eines Feldes; nach einem Fehler gilt die Prüfung live. Am Feld steht der Text mit Symbol (`.fehlertext`, nie nur Farbe), oben eine Zusammenfassung (`.band.fe`, `role="alert"`) mit Links auf die Felder, die den Fokus bekommt. Eingaben bleiben bei jedem Fehler stehen. Fehler des ganzen Vorgangs (Netz, zu viele Versuche) sind ein Toast, alles andere ein Band über dem Formular.
+- **Senden:** Der Knopf bleibt aktiv und sagt «Sende …» (`aria-busy`). Danach ersetzt eine Statusregion (`.band.ok`, `role="status"`) das Formular und bekommt den Fokus. Vor dem Verlassen der Seite mit ungesendeten Eingaben fragt der Browser.
+- **Schliessen:** Mit «Letzter Tag für Antworten» zeigt das Skript nach Mitternacht (Zürcher Zeit) «Dieses Formular ist geschlossen.» statt des Formulars; der Server nimmt ohnehin nichts mehr an (410).
+- **Datenschutz:** Der Hinweis der Redaktion (Pflichtfeld des Bausteins) und der feste Satz mit der Löschfrist stehen immer über dem Knopf.
+- **Falle gegen Skripte:** Das Feld `homepage` liegt ausserhalb des Bildes, ist `aria-hidden` und `tabindex="-1"`.
+
 ### Fotoalben (#796)
 
 Der Baustein «Fotoalben» (`fotos.js`, `fotos-logik.js`, `fotos.css`, nur angemeldet) hat zwei Ansichten, beide aus den Tokens der Website:

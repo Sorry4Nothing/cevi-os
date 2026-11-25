@@ -130,6 +130,9 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `GET /admin/lager-vorlagen.js`                | Skript der Verwaltung – Bereich Lager, Vorlagen                                      | **200** alle      |
 | `GET /.well-known/apple-app-site-association` | Apple App Site Association (noch leer)                                               | **200** alle      |
 | `GET /.well-known/assetlinks.json`            | Android Digital Asset Links (noch leer)                                              | **200** alle      |
+| `GET /admin/website-felder-formular.js`       | Skript der Verwaltung – Bereich Website, Felder des Bausteins «Formular»             | **200** alle      |
+| `GET /admin/website-formulare.js`             | Skript der Verwaltung – Bereich Website, Formulare                                   | **200** alle      |
+| `GET /admin/website-formulare.css`            | Stilvorlage der Verwaltung – Bereich Website, Formulare                              | **200** alle      |
 
 ## Anmeldung (better-auth)
 
@@ -238,6 +241,12 @@ Von Hand ergänzt (#785); die Matrix läuft mit `APP_NACHWEIS=aus`, dort gibt es
 | `DELETE /api/v1/admin/plattform/rollen/:id`                    | Plattformrolle löschen                                         | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 | `PUT /api/v1/admin/plattform/rollen/:id/personen/:userId`      | Plattformrolle einer Person zuweisen                           | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 | `DELETE /api/v1/admin/plattform/rollen/:id/personen/:userId`   | Plattformrolle einer Person entziehen                          | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `GET /api/v1/admin/formulare`                                  | Formulare der Website mit der Zahl ihrer Antworten             | **200** admin, demoAdmin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoEltern           |
+| `GET /api/v1/admin/formulare/:id`                              | Ein Formular mit seinen Feldern und den Rechten der Person     | **200** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `GET /api/v1/admin/formulare/:id/antworten`                    | Antworten eines Formulars, neueste zuerst                      | **200** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `GET /api/v1/admin/formulare/:id/antworten.csv`                | Antworten eines Formulars als CSV                              | **200** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `DELETE /api/v1/admin/formulare/:id/antworten/:antwortId`      | Eine Antwort löschen                                           | **204** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
+| `DELETE /api/v1/admin/formulare/:id/antworten`                 | Alle Antworten eines Formulars löschen                         | **200** admin<br>**401** deaktiviert, ohneLogin<br>**403** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern<br>**404** demoAdmin, demoEltern |
 
 ## App: stufen
 
@@ -343,6 +352,12 @@ Von Hand ergänzt (#785); die Matrix läuft mit `APP_NACHWEIS=aus`, dort gibt es
 | `GET /api/v1/chats/:id/nachrichten`  | Nachrichten eines Chats lesen              | **200** slA, elternA<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slB, leitendeA, leitendeB, leitendeAElternB, elternB, demoAdmin, demoEltern |
 | `POST /api/v1/chats/:id/nachrichten` | Nachricht in einen Chat senden             | **201** slA, elternA<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slB, leitendeA, leitendeB, leitendeAElternB, elternB, demoAdmin, demoEltern |
 | `PUT /api/v1/chats/:id/gelesen`      | Chat als gelesen markieren                 | **204** slA, elternA<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slB, leitendeA, leitendeB, leitendeAElternB, elternB, demoAdmin, demoEltern |
+
+## App: formulare
+
+| Route                                  | Zweck                                       | Status je Persona                                                                                                                                                                       |
+| -------------------------------------- | ------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `POST /api/v1/formulare/:id/antworten` | Antwort auf ein Formular der Website senden | **201** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, deaktiviert, ohneLogin, demoAdmin, demoEltern<br>**403** mussPasswortAendern |
 
 ## Lager: adressbuch
 

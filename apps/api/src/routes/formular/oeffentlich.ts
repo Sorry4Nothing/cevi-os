@@ -1,5 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
-import { Hono } from "hono";
+import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
 import { GESPERRT, IN_WARTUNG, type SchalterZustand } from "../../bereichsschalter.js";
 import { clientIp } from "../../client-ip.js";
@@ -75,10 +75,13 @@ type Env = { Variables: { person?: Person } };
 export function erstelleFormularOeffentlichRoute({
   db,
   schalter,
+  optionalePerson,
   jetzt = () => new Date(),
 }: {
   db: Db;
   schalter: SchalterZustand;
+  // Liest eine vorhandene Sitzung (optionalePersonAusSitzung); als Handler der Route, nicht als use(): Ein use() stünde in der Liste der Routen
+  optionalePerson: MiddlewareHandler<Env>;
   jetzt?: () => Date;
 }) {
   const adresse = erstelleBegrenzung({
@@ -100,6 +103,7 @@ export function erstelleFormularOeffentlichRoute({
 
   return new Hono<Env>().post(
     "/:id/antworten",
+    optionalePerson,
     eingabe("param", pfadSchema),
     eingabe("json", koerperSchema),
     async (c) => {

@@ -341,10 +341,14 @@ export function erstelleApp({
         erstelleAppNachweisRouten({ dienst: appNachweis }),
       )
       // Antworten auf Formulare der Website (#819): auch ohne Anmeldung; eine vorhandene Sitzung liest die Route mit. Sperre und Wartung prüft sie selbst, denn erst das Formular nennt die Abteilung
-      .use("/api/v1/formulare/*", optionalePersonAusSitzung(auth, db))
       .route(
         "/api/v1/formulare",
-        erstelleFormularOeffentlichRoute({ db, schalter, jetzt }),
+        erstelleFormularOeffentlichRoute({
+          db,
+          schalter,
+          optionalePerson: optionalePersonAusSitzung(auth, db),
+          jetzt,
+        }),
       )
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))
