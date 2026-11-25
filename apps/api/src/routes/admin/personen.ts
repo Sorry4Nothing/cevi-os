@@ -8,6 +8,7 @@ import type { erstelleAuth } from "../../auth.js";
 import { bildUrl } from "../../bild.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import { ceviNameFeld } from "../../cevi-name.js";
+import { geschlechtFeld, type Geschlecht } from "../../geschlecht.js";
 import {
   BENUTZERNAME_MAX,
   BENUTZERNAME_MIN,
@@ -122,6 +123,7 @@ const anlegenSchema = z.strictObject({
   vorname: text(100),
   nachname: text(100),
   ceviName: ceviNameFeld.optional(),
+  geschlecht: geschlechtFeld.optional(),
   telefon: telefonSchema.optional(),
   benutzername: benutzernameFeld,
   abteilungsleitung: z.boolean(),
@@ -132,6 +134,7 @@ const anlegenSchema = z.strictObject({
 const aendernSchema = z.strictObject({
   name: text(201).optional(),
   ceviName: ceviNameFeld.nullable().optional(),
+  geschlecht: geschlechtFeld.nullable().optional(),
   telefon: telefonSchema.optional(),
   abteilungsleitung: z.boolean().optional(),
   rollen: rollenFeld.optional(),
@@ -359,6 +362,7 @@ export function erstellePersonenRouten({
               id: user.id,
               name: user.name,
               ceviName: user.ceviName,
+              geschlecht: user.geschlecht,
               telefon: user.telefon,
               benutzername: user.username,
               abteilungsleitung: istAbteilungsleitungSql(user.id),
@@ -453,6 +457,7 @@ export function erstellePersonenRouten({
           id: p.id,
           name: p.name,
           ceviName: p.ceviName,
+          geschlecht: p.geschlecht,
           bildUrl: p.bildUrl,
           telefon: p.telefon,
           benutzername: p.benutzername,
@@ -564,6 +569,7 @@ export function erstellePersonenRouten({
             const felder: Partial<{
               name: string;
               ceviName: string | null;
+              geschlecht: Geschlecht | null;
               telefon: string | null;
             }> = {};
             // Nur geänderte Schlüssel; ein No-op des Rollen-Editors schreibt keinen Eintrag
@@ -572,6 +578,9 @@ export function erstellePersonenRouten({
             if (aenderung.name !== undefined) felder.name = aenderung.name;
             if (aenderung.ceviName !== undefined) {
               felder.ceviName = aenderung.ceviName;
+            }
+            if (aenderung.geschlecht !== undefined) {
+              felder.geschlecht = aenderung.geschlecht;
             }
             if (aenderung.telefon !== undefined) {
               felder.telefon = aenderung.telefon;

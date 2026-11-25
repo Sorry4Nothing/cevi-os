@@ -139,7 +139,7 @@ describe("Seite Datenschutz Cevi OS", () => {
     });
   });
 
-  test("die acht Abschnitte 11.1 bis 11.8 und 42 Kategorien", () => {
+  test("die acht Abschnitte 11.1 bis 11.8 und 43 Kategorien", () => {
     const abschnitte = [
       ...html.matchAll(/<h3 id="(abschnitt-[\d-]+)">([^<]+)<\/h3>/g),
     ];
@@ -161,15 +161,15 @@ describe("Seite Datenschutz Cevi OS", () => {
     const kategorien = [...html.matchAll(/<h4>([^<]+)<\/h4>/g)].map(
       (m) => m[1],
     );
-    expect(kategorien).toHaveLength(42);
-    expect(new Set(kategorien).size).toBe(42);
+    expect(kategorien).toHaveLength(43);
+    expect(new Set(kategorien).size).toBe(43);
     expect(kategorien[0]).toBe("Konto und Anmeldung");
     expect(kategorien.at(-1)).toBe("Angaben aus der Cevi-Datenbank");
     // Jede Kategorie nennt Daten, Zweck und Aufbewahrung
     for (const zeile of ["Daten", "Zweck", "Aufbewahrung"]) {
       expect(
         html.match(new RegExp(`<li><strong>${zeile}:</strong>`, "g")),
-      ).toHaveLength(42);
+      ).toHaveLength(43);
     }
   });
 

@@ -9,6 +9,7 @@ import {
   kindEltern,
   rolle,
 } from "./db/schema.js";
+import type { Geschlecht } from "./geschlecht.js";
 import type { Person } from "./rechte.js";
 import {
   normalisiereStartpasswort,
@@ -22,6 +23,7 @@ export interface NeuePerson {
   nachname: string;
   ceviName?: string | null;
   telefon?: string | null;
+  geschlecht?: Geschlecht | null;
   benutzername: string;
   abteilungsleitung: boolean;
   rollen: readonly { stufeId: string; typ: "leitung" | "stufenleitung" }[];
@@ -53,10 +55,13 @@ export async function legePersonAn(
       },
     },
   });
-  if (eingaben.telefon) {
+  if (eingaben.telefon || eingaben.geschlecht) {
     await tx
       .update(schema.user)
-      .set({ telefon: eingaben.telefon })
+      .set({
+        ...(eingaben.telefon && { telefon: eingaben.telefon }),
+        ...(eingaben.geschlecht && { geschlecht: eingaben.geschlecht }),
+      })
       .where(eq(schema.user.id, neu.id));
   }
   if (eingaben.abteilungsleitung) {

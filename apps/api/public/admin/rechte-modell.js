@@ -1,4 +1,5 @@
 import { kennungGueltig } from "./api.js";
+import { rollenName } from "./rollenname.js";
 
 // Rollen und Rechte (#651): reine Logik ohne DOM, damit sie sich ohne Browser prüfen lässt. Sie rechnet mit dem, was die Matrix-API (/api/v1/admin/rechte, #643) liefert: den Katalog, Rollen mit ihren Rechten und Personen. Entschieden wird auf dem Server: Eine Vorschau hier ist keine Berechtigung.
 // Eine Zuteilung ist { recht, geltung } mit geltung «alle» oder «eigene»; in der Matrix kommt «aus» dazu (kein Eintrag).
@@ -562,16 +563,14 @@ export function verlaufText(z, nachschlagen) {
 
 // ---------- Personenliste von «Was darf wer?» (#661): reine Funktionen, damit gleiche Namen unterscheidbar sind; die Anzeige steht in rechte-uebersicht.js (ohne DOM, damit sie sich testen lässt) ----------
 
-const ROLLENNAME = { stufenleitung: "Stufenleitung", leitung: "Leitung" };
-
-// Rolle als Klartext: «Abteilungsleitung», «Stufenleitung Artemis», mehrere mit Komma. Ohne Rolle leer.
+// Rolle als Klartext: «Abteilungsleitung», «Stufenleiterin Artemis» (nach dem Geschlecht der Person, #817; ohne Angabe «Stufenleitung Artemis»), mehrere mit Komma. Ohne Rolle leer.
 // person: Eintrag aus GET /api/v1/admin/personen; stufenName: Map Stufen-ID nach Name
 export function rolleText(person, stufenName) {
   const teile = [];
   if (person.abteilungsleitung) teile.push("Abteilungsleitung");
   if (person.entwickler) teile.push("Entwickler");
   for (const r of person.rollen ?? []) {
-    const name = ROLLENNAME[r.typ];
+    const name = rollenName(r.typ, person.geschlecht);
     if (name) teile.push(`${name} ${stufenName.get(r.stufeId) ?? ""}`.trim());
   }
   return teile.join(", ");
@@ -594,18 +593,20 @@ export function listenZeilen(personen, stufenName) {
   return personen.map((person) => ({
     person,
     rolle: rolleText(person, stufenName),
+    // Die Suche findet auch «Stufenleitung», wenn die Zeile «Stufenleiterin» zeigt
+    rolleNeutral: rolleText({ ...person, geschlecht: null }, stufenName),
     zusatz: doppelt.has(person.name.trim().toLocaleLowerCase("de-CH"))
       ? [person.ceviName, person.benutzername].filter(Boolean).join(" · ")
       : "",
   }));
 }
 
-// Suchtext: Name, Cevi-Name, Benutzername und Rolle
+// Suchtext: Name, Cevi-Name, Benutzername und Rolle (in beiden Formen)
 export const passtZurSuche = (zeile, suche) => {
   const f = suche.trim().toLocaleLowerCase("de-CH");
   if (!f) return true;
   const p = zeile.person;
-  return `${p.name} ${p.ceviName ?? ""} ${p.benutzername ?? ""} ${zeile.rolle}`
+  return `${p.name} ${p.ceviName ?? ""} ${p.benutzername ?? ""} ${zeile.rolle} ${zeile.rolleNeutral ?? ""}`
     .toLocaleLowerCase("de-CH")
     .includes(f);
 };

@@ -81,6 +81,8 @@ export const user = pgTable(
     displayUsername: text("display_username"),
     // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
     ceviName: text("cevi_name"),
+    // Freiwillige Angabe (#817): w, m oder d; null = keine Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt («Stufenleiterin», «Stufenleiter», sonst «Stufenleitung»)
+    geschlecht: text("geschlecht"),
     // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
     ceviDbId: text("cevi_db_id"),
     // Nur noch die Spalte, die das admin-Plugin von better-auth in seinem Schema verlangt: immer «user» (CHECK), nirgends gelesen. Die Rollen stehen in abteilungsleitung_person und plattform_entwickler (#784)
@@ -110,6 +112,10 @@ export const user = pgTable(
   },
   (t) => [
     check("user_role_nur_user", sql`${t.role} is null or ${t.role} = 'user'`),
+    check(
+      "user_geschlecht_check",
+      sql`${t.geschlecht} is null or ${t.geschlecht} in ('w', 'm', 'd')`,
+    ),
   ],
 );
 

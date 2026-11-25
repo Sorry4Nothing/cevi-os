@@ -3042,6 +3042,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/rollenname.js:
+    get:
+      operationId: getAdminRollennameSkript
+      summary: Skript der Verwaltung – Rollenname nach Geschlecht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-anlass.js:
     get:
       operationId: getAdminTagsAnlassSkript
@@ -27156,6 +27171,7 @@ components:
         - id
         - name
         - ceviName
+        - geschlecht
         - benutzername
         - mussPasswortAendern
         - datenschutzGelesenAm
@@ -27183,6 +27199,16 @@ components:
             - string
             - "null"
           description: Cevi-Name (Spitzname), `null` ohne Angabe.
+        geschlecht:
+          type:
+            - string
+            - "null"
+          enum:
+            - w
+            - m
+            - d
+            - null
+          description: Eigene Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die eigene Rolle nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung). Ändern lässt sie sich nur in der Verwaltung unter Personen (#817).
         benutzername:
           type:
             - string
@@ -27511,6 +27537,7 @@ components:
             - id
             - name
             - ceviName
+            - geschlecht
             - rolle
           properties:
             id:
@@ -27523,6 +27550,16 @@ components:
                 - string
                 - "null"
               description: Cevi-Name (Spitzname), `null` ohne Angabe.
+            geschlecht:
+              type:
+                - string
+                - "null"
+              enum:
+                - w
+                - m
+                - d
+                - null
+              description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
             rolle:
               type: string
               enum:
@@ -28223,6 +28260,7 @@ components:
         - id
         - name
         - ceviName
+        - geschlecht
         - bildUrl
         - telefon
         - benutzername
@@ -28247,6 +28285,16 @@ components:
             - string
             - "null"
           description: Cevi-Name (Spitzname), `null` ohne Angabe.
+        geschlecht:
+          type:
+            - string
+            - "null"
+          enum:
+            - w
+            - m
+            - d
+            - null
+          description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
         bildUrl:
           type:
             - string
@@ -28386,6 +28434,13 @@ components:
           type: string
           maxLength: 50
           description: Freiwillig. Leerraum am Rand wird entfernt; leer heisst nicht gesetzt.
+        geschlecht:
+          type: string
+          enum:
+            - w
+            - m
+            - d
+          description: Freiwillig (#817). `w` weiblich, `m` männlich, `d` andere; ohne Angabe nennt die Verwaltung die Rolle neutral. Ein anderer Wert ergibt 400.
         telefon:
           type: string
           description: Freiwillig, nur mit einer Rolle `stufenleitung` (sonst 400). Ziffern mit `+`, Leerzeichen, `()`, `/`, `.` und `-`, 6 bis 30 Zeichen; leer heisst nicht gesetzt.
@@ -28458,6 +28513,16 @@ components:
             - "null"
           maxLength: 50
           description: Leerraum am Rand wird entfernt; leer oder `null` löscht den Cevi-Namen.
+        geschlecht:
+          type:
+            - string
+            - "null"
+          enum:
+            - w
+            - m
+            - d
+            - null
+          description: Freiwillige Angabe (#817). `w` weiblich, `m` männlich, `d` andere; `null` entfernt sie. Ein anderer Wert ergibt 400. Es schreibt keinen Audit-Eintrag, wie `ceviName`.
         telefon:
           type:
             - string

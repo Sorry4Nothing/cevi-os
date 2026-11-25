@@ -27,6 +27,7 @@ import {
 import { meldePersonen, nimmWunsch } from "./befehlspalette.js";
 import { typName } from "./tags-detail.js";
 import { skeletonTabelle } from "./lader.js";
+import { rollenName } from "./rollenname.js";
 import {
   abschnitte,
   ansichtsleiste,
@@ -209,7 +210,7 @@ function zeichne(bereich, ctx, daten, neu) {
       person.entwickler && chip("Entwickler", undefined, false),
       ...person.rollen.map((r) =>
         chip(
-          `${r.typ === "stufenleitung" ? "Stufenleitung" : "Leitung"} · ${stufenname.get(r.stufeId) ?? "Stufe"}`,
+          `${rollenName(r.typ, person.geschlecht)} · ${stufenname.get(r.stufeId) ?? "Stufe"}`,
           "stufe",
           false,
         ),
