@@ -195,6 +195,12 @@ async function start() {
     );
   }
   zeigeAnmelden();
+  // Mit Sitzung kommen auch die Seiten ins Menü, die nur Angemeldete sehen dürfen (#795); ohne Sitzung wird das Modul nie geladen
+  try {
+    import("./navigation.js").catch(() => {});
+  } catch {
+    // Das Menü bleibt, wie es ist
+  }
   return daten;
 }
 

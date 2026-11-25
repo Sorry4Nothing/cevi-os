@@ -118,6 +118,27 @@ describe("Panel der Abteilungsleitung: Personen, Gruppen, Kinder, Stufen, Import
     expect(blatt).toContain("über «Rechte und Rollen»");
   });
 
+  test("Abteilungsleitung (#799): dieselbe Zeile wie die Stufenrollen, kein loses Kontrollkästchen", () => {
+    const blatt = lies("personen-blatt.js");
+    // Segmentwahl «Nein | Ja» als Radiogruppe, benannt mit der Person
+    expect(blatt).toContain("export function abteilungFeld");
+    expect(blatt).toContain("`Abteilungsleitung: ${personName}`");
+    expect(blatt).toContain('[false, "Nein"]');
+    expect(blatt).toContain('[true, "Ja"]');
+    // Gleiche Bausteine und Klassen wie die Stufenzeilen, gleiche Überschriftenform
+    expect(blatt).toContain('"Abteilung"');
+    expect(blatt).toContain('"Stufen und Rollen"');
+    // Abteilung, Stufen und Rollen, Funktionen (#801)
+    expect(blatt.match(/class: "pe-teiltitel"/g)).toHaveLength(3);
+    expect(blatt).toContain('chip("Abteilungsleitung", "stufe", "schild")');
+    // Der Wert geht wie bisher als abteilungsleitung an die API
+    expect(
+      blatt.match(/abteilungsleitung: abteilungsleitung\.wert\(\)/g),
+    ).toHaveLength(2);
+    expect(blatt).not.toContain("ankreuzen");
+    expect(blatt).not.toContain("abteilungsleitung.eingabe");
+  });
+
   test("Gruppe einer Stufe: Leitung und Stufenleitung ändert man nur bei der Person", () => {
     const detail = lies("tags-detail.js");
     expect(detail).toContain("istStufenrolle");
@@ -126,5 +147,47 @@ describe("Panel der Abteilungsleitung: Personen, Gruppen, Kinder, Stufen, Import
 
   test("die Telefonnummer wird in einer eigenen reinen Datei geschrieben", () => {
     expect(lies("telefon.js")).toContain("normalisiereTelefon");
+  });
+});
+
+// Funktionen (globale Rollen wie Webmaster) vergibt man im Blatt der Person, nicht in den Rolleneinstellungen (#801)
+describe("Funktionen im Blatt der Person (#801)", () => {
+  test("das Blatt hat den Block «Funktionen» im Muster der Stufenrollen, mit den bestehenden Routen", () => {
+    const blatt = lies("personen-blatt.js");
+    expect(blatt).toContain("export function funktionenFelder");
+    expect(blatt).toContain('"Funktion hinzufügen"');
+    expect(blatt).toContain("Funktion ${r.name} entfernen: ${person.name}");
+    expect(blatt).toContain('"Rückgängig"');
+    // Dieselben Routen wie früher die Rollenseite; Entziehen vor Vergeben, Fehler je Funktion
+    expect(blatt).toContain("vergebeGlobaleRolle");
+    expect(blatt).toContain("entzieheGlobaleRolle");
+    expect(blatt).toContain("KONTO_GESCHUETZT");
+    // Angeboten wird nur, was die handelnde Person selbst in vollem Umfang hat
+    expect(blatt).toContain('eigene.get(recht) === "alle"');
+    // Ohne Recht auf «Rechte und Rollen vergeben» liefert ladeDaten keine Funktionen, das Blatt zeigt den Block nicht
+    expect(blatt).toContain("daten.funktionen");
+    const liste = lies("personen.js");
+    expect(liste).toContain('darf("rechte.verwalten")');
+    expect(liste).toContain("/api/v1/admin/rechte/rollen");
+  });
+
+  test("die Adresse #personen/personen/<id> öffnet das Blatt, nur mit echter Kennung", () => {
+    const liste = lies("personen.js");
+    expect(liste).toContain("kennungGueltig(id)");
+    expect(liste).toContain("zustand.oeffne");
+  });
+
+  test("die Rollenseite einer globalen Rolle liest nur: Liste mit Link zum Blatt, kein Zuordnen, kein Entziehen", () => {
+    const rolle = lies("rechte-rolle.js");
+    expect(rolle).not.toContain("vergebeGlobaleRolle");
+    expect(rolle).not.toContain("entzieheGlobaleRolle");
+    expect(rolle).toContain("#personen/personen/${p.id}");
+    expect(rolle).toContain("Bearbeiten im Blatt");
+    expect(rolle).toContain(
+      "Funktionen vergibst du im Blatt der Person (Personen → Person → Rechte und Rollen).",
+    );
+    // Gruppenrollen behalten Zuordnen und Entziehen
+    expect(rolle).toContain('"Personen zuordnen"');
+    expect(rolle).toContain("ordneZu(");
   });
 });

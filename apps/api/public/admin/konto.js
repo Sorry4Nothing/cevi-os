@@ -948,7 +948,7 @@ function zweiterFaktorBlock(profil, beiStand) {
           ? "Beim Anmelden in der Verwaltung fragt das System nach dem Code aus deiner Authenticator-App. Hast du dein Gerät verloren, setzt die Abteilungsleitung den zweiten Faktor für dich zurück."
           : "Der zweite Faktor schützt dein Konto: Beim Anmelden in der Verwaltung gibst du zusätzlich einen Code aus einer Authenticator-App ein. Für manche Rechte ist er Pflicht. Die Website und die Apps fragen nie danach.",
       ),
-      !an && el("div", { class: "kt-aktionen" }, einrichten),
+      ...(an ? [] : [el("div", { class: "kt-aktionen" }, einrichten)]),
     );
   };
   zeichneStand(profil.zweiterFaktor === true);

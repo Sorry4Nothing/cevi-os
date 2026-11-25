@@ -142,6 +142,8 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/hintergrund.svg": { erwartet: alle(200) },
   "GET /admin/kinder.js": { erwartet: alle(200) },
   "GET /admin/website-fotos.js": { erwartet: alle(200) },
+  "GET /admin/website-fotos-alben.js": { erwartet: alle(200) },
+  "GET /admin/website-fotos-logik.js": { erwartet: alle(200) },
   "GET /admin/website-fotos.css": { erwartet: alle(200) },
   "GET /admin/kinder-konto.js": { erwartet: alle(200) },
   "GET /admin/mitteilungen.js": { erwartet: alle(200) },
@@ -1492,6 +1494,20 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Mehrere Alben zeigen (#794): wie ein einzelnes Album erst das Objekt (404, ohne Zugang zu Flickr), dann das Recht; Wirkung in test/fotos-routen.test.ts
+  "PUT /api/v1/admin/fotos/alben/sichtbarkeit": {
+    body: () => ({
+      sichtbar: true,
+      alben: [{ id: "987654321", version: 0 }],
+    }),
+    erwartet: {
+      ...alle(404),
+      adminOhneZweitenFaktor: 403,
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "PUT /api/v1/admin/fotos/alben/:id": {
     url: () => "/api/v1/admin/fotos/alben/987654321",
     body: () => ({ titel: "Matrix", version: 0 }),
@@ -2551,6 +2567,15 @@ const MATRIX: Record<string, Zeile> = {
   },
   // Konto-MenÃ¼ im Kopf der Website (#669): jede Person mit Sitzung bekommt Anzeigename, Bild und Â«verwaltungÂ»; ohne Sitzung 401; die Wirkung steht in test/website-konto.test.ts
   "GET /api/v1/website/konto": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  // Menü für Angemeldete (#795): jede Person mit Sitzung bekommt die Seiten, die sie sehen darf (leere Liste ohne Seiten); ohne Sitzung 401; die Wirkung steht in test/website-navigation.test.ts
+  "GET /api/v1/website/navigation": {
     erwartet: {
       ...alle(200),
       mussPasswortAendern: 403,

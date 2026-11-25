@@ -14,6 +14,8 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
 - Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 73; Rollen «Abteilungsleitung» und «Entwickler» in der Verwaltung: Abschnitt 74; beide im Browser geprüft.
 - Rückmeldungen nach einer Aktion auf der öffentlichen Website (Toasts): Abschnitt 83, im Browser geprüft.
+- Fotos in der Verwaltung (Albumliste mit Suche, Filter und Sammelaktionen): Abschnitt 87, im Browser geprüft.
+- Funktionen im Blatt der Person (Verwaltung, Personen) und Rollenseite nur zum Lesen: Abschnitt 89, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -507,7 +509,7 @@ Dieser Abschnitt gilt für `befehlspalette.js` und den Block «Suche» in `gerue
 
 Dieser Abschnitt gilt für das Personenformular (`personen-blatt.js`, `personen.css`) und die Gruppe einer Stufe (`tags-detail.js`). Geprüft wird im Browser mit der Abteilungsleitung, bei 1440 und 390 Pixeln, in Tag und Nacht, mit Tastatur.
 
-- [ ] **29.1** «Rechte und Rollen»: Stufen stehen nicht vorab da. Die Karte zeigt nur zugewiesene Stufen als Zeilen (Stufe als Chip mit Text, Rolle als Segment mit Radioknöpfen in einer `radiogroup` mit Namen «Rolle in <Stufe>», «Entfernen»). Eine Person hat keine, eine oder mehrere Stufen; eine Stufe nur einmal.
+- [ ] **29.1** «Rechte und Rollen»: Die Karte hat zwei Gruppen mit gleicher Zwischenüberschrift: «Abteilung» (eine Zeile: Chip «Abteilungsleitung», Segment «Nein | Ja» als `radiogroup` mit Namen «Abteilungsleitung: <Person>», Pfeiltasten, Fokus bleibt nach der Änderung, Zielgrösse mindestens 44 Pixel) und «Stufen und Rollen». Beide Zeilen haben dieselbe Form, denselben Abstand und dieselbe Segmentwahl; die Abteilungsleitung ist kein loses Kontrollkästchen (#799). Stufen stehen nicht vorab da. Die Karte zeigt nur zugewiesene Stufen als Zeilen (Stufe als Chip mit Text, Rolle als Segment mit Radioknöpfen in einer `radiogroup` mit Namen «Rolle in <Stufe>», «Entfernen»). Eine Person hat keine, eine oder mehrere Stufen; eine Stufe nur einmal.
 - [ ] **29.2** «Stufe hinzufügen»: Auswahl «Stufe» und «Rolle in der Stufe» (eigene Auswahlfelder, Tastatur), dazu der Knopf. Fehlt eine Angabe, steht die Meldung am Feld («Wähle eine Stufe.», «Wähle eine Rolle.»), das Feld hat `aria-invalid` und den Fokus. Die Rolle hat keine Vorgabe: Es wird nie still eine Rolle mit Rechten gesetzt. «Teilnehmer» gibt es nicht, weil das Rechtemodell für Personen mit Konto nur Leitung und Stufenleitung kennt.
 - [ ] **29.3** «Entfernen» streicht die Zeile durch und schreibt «wird beim Speichern entfernt» (nie nur Farbe); der Knopf heisst dann «Rückgängig». Eine Stufe, die erst neu dazukam, ist mit dem Entfernen weg. Jede Änderung steht in einer Statusregion (`role="status"`), der Fokus bleibt bei der Zeile oder geht zur Auswahl; nichts gilt vor «Speichern», das Formular fragt beim Verlassen.
 - [ ] **29.4** Der Hinweis zur Website ist reiner Text ohne Auswahl und nennt die Rolle («Wer Leitung oder Stufenleitung einer Stufe ist, erscheint mit Name und Profilbild auf der Seite der Stufe. Das ist keine Auswahl, es folgt der Rolle.») und die betroffenen Stufen; er ändert sich mit den Zeilen. Es gibt keinen Schalter «auf der Website zeigen» mehr, weder hier noch in «Mein Profil».
@@ -1164,9 +1166,9 @@ Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, 
 - [ ] **66.11** «Verbindung testen» zeigt das Ergebnis als Meldung (`role="status"`, Fehler `role="alert"`) ohne Geheimnisse; der Knopf zeigt `aria-busy`. Die Verbindung steht als Wort im Band («Die Verbindung zu Flickr steht.» oder der Grund), nie nur als Farbe.
 - [ ] **66.12** Ohne Zugangsdaten steht eine Anleitung Schritt für Schritt (geordnete Liste), ohne Werte.
 - [ ] **66.13** Die Kennung des Kontos hat ein sichtbares Label, Hilfetext, Prüfung beim Speichern mit Meldung beim Feld und Fokus darauf; die Wahl «Link zu Flickr» ist ein Kästchen mit Erklärung.
-- [ ] **66.14** Jedes Album: Schalter «Auf der Website zeigen» (`role="switch"`, `aria-checked`, Name nennt das Album) mit dem Zustand als Wort («Sichtbar», «Nicht sichtbar»); Änderungen gelten sofort, die Meldung bietet «Rückgängig» an. «Titel ändern» öffnet ein Feld in der Zeile (`aria-expanded`), Fokus ins Feld und beim Schliessen zurück auf den Knopf.
+- [ ] **66.14** (Seit #794 gilt für die Liste Abschnitt 87; die Zeile hat dort kein Zustandswort mehr, der Bereich sagt es.) Jedes Album: Schalter «Auf der Website zeigen» (`role="switch"`, `aria-checked`, Name nennt das Album) mit dem Zustand als Wort («Sichtbar», «Nicht sichtbar»); Änderungen gelten sofort, die Meldung bietet «Rückgängig» an. «Titel ändern» öffnet ein Feld in der Zeile (`aria-expanded`), Fokus ins Feld und beim Schliessen zurück auf den Knopf.
 - [ ] **66.15** Die Reihenfolge lässt sich per Ziehen, mit Tastatur (Leertaste, Pfeile) und mit Knöpfen «Nach oben» und «Nach unten» ändern (2.5.7); die Änderung wird angesagt und lässt sich in der Frist zurücknehmen.
-- [ ] **66.16** Zustände der Liste: lädt (Skeleton), leer (Bei Flickr gibt es noch keine Alben), Fehler mit «Nochmals versuchen»; Zielgrössen 44 Pixel, Hell und Dunkel, 390 bis 1440 Pixel.
+- [ ] **66.16** (Seit #794 siehe 87.) Zustände der Liste: lädt (Skeleton), leer (Bei Flickr gibt es noch keine Alben), Fehler mit «Nochmals versuchen»; Zielgrössen 44 Pixel, Hell und Dunkel, 390 bis 1440 Pixel.
 
 ### Stand der Prüfung (#690)
 
@@ -1366,7 +1368,7 @@ Dieser Abschnitt gilt für die Chips und Schalter, die die Rolle zeigen: «Mein 
 
 - [ ] **74.1** Die Rolle steht als Text, nie nur als Farbe: «Abteilungsleitung» und «Entwickler» sind Chips mit Beschriftung (Mein Konto, Personenkarte, Liste) und eine Textzeile unter dem Namen (Kopf, Personenblatt). Ein Konto mit beiden zeigt beide Wörter.
 - [ ] **74.2** Der Filter «Rolle» in der Personenliste hat die Optionen «Abteilungsleitung» und «Entwickler» und bleibt mit der Tastatur bedienbar; die Gruppen «Abteilungsleitung» und «Entwickler» tragen je eine Überschrift mit Zähler.
-- [ ] **74.3** Der Hilfetext im Personenblatt («Diese Person ist auch Entwickler …») steht als Absatz unter dem Schalter «Abteilungsleitung» und ist für Bildschirmleser lesbar (kein `title`, kein Tooltip). Der Schalter «Abteilungsleitung» hat sein sichtbares Label; die Rolle «Entwickler» ist nur zu lesen und hat keinen Schalter.
+- [ ] **74.3** Der Hilfetext im Personenblatt («Diese Person ist auch Entwickler …») steht als Absatz unter der Zeile «Abteilungsleitung» (Gruppe «Abteilung», Segment «Nein | Ja», seit #799 kein Kontrollkästchen mehr) und ist für Bildschirmleser lesbar (kein `title`, kein Tooltip). Die Segmentwahl hat den Namen «Abteilungsleitung: <Person>»; die Rolle «Entwickler» ist nur zu lesen und hat keine Wahl.
 - [ ] **74.4** Kontrast und Reflow der neuen Chips wie die übrigen Chips (4,5:1 Text, 3:1 Rahmen, hell und dunkel; bei 320 px brechen die Chips um).
 
 ### Stand der Prüfung (#737)
@@ -1605,3 +1607,139 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frisch migrierte 
 - Server über HTTP mit einer Rolle «Datenschutz» (nur `konto.loeschen`, zweiter Faktor): Konto ohne Rechte 204; Entwickler 403 `KONTO_GESCHUETZT`; Abteilungsleitung 403 `KONTO_GESCHUETZT`; eigenes Konto 409 `EIGENES_KONTO`; Personenliste 403 (das Recht gibt keine Liste).
 
 **Nicht geprüft:** 86.4 und 86.5 im Browser (86.5: nur die Katalogantwort mit Klartext und Erklärung gelesen, die Seite des Rechte-Editors nicht bedient), Bildschirmleser, Safari und Firefox, Zoom 200 %. Offen: Die Seite «Personen» der Verwaltung öffnet sich nur für Abteilungsleitung und Entwickler (`navigation.js`, Standard `abteilungsleitung`). Eine Rolle mit `konto.loeschen` kann die Route über die API nutzen, bekommt in der Verwaltung aber noch keinen Weg zum Blatt der Person.
+
+## 87. Verwaltung: Fotos, Albumliste für viele Alben (#794)
+
+Die Seite «Website, Fotos» (`public/admin/website-fotos.js`, `website-fotos-alben.js`, `website-fotos-logik.js`, `website-fotos.css`) zeigt die Alben in zwei Bereichen: «Auf der Website» (nur sichtbare, in ihrer Reihenfolge, nur hier lässt sie sich ordnen) und «Weitere Alben bei Flickr» (nach Jahr gruppiert, schrittweise gebaut). Darüber stehen die Verbindung in einer Zeile, das Konto als aufklappbarer Abschnitt und eine Werkzeugleiste mit Suche, Sicht, Jahr und Sortierung. Zeigen und Ausblenden laufen immer über `PUT /api/v1/admin/fotos/alben/sichtbarkeit` (ein Album oder viele, alles oder nichts). Massstab WCAG 2.2 AA; die Abschnitte 66 (Fotos), 14 und 84 (Toasts) und 15 (Auswahlfelder) gelten weiter.
+
+### Prüfpunkte
+
+- [ ] **87.1** Verbindung und «Verbindung testen» stehen in einer Zeile (Band mit Symbol und Wort, nie nur Farbe; `role="status"`, bei Fehlern `role="alert"`). Das Konto ist ein `details` mit Namen «Flickr-Konto» und der Kennung als Text; es ist zu, solange ein Konto gesetzt ist und die Verbindung Alben liefert, sonst offen. Bei fehlendem Konto, fehlender Verbindung oder leerer Albumliste nennt ein Satz die Betreiber-Einstellung `FLICKR_KONTO` (`deploy/.env`).
+- [ ] **87.2** Die Werkzeugleiste ist eine Region mit Namen (`role="search"`). Das Suchfeld hat ein Label (nur für Screenreader sichtbar) und den Kurzbefehl `/` (`aria-keyshortcuts`), der nur ausserhalb von Eingaben fokussiert. Die Sicht (Alle, Sichtbar, Nicht sichtbar) ist eine Gruppe mit `aria-pressed` und den Zahlen im Namen; Jahr und Sortierung haben je einen Namen (Label per `aria-labelledby`).
+- [ ] **87.3** Die Trefferzahl («23 von 87 Alben», ohne Filter «87 Alben») ist eine Statusregion (höflich) und ändert sich beim Tippen. «Filter zurücksetzen» erscheint nur, wenn etwas gesetzt ist, und setzt Suche, Sicht und Jahr zurück (der Fokus geht ins Suchfeld).
+- [ ] **87.4** Ab 48 em haftet die Werkzeugleiste unter der Navigation (`top: var(--leiste-hoehe)`, keine feste Höhe in `vh`); darunter scrollt sie mit (am Handy nähme sie zu viel Platz). Der Fokus bleibt sichtbar und wird weder von der Leiste oben noch von der Auswahlleiste unten verdeckt (`scroll-margin`, WCAG 2.4.11).
+- [ ] **87.5** Jede Zeile ist ein Listeneintrag mit Kästchen («Auswählen: <Album>»), Titel (Titel bei Flickr, bei eigenem Titel dazu «Bei Flickr: «…»»), «393 Fotos · Okt. 2026», Schalter (`role="switch"`, `aria-checked`, Name «Auf der Website zeigen: <Album>») und «Mehr» mit «Titel ändern». Zielgrössen mindestens 44 Pixel; der Titel bricht um, nichts läuft über.
+- [ ] **87.6** Nach dem Zeigen oder Ausblenden verschwindet die Zeile aus ihrem Bereich. Der Fokus geht auf den Schalter der Nachbarzeile derselben Liste, sonst auf die Überschrift des Bereichs; nichts springt. Der Toast sagt «<Album> ist jetzt auf der Website zu sehen.» und bleibt mit «Rückgängig» bis zum Schliessen.
+- [ ] **87.7** Die Reihenfolge lässt sich nur im Bereich «Auf der Website» ändern: Ziehen, Tastatur (Leertaste nimmt auf, Pfeile bewegen, Leertaste legt ab, Esc bricht ab) und die Knöpfe «Nach oben» und «Nach unten» (2.5.7); die neue Stelle wird angesagt, die Änderung lässt sich in der Frist zurücknehmen. Bei Suche oder Jahr steht der Hinweis «Zum Ordnen setze Suche und Jahr zurück.» und die Liste ist ohne Griffe.
+- [ ] **87.8** «Weitere Alben» sind nach Jahr gruppiert, wenn nach Datum sortiert wird; jede Gruppe ist eine Überschrift mit Knopf (`aria-expanded`, `aria-controls`), zuerst ist das neueste Jahr offen (bei Suche oder Jahr alle). Bei Titel oder Grösse gibt es eine flache Liste. Höchstens 40 Zeilen werden gebaut; «Weitere 40 anzeigen» setzt den Fokus auf das erste neue Album. Der Fokus bleibt beim Auf- und Zuklappen auf dem Knopf der Gruppe.
+- [ ] **87.9** Auswahl: «Alle n auswählen» je Bereich wählt alle gefilterten Alben (auch die nicht gebauten; teilweise gewählt ist `indeterminate`). Die Auswahlleiste (Region «Auswahl», haftet unten) sagt «n ausgewählt» als Statusregion und bietet nur die passenden Aktionen: «Auf der Website zeigen (k)», «Ausblenden (m)», «Auswahl aufheben». Eine Aktion, die nichts ändern würde, fehlt.
+- [ ] **87.10** Mehr als 5 Alben auf einmal zu zeigen verlangt eine Bestätigung in der Leiste (kein Browserdialog, kein Fenster): Satz mit Hinweis auf Kinderfotos und Einwilligung, «<n> Alben zeigen» (Fokus darauf) und «Abbrechen». Bis 5 Alben läuft die Aktion sofort mit «Rückgängig».
+- [ ] **87.11** Sammelaktionen sind atomar: Bei einem Fehler oder Konflikt (409 `VERSION_KONFLIKT`) steht alles wie vorher, die Auswahl bleibt, und der Toast sagt es («Es wurde nichts geändert.» beziehungsweise «Jemand anders hat das gerade geändert. Die Seite lädt neu.»).
+- [ ] **87.12** Zustände: lädt (Skeleton), Fehler mit «Nochmals versuchen», leer («Keine Alben gefunden. Prüfe das Konto und die Verbindung.»), kein Treffer («Kein Album passt zu «…».» mit «Suche zurücksetzen», bei Filtern «Filter zurücksetzen»), leerer Bereich («Noch kein Album auf der Website.», «Alle Alben sind auf der Website.»).
+- [ ] **87.13** Hell und Dunkel, 320, 390, 1280 und 2560 Pixel: kein waagrechtes Scrollen, keine leere Fläche unter dem Inhalt. Ab 90 em stehen die beiden Bereiche nebeneinander, darunter untereinander; auf dem Handy bekommt die geordnete Liste ein gemeinsames Raster aus Griff, Kästchen, Titel, Schalter, «Mehr» und Pfeilen.
+- [ ] **87.14** Bewegung: Der Pfeil der Jahresgruppen dreht sich nur unter «Bewegung nicht reduzieren»; Zeilen blenden nicht ein.
+
+### Stand der Prüfung (#794)
+
+Im Browser (Chromium headless, Playwright) gegen einen eigenen Dev-Server mit Wegwerf-Kopie der Demo-Datenbank und einer Attrappe von Flickr (erfundene Alben, keine Verbindung zu Flickr), mit 5, 90 und 300 Alben:
+
+- **87.1:** Band, Konto zu mit Kennung und Verbindung; ohne Kennung offen mit dem Satz zu `FLICKR_KONTO`.
+- **87.2, 87.3:** `/` fokussiert die Suche; «wald» findet 15 von 90; «zzzzzz» zeigt die Karte «Kein Album passt zu «zzzzzz».» mit «Suche zurücksetzen» (Fokus danach im Suchfeld). Namen und Rollen der Leiste (Region, Suchfeld, Gruppe «Anzeigen», Jahr, Sortierung, Statusregion) aus dem Zugänglichkeitsbaum gelesen.
+- **87.4:** Bei 1280 und 2560 Pixel haftet die Leiste unmittelbar unter der Navigation (Abstand 0); Tab durch Leiste und Zeilen: Reihenfolge logisch, überall Fokusring 3 Pixel, nichts von der Leiste verdeckt.
+- **87.5 bis 87.7:** Drei Alben auswählen und zeigen (eine Anfrage), einzeln mit Enter schalten (Fokus auf der Nachbarzeile), Reihenfolge per Tastatur (Leertaste, Pfeil, Leertaste: eine Anfrage nach der Frist) und per Maus (Ziehen), «Titel ändern» mit Enter (Fokus danach auf «Mehr»).
+- **87.8:** Bei 300 Alben baut die Seite beim Öffnen 34 Zeilen; Jahr öffnen per Enter (Fokus bleibt), Sortierung «Titel A–Z» (40 Zeilen, «Weitere 40 anzeigen», Fokus auf der ersten neuen Zeile), Jahr 2022 (33 von 300).
+- **87.9 bis 87.11:** Alle 300 auswählen, Bestätigung, Zeigen: eine Anfrage, 300 Zeilen im Bereich «Auf der Website»; Konflikt (Version in der Datenbank geändert): Toast, Ansicht wie vorher, Seite lädt neu.
+- **87.13:** 320, 390, 1280, 2560 Pixel, hell und dunkel angeschaut; Dokumentbreite gleich Fensterbreite (kein waagrechtes Scrollen).
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA: Namen und Rollen nur im Zugänglichkeitsbaum gelesen, nicht gehört), Safari und Firefox, Zoom 200 % und 400 % am echten Gerät, erzwungene Farben, Touch am echten Gerät, Kontrastmessung mit Werkzeug (die Farben sind Tokens der Verwaltung), «Bewegung reduzieren» im Browser. Offen: Der Bereich «Auf der Website» baut alle sichtbaren Alben auf einmal (300 sichtbare Alben: rund 17 000 Pixel Seitenhöhe); die Sortierliste hat keine schrittweise Anzeige, weil sie die ganze Reihenfolge hält.
+
+## 88. Website: Fotoalben neu gestaltet (#796)
+
+Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, `public/website/fotos.js`, `fotos-logik.js`, `fotos.css`) und die Grossansicht (`lichtkasten.js`). Sie ersetzt die Punkte 66.4, 66.6, 66.9 und 66.10 (Markup und Raster haben sich geändert); die übrigen Punkte von 66 gelten weiter. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
+
+**Entscheide.** Die Bilder im Raster sind **dekorativ** (`alt=""`); der Link darum herum trägt den Namen «Foto 3 von 393» (mit dem Titel von Flickr dahinter, ausser er ist ein Dateiname wie «IMG_4021.jpg»). Grund: Ein Alt-Text pro Bild wäre bei 393 Fotos 393 Mal dieselbe Information, und Flickr-Titel sind meist Dateinamen; die Anzahl steht einmal im Kopf («393 Fotos · 4. Oktober 2026»), am Raster («Fotos im Album …») und im Stand («48 von 393 Fotos angezeigt.»). Die Grossansicht übernimmt den Namen des Links als Alt-Text des grossen Bildes. Mehr Bilder kommen **mit einem Knopf** («Weitere 48 Fotos anzeigen»), nicht durch Nachladen beim Scrollen: Die Person bestimmt das Tempo, das Ende der Seite (Fuss, Links) bleibt erreichbar, und die Tastatur kommt nicht in eine Falle.
+
+### Prüfpunkte
+
+- [ ] **88.1** Überschriften: `h1` der Seite, in der Übersicht ab 9 Alben `h2` je Jahr (Knopf darin) und `h3` je Album, darunter `h2` je Album; im Album `h2` mit dem Titel, danach kein weiterer Titel. Keine Ebene wird übersprungen.
+- [ ] **88.2** Eine Albumkarte ist ein Link mit sprechendem Namen («Album 2026 - Herbstlager, 393 Fotos, 4. Oktober 2026»); der sichtbare Titel steht im Namen (2.5.3). Das Titelbild ist dekorativ.
+- [ ] **88.3** Jahre sind Knöpfe mit `aria-expanded` und `aria-controls`; das Dreieck dreht, der Zustand hängt nicht an der Farbe. Ältere Jahre sind zu, Treffer der Suche klappen auf.
+- [ ] **88.4** Die Suche hat ein sichtbares Label («Alben suchen»), die Taste `/` fokussiert sie (`aria-keyshortcuts`), nur wenn die Person nicht schreibt und keine Grossansicht offen ist; Esc leert. Die Anzahl («23 von 87 Alben») steht in einer Statusregion und wechselt erst, wenn die Person kurz nicht mehr tippt. Ohne Treffer steht «Keine Alben für «…».» mit «Suche zurücksetzen».
+- [ ] **88.5** Das Raster ist eine Liste mit Namen («Fotos im Album …»); jedes Bild ist ein Link «Foto 3 von 393». Der Platz jeder Kachel steht fest (Seitenverhältnis), nichts springt, wenn Bilder laden.
+- [ ] **88.6** «Weitere 48 Fotos anzeigen»: Der Fokus geht auf das erste neue Foto, die Statusregion sagt «96 von 393 Fotos angezeigt.», die Fortschrittsleiste ist für Screenreader verborgen (der Text trägt die Information).
+- [ ] **88.7** Grossansicht: Der Dialog heisst «Fotos im Album …: Grossansicht», der Stand «Bild 24 von 393» zählt über das ganze Album (auch über noch nicht gezeigte Bilder), Pfeiltasten, Esc und Wischen wie bisher, Schliessen-Knopf 44 px. Beim Schliessen steht der Fokus auf dem zuletzt gezeigten Bild, auch wenn es erst jetzt eingeblendet wird, und die Seite scrollt dorthin.
+- [ ] **88.8** Zielgrössen mindestens 44 px (Karte, Jahr, Suchfeld, «Alle Fotos», «Album auf Flickr öffnen»); Fokusring 3 px in allen Ansichten, auch auf den Fotos (ausserhalb der Kachel).
+- [ ] **88.9** Kontrast Hell und Dunkel (Titel, Meta, Anzahl, Jahr, Rand des Suchfelds) mindestens 4,5 : 1, Rand des Suchfelds und Fortschritt mindestens 3 : 1.
+- [ ] **88.10** 320 px, Zoom 200 % und 400 % ohne waagrechtes Scrollen; 1, 2, 3 und 4 Spalten bei 40, 62 und 80 em.
+- [ ] **88.11** Bewegung: Heranzoomen der Bilder beim Zeigen und Drehen des Dreiecks nur unter «Bewegung nicht reduzieren»; Skelette und Einblenden der Bilder folgen den Regeln der Website. Erzwungene Farben: Karten, Taste und Jahre behalten Rand und Linie.
+
+### Stand der Prüfung (#796)
+
+Im Browser (Chromium headless, Playwright) gegen eine Kopie der Vorschau-Datenbank und eine Attrappe von Flickr (erfundene Alben, selbst erzeugte Bilder in verschiedenen Seitenverhältnissen) bei 320, 390, 640 (Zoom 200 %), 1280 und 2560 Pixel, hell und dunkel; Tastatur: `/`, Tab, Enter, Esc, Pfeile, Zurück im Browser; Szenarien mit 90, 12, 1 und 0 Alben und mit 393, 48, 12 und 1 Foto. Gemessen: kein waagrechtes Scrollen, Kontraste und Zielgrössen (88.8 bis 88.10), Anzahl der Bildanfragen (vorher 52 bis 90 beim Öffnen und 393 nach dem Scrollen, nachher höchstens 48). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), echte Fotos, Zoom 400 % am Gerät, Wischen am Handy, Safari und Firefox, Windows-Hochkontrast am Gerät.
+
+## 89. Verwaltung: Funktionen im Blatt der Person (#801)
+
+Funktionen (globale Rollen wie «Webmaster» oder «Redaktion») vergibt und entzieht man im Blatt der Person (Bereich Personen, Abschnitt «Rechte und Rollen», Block «Funktionen», `funktionenFelder` in `personen-blatt.js`), im Muster der Stufenrollen. Auf der Seite einer globalen Rolle (Rechte, Rollen) steht nur noch die Liste «Personen mit der Rolle …» zum Lesen, mit dem Link «Bearbeiten im Blatt» (`#personen/personen/<id>`) und dem Hinweis «Funktionen vergibst du im Blatt der Person (Personen → Person → Rechte und Rollen).». Gruppenrollen bleiben unverändert. Leitplanke: `test/admin-personen-umbau.test.ts`.
+
+### Prüfpunkte
+
+- [ ] **89.1** Der Block «Funktionen» steht unter «Stufen und Rollen» mit derselben Zwischenüberschrift, Zeilenform und Abständen. Jede Funktion der Person ist eine Zeile: Chip mit Text, «Entfernen». Ohne Funktion steht «Die Person hat keine Funktion.». Wer «Rechte und Rollen vergeben» nicht hat, sieht den Block nicht. Bei «Person erfassen» steht der Hinweis, dass Funktionen erst nach dem Erfassen möglich sind.
+- [ ] **89.2** «Entfernen» hat den Namen «Funktion <Funktion> entfernen: <Person>», streicht die Zeile durch und schreibt «wird beim Speichern entfernt» (nie nur Farbe); der Knopf heisst dann «Rückgängig» (Name «Entfernen rückgängig: Funktion <Funktion>, <Person>»). Eine Funktion, die erst neu dazukam, ist mit dem Entfernen weg. Der Fokus bleibt auf dem Knopf der Zeile. Jede Änderung meldet ein Toast (Info, 4 Sekunden); nichts gilt vor «Speichern», das Formular fragt beim Verlassen.
+- [ ] **89.3** «Funktion hinzufügen»: Auswahl «Funktion» (eigenes Auswahlfeld, Tastatur) und Knopf. Ohne Wahl steht die Meldung am Feld («Wähle eine Funktion.», `aria-invalid`, Fokus auf dem Feld). Zur Auswahl stehen nur Funktionen, deren Rechte die handelnde Person selbst in der Geltung «alle» hat und die die Person noch nicht trägt; sonst steht ein Satz («Es gibt keine weitere Funktion, die du vergeben darfst.»). Nach dem Hinzufügen liegt der Fokus auf «Entfernen» der neuen Zeile.
+- [ ] **89.4** «Speichern» entzieht zuerst und vergibt dann; das Toast sagt «Die Funktionen gelten ab der nächsten Anfrage der Person.». Geht eine Änderung nicht durch (403 Eskalationsschutz, 403 `KONTO_GESCHUETZT`, 404), steht ein Warn-Toast (8 Sekunden) mit Funktion und Grund; die übrigen Angaben sind gespeichert.
+- [ ] **89.5** Die Seite einer globalen Rolle hat kein «Personen zuordnen», kein «Zuordnen» und kein «Entziehen». Jede Zeile hat «Bearbeiten im Blatt» (Link mit Namen «Bearbeiten im Blatt: <Person>», Zielgrösse mindestens 44 Pixel); der Link öffnet das Blatt der Person. Eine ungültige Kennung in der Adresse zeigt «Diese Seite gibt es nicht».
+- [ ] **89.6** Bei 390 und 1280 Pixel, hell und dunkel: kein waagrechtes Scrollen, Chip, Hinweis und Fehlermeldung lesbar, Fokusring sichtbar, Knöpfe mindestens 44 Pixel hoch.
+
+### Stand der Prüfung (#801)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server, Kopie der Demo-Datenbank, Sitzung des Test-Entwicklers mit zweitem Faktor) bei 1280 x 900 hell und 390 x 844 dunkel:
+
+- **89.1:** Block unter «Stufen und Rollen» mit gleicher Zeilenform; Chip «Webmaster» bei «Webmaster Demo».
+- **89.2:** Entfernen mit Enter: Zeile durchgestrichen, «wird beim Speichern entfernt», Fokus auf «Entfernen rückgängig: Funktion Webmaster, Webmaster Demo»; Knopf 142 x 44 Pixel.
+- **89.3:** «Funktion hinzufügen» ohne Wahl: «Wähle eine Funktion.» am Feld (dunkel, 390 Pixel gesehen); mit Wahl «Webmaster»: Zeile da, Fokus auf deren «Entfernen».
+- **89.4:** Speichern entzog die Funktion (Datenbank: 0 Zeilen), erneutes Speichern vergab sie (1 Zeile); Toast wie beschrieben. Fehlerfälle im Browser nicht ausgelöst.
+- **89.5:** Rollenseite «Webmaster»: Liste mit «Bearbeiten im Blatt», kein Zuordnen, Hinweis da; der Link öffnet das Blatt (`#personen/personen/<id>`).
+- **89.6:** bei beiden Grössen ohne waagrechtes Scrollen (Ansichten gesehen, kein Messwert).
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 %, erzwungene Farben, Touch am echten Gerät, die Sicht einer Person ohne «Rechte und Rollen vergeben», die Fehlerfälle 89.4 im Browser.
+
+## 90. Hinweisseite der Sperre: Anmelden für Berechtigte (#803)
+
+Auf der Hinweisseite der Informationssperre (`index.html`, `404.html`, Code in `apps/api/src/website/sperre.ts`) steht unter «Nochmals versuchen» der Link «Für Berechtigte: Anmelden» zur Anmeldung der Verwaltung (`/admin#system/plattform`). Die Seite bleibt eine einzelne Datei mit eigener Stilvorlage, ohne Skript. Unter einer Sperre von `alles` öffnet die Verwaltung für Berechtigte nur «Wartung und Sperre» (`admin.js`, Rückfall in `pruefeKonto`).
+
+### Prüfpunkte
+
+- [ ] **90.1** Der Link ist ein echter Link (`a href`), erreichbar mit Tab nach «Nochmals versuchen», Enter folgt ihm. Der Name «Für Berechtigte: Anmelden» sagt allein, wohin er führt.
+- [ ] **90.2** Sichtbarer Fokus (3 px Rahmen, Abstand 3 px), auch in Hell und Dunkel; Zielgrösse mindestens 44 Pixel hoch (24 x 24 verlangt WCAG 2.5.8).
+- [ ] **90.3** Der Link ist unterstrichen, nicht nur durch Farbe erkennbar. Kontrast der Schriftfarbe `--leise` zur Fläche: hell #4d4d4d auf #ffffff, dunkel #bebeb6 auf #1c1c1a (je über 4,5:1).
+- [ ] **90.4** Bei 390 und 1280 Pixel, hell und dunkel: der Link bleibt in der Textspalte, kein waagrechtes Scrollen. Im Modus «Erzwungene Farben» trägt er keinen Rahmen und bleibt als Linktext lesbar.
+- [ ] **90.5** Die Hinweisseite bleibt neutral: Kein Wort zu Anlass, Daten, Panne oder Sicherheit; der Link benennt keine Rollen und keine Sperre.
+- [ ] **90.6** Nach dem Link zeigt die Anmeldung der Verwaltung dieselben Prüfpunkte wie bisher (Abschnitt 9, Fokus auf der Überschrift, Fehler als `role="alert"`); nach dem Code liegt der Fokus auf der Überschrift «Wartung und Sperre», das Band «Informationssperre» steht als Bereich «Betriebshinweis» darüber.
+
+### Stand der Prüfung (#803)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Proxy für die Website, Kopie der Vorschau-Datenbank, Demo-Konten mit zweitem Faktor) bei 390 x 844 und 1280 x 900, hell und dunkel:
+
+- **90.1, 90.2:** Tab, Tab erreicht den Link, Enter öffnet `/admin#system/plattform`; der Fokusrahmen ist in Hell und Dunkel sichtbar (Ansicht angeschaut).
+- **90.4:** Kein waagrechtes Scrollen (`scrollWidth` gleich `clientWidth`).
+- **90.6:** Entwickler und Abteilungsleitung (Sperre `alles` mit «Öffentliche Website vom Netz nehmen»): Anmeldung, Code, «Wartung und Sperre» mit Band und «Aufheben»; danach ist die Website wieder da. Ein Elternkonto bekommt «Anmeldung nicht möglich …» (401).
+
+**Nicht geprüft:** Bildschirmleser, Safari und Firefox, Zoom 200 %, Modus «Erzwungene Farben» (nur im CSS vorgesehen), Kontrast 90.3 nicht gemessen (Werte aus den Tokens).
+
+## 91. Website: Menü für Angemeldete (#795)
+
+Seiten, die nur für Angemeldete oder für Gruppen sichtbar sind, stehen im Hauptmenü der Website, sobald die Person angemeldet ist und die Seite sehen darf: im Menü am Computer, im Menü am Handy und in der Unterleiste, an der Stelle im Seitenbaum. Für Besucher ohne Anmeldung und ohne Skript bleibt das Menü wie es war. Das Skript `navigation.js` fügt die Einträge nur ein; die Bedienung bleibt die der öffentlichen Punkte. In der Verwaltung steht beim Blatt «Sichtbarkeit» einer Seite der Hinweis, wo die Seite im Menü erscheint.
+
+### Prüfpunkte
+
+- [ ] **91.1** Ohne Anmeldung (und ohne Skript) fehlt jeder geschützte Punkt im Menü; die direkte Adresse einer geschützten Seite zeigt die Hülle mit «Nur angemeldet sichtbar» und dem Link zur Anmeldung, wie bisher.
+- [ ] **91.2** Nach der Anmeldung erscheinen die Punkte an ihrer Stelle (Eltern, Gruppen, Reihenfolge der Seitenliste) ohne Sprung des Kopfes: Die Kopfzeile wird nicht höher, nichts rutscht in eine zweite Zeile; was nicht mehr passt, steht unter «Mehr».
+- [ ] **91.3** Neue Links sind mit der Tastatur wie die öffentlichen erreichbar: Tab-Reihenfolge von links nach rechts und in die Tafel, Pfeiltasten in der Tafel, Esc schliesst die Tafel und gibt den Fokus an das Dreieck zurück. Ein neues Untermenü hat einen Namen («Unterseiten von …») und öffnet sich mit Dreieck, Enter und Leertaste.
+- [ ] **91.4** Auf einer geschützten Seite trägt ihr Punkt `aria-current="page"`, ihre Oberseiten `aria-current="true"`, im Menü am Handy ist der Zweig offen. Die aktuelle Seite ist nicht nur an der Farbe erkennbar (roter Strich, fette Schrift).
+- [ ] **91.5** Das Einblenden dauert 0,2 s und entfällt bei «Bewegung reduzieren». Es gibt keine Ansage der Bildschirmleser für das Einfügen (kein Live-Bereich); die Links erscheinen in der Lesereihenfolge des Menüs.
+- [ ] **91.6** Hell, dunkel und bei 390, 1280 und 2560 Pixel: Texte lesbar, kein waagrechtes Scrollen, Ziele mindestens 44 mal 44 Pixel wie bei den übrigen Punkten.
+- [ ] **91.7** Netzfehler, 401 und eine ungültige Antwort der Schnittstelle lassen das statische Menü unverändert, ohne Meldung.
+- [ ] **91.8** Verwaltung, Blatt «Sichtbarkeit» einer Seite: Der Satz zum Menü steht unter den Wahlkarten, ändert sich mit der Wahl («Steht im Menü der Website für alle, sobald die Seite veröffentlicht ist.» oder «Erscheint im Menü nur für angemeldete Personen, die die Seite sehen dürfen.») und ist über `aria-describedby` mit der Gruppe der Wahlkarten verbunden. Bei einem Baustein steht er nicht.
+
+### Stand der Prüfung (#795)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vorschau-Datenbank, Konten mit Sitzung für Eltern, Leitung einer Stufe und Abteilungsleitung; Seiten «Fotos» und «Dokumente» nur für Angemeldete, eine Seite für die Gruppe Pilami, eine Unterseite für Angemeldete, ein Entwurf und eine Seite für eine fremde Stufe):
+
+- **91.1:** Ohne Anmeldung kein Punkt im Menü am Computer und am Handy; `/fotos` zeigt die Hülle mit Anmeldelink. In keiner erzeugten Datei der Website steht ein Titel der geschützten Seiten.
+- **91.2:** Eltern sehen «Fotos» und «Dokumente» am Ende der obersten Ebene und «Intern für Angemeldete» im Untermenü «Über den Cevi Stäfa-Hombi»; die Leitung der Pilami zusätzlich «Pilami intern» unter «Unsere Gruppen» an der Stelle der Seitenliste; die Abteilungsleitung auch die Seite einer anderen Stufe. Nie der Entwurf. Ein Untermenü, das nur geschützte Seiten hat («Fotos» mit «Fotoarchiv»), entsteht im Menü am Computer, am Handy und in der Unterleiste. Bei 1024 und 1280 Pixel mit neun Punkten wandern die letzten unter «Mehr», die Höhe des Kopfs bleibt gleich (Abteilungsleitung); bei 2560 Pixel bleibt der Kopf einzeilig. Die Layoutverschiebung (CLS) lag beim Einfügen auf einer öffentlichen Seite bei 0,001; auf den geschützten Seiten selbst zwischen 0,07 und 0,14 durch den nachgeladenen Inhalt, wie bei der Hülle ohne Anmeldung (0,07).
+- **91.3:** Pfeil runter im Untermenü «Unsere Gruppen»: Fröschli, Pilami, Pilami intern, Imperius; Esc: Fokus zurück auf das Dreieck «Unterseiten von Unsere Gruppen». Das neue Untermenü «Fotos»: Pfeil runter auf «Fotoarchiv», Esc zurück auf das Dreieck. Tab-Reihenfolge: Link, Dreieck, nächster Link und in die Tafel.
+- **91.4:** Auf `/fotos` trägt «Fotos» `aria-current="page"`, auf `/fotos/archiv` «Fotos» `"true"` und «Fotoarchiv» `"page"`; im Menü am Handy ist der Zweig offen.
+- **91.6:** Menü am Handy (390, hell und dunkel) und Computer (1280 hell und dunkel, 2560 hell) angeschaut, kein waagrechtes Scrollen (Ansicht, kein Messwert).
+- **Ablauf von Anfang bis Ende:** Sitzung, Seite «Fotos»: Hülle, danach Titel, Text und Baustein Fotoalben (ohne Alben: «Hier gibt es noch keine Fotos.»); Klick auf «Fotoarchiv» im Untermenü lädt die Seite und markiert den Punkt.
+
+**Nicht geprüft:** 91.5 (Bewegung reduzieren) und 91.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 91.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).

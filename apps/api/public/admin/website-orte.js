@@ -330,10 +330,11 @@ export function ortFormular({ ctx, ort, danach }) {
             "ok",
           ),
         ),
-        gewaehlteAdresse &&
-          el("p", { class: "ort-status-adresse" }, gewaehlteAdresse),
+        ...(gewaehlteAdresse
+          ? [el("p", { class: "ort-status-adresse" }, gewaehlteAdresse)]
+          : []),
         el("p", { class: "klein leise" }, `Koordinaten ${r.standort}`),
-        kartenVerweis(r.kartenLink),
+        ...[kartenVerweis(r.kartenLink)].filter(Boolean),
       );
       return;
     }
