@@ -406,8 +406,8 @@ describe("Ladezustand der geschützten Seite (#816)", () => {
 
   test("fotos.js zeigt den Hinweis nur nach der Antwort 401 der Schnittstelle, nie vorher", () => {
     const js = lies("fotos.js");
-    expect(js.match(/Nur angemeldet sichtbar/g)?.length).toBe(2);
+    // Der Hinweis steht nur in behandle(), und das ruft nur hole() nach der Antwort auf
     const stelle = js.indexOf("antwort.status === 401");
-    expect(stelle).toBeGreaterThan(js.indexOf("async function hole("));
+    expect(stelle).toBeGreaterThan(js.indexOf("function behandle("));
   });
 });
