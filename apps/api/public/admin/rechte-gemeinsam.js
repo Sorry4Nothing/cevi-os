@@ -1,4 +1,4 @@
-import { avatar, el, icon, knopf } from "./dom.js";
+import { avatar, el, icon, knopf, rufname, vollerNameZusatz } from "./dom.js";
 
 // Gemeinsames für die drei Reiter von «Rollen und Rechte» (#623, #651)
 
@@ -15,11 +15,13 @@ export const zurueckLink = (text, href) =>
     text,
   );
 
-// Die Person für Listen: Bild oder Initialen, Name, Zusatz (Benutzername)
+// Die Person für Listen: Bild oder Initialen, Rufname, Zusatz (voller Name, Benutzername)
 export const kandidatVon = (p) => ({
   id: p.id,
-  name: p.name,
-  zusatz: [p.ceviName, p.benutzername].filter(Boolean).join(" · ") || undefined,
+  name: rufname(p),
+  zusatz:
+    [vollerNameZusatz(p), p.benutzername].filter(Boolean).join(" · ") ||
+    undefined,
   bildUrl: p.bildUrl,
 });
 

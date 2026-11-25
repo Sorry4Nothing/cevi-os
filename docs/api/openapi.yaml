@@ -4439,7 +4439,7 @@ paths:
         pro Programm. Der Server rechnet die Zahlen; die App rechnet nichts nach.
 
         **Anlässe.** `anlaesse` ist nach Beginn aufsteigend sortiert: zuerst die vergangenen, der kommende zuletzt
-        (`vergangen: false`). Es zählen nur aktive Programme der Stufe mit Sichtbarkeit `leitende` oder `eltern`.
+        (`vergangen: false`). Es zählen nur aktive Programme der Stufe.
         `erfassbar` ist `true`, solange das Programm begonnen hat und der Beginn höchstens 14 Tage zurückliegt;
         nur dann nimmt `PUT` einen Stand an.
 
@@ -4781,10 +4781,10 @@ paths:
 
         Wer aufrufen darf: jede angemeldete Person. Sichtbar ist ein Programm so:
         - Abteilungsleitung sowie Stufenleitungen (SL) sehen jedes Programm der Abteilung,
-          auch ohne Stufen-Tag (Recht `programm.alle_sehen`, das es auch als Rolle gibt); «intern» (für niemanden sichtbar) nur mit `alle=1` und nur mit dem Recht `programm.intern_sehen` (Standard: Abteilungsleitung).
-        - Leitende sehen Programme mit Sichtbarkeit «leitende» oder «eltern», die den Stufen-Tag einer ihrer Stufen tragen.
-        - Eltern sehen Programme mit Sichtbarkeit «eltern», die den Stufen-Tag einer Stufe tragen, in der ein aktives
-          eigenes Kind ist.
+          auch ohne Stufen-Tag (Recht `programm.alle_sehen`, das es auch als Rolle gibt).
+        - Leitende sehen Programme, die den Stufen-Tag einer ihrer Stufen tragen.
+        - Eltern sehen Programme, die den Stufen-Tag einer Stufe tragen, in der ein aktives eigenes Kind ist.
+        - Eine Sichtbarkeit je Programm (`intern`, `leitende`, `eltern`) gibt es seit #807 nicht mehr; es zählen allein die Tags. Das Feld `sichtbarkeit` fehlt in der Antwort.
         - Wer beides ist, sieht die Vereinigung.
 
         Statuscodes: 200 Erfolg; 400 `von` oder `bis` fehlt, ist kein gültiges Datum `JJJJ-MM-TT`, beginnt mit Jahr
@@ -4812,7 +4812,7 @@ paths:
         - name: alle
           in: query
           required: false
-          description: Mit `1` liefert die Liste auch ausgeblendete Programme (Sichtbarkeit «intern»). Wirkt nur für Abteilungsleitung.
+          description: Ohne Wirkung seit #807 (es gibt keine ausgeblendeten Programme mehr); der Parameter bleibt erlaubt, damit ältere Aufrufer kein 400 bekommen.
           schema:
             type: string
             enum:
@@ -5230,7 +5230,7 @@ paths:
       description: |
         Schreibt eine Nachricht in den Chat. Erlaubt ist, wer Mitglied des Chats ist (siehe «Eigene Chats auflisten»): Stufenleitungen der Stufe und Eltern mit aktivem Kind in der Stufe.
 
-        Optional verweist die Nachricht auf ein Programm (`programmId`). Erlaubt sind nur Programme der eigenen Abteilung mit Sichtbarkeit «eltern», die der Stufe des Chats zugeordnet sind; sonst kommt 400 (so landet kein interner Titel im Chat).
+        Optional verweist die Nachricht auf ein Programm (`programmId`). Erlaubt sind nur Programme der eigenen Abteilung, die der Stufe des Chats zugeordnet sind (Stufen-Tag); sonst kommt 400 (so landet kein fremder Titel im Chat).
 
         Begrenzung: höchstens 20 Nachrichten pro Person und Minute, gezählt über alle Chats der Person. Die 21. Nachricht innerhalb einer Minute ergibt 429.
 
@@ -22889,7 +22889,7 @@ paths:
         Recht `termine.warnliste` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Zeigt, welche kommenden Termine der eigenen Abteilung keinen Tag haben (keiner Gruppe zugewiesen, nicht in «Mein Kalender»), und welche Kategorien aus Outlook noch keinem Tag entsprechen.
 
         Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
-        Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
+        Abgesagte Termine fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
         Ein Termin mit bekannter und unbekannter Kategorie hat einen Tag und fehlt darum in `termine`.
 
         `unbekannteKategorien` fasst alle Kategorienamen der kommenden Termine zusammen, die weder über `kategorie_zuordnung` noch über einen Tag gleichen Namens (getrimmt, ohne Gross-/Kleinschreibung) einem Tag entsprechen, auch bei Terminen, die über eine andere Kategorie sichtbar sind. `anzahl` zählt die Termine. Sortiert nach `anzahl` absteigend, dann nach Name; höchstens 200 Einträge. Die Zusammenfassung steht in jeder Antwort, unabhängig von der Seite.
@@ -23057,7 +23057,7 @@ paths:
         - Tags der Person sind ihre eigenen Tags (auch die Stufenrolle der Leitung) und, für Eltern, die Stufe jedes ihrer aktiven Kinder.
         - Ein Termin ohne Tag ist keiner Gruppe zugewiesen und steht hier nie, auch nicht für die Abteilungsleitung (er erscheint nur in `GET /api/v1/termine/alle`). Wer keinen Tag hat, bekommt eine leere Liste.
         - Mit mehreren passenden Tags erscheint der Termin trotzdem einmal.
-        - Die Sichtbarkeit «intern» blendet den Termin für alle aus; «leitende» sehen nur Personen mit eigenem Tag, nicht Eltern über ihre Kinder.
+        - Allein die Tags entscheiden: der eigene Tag der Person, bei Eltern der Stufen-Tag der Stufe eines aktiven Kindes. Eine Sichtbarkeit je Termin gibt es seit #807 nicht mehr.
         - Abgesagte Termine bleiben sichtbar (`status` «abgesagt»).
 
         Der Zeitraum zählt in Schweizer Kalendertagen, beidseitig inklusive, und umfasst höchstens 400 Tage; ein mehrtägiger Termin erscheint an jedem seiner Tage.
@@ -23222,7 +23222,7 @@ paths:
         Ein Termin erscheint je Person einmal.
 
         Was die Person sieht:
-        - Abteilungsleitung: jeden Termin der eigenen Abteilung, auch einen ohne Tag (`meine` falsch, `tags` leer), mit allen seinen Tags. Die Sichtbarkeit «intern» blendet den Termin auch hier aus.
+        - Abteilungsleitung: jeden Termin der eigenen Abteilung, auch einen ohne Tag (`meine` falsch, `tags` leer), mit allen seinen Tags.
         - Alle anderen: die Termine aus «Mein Kalender» (`meine` ist wahr), mit den eigenen Tags. Dazu kommen die Termine von Anlässen mit Sichtbarkeit «angemeldet» oder «oeffentlich» (`meine` falsch, wenn kein eigener Tag passt); `anlass` trägt dann den Verweis auf die Anmeldung wie in «Mein Kalender».
         - Ein Termin ohne Tag nur für die Abteilungsleitung, für alle anderen nie. Fremde Abteilungen nie.
 
@@ -27730,7 +27730,6 @@ components:
         - id
         - titel
         - status
-        - sichtbarkeit
         - ganztaegig
         - beginn
         - ende
@@ -27751,13 +27750,6 @@ components:
             - abgesagt
             - pruefen
           description: Zustand des Programms. Teilnahmen lassen sich nur bei «aktiv» und vor dem Beginn ändern.
-        sichtbarkeit:
-          type: string
-          enum:
-            - intern
-            - leitende
-            - eltern
-          description: Wer das Programm sieht. «intern» niemand in der App (die Abteilungsleitung holen es mit `alle=1`), «leitende» Abteilungsleitung, SL und die Leitenden der zugeordneten Stufen, «eltern» zusätzlich deren Eltern. Ohne Stufe gilt das Programm für alle Stufen.
         ganztaegig:
           type: boolean
         beginn:
@@ -28069,7 +28061,7 @@ components:
         programmId:
           type: string
           format: uuid
-          description: Optionaler Bezug auf ein Programm der eigenen Abteilung mit Sichtbarkeit «eltern», das der Stufe des Chats zugeordnet ist.
+          description: Optionaler Bezug auf ein Programm der eigenen Abteilung, das der Stufe des Chats zugeordnet ist.
       example:
         text: Wir bringen die Zelte am Samstag mit.
     ChatProgrammBezug:
@@ -29911,7 +29903,7 @@ components:
               properties:
                 kommend:
                   type: integer
-                  description: Kommende Termine der Abteilung (ohne abgesagte und interne).
+                  description: Kommende Termine der Abteilung (ohne abgesagte).
         anlaesse:
           type: array
           description: Kommende Anlässe (höchstens sechs) und Anlässe, deren Anmeldefrist im letzten Jahr lag (höchstens acht); nur Titel, Zeiten und Zahlen.

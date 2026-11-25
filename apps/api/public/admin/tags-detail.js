@@ -467,7 +467,9 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
   const kopfVon = (m, gross) =>
     mitgliedKopf({
       name: nameVon(m),
-      ceviName: zusatzVon(m),
+      // Unbekannte Person: der Platzhaltertext ist kein Name, dessen erstes Wort zählt
+      ceviName: bekannt.get(m.userId)?.ceviName ?? nameVon(m),
+      zusatz: bekannt.get(m.userId)?.deaktiviert ? "deaktiviert" : undefined,
       bildUrl: bekannt.get(m.userId)?.bildUrl,
       gross,
     });
