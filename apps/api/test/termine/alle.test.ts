@@ -104,12 +104,10 @@ async function termin(spez: {
   titel: string;
   tags: string[];
   abteilungId?: string;
-  sichtbarkeit?: "intern" | "leitende" | "eltern";
   beginn: Date;
 }) {
   const t = await legeProgrammAn(db, {
     abteilungId: spez.abteilungId ?? welt.testabteilungId,
-    sichtbarkeit: spez.sichtbarkeit ?? "eltern",
     titel: spez.titel,
     beginn: spez.beginn,
   });
@@ -132,14 +130,8 @@ describe("Alle Termine: wer welche Termine sieht", () => {
       ["B", [b], {}],
       ["AB", [a, b], {}],
       ["ohne Tag", [], {}],
-      ["A intern", [a], { sichtbarkeit: "intern" }],
-      ["A leitende", [a], { sichtbarkeit: "leitende" }],
       ["Team", [funktionTagId], {}],
-      [
-        "Demo",
-        [d],
-        { abteilungId: welt.demoAbteilungId, sichtbarkeit: "eltern" },
-      ],
+      ["Demo", [d], { abteilungId: welt.demoAbteilungId }],
       // Tag einer fremden Abteilung an einem Termin der Testabteilung: zählt nicht als Tag
       ["Fremder Tag", [d], {}],
     ];
@@ -161,14 +153,13 @@ describe("Alle Termine: wer welche Termine sieht", () => {
     ]);
   });
 
-  // Abteilungsleitung: jeder Termin der Abteilung, auch ohne Tag (#449), ausser «intern», alle mit meine=false (sie hat keinen eigenen Tag).
+  // Abteilungsleitung: jeder Termin der Abteilung, auch ohne Tag (#449), alle mit meine=false (sie hat keinen eigenen Tag).
   // Alle anderen: genau «Mein Kalender» (meine=true). Ohne Tag nie.
   const ALLE_DER_ABTEILUNG = [
     "A",
     "B",
     "AB",
     "ohne Tag",
-    "A leitende",
     "Team",
     // Der Tag gehört zu einer fremden Abteilung: für die Testabteilung also ohne Tag
     "Fremder Tag",
@@ -180,18 +171,18 @@ describe("Alle Termine: wer welche Termine sieht", () => {
     abteilungsleitung: { titel: ALLE_DER_ABTEILUNG, meine: [] },
     adminOhneFaktor: { titel: ALLE_DER_ABTEILUNG, meine: [] },
     stufenleitungA: {
-      titel: ["A", "AB", "A leitende"],
-      meine: ["A", "AB", "A leitende"],
+      titel: ["A", "AB"],
+      meine: ["A", "AB"],
     },
     stufenleitungB: { titel: ["B", "AB"], meine: ["B", "AB"] },
     leitungA: {
-      titel: ["A", "AB", "A leitende"],
-      meine: ["A", "AB", "A leitende"],
+      titel: ["A", "AB"],
+      meine: ["A", "AB"],
     },
     leitungB: { titel: ["B", "AB", "Team"], meine: ["B", "AB", "Team"] },
     leitungAElternB: {
-      titel: ["A", "B", "AB", "A leitende"],
-      meine: ["A", "B", "AB", "A leitende"],
+      titel: ["A", "B", "AB"],
+      meine: ["A", "B", "AB"],
     },
     elternA: { titel: ["A", "AB"], meine: ["A", "AB"] },
     elternB: { titel: ["B", "AB"], meine: ["B", "AB"] },
@@ -228,11 +219,11 @@ describe("Alle Termine: wer welche Termine sieht", () => {
     ).toEqual([welt.stufeAId]);
   });
 
-  test("ein Termin ohne Tag steht in «Alle» für die Abteilungsleitung (meine=false), nie in «Mein Kalender»; «intern» und fremde Abteilungen fehlen", async () => {
+  test("ein Termin ohne Tag steht in «Alle» für die Abteilungsleitung (meine=false), nie in «Mein Kalender»; fremde Abteilungen fehlen", async () => {
     const s = await liste("abteilungsleitung", FENSTER);
     const ohne = s.termine.find((t) => t.titel === "ohne Tag");
     expect(ohne).toMatchObject({ meine: false, tags: [] });
-    for (const name of ["A intern", "Demo"]) {
+    for (const name of ["Demo"]) {
       expect(titel(s)).not.toContain(name);
     }
     for (const persona of Object.keys(SICHT) as TerminePersona[]) {
@@ -393,27 +384,17 @@ describe("Alle Termine: Anlässe", () => {
   const FEN = "von=2027-04-05&bis=2027-04-05";
   beforeAll(async () => {
     const b = welt.stufeBId;
-    const spezen: [
-      string,
-      string[],
-      "intern" | "leitende" | "eltern",
-      string,
-      string[],
-    ][] = [
-      ["Anlass angemeldet", [b], "eltern", "angemeldet", []],
-      ["Anlass öffentlich", [b], "leitende", "oeffentlich", []],
-      ["Anlass Tags", [b], "eltern", "tags", [b]],
-      ["Anlass ohne Tag", [], "eltern", "angemeldet", []],
-      ["Anlass intern", [b], "intern", "angemeldet", []],
+    const spezen: [string, string[], string, string[]][] = [
+      ["Anlass angemeldet", [b], "angemeldet", []],
+      // Der Tag des Termins trägt keine der Personen: sichtbar nur über den Anlass
+      ["Anlass öffentlich", [funktionTagId], "oeffentlich", []],
+      ["Anlass Tags", [b], "tags", [b]],
+      ["Anlass ohne Tag", [], "angemeldet", []],
     ];
-    for (const [
-      i,
-      [name, tags, programmSicht, sicht, sichtTags],
-    ] of spezen.entries()) {
+    for (const [i, [name, tags, sicht, sichtTags]] of spezen.entries()) {
       const id = await termin({
         titel: name,
         tags,
-        sichtbarkeit: programmSicht,
         beginn: new Date(Date.UTC(2027, 3, 5, 8 + i)),
       });
       await db.insert(schema.anlass).values({
@@ -427,7 +408,7 @@ describe("Alle Termine: Anlässe", () => {
     }
   });
 
-  test("Anlässe für Angemeldete und für alle stehen in «Alle», auch ohne eigenen Tag, nie ohne Tag am Termin (ausser für die Abteilungsleitung) und nie «intern»", async () => {
+  test("Anlässe für Angemeldete und für alle stehen in «Alle», auch ohne eigenen Tag, nie ohne Tag am Termin (ausser für die Abteilungsleitung)", async () => {
     const s = await liste("elternA", FEN);
     expect(titel(s)).toEqual(["Anlass angemeldet", "Anlass öffentlich"]);
     expect(s.termine.every((t) => t.meine === false)).toBe(true);
@@ -444,11 +425,11 @@ describe("Alle Termine: Anlässe", () => {
       "Anlass öffentlich",
       "Anlass Tags",
     ]);
-    // «Anlass öffentlich» hat Sichtbarkeit «leitende»: Eltern sehen ihn nur über den Anlass, nicht in «Mein Kalender»
+    // «Anlass öffentlich» trägt keinen Tag der Person: Eltern sehen ihn nur über den Anlass, nicht in «Mein Kalender»
     expect(s.termine.map((t) => t.meine)).toEqual([true, false, true]);
   });
 
-  test("die Abteilungsleitung sieht jeden, auch ohne Tag, ausser «intern»", async () => {
+  test("die Abteilungsleitung sieht jeden, auch ohne Tag", async () => {
     expect(titel(await liste("abteilungsleitung", FEN))).toEqual([
       "Anlass angemeldet",
       "Anlass öffentlich",

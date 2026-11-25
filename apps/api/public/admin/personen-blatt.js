@@ -12,6 +12,8 @@ import {
   knopf,
   neueId,
   zeit,
+  rufname,
+  vollerNameZusatz,
 } from "./dom.js";
 import { oeffneFluss } from "./fluss.js";
 import { formularRaster } from "./formularraster.js";
@@ -919,14 +921,15 @@ function profilKarte(person, { nameVon, ctx, neu }) {
   const zusatz = el("p", { class: "leise" });
   const zeichneBild = () => {
     const n = nameVon();
+    const ruf = rufname(n) || "Neue Person";
     bild.replaceChildren(
-      avatar(n.name || "Neue Person", {
+      avatar(ruf, {
         hell: true,
         bildUrl: person?.bildUrl,
       }),
     );
-    name.textContent = n.name || "Neue Person";
-    zusatz.textContent = n.ceviName;
+    name.textContent = ruf;
+    zusatz.textContent = vollerNameZusatz(n);
   };
   // Entfernen dürfen Abteilungsleitung und Entwickler (der Server prüft beides). Eine Stelle für die Anzeige
   const kannBildEntfernen = () => siehtAlles(ctx?.ich) && !!person?.bildUrl;
@@ -1159,9 +1162,11 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
 
   const { kopf } = flussKopf({
     titelId,
-    titel: person ? person.name : "Person erfassen",
+    titel: person ? rufname(person) : "Person erfassen",
     untertitel: person
-      ? [person.ceviName, ...systemRollen(person)].filter(Boolean).join(" · ")
+      ? [vollerNameZusatz(person), ...systemRollen(person)]
+          .filter(Boolean)
+          .join(" · ")
       : undefined,
     beschreibung: person
       ? undefined

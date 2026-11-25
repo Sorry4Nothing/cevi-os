@@ -671,7 +671,6 @@ describe("Abgleich", () => {
     titel: string,
     n: number,
     opt: {
-      sichtbarkeit?: "intern" | "leitende" | "eltern";
       status?: "aktiv" | "abgesagt" | "pruefen";
       tags?: string[];
       anlass?: "oeffentlich" | "angemeldet";
@@ -687,7 +686,6 @@ describe("Abgleich", () => {
         ganztaegig: false,
         beginn,
         ende: new Date(beginn.getTime() + 3 * 3_600_000),
-        sichtbarkeit: opt.sichtbarkeit ?? "eltern",
         status: opt.status ?? "aktiv",
         ort: "Treffpunkt",
       })
@@ -727,12 +725,6 @@ describe("Abgleich", () => {
     await termin("Programm Wölfe", 3, { tags: [woelfe] });
     await termin("Programm Wölfe später", 9, { tags: [woelfe] });
     await termin("Programm Adler", 2, { tags: [adler] });
-    await termin("Intern", 1, {
-      sichtbarkeit: "intern",
-      tags: [woelfe],
-      anlass: "oeffentlich",
-    });
-    await termin("Leitende", 1, { sichtbarkeit: "leitende", tags: [woelfe] });
     await termin("Abgesagt", 1, {
       status: "abgesagt",
       tags: [woelfe],
@@ -835,8 +827,6 @@ describe("Abgleich", () => {
     });
     await termin("Anlass ohne Seite", 6, { anlass: "oeffentlich" });
     await termin("Anlass nur für Angemeldete", 4, { anlass: "angemeldet" });
-    await termin("Intern", 1, { sichtbarkeit: "intern", tags: [woelfe] });
-    await termin("Leitende", 1, { sichtbarkeit: "leitende", tags: [woelfe] });
     await termin("Abgesagt", 1, { status: "abgesagt", tags: [woelfe] });
     await termin("Unklar", 1, { status: "pruefen", tags: [woelfe] });
     await termin("Längst vorbei", -70, { tags: [woelfe] });
@@ -923,8 +913,6 @@ describe("Abgleich", () => {
     expect(html).toContain('<a class="termin" href="/weihnachtsfest"');
     expect(html).not.toContain("/anlass?id=");
     for (const nie of [
-      "Intern",
-      "Leitende",
       "Abgesagt",
       "Unklar",
       "Fremdes Programm",

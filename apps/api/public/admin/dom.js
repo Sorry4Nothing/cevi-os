@@ -168,6 +168,23 @@ export function icon(name) {
   return knoten;
 }
 
+// Wie die Verwaltung eine Person anspricht (#815), dieselbe Regel wie die Website: der Cevi-Name, sonst der Vorname, sonst der volle Name.
+// Leere Werte und Leerzeichen zählen als «nicht vorhanden». Ohne «vorname» (Konten kennen nur «name») gilt das erste Wort des Namens.
+const getrimmt = (t) => String(t ?? "").trim();
+
+export function rufname({ name, ceviName, vorname }) {
+  const voll = getrimmt(name);
+  return (
+    getrimmt(ceviName) || getrimmt(vorname) || voll.split(/\s+/)[0] || voll
+  );
+}
+
+// Der volle Name als Zusatz neben dem Rufnamen, damit Personen eindeutig bleiben; leer, wenn er nichts Neues sagt
+export function vollerNameZusatz(person) {
+  const voll = getrimmt(person.name);
+  return voll === rufname(person) ? "" : voll;
+}
+
 // Kreis mit Initialen (erster und letzter Namensteil, der mit einem Buchstaben beginnt); hell für Listen, blau fürs eigene Konto; mit bildUrl liegt das Profilbild darüber, die Initialen bleiben, falls es nicht lädt
 export function avatar(name, { hell = false, bildUrl = null } = {}) {
   const teile = String(name ?? "")

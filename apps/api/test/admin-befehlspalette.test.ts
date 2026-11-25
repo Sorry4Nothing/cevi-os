@@ -200,9 +200,7 @@ describe("Kandidaten und Treffer", () => {
       "aktionen",
       "seiten",
     ]);
-    expect(r.abschnitte[0]!.eintraege.map((e) => e.titel)).toEqual([
-      "Demo Kind",
-    ]);
+    expect(r.abschnitte[0]!.eintraege.map((e) => e.titel)).toEqual(["Pfeil"]);
     expect(r.abschnitte[1]!.eintraege.map((e) => e.titel)).toEqual([
       "Neue Person",
       "Neues Lager",
@@ -224,7 +222,7 @@ describe("Kandidaten und Treffer", () => {
     expect(r.zaehler.tags).toBe(1);
     expect(r.zaehler.termine).toBe(1);
     // Die Person trägt den Tag: Sie wird über ihre Gruppe gefunden
-    expect(titel(r)).toContain("Demo Kind");
+    expect(titel(r)).toContain("Pfeil");
   });
 
   test("Enter öffnet das Wahrscheinlichste: ein gleich guter Inhalt steht vor der Aktion", () => {
@@ -235,9 +233,9 @@ describe("Kandidaten und Treffer", () => {
   });
 
   test("Cevi-Name, Rolle und Benutzername finden die Person", () => {
-    expect(titel(suche(admin(), "pfeil"))).toEqual(["Demo Kind"]);
-    expect(titel(suche(admin(), "stufenleitung"))).toContain("Demo Kind");
-    expect(titel(suche(admin(), "demo.kind"))).toEqual(["Demo Kind"]);
+    expect(titel(suche(admin(), "pfeil"))).toEqual(["Pfeil"]);
+    expect(titel(suche(admin(), "stufenleitung"))).toContain("Pfeil");
+    expect(titel(suche(admin(), "demo.kind"))).toEqual(["Pfeil"]);
   });
 
   test("ein Reiter zeigt nur seine Gruppe, mit der grossen Grenze", () => {

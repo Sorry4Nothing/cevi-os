@@ -95,16 +95,9 @@ const TAG = 86_400_000;
 // Vor n Tagen begonnen, negative n liegen in der Zukunft
 const vor = (tage: number) => new Date(Date.now() - tage * TAG);
 
-const anlass = (
-  tage: number,
-  extra: {
-    sichtbarkeit?: "intern" | "leitende" | "eltern";
-    stufen?: string[];
-  } = {},
-) =>
+const anlass = (tage: number, extra: { stufen?: string[] } = {}) =>
   legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: extra.sichtbarkeit ?? "eltern",
     stufen: extra.stufen ?? [welt.stufeAId],
     beginn: vor(tage),
   });
@@ -216,7 +209,6 @@ describe("Erfassen und Übersicht", () => {
     const mk = (tage: number) =>
       legeProgrammAn(db, {
         abteilungId: welt.testabteilungId,
-        sichtbarkeit: "eltern",
         stufen: [stufeNeu.id],
         beginn: vor(tage),
       });
@@ -310,7 +302,6 @@ describe("Erfassen und Übersicht", () => {
     for (const tage of [4, 3, 2]) {
       await legeProgrammAn(db, {
         abteilungId: welt.testabteilungId,
-        sichtbarkeit: "eltern",
         stufen: [stufeNeu.id],
         beginn: vor(tage),
       });
@@ -319,7 +310,7 @@ describe("Erfassen und Übersicht", () => {
     expect(zwei.body.anlaesse).toHaveLength(2);
   });
 
-  test("abgesagte und interne Programme zählen nicht", async () => {
+  test("abgesagte Programme zählen nicht", async () => {
     const [stufeNeu] = await db
       .insert(stufe)
       .values({
@@ -328,22 +319,24 @@ describe("Erfassen und Übersicht", () => {
         kuerzel: "FS",
       })
       .returning({ id: stufe.id });
-    const intern = await legeProgrammAn(db, {
+    const abgesagt = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "intern",
       stufen: [stufeNeu.id],
       beginn: vor(2),
     });
+    await db
+      .update(programm)
+      .set({ status: "abgesagt" })
+      .where(eq(programm.id, abgesagt.id));
     const sichtbar = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "leitende",
       stufen: [stufeNeu.id],
       beginn: vor(2),
     });
     const res = await uebersicht(konten.admin, "", stufeNeu.id);
     const ids = res.body.anlaesse.map((a: { id: string }) => a.id);
     expect(ids).toContain(sichtbar.id);
-    expect(ids).not.toContain(intern.id);
+    expect(ids).not.toContain(abgesagt.id);
   });
 
   test("erfassbar nur innerhalb der Frist", async () => {
@@ -428,9 +421,8 @@ describe("PUT /api/v1/stufen/:id/anwesenheit/:programmId/kinder/:kindId", () => 
     ).toBe(404);
   });
 
-  test("Programm einer anderen Stufe, unbekanntes, internes, abgesagtes: 404", async () => {
+  test("Programm einer anderen Stufe, unbekanntes, abgesagtes: 404", async () => {
     const fremd = await anlass(1, { stufen: [welt.stufeBId] });
-    const intern = await anlass(1, { sichtbarkeit: "intern" });
     const absage = await anlass(1);
     await db
       .update(programm)
@@ -438,7 +430,6 @@ describe("PUT /api/v1/stufen/:id/anwesenheit/:programmId/kinder/:kindId", () => 
       .where(eq(programm.id, absage.id));
     for (const id of [
       fremd.id,
-      intern.id,
       absage.id,
       "00000000-0000-4000-8000-000000000000",
     ]) {

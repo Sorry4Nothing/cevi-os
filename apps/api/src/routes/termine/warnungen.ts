@@ -28,8 +28,8 @@ const MAX_UNBEKANNT = 200;
 const SORT_MS = sql`floor(extract(epoch from ${TERMIN_BEGINN}) * 1000)::bigint`;
 // Kommend oder laufend: Das Ende (bei Ganztägigen das Ende des letzten Tages, Schweizer Zeit) liegt noch vor uns
 const KOMMEND = sql`coalesce(programm.ende, (programm.tag_bis + 1)::timestamp at time zone 'Europe/Zurich') > now()`;
-// Abgesagte und intern ausgeblendete Termine gehören nicht auf die Liste
-const ZAEHLT = sql`programm.status <> 'abgesagt' and programm.sichtbarkeit <> 'intern' and ${KOMMEND}`;
+// Abgesagte Termine gehören nicht auf die Liste
+const ZAEHLT = sql`programm.status <> 'abgesagt' and ${KOMMEND}`;
 
 export function erstelleWarnungenRouten({ db }: { db: Db }) {
   return new Hono<TermineEnv>().get(

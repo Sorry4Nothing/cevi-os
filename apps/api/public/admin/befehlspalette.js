@@ -4,7 +4,15 @@
 // Last: keine Abfrage je Tastendruck. Beim Öffnen eine Abfrage je Quelle, nur mit Recht; danach liegt das Ergebnis fünf Minuten im Speicher und die Suche filtert im Browser. Hat die Seite «Personen» ihre Liste schon geladen, übergibt sie sie (`meldePersonen`).
 // Es ist die einzige Überlagerung der Verwaltung: Ein Suchfeld mit Tastaturbedienung braucht den Fokus in einer Schicht, die Escape schliesst und den Fokus zurückgibt (nativer `dialog`).
 import { anfrage } from "./api.js";
-import { avatar, chip, el, icon, neueId } from "./dom.js";
+import {
+  avatar,
+  chip,
+  el,
+  icon,
+  neueId,
+  rufname,
+  vollerNameZusatz,
+} from "./dom.js";
 import { adresseVon } from "./navigation.js";
 
 /* ---------- Gruppen ---------- */
@@ -225,8 +233,8 @@ export function kandidaten({ bereiche, daten = {} }) {
       liste.push({
         gruppe: "personen",
         id: `person-${p.id}`,
-        titel: p.name,
-        zusatz: p.ceviName,
+        titel: rufname(p),
+        zusatz: vollerNameZusatz(p),
         personId: p.id,
         bildUrl: p.bildUrl,
         rollen: p.rollen,

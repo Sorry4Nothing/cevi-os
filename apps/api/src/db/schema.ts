@@ -502,12 +502,6 @@ export const programm = pgTable(
     status: text("status", { enum: ["aktiv", "abgesagt", "pruefen"] })
       .notNull()
       .default("aktiv"),
-    // «intern» blendet das Programm in der App für alle aus; neue Programme sind für Eltern sichtbar
-    sichtbarkeit: text("sichtbarkeit", {
-      enum: ["intern", "leitende", "eltern"],
-    })
-      .notNull()
-      .default("eltern"),
     // Rohe Kategorien des Outlook-Termins (CATEGORIES), für die Warnliste; die Tags stehen in programm_tag (#432)
     kategorien: text("kategorien")
       .array()
@@ -524,10 +518,6 @@ export const programm = pgTable(
     check(
       "programm_status_check",
       sql`${t.status} in ('aktiv', 'abgesagt', 'pruefen')`,
-    ),
-    check(
-      "programm_sichtbarkeit_check",
-      sql`${t.sichtbarkeit} in ('intern', 'leitende', 'eltern')`,
     ),
     // Ganztägig genau dann, wenn Tage gesetzt und Zeitpunkte leer sind
     check(

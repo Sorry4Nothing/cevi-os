@@ -40,22 +40,8 @@ const app = erstelleApp({
 });
 afterAll(() => sql.end());
 
-// Alle zwölf Kombinationen Sichtbarkeit × Stufen der Testabteilung, dazu ein Eltern-Programm der Demo-Abteilung
-const NAMEN = [
-  "intern",
-  "intern-A",
-  "intern-B",
-  "intern-AB",
-  "leitende",
-  "leitende-A",
-  "leitende-B",
-  "leitende-AB",
-  "eltern",
-  "eltern-A",
-  "eltern-B",
-  "eltern-AB",
-  "demo",
-] as const;
+// Alle Kombinationen der Stufen der Testabteilung, dazu ein Programm der Demo-Abteilung
+const NAMEN = ["ohne", "A", "B", "AB", "demo"] as const;
 type Name = (typeof NAMEN)[number];
 
 // Das Fenster der Persona-Tabelle; die Fenster-Tests legen ihre Programme in andere Monate
@@ -76,20 +62,16 @@ beforeAll(async () => {
     await Promise.all(
       NAMEN.map(async (name, i) => {
         const demo = name === "demo";
-        const [sichtbarkeit, gruppe = ""] = demo
-          ? (["eltern", "Demo"] as const)
-          : (name.split("-") as ["intern" | "leitende" | "eltern", string?]);
-        const kombis: Record<string, string[]> = {
-          "": [],
+        const kombis: Record<Name, string[]> = {
+          ohne: [],
           A: [welt.stufeAId],
           B: [welt.stufeBId],
           AB: [welt.stufeAId, welt.stufeBId],
-          Demo: [welt.demoStufeId],
+          demo: [welt.demoStufeId],
         };
         const p = await legeProgrammAn(db, {
           abteilungId: demo ? welt.demoAbteilungId : welt.testabteilungId,
-          sichtbarkeit,
-          stufen: kombis[gruppe],
+          stufen: kombis[name],
           titel: name,
           // Eine Stunde Abstand: Die Liste muss in dieser Reihenfolge antworten
           beginn: new Date(Date.UTC(2027, 2, 1, 8 + i)),
@@ -111,8 +93,7 @@ const MIT_ALLEN = Object.fromEntries(
   NAMEN.filter((n) => n !== "demo").map((n) => [n, true]),
 ) as Partial<Record<Name, boolean>>;
 
-// Ohne Stufen-Tag («leitende», «eltern», «intern») gilt ein Programm für keine Stufe: Es sehen nur die Abteilungsleitung und SL (#449).
-// Die Liste lässt «intern» für alle weg (nur der Detailaufruf von der Abteilungsleitung findet es); die Verwaltung holt sie mit alle=1.
+// Ohne Stufen-Tag gilt ein Programm für keine Stufe: Es sehen nur die Abteilungsleitung und SL (#449).
 // Fehlt der Eintrag, ist das Programm unsichtbar (404)
 const SICHT: Record<
   Exclude<Persona, "deaktiviert" | "ohneLogin" | "mussPasswortAendern">,
@@ -123,32 +104,16 @@ const SICHT: Record<
   adminOhneZweitenFaktor: MIT_ALLEN,
   slA: MIT_ALLEN,
   slB: MIT_ALLEN,
-  leitendeA: {
-    "leitende-A": true,
-    "leitende-AB": true,
-    "eltern-A": true,
-    "eltern-AB": true,
-  },
-  leitendeB: {
-    "leitende-B": true,
-    "leitende-AB": true,
-    "eltern-B": true,
-    "eltern-AB": true,
-  },
-  leitendeAElternB: {
-    "leitende-A": true,
-    "leitende-AB": true,
-    "eltern-A": true,
-    "eltern-AB": true,
-    "eltern-B": false,
-  },
-  elternA: { "eltern-A": false, "eltern-AB": false },
-  elternB: { "eltern-B": false, "eltern-AB": false },
+  leitendeA: { A: true, AB: true },
+  leitendeB: { B: true, AB: true },
+  leitendeAElternB: { A: true, AB: true, B: false },
+  elternA: { A: false, AB: false },
+  elternB: { B: false, AB: false },
   demoAdmin: { demo: true },
   demoEltern: { demo: false },
 };
 
-describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
+describe("Liste und Detail: jede Stufenkombination mal jede Persona", () => {
   test.each(PERSONAS)("%s", async (persona) => {
     const { headers } = konten[persona];
     const liste = await app.request(`/api/v1/programme?${FENSTER}`, {
@@ -157,7 +122,7 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
     if (persona === "deaktiviert" || persona === "ohneLogin") {
       expect(liste.status).toBe(401);
       const detail = await app.request(
-        `/api/v1/programme/${programme.intern.id}`,
+        `/api/v1/programme/${programme.ohne.id}`,
         { headers },
       );
       expect(detail.status).toBe(401);
@@ -167,7 +132,7 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
     if (persona === "mussPasswortAendern") {
       expect(liste.status).toBe(403);
       const detail = await app.request(
-        `/api/v1/programme/${programme.intern.id}`,
+        `/api/v1/programme/${programme.ohne.id}`,
         { headers },
       );
       expect(detail.status).toBe(403);
@@ -179,9 +144,7 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
       programme: { id: string }[];
     };
     expect(zeilen.map((z) => z.id)).toEqual(
-      NAMEN.filter((n) => n in sicht && !n.startsWith("intern")).map(
-        (n) => programme[n].id,
-      ),
+      NAMEN.filter((n) => n in sicht).map((n) => programme[n].id),
     );
     for (const name of NAMEN) {
       const res = await app.request(`/api/v1/programme/${programme[name].id}`, {
@@ -192,10 +155,9 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
   });
 
   test("Eltern-Detail: genau die Felder der App", async () => {
-    const res = await app.request(
-      `/api/v1/programme/${programme["eltern-A"].id}`,
-      { headers: konten.elternA.headers },
-    );
+    const res = await app.request(`/api/v1/programme/${programme.A.id}`, {
+      headers: konten.elternA.headers,
+    });
     expect(res.status).toBe(200);
     const koerper = (await res.json()) as Record<string, unknown>;
     expect(Object.keys(koerper).sort()).toEqual(
@@ -203,7 +165,6 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
         "id",
         "titel",
         "status",
-        "sichtbarkeit",
         "ganztaegig",
         "beginn",
         "ende",
@@ -222,10 +183,9 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
   });
 
   test("die Stufen eines Abteilungsanlasses kommen sortiert, mit Namen", async () => {
-    const res = await app.request(
-      `/api/v1/programme/${programme["eltern-AB"].id}`,
-      { headers: konten.admin.headers },
-    );
+    const res = await app.request(`/api/v1/programme/${programme.AB.id}`, {
+      headers: konten.admin.headers,
+    });
     const koerper = (await res.json()) as {
       stufen: { id: string; name: string }[];
     };
@@ -245,7 +205,6 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
     // Quer verknüpft wie nach einem Fehler: Die Antwort lässt die fremde Stufe trotzdem weg
     const quer = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId, welt.demoStufeId],
       titel: "quer",
       // April: ausserhalb des Persona-Fensters und der Fenster-Tests
@@ -279,10 +238,10 @@ describe("Liste und Detail: jede Sichtbarkeit mal jede Persona", () => {
       .insert(schema.kindEltern)
       .values({ kindId: inaktives.id, userId: konto.id as string });
     const [a, b] = await Promise.all([
-      app.request(`/api/v1/programme/${programme["eltern-A"].id}`, {
+      app.request(`/api/v1/programme/${programme.A.id}`, {
         headers: konto.headers,
       }),
-      app.request(`/api/v1/programme/${programme["eltern-B"].id}`, {
+      app.request(`/api/v1/programme/${programme.B.id}`, {
         headers: konto.headers,
       }),
     ]);
@@ -307,7 +266,6 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
     const lager = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
       titel: "Lager",
-      sichtbarkeit: "eltern",
       tagVon: "2027-07-30",
       tagBis: "2027-08-02",
     });
@@ -320,7 +278,6 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
     const nacht = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
       titel: "Nachtübung",
-      sichtbarkeit: "eltern",
       beginn: new Date("2027-10-30T22:30:00Z"),
       ende: new Date("2027-10-30T23:30:00Z"),
     });
@@ -328,11 +285,10 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
     expect(await liste("2027-10-30", "2027-10-30")).not.toContain(nacht.id);
   });
 
-  test("«intern» ist in der Liste für alle ausgeblendet; nur die Abteilungsleitung holen es mit alle=1", async () => {
-    const intern = await legeProgrammAn(db, {
+  test("alle=1 bleibt erlaubt und ändert nichts (seit #807 gibt es keine ausgeblendeten Programme)", async () => {
+    const ohneStufe = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "intern",
-      titel: "Versteckt",
+      titel: "Ohne Stufe",
       beginn: new Date("2027-06-12T08:00:00Z"),
     });
     const ids = async (persona: Persona, zusatz = "") => {
@@ -346,11 +302,9 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
       };
       return zeilen.map((z) => z.id);
     };
-    expect(await ids("admin")).not.toContain(intern.id);
-    expect(await ids("admin", "&alle=1")).toContain(intern.id);
-    // alle=1 gilt nur für die Abteilungsleitung
-    expect(await ids("slA", "&alle=1")).not.toContain(intern.id);
-    expect(await ids("elternA", "&alle=1")).not.toContain(intern.id);
+    expect(await ids("admin")).toContain(ohneStufe.id);
+    expect(await ids("admin", "&alle=1")).toEqual(await ids("admin"));
+    expect(await ids("elternA", "&alle=1")).not.toContain(ohneStufe.id);
   });
 
   test("von nach bis: leere Liste", async () => {
@@ -360,17 +314,14 @@ describe("Zeitfenster in Schweizer Kalendertagen", () => {
   test("Reihenfolge nach Beginn; ganztägige ab Mitternacht Schweizer Zeit", async () => {
     const spaet = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       beginn: new Date("2027-05-10T08:00:00Z"),
     });
     const ganztaegig = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       tagVon: "2027-05-10",
     });
     const frueh = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       beginn: new Date("2027-05-09T07:00:00Z"),
     });
     expect(await liste("2027-05-01", "2027-05-31")).toEqual([

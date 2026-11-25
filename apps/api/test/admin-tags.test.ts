@@ -646,7 +646,6 @@ describe("Gruppentyp «anlass» (#626)", () => {
         ganztaegig: true,
         tagVon: "2027-05-01",
         tagBis: "2027-05-01",
-        sichtbarkeit: "intern",
       })
       .returning({ id: schema.programm.id });
     const [a] = await db

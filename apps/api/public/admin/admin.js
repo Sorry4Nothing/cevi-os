@@ -8,7 +8,16 @@ import {
   fehlertext,
   setzeVerlassen,
 } from "./api.js";
-import { codefeld, el, feld, icon, knopf, leere } from "./dom.js";
+import {
+  codefeld,
+  el,
+  feld,
+  icon,
+  knopf,
+  leere,
+  rufname,
+  vollerNameZusatz,
+} from "./dom.js";
 import { schliesseAlle } from "./fluss.js";
 import { erstellePalette } from "./befehlspalette.js";
 import { erstelleHinweisband } from "./hinweisband.js";
@@ -562,6 +571,8 @@ async function zeigeVerwaltung(profil) {
     zugang,
     profil,
   });
+  // Der Cevi-Name steht im Kopf; ohne ihn der Vorname (#815)
+  const ceviName = profil?.ceviName ?? ich.ceviName;
   // Name und Logo der Abteilung aus den Einstellungen der Website; ohne Recht darauf bleibt, was die öffentliche Website zeigt, sonst die Wortmarke «CEVI»
   if (einstellungen) setzeMarke(einstellungen);
   zaehlerStand.clear();
@@ -576,7 +587,12 @@ async function zeigeVerwaltung(profil) {
         "header",
         { class: "kopfzeile" },
         logozeile({
-          konto: { name: ich.name, rolle, bildUrl: profil?.bildUrl ?? null },
+          konto: {
+            name: rufname({ name: ich.name, ceviName }),
+            vollerName: vollerNameZusatz({ name: ich.name, ceviName }),
+            rolle,
+            bildUrl: profil?.bildUrl ?? null,
+          },
           beiAbmelden: abmelden,
           suche: palette.knopf,
         }),

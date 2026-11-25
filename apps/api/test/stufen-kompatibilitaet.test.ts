@@ -238,13 +238,11 @@ describe("Lesende Routen liefern ihr Format unverändert", () => {
   test("Programme: Stufen am Programm kommen aus den Stufen-Tags (programm_tag)", async () => {
     const eigenes = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       beginn: new Date("2027-03-06T13:00:00Z"),
     });
     const alle = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId, welt.stufeBId],
       beginn: new Date("2027-03-13T13:00:00Z"),
     });

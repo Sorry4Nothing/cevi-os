@@ -79,7 +79,7 @@ export async function legeRechtewelt(
   const anlass = async (titel: string) => {
     const [p] = await sql<
       { id: string }[]
-    >`insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, sichtbarkeit) values (${abt}, ${`g-${randomUUID()}`}, ${titel}, true, '2027-05-01', '2027-05-01', 'intern') returning id`;
+    >`insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis) values (${abt}, ${`g-${randomUUID()}`}, ${titel}, true, '2027-05-01', '2027-05-01') returning id`;
     const [a] = await sql<
       { id: string }[]
     >`insert into anlass (abteilung_id, programm_id, anmeldung_fuer, sichtbarkeit) values (${abt}, ${p.id}, 'person', 'angemeldet') returning id`;
@@ -186,7 +186,6 @@ export async function legeRechtewelt(
       "mitteilung.senden",
       "laden.ansehen",
       "personen.sehen",
-      "programm.intern_sehen",
     ].map((recht) => ({
       rolleId: rollen.plattform,
       recht,

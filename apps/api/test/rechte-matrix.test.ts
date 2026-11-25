@@ -2935,7 +2935,6 @@ beforeAll(async () => {
   // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
   const programm = await legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: "eltern",
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
@@ -2943,7 +2942,6 @@ beforeAll(async () => {
   anwesenheitProgrammId = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       beginn: new Date(Date.now() - 86_400_000),
     })
@@ -2951,7 +2949,6 @@ beforeAll(async () => {
   leitungProgrammId = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       beginn: new Date(Date.now() + 365 * 86_400_000),
     })

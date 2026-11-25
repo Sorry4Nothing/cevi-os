@@ -101,13 +101,9 @@ afterEach(() => ausgabe.mockRestore());
 
 const zukunft = () => new Date(Date.now() + 365 * 86_400_000);
 
-const frisch = (
-  stufen: string[],
-  sichtbarkeit: "intern" | "eltern" = "eltern",
-) =>
+const frisch = (stufen: string[]) =>
   legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit,
     stufen,
     beginn: zukunft(),
   });
@@ -142,17 +138,6 @@ describe("GET /api/v1/programme/:id/teilnahmen: Status je Person", () => {
     expect((await uebersicht(konten[rolle as Rolle], p.id)).status).toBe(
       status,
     );
-  });
-
-  test("intern: nur Abteilungsleitung und SL sehen es, SL einer fremden Stufe hat kein Recht", async () => {
-    const p = await frisch([welt.stufeAId], "intern");
-    const status = async (r: Rolle) =>
-      (await uebersicht(konten[r], p.id)).status;
-    expect(await status("admin")).toBe(200);
-    expect(await status("slA")).toBe(200);
-    expect(await status("slB")).toBe(403);
-    expect(await status("leitendeA")).toBe(404);
-    expect(await status("elternA")).toBe(404);
   });
 
   test("unbekanntes Programm: 404; keine UUID: 400", async () => {
@@ -290,7 +275,7 @@ describe("GET /api/v1/programme/:id/teilnahmen: Inhalt", () => {
   });
 
   test("Abteilungsleitung: ein Programm ohne Stufen-Tag liefert eine leere Übersicht (#449)", async () => {
-    const p = await frisch([], "intern");
+    const p = await frisch([]);
     const { status, body } = await uebersicht(konten.admin, p.id);
     expect(status).toBe(200);
     expect(body.kinder).toEqual([]);
