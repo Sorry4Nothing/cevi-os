@@ -1764,7 +1764,7 @@ Die Verwaltung nennt eine Person wie die Website: mit dem Cevi-Namen, sonst mit 
 Im Browser (Chromium headless, Playwright, eigener Dev-Server, Kopie der Demo-Datenbank, Konto der Abteilungsleitung mit zweitem Faktor), 1280 x 900 hell und 390 x 844 dunkel:
 
 - **94.1:** Personenliste: «Linn» mit «Linn Demo», «Stufenleitung» mit «Stufenleitung Demo»; Blatt: Titel «Linn», darunter «Linn Demo · Stufenleitung», Profilkarte «Linn» / «Linn Demo».
-- **94.2, 92.3:** Das eigene Konto ohne Cevi-Namen steht als «Demo (du)» mit «Demo Admin» darunter; Kontomenü zeigt «Demo», «Demo Admin», «Abteilungsleitung».
+- **94.2, 94.3:** Das eigene Konto ohne Cevi-Namen steht als «Demo (du)» mit «Demo Admin» darunter; Kontomenü zeigt «Demo», «Demo Admin», «Abteilungsleitung».
 - **94.4:** Suche «demo»: Titel «Linn», Zusatz «Linn Demo» und so weiter.
 - **94.7:** kein waagrechtes Scrollen bei beiden Grössen (`scrollWidth` gleich `clientWidth`), Ansichten von Liste, Blatt und Kontomenü angeschaut.
 
