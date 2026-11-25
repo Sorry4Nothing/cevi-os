@@ -54,6 +54,7 @@ import {
   type FehlerBild,
 } from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
+import { HINWEIS_DATEIEN, HINWEIS_STIL_DATEI } from "./sperre.js";
 import {
   ZEICHEN_DATEIEN,
   ZEICHEN_ICO,
@@ -627,6 +628,10 @@ export async function erzeugeWebsite(
   });
 
   const vorhanden = new Set(await ausgabe.liste());
+  // Die Hinweisseite der Sperre (#803): Der Abgleich läuft nur ohne Sperre. Liegt ihr Stil trotzdem noch da, wurde die Sperre ohne Verwaltung aufgehoben (Notausgang in der Datenbank): Die Hinweisseiten gelten dann als fehlend, der Hash allein schützt sie nicht
+  const hinweisReste = vorhanden.has(HINWEIS_STIL_DATEI);
+  const liegt = (datei: string) =>
+    vorhanden.has(datei) && !(hinweisReste && HINWEIS_DATEIEN.includes(datei));
   const soll = new Set<string>([
     ...behalten,
     SITEMAP,
@@ -648,10 +653,7 @@ export async function erzeugeWebsite(
   const schreibeSeite = async (id: string, datei: string, html: string) => {
     soll.add(datei);
     const hash = sha256(html);
-    if (
-      zeilen.find((z) => z.id === id)!.ausgabeHash === hash &&
-      vorhanden.has(datei)
-    ) {
+    if (zeilen.find((z) => z.id === id)!.ausgabeHash === hash && liegt(datei)) {
       return;
     }
     try {
@@ -729,7 +731,7 @@ export async function erzeugeWebsite(
   ];
   for (const [datei, inhalt] of gesamt) {
     const hash = sha256(inhalt);
-    if (merker.get(datei) === hash && vorhanden.has(datei)) continue;
+    if (merker.get(datei) === hash && liegt(datei)) continue;
     try {
       await ausgabe.schreibe(datei, inhalt);
       merker.set(datei, hash);
@@ -754,6 +756,15 @@ export async function erzeugeWebsite(
     }
     try {
       await ausgabe.loesche(datei);
+      ergebnis.geloescht++;
+    } catch (fehler) {
+      meldeFehler("loeschen", fehler);
+      ergebnis.fehler++;
+    }
+  }
+  if (hinweisReste) {
+    try {
+      await ausgabe.loesche(HINWEIS_STIL_DATEI);
       ergebnis.geloescht++;
     } catch (fehler) {
       meldeFehler("loeschen", fehler);

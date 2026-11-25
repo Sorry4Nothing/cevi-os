@@ -444,6 +444,29 @@ describe("Informationssperre: Anmeldung unter «alles»", () => {
     expect((await anmelden(demoEltern)).status).toBe(200);
   });
 
+  test("unter «alles» trägt die Sitzung der Berechtigten die Verwaltung bis zu «Wartung und Sperre» (#803)", async () => {
+    await sperre(admin, "alles");
+    // Die Verwaltung fragt beim Start GET /api/v1/ich: Das trifft «alles» (423), sie fällt dann auf die Sitzung und den Schalter zurück
+    expect((await anfrage(admin, "GET", "/api/v1/ich")).status).toBe(423);
+    const sitzung = await anfrage(admin, "GET", "/api/auth/get-session");
+    expect(sitzung.status).toBe(200);
+    expect((await sitzung.json()).user.id).toBe(admin.id);
+    const schalter = await anfrage(admin, "GET", "/api/v1/plattform/schalter");
+    expect(schalter.status).toBe(200);
+    expect(await schalter.json()).toMatchObject({
+      darfSperre: true,
+      schalter: [{ art: "sperre", bereich: "alles" }],
+    });
+    // Ohne zweiten Faktor führt dieselbe Route zur Einrichtung statt ins Leere
+    const ohne = await anfrage(adminOhne, "GET", "/api/v1/plattform/schalter");
+    expect(ohne.status).toBe(403);
+    expect(await ohne.json()).toMatchObject({ code: "ZWEITER_FAKTOR_FEHLT" });
+    // Alle anderen: 403, kein Hinweis auf die Sperre
+    expect(
+      (await anfrage(eltern, "GET", "/api/v1/plattform/schalter")).status,
+    ).toBe(403);
+  });
+
   test("eine Sperre eines Bereichs sperrt die Anmeldung nicht", async () => {
     await sperre(admin, "lager");
     expect((await anmelden(eltern)).status).toBe(200);

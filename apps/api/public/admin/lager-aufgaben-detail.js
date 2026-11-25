@@ -1273,8 +1273,7 @@ function zeichne(bereich, ctx, lagerId, d, neuLaden) {
     knoten.checkliste,
     knoten.links,
     knoten.stichworte,
-    rechte.bearbeiten ? aehnliche() : null,
-    verlauf(),
+    ...[rechte.bearbeiten ? aehnliche() : null, verlauf()].filter(Boolean),
   );
   bereich.append(
     ...[rechte.zu && geschlossenHinweis(), kopf, bereiche].filter(Boolean),
