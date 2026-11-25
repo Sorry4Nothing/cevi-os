@@ -746,6 +746,38 @@ describe("Import", () => {
     expect(JSON.stringify(audit)).not.toContain("Keller");
   });
 
+  test("der Import verknüpft mit dem Kind der Abteilung, wenn der Name eindeutig passt (#779)", async () => {
+    const id = await frischesLager();
+    const [kind] = await db
+      .insert(schema.kind)
+      .values({
+        abteilungId: welt.testabteilungId,
+        vorname: "Import",
+        nachname: `Kindtest${randomUUID().slice(0, 8)}`,
+        stufeId: welt.stufeAId,
+      })
+      .returning();
+    const text = `${kind!.vorname.toUpperCase()};${kind!.nachname.toLowerCase()};Wolf
+Ohne;Kind;Wolf`;
+    expect((await importiere(text, true, id)).body.angelegt).toBe(2);
+    const zeilen = await db
+      .select({
+        vorname: schema.teilnehmer.vorname,
+        kindId: schema.teilnehmer.kindId,
+      })
+      .from(schema.teilnehmer)
+      .where(eq(schema.teilnehmer.lagerId, id));
+    expect(
+      Object.fromEntries(zeilen.map((z) => [z.vorname, z.kindId])),
+    ).toEqual({
+      [kind!.vorname.toUpperCase()]: kind!.id,
+      Ohne: null,
+    });
+    // Die Antwort nennt die Verknüpfung nicht
+    const liste = await anfrage(leiter(), "GET", `${L(id)}/teilnehmer`);
+    expect(JSON.stringify(liste.body)).not.toContain(kind!.id);
+  });
+
   test("zweiter Import derselben Liste legt nichts doppelt an", async () => {
     const id = await frischesLager();
     const text = "Eins;Test;Wolf\nZwei;Test;Wolf";

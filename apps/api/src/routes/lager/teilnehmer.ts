@@ -11,6 +11,7 @@ import { aendereZeile, legeZeilenAn, loescheZeile } from "../../lager/sync.js";
 import {
   IMPORT_MAX_ZEILEN,
   leseImport,
+  ordneKinderZu,
   schluessel,
   teilnehmerAendern,
   teilnehmerAnlegen,
@@ -146,14 +147,19 @@ export function erstelleTeilnehmerRouten({ db }: { db: Db }) {
         eingabe("json", teilnehmerAnlegen),
         async (c) => {
           const lagerId = c.get("lager").lager.id;
-          const [neu] = await db.transaction((tx) =>
-            legeZeilenAn(
+          const person = c.get("person");
+          const werte = c.req.valid("json");
+          const [neu] = await db.transaction(async (tx) => {
+            const [kindId] = await ordneKinderZu(tx, person.abteilungId, [
+              werte,
+            ]);
+            return legeZeilenAn(
               tx,
               teilnehmer,
-              { lagerId, personId: c.get("person").id },
-              [c.req.valid("json")],
-            ),
-          );
+              { lagerId, personId: person.id },
+              [{ ...werte, kindId }],
+            );
+          });
           return c.json(teilnehmerVoll(neu!), 201);
         },
       )
@@ -182,15 +188,21 @@ export function erstelleTeilnehmerRouten({ db }: { db: Db }) {
             await sperreLager(tx, lagerId);
             const plan = await plane(tx, lagerId, text);
             if (!plan) return null;
+            const kinder = await ordneKinderZu(
+              tx,
+              person.abteilungId,
+              plan.neu,
+            );
             const angelegt = await legeZeilenAn(
               tx,
               teilnehmer,
               { lagerId, personId: person.id },
-              plan.neu.map(({ vorname, nachname, stufe, ceviName }) => ({
+              plan.neu.map(({ vorname, nachname, stufe, ceviName }, i) => ({
                 vorname,
                 nachname,
                 stufe,
                 ceviName,
+                kindId: kinder[i],
               })),
             );
             if (angelegt.length > 0) {

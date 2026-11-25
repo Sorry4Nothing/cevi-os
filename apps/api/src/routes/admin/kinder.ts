@@ -32,6 +32,7 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { loescheTeilnehmendeDesKindes } from "../../lager/teilnehmer.js";
 import {
   keinKindKonto,
   ladeKindKontoEinstellung,
@@ -720,7 +721,19 @@ export function erstelleKinderRouten({
               .from(kindEltern)
               .where(eq(kindEltern.kindId, id))
           ).map((zeile) => zeile.userId);
+          // Die Namenskopien in den Lagern gehen mit (#779); im Protokoll nur die Zahlen, keine Namen
+          const kopien = await loescheTeilnehmendeDesKindes(tx, id, person.id);
           await tx.delete(kind).where(eq(kind.id, id));
+          if (kopien.teilnehmende > 0) {
+            await tx.insert(auditLog).values({
+              abteilungId: person.abteilungId,
+              akteurId: person.id,
+              aktion: "kind_teilnehmende_geloescht",
+              zielTyp: "kind",
+              zielId: id,
+              details: kopien,
+            });
+          }
           await protokolliere(tx, person, eltern);
         });
         return c.body(null, 204);

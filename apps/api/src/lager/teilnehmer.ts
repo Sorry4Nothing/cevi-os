@@ -1,8 +1,9 @@
-import { sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { abzaehlen, teilnehmer } from "../db/schema.js";
+import { abzaehlen, kind, teilnehmer } from "../db/schema.js";
 import { registriereSuchquelle } from "./suche.js";
+import { loescheZeilen, type Tx } from "./sync.js";
 import { registriereLagerTabelle } from "./tabellen.js";
 
 // Teilnehmende und Abzählen des Lagers (#384). Beide Tabellen sind beim ersten Import dieser Datei im Register des Sync-Kerns angemeldet (Feed: nur mit teilnehmer.lesen, kein Zeilenfilter; der Feed nennt nur IDs).
@@ -213,6 +214,62 @@ function zelle(roh: string) {
     w = w.slice(1, -1).replaceAll('""', '"');
   }
   return w.normalize("NFC").replace(/\s+/g, " ").trim();
+}
+
+const kindSchluessel = (p: { vorname: string; nachname: string }) =>
+  [p.vorname, p.nachname]
+    .map((w) => w.normalize("NFC").trim().toLowerCase())
+    .join("\u0000");
+
+// Ordnet neue Teilnehmende dem Kind der Abteilung zu (#779): nur bei genau einem Kind mit gleichem Vor- und Nachnamen (ohne Beachtung der Gross- und Kleinschreibung), sonst bleibt kind_id leer; nie raten. Die Zuordnung lässt das Löschen des Kindes die Namenskopien mitnehmen. Gibt je Eintrag die Kind-ID oder null zurück, in der Reihenfolge der Eingabe
+export async function ordneKinderZu(
+  tx: Pick<Db, "select">,
+  abteilungId: string,
+  personen: { vorname: string; nachname: string }[],
+): Promise<(string | null)[]> {
+  if (personen.length === 0) return [];
+  const kandidaten = await tx
+    .select({ id: kind.id, vorname: kind.vorname, nachname: kind.nachname })
+    .from(kind)
+    .where(
+      and(
+        eq(kind.abteilungId, abteilungId),
+        inArray(sql`lower(${kind.nachname})`, [
+          ...new Set(personen.map((p) => p.nachname.toLowerCase())),
+        ]),
+      ),
+    );
+  const je = new Map<string, string[]>();
+  for (const k of kandidaten) {
+    const s = kindSchluessel(k);
+    je.set(s, [...(je.get(s) ?? []), k.id]);
+  }
+  return personen.map((p) => {
+    const treffer = je.get(kindSchluessel(p));
+    return treffer?.length === 1 ? treffer[0]! : null;
+  });
+}
+
+// Löscht die Teilnehmenden, die an einem Kind hängen (#779), in allen Lagern samt Einteilung, Abzählen, Anwesenheit und Fahrten (Fremdschlüssel von dort mit CASCADE); der Feed meldet «geloescht», damit Apps die Zeilen entfernen. Läuft in der Transaktion, die das Kind löscht. Liefert die Zahl der Lager und der Teilnehmenden
+export async function loescheTeilnehmendeDesKindes(
+  tx: Tx,
+  kindId: string,
+  personId: string,
+) {
+  const zeilen = await tx
+    .select({ id: teilnehmer.id, lagerId: teilnehmer.lagerId })
+    .from(teilnehmer)
+    .where(eq(teilnehmer.kindId, kindId))
+    // Feste Reihenfolge der Lagersperren: zwei gleichzeitige Löschvorgänge blockieren sich nicht gegenseitig
+    .orderBy(teilnehmer.lagerId);
+  const lager = new Map<string, string[]>();
+  for (const z of zeilen) {
+    lager.set(z.lagerId, [...(lager.get(z.lagerId) ?? []), z.id]);
+  }
+  for (const [lagerId, ids] of lager) {
+    await loescheZeilen(tx, teilnehmer, { lagerId, personId }, { ids });
+  }
+  return { lager: lager.size, teilnehmende: zeilen.length };
 }
 
 // Wie lange die Daten der Teilnehmenden nach dem Ende des Lagers bleiben: sechs Monate (altes Datenschutzfenster)
