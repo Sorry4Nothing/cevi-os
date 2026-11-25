@@ -236,7 +236,7 @@ export function kandidaten({ bereiche, daten = {} }) {
           [p.name, 4],
           [p.ceviName, 4],
           [p.benutzername, 1],
-          [p.rollen.join(" "), 2],
+          [[...p.rollen, ...(p.rollenNeutral ?? [])].join(" "), 2],
           [p.tags.map((t) => t.name).join(" "), 2],
         ],
         adresse: "#personen/personen",
@@ -451,6 +451,8 @@ export function normalisierePerson(p, tags, h) {
     benutzername: p.benutzername ?? "",
     bildUrl: p.bildUrl ?? null,
     rollen: h.systemRollen(p),
+    // Die Suche findet auch «Stufenleitung», wenn die Person «Stufenleiterin» heisst (#817)
+    rollenNeutral: h.systemRollen({ ...p, geschlecht: null }),
     tags: tags.map((e) => ({ name: e.tag.name, typ: e.tag.typ })),
     konto: {
       deaktiviert: p.deaktiviert,

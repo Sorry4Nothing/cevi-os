@@ -209,6 +209,7 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
               id: user.id,
               name: user.name,
               ceviName: user.ceviName,
+              geschlecht: user.geschlecht,
               rolle: rolle.typ,
             })
             .from(rolle)

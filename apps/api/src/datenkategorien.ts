@@ -30,6 +30,15 @@ export const KATEGORIEN = {
     apple: ["Contact Info: Phone Number"],
     google: ["Personal info: Phone number"],
   },
+  geschlecht: {
+    titel: "Geschlecht der Person",
+    zweck:
+      "Die Verwaltung nennt die Rolle einer Leitung so, wie die Person heisst: «Stufenleiterin», «Stufenleiter» oder, ohne Angabe oder bei anderer Angabe, «Stufenleitung». Die Angabe ist freiwillig. Wer Personen bearbeiten darf, trägt sie ein; die Person sieht sie in ihrem Konto. Sie erscheint nur dort, wo die Verwaltung den Namen und die Rolle der Person zeigt: nie auf der öffentlichen Website, im Kalender, in Mitteilungen, in der App der Eltern oder in Exporten. Von Kindern wird sie nicht erfasst.",
+    frist:
+      "Bis eine berechtigte Person die Angabe entfernt oder das Konto gelöscht wird.",
+    apple: ["Other Data"],
+    google: ["Personal info: Other info"],
+  },
   kalenderlink: {
     titel: "Persönlicher Kalenderlink",
     zweck:
@@ -1620,6 +1629,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datenschutz_gelesen_am",
     ],
     telefon: ["telefon"],
+    geschlecht: ["geschlecht"],
     cevi_db: ["cevi_db_id"],
     benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },

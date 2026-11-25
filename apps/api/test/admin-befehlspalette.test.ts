@@ -378,6 +378,7 @@ describe("Daten im Speicher", () => {
       "konto",
       "name",
       "rollen",
+      "rollenNeutral",
       "tags",
     ]);
   });

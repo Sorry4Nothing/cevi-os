@@ -84,7 +84,24 @@ describe("Mein Konto: Rollen und Website", () => {
     const sl = konto.rollenChips!({ profil: profil(), zugang: { rechte: [] } });
     expect(sl.map((c: { text: string }) => c.text)).toEqual([
       "Stufenleitung Artemis",
-      "Leitung Pilami",
+      "Gruppenleitung Pilami",
+    ]);
+    // Die Form folgt dem Geschlecht der Person (#817)
+    const w = konto.rollenChips!({
+      profil: profil({ geschlecht: "w" }),
+      zugang: { rechte: [] },
+    });
+    expect(w.map((c: { text: string }) => c.text)).toEqual([
+      "Stufenleiterin Artemis",
+      "Gruppenleiterin Pilami",
+    ]);
+    const m = konto.rollenChips!({
+      profil: profil({ geschlecht: "m" }),
+      zugang: { rechte: [] },
+    });
+    expect(m.map((c: { text: string }) => c.text)).toEqual([
+      "Stufenleiter Artemis",
+      "Gruppenleiter Pilami",
     ]);
   });
 

@@ -280,6 +280,7 @@ describe("Erfassen und Übersicht", () => {
     expect(body.leitende).toHaveLength(1);
     expect(body.leitende[0]).toMatchObject({
       id: idVon(sl),
+      geschlecht: null,
       anwesenheit: [null, null, "da", null],
       da: 1,
       von: 1,
