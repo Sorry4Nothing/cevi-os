@@ -46,11 +46,15 @@ export const STANDARD_MAX_ANTWORTEN = 2000;
 export const MAX_ANTWORT_ZEICHEN = 16000;
 const MAX_ZAHL = 1_000_000_000;
 
+// Ein echter Kalendertag: «2026-02-30» gibt es nicht
+const istKalendertag = (s: string) => {
+  const d = new Date(`${s}T12:00:00Z`);
+  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(s);
+};
 const datumText = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
-  .refine((s) => !Number.isNaN(Date.parse(`${s}T12:00:00Z`)))
-  .refine((s) => new Date(`${s}T12:00:00Z`).toISOString().startsWith(s));
+  .refine(istKalendertag);
 const optionen = z
   .array(kurztext(MAX_OPTION))
   .min(2)

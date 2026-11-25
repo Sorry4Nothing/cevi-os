@@ -16,7 +16,7 @@ import {
 } from "../../formular/formular.js";
 import { erstelleBegrenzung } from "../../fotos/begrenzung.js";
 import type { Person } from "../../rechte.js";
-import { verlange } from "../../rechtemodell/darf.js";
+import { darf, verlange } from "../../rechtemodell/darf.js";
 import { BOM, csvZeile } from "../../termine/csv.js";
 import {
   antwortText,
@@ -97,6 +97,11 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
       const b = await aktuelleDefinition(person.abteilungId, z);
       return c.json({
         formular: z,
+        // Was die Person mit den Antworten darf: Die Oberfläche blendet Knöpfe ohne das Recht aus, jede Route prüft selbst
+        rechte: {
+          exportieren: await darf(db, person, "formular.antworten_exportieren"),
+          loeschen: await darf(db, person, "formular.antworten_loeschen"),
+        },
         felder: (b?.daten.felder ?? []).map((f) => ({
           id: f.id,
           beschriftung: f.beschriftung,

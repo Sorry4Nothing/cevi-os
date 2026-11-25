@@ -116,6 +116,14 @@ export const BEREICHE = [
         untertitel: "Welche Fotoalben aus Flickr die Website zeigt.",
         zugang: "recht:fotos.verwalten",
       },
+      // Antworten auf Formulare der Website (#819): Sie enthalten Personendaten, darum eigene Rechte
+      {
+        schluessel: "formulare",
+        name: "Formulare",
+        modul: "./website-formulare.js",
+        untertitel: "Antworten auf die Formulare der Website.",
+        zugang: "recht:formular.antworten_sehen",
+      },
       {
         schluessel: "einstellungen",
         name: "Einstellungen",

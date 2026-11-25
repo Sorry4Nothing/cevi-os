@@ -446,6 +446,8 @@ describe("Umschalter Hell und Dunkel (theme.js)", () => {
           addEventListener: () => {},
         }),
         addEventListener: () => {},
+        // theme.js setzt den Rückfall für geschützte Seiten (#816) mit einem Zeitgeber
+        setTimeout: () => 0,
       },
     });
     const vorher = new Map(wurzel.attr);

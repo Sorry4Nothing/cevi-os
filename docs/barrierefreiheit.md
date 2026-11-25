@@ -16,7 +16,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Rückmeldungen nach einer Aktion auf der öffentlichen Website (Toasts): Abschnitt 83, im Browser geprüft.
 - Fotos in der Verwaltung (Albumliste mit Suche, Filter und Sammelaktionen): Abschnitt 87, im Browser geprüft.
 - Funktionen im Blatt der Person (Verwaltung, Personen) und Rollenseite nur zum Lesen: Abschnitt 89, im Browser geprüft.
-- Rufname in der Verwaltung (Personenliste, Blatt, Kontomenü, Suche, Personenwahl): Abschnitt 92, im Browser geprüft.
+- Rufname in der Verwaltung (Personenliste, Blatt, Kontomenü, Suche, Personenwahl): Abschnitt 94, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1663,6 +1663,8 @@ Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, 
 - [ ] **88.9** Kontrast Hell und Dunkel (Titel, Meta, Anzahl, Jahr, Rand des Suchfelds) mindestens 4,5 : 1, Rand des Suchfelds und Fortschritt mindestens 3 : 1.
 - [ ] **88.10** 320 px, Zoom 200 % und 400 % ohne waagrechtes Scrollen; 1, 2, 3 und 4 Spalten bei 40, 62 und 80 em.
 - [ ] **88.11** Bewegung: Heranzoomen der Bilder beim Zeigen und Drehen des Dreiecks nur unter «Bewegung nicht reduzieren»; Skelette und Einblenden der Bilder folgen den Regeln der Website. Erzwungene Farben: Karten, Taste und Jahre behalten Rand und Linie.
+- [ ] **88.12** Ladezustand (#816): Die Seite «Fotos» ist eine geschützte Hülle. Solange die Sitzung nicht geklärt ist, steht nur ein ruhiges Skelett (`aria-hidden`, erscheint nach 150 ms, `aria-busy` am Behälter, Ansage «Geschützte Inhalte werden geladen.» in der Statusregion) und **nie** «Nur angemeldet sichtbar»; der Hinweis erscheint nur nach der Antwort 401 (`role="status"`-Ansage «Melde dich an, um das zu sehen.»). Eine angemeldete Person sieht Skelett, dann direkt die Fotos: ohne Hinweis, ohne zweiten Ladevorgang und ohne dass der Fuss ins Bild springt (das Skelett reicht über die Höhe des Fensters). Ohne Skript und wenn `geschuetzt.js` nach acht Sekunden nicht läuft, steht der Hinweis mit dem Link zur Anmeldung (Rückfall, `data-skript-spaet`).
+- [ ] **88.13** Abstand unten (#816): Unter dem letzten Foto, «Weitere Fotos anzeigen» und dem Ende der Übersicht steht der Abschnittsabstand der Website (`--abstand`: 3 rem bis 5,5 rem, gemessen 48, 59 und 77 px bei 320 bis 390, 768 und 1280 px), gleich in Hell und Dunkel; er gilt für alle Zustände der Hülle (Hinweis, Fehler, Inhalt).
 
 ### Stand der Prüfung (#796)
 
@@ -1745,27 +1747,27 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vors
 
 **Nicht geprüft:** 91.5 (Bewegung reduzieren) und 91.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 91.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).
 
-## 92. Verwaltung: Rufname statt vollem Namen (#815)
+## 94. Verwaltung: Rufname statt vollem Namen (#815)
 
 Die Verwaltung nennt eine Person wie die Website: mit dem Cevi-Namen, sonst mit dem Vornamen (bei Konten das erste Wort des Namens, bei Kindern der Vorname), sonst mit dem vollen Namen. Leere Werte und Leerzeichen zählen als nicht vorhanden. Der volle Name bleibt sichtbar, damit Personen eindeutig bleiben: als zweite Zeile unter dem Rufnamen, ausser beide sind gleich. Die Regel steht an einer Stelle (`rufname` und `vollerNameZusatz` in `dom.js`) und gilt für Karte und Zeile der Personen, Kinder, Stufenleitung und Gruppenmitglieder (`mitgliedKopf`), den Titel des Blatts der Person und seine Profilkarte, das Kontomenü im Kopf, die Suche (Strg K), die Personenwahl bei Rollen, Eltern eines Kindes und im Lager. Bewusst unverändert, weil sie den vollen Namen brauchen: die Felder «Name», «Vorname» und «Nachname» in den Formularen, Exporte und Import, die Datenschutz-Auskunft, die Teilnehmerlisten der Lager, das Protokoll, Beschriftungen von Knöpfen («Entfernen: Anna Muster») und die Suche selbst (sie findet über Cevi-Name, Name und Benutzername). Leitplanke: `test/admin-rufname.test.ts`.
 
 ### Prüfpunkte
 
-- [ ] **92.1** Der Titel der Karte, der Zeile und des Blatts ist der Rufname, die zweite Zeile der volle Name; ohne Unterschied steht nur eine Zeile. Der Bildschirmleser liest zuerst den Rufnamen, danach den vollen Namen (Reihenfolge im Quelltext, kein `aria-label`, das den Namen ersetzt).
-- [ ] **92.2** Die Initialen im Kreis stammen aus dem Rufnamen (der Kreis bleibt `aria-hidden`); beim «(du)» steht der Zusatz hinter dem Rufnamen im Titel.
-- [ ] **92.3** Kontomenü: Im Kopf steht der Rufname, im offenen Menü darunter der volle Name und die Rolle; der Name der Schaltfläche beginnt mit «Konto: » und dem Rufnamen.
-- [ ] **92.4** Befehlspalette: Rufname als Titel, voller Name als Zusatz; wer nach dem Nachnamen, dem Cevi-Namen oder dem Benutzernamen sucht, findet die Person weiter, die Treffer im Zusatz sind markiert.
-- [ ] **92.5** Personenwahl (Rollen zuordnen, Eltern eines Kindes, Lager): Rufname vorne, voller Name im Nebentext; gleiche Rufnamen sind am vollen Namen unterscheidbar. Namen von Knöpfen («Entfernen: …», «Hinzufügen: …») behalten den vollen Namen.
-- [ ] **92.6** Der Titel im Formular bleibt: «Name» zeigt den vollen Namen, das Feld «Cevi-Name» den Cevi-Namen; die Vorschau rechts folgt beiden Feldern beim Tippen.
-- [ ] **92.7** Bei 390 und 1280 Pixel, hell und dunkel: lange Namen umbrechen, kein waagrechtes Scrollen, Kontrast der zweiten Zeile wie bisher (`--on-surface-variant`).
+- [ ] **94.1** Der Titel der Karte, der Zeile und des Blatts ist der Rufname, die zweite Zeile der volle Name; ohne Unterschied steht nur eine Zeile. Der Bildschirmleser liest zuerst den Rufnamen, danach den vollen Namen (Reihenfolge im Quelltext, kein `aria-label`, das den Namen ersetzt).
+- [ ] **94.2** Die Initialen im Kreis stammen aus dem Rufnamen (der Kreis bleibt `aria-hidden`); beim «(du)» steht der Zusatz hinter dem Rufnamen im Titel.
+- [ ] **94.3** Kontomenü: Im Kopf steht der Rufname, im offenen Menü darunter der volle Name und die Rolle; der Name der Schaltfläche beginnt mit «Konto: » und dem Rufnamen.
+- [ ] **94.4** Befehlspalette: Rufname als Titel, voller Name als Zusatz; wer nach dem Nachnamen, dem Cevi-Namen oder dem Benutzernamen sucht, findet die Person weiter, die Treffer im Zusatz sind markiert.
+- [ ] **94.5** Personenwahl (Rollen zuordnen, Eltern eines Kindes, Lager): Rufname vorne, voller Name im Nebentext; gleiche Rufnamen sind am vollen Namen unterscheidbar. Namen von Knöpfen («Entfernen: …», «Hinzufügen: …») behalten den vollen Namen.
+- [ ] **94.6** Der Titel im Formular bleibt: «Name» zeigt den vollen Namen, das Feld «Cevi-Name» den Cevi-Namen; die Vorschau rechts folgt beiden Feldern beim Tippen.
+- [ ] **94.7** Bei 390 und 1280 Pixel, hell und dunkel: lange Namen umbrechen, kein waagrechtes Scrollen, Kontrast der zweiten Zeile wie bisher (`--on-surface-variant`).
 
 ### Stand der Prüfung (#815)
 
 Im Browser (Chromium headless, Playwright, eigener Dev-Server, Kopie der Demo-Datenbank, Konto der Abteilungsleitung mit zweitem Faktor), 1280 x 900 hell und 390 x 844 dunkel:
 
-- **92.1:** Personenliste: «Linn» mit «Linn Demo», «Stufenleitung» mit «Stufenleitung Demo»; Blatt: Titel «Linn», darunter «Linn Demo · Stufenleitung», Profilkarte «Linn» / «Linn Demo».
-- **92.2, 92.3:** Das eigene Konto ohne Cevi-Namen steht als «Demo (du)» mit «Demo Admin» darunter; Kontomenü zeigt «Demo», «Demo Admin», «Abteilungsleitung».
-- **92.4:** Suche «demo»: Titel «Linn», Zusatz «Linn Demo» und so weiter.
-- **92.7:** kein waagrechtes Scrollen bei beiden Grössen (`scrollWidth` gleich `clientWidth`), Ansichten von Liste, Blatt und Kontomenü angeschaut.
+- **94.1:** Personenliste: «Linn» mit «Linn Demo», «Stufenleitung» mit «Stufenleitung Demo»; Blatt: Titel «Linn», darunter «Linn Demo · Stufenleitung», Profilkarte «Linn» / «Linn Demo».
+- **94.2, 94.3:** Das eigene Konto ohne Cevi-Namen steht als «Demo (du)» mit «Demo Admin» darunter; Kontomenü zeigt «Demo», «Demo Admin», «Abteilungsleitung».
+- **94.4:** Suche «demo»: Titel «Linn», Zusatz «Linn Demo» und so weiter.
+- **94.7:** kein waagrechtes Scrollen bei beiden Grössen (`scrollWidth` gleich `clientWidth`), Ansichten von Liste, Blatt und Kontomenü angeschaut.
 
-**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (Tokens unverändert), 92.5 (Personenwahl) und 92.6 (Vorschau beim Tippen) nicht im Browser, Tabellenansicht der Personen nur über denselben Baustein.
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (Tokens unverändert), 94.5 (Personenwahl) und 94.6 (Vorschau beim Tippen) nicht im Browser, Tabellenansicht der Personen nur über denselben Baustein.

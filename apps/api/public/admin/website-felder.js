@@ -24,6 +24,10 @@ import {
   PERSON_HILFE,
 } from "./website-personenwahl.js";
 import {
+  KATALOG_FORMULAR,
+  TYPEN_FORMULAR,
+} from "./website-felder-formular.js";
+import {
   dynamischeBausteine,
   FELDNAMEN_DYNAMISCH,
   VERWEIS_TEXTE_DYNAMISCH,
@@ -105,6 +109,26 @@ export const FELDNAMEN = {
   untertitel: "Der Untertitel",
   schaltflaechen: "Die Schaltflächen",
   felder: "Die Angaben",
+  // Formular (#819)
+  datenschutz: "Der Datenschutzhinweis",
+  absenden: "Die Beschriftung des Knopfs",
+  danke: "Der Text nach dem Senden",
+  einleitung: "Die Einleitung",
+  schliesstAm: "Der letzte Tag",
+  maxAntworten: "Die Obergrenze der Antworten",
+  aufbewahrenTage: "Die Frist zum Löschen",
+  minLaenge: "Die Mindestlänge",
+  maxLaenge: "Die Höchstlänge",
+  min: "Der kleinste Wert",
+  max: "Der grösste Wert",
+  von: "Das früheste Datum",
+  bis: "Das späteste Datum",
+  optionen: "Die Antworten",
+  minAuswahl: "Die Mindestzahl",
+  maxAuswahl: "Die Höchstzahl",
+  grenzen: "Die Grenzen",
+  hilfe: "Der Hilfetext",
+  pflicht: "Die Pflicht",
   nachricht: "Die Nachricht",
   // Bilder und Medien (#742)
   spalten: "Die Zahl der Spalten",
@@ -1599,6 +1623,8 @@ export const TYPEN = {
   },
   // Einstieg und Handlung (#743): website-felder-handlung.js
   ...TYPEN_HANDLUNG,
+  // Formular (#819): website-felder-formular.js
+  ...TYPEN_FORMULAR,
   // Text und Gestaltung (#741), website-felder-text.js
   ...TEXT_TYPEN,
 };
@@ -1920,6 +1946,8 @@ export const KATALOG = [
   },
   // Einstieg und Handlung (#743)
   ...KATALOG_HANDLUNG,
+  // Formular (#819)
+  ...KATALOG_FORMULAR,
   // Bilder und Medien (#742)
   ...MEDIEN_KATALOG,
   ...TEXT_KATALOG,
