@@ -142,7 +142,7 @@ function stubKalender(texte: (string | Response)[]) {
 const programme = () => sql`
   select google_event_id, google_serie, titel, ganztaegig,
          beginn::text as beginn, ende::text as ende, tag_von::text as tag_von, tag_bis::text as tag_bis,
-         status, sichtbarkeit, id
+         status, id
   from programm where abteilung_id = ${abteilungId} order by titel, beginn`;
 
 const eigeneAbteilung = async () =>
@@ -150,7 +150,7 @@ const eigeneAbteilung = async () =>
     await sql`select sync_ok_am, sync_fehler from abteilung where id = ${abteilungId}`
   )[0];
 
-test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar, aktiv und ohne Tag in der Datenbank, Private und Titellose nicht", async () => {
+test("erster Lauf: Alle Termine aus der Aufzeichnung landen aktiv und ohne Tag in der Datenbank, Private und Titellose nicht", async () => {
   stubKalender([lauf1]);
   expect(
     await synchronisiere({
@@ -173,10 +173,7 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar
     })),
   ).toEqual(ERWARTET_LAUF_1);
   for (const zeile of zeilen) {
-    expect(zeile).toMatchObject({
-      status: "aktiv",
-      sichtbarkeit: "eltern",
-    });
+    expect(zeile).toMatchObject({ status: "aktiv" });
   }
   // Ohne Kategorie kein Tag, auch wenn der Titel eine Stufe nennt (#449)
   expect(
@@ -192,7 +189,7 @@ test("erster Lauf: Alle Termine aus der Aufzeichnung landen für Eltern sichtbar
   expect(ausgabe).not.toHaveBeenCalled();
 });
 
-test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und die Sichtbarkeit bleibt", async () => {
+test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status", async () => {
   stubKalender([lauf1, lauf2]);
   const starte = () =>
     synchronisiere({
@@ -201,22 +198,16 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
     });
   expect(await starte()).toBe("fertig");
 
-  // Wie eine Person nach dem ersten Lauf: Sichtbarkeit öffnen
-  const [waldtag] = await sql`
-    select id from programm where abteilung_id = ${abteilungId} and google_event_id = '0aldtag000000001'`;
-  await sql`update programm set sichtbarkeit = 'eltern' where id = ${waldtag.id}`;
-
   expect(await starte()).toBe("fertig");
   const zeilen = await programme();
 
-  // Geändert (Titel, Zeit): aktualisiert, Sichtbarkeit unberührt
+  // Geändert (Titel, Zeit): aktualisiert
   const feuer = zeilen.find((z) => z.google_event_id === "0aldtag000000001");
   expect(feuer).toMatchObject({
     titel: "Waldtag mit Feuer",
     beginn: "2027-09-25 12:00:00+00",
     ende: "2027-09-25 15:30:00+00",
     status: "aktiv",
-    sichtbarkeit: "eltern",
   });
 
   // Abgesagte Instanz über Serie und Beginn gefunden: nur der Status ändert sich
@@ -240,11 +231,10 @@ test("zweiter Lauf: Änderungen kommen an, Absagen setzen nur den Status, und di
     status: "abgesagt",
   });
 
-  // Neuer Termin: für Eltern sichtbar, ohne Stufe
+  // Neuer Termin: ohne Stufe
   expect(zeilen.find((z) => z.titel === "Elternabend")).toMatchObject({
     beginn: "2027-10-02 17:30:00+00",
     status: "aktiv",
-    sichtbarkeit: "eltern",
   });
 
   // Die Absage eines nie übernommenen (privaten) Termins trifft nichts
@@ -438,7 +428,7 @@ const ERWARTET_GETEILT = [
     status: "aktiv",
   },
 ];
-// Diese vier Programme bekommen nach dem ersten Lauf Zuordnung, Sichtbarkeit und eine Leitungsanmeldung
+// Diese vier Programme bekommen nach dem ersten Lauf eine Leitungsanmeldung
 const MIT_ZUORDNUNG = [
   "Gruppenstunde|2027-10-09 12:00:00+00",
   "Gruppenstunde|2027-10-16 12:00:00+00",
@@ -472,7 +462,6 @@ async function ersterSerienLauf() {
   for (const z of await programme()) {
     ids.set(schluessel(z), z.id as string);
     if (!MIT_ZUORDNUNG.includes(schluessel(z))) continue;
-    await sql`update programm set sichtbarkeit = 'eltern' where id = ${z.id}`;
     await sql`insert into leitung_anmeldung (programm_id, user_id, status) values (${z.id}, ${person.id}, 'ja')`;
   }
   return { ids, personId: person.id as string };
@@ -493,16 +482,14 @@ test("geteilte Serie: A wird umgeschlüsselt und behält id und Leitungsanmeldun
       status: erwartet.status,
     });
     if (erwartet.vorher === null) {
-      // Neuer Termin: für Eltern sichtbar, ohne Stufe
+      // Neuer Termin: ohne Stufe
       expect([...ids.values()]).not.toContain(zeile.id);
-      expect(zeile).toMatchObject({ sichtbarkeit: "eltern" });
       expect((await anhang(zeile.id as string)).tags).toEqual([]);
       continue;
     }
     const vorherKey = `${erwartet.titel}|${erwartet.vorher}`;
     expect(zeile.id).toBe(ids.get(vorherKey));
     if (MIT_ZUORDNUNG.includes(vorherKey)) {
-      expect(zeile).toMatchObject({ sichtbarkeit: "eltern" });
       expect(await anhang(zeile.id as string)).toEqual({
         tags: [],
         leitung: [{ user_id: personId, status: "ja" }],
@@ -537,9 +524,13 @@ test("begonnene Programme bleiben unberührt: Der 09.10. von A behält Zeit und 
     google_event_id: `${A2}_20271016T133000`,
   });
   // Der neue Termin vom 09.10. ist nur ein neues Programm ohne Stufe
-  expect(await finde("Gruppenstunde", "2027-10-09 11:30:00+00")).toMatchObject({
-    sichtbarkeit: "eltern",
-  });
+  expect(
+    (
+      await anhang(
+        (await finde("Gruppenstunde", "2027-10-09 11:30:00+00")).id as string,
+      )
+    ).tags,
+  ).toEqual([]);
 });
 
 test("ein abgesagtes Programm, das im Abruf fehlt, bleibt abgesagt", async () => {
@@ -677,9 +668,8 @@ test("ein Stufenname im Titel ergibt keinen Tag und keinen Audit-Eintrag", async
   );
   await lauf();
   const [p] = await sql`
-    select id, sichtbarkeit from programm
+    select id from programm
     where abteilung_id = ${abteilungId} and google_event_id = 'auto000000000001'`;
-  expect(p.sichtbarkeit).toBe("eltern");
   expect(
     await sql`select * from programm_tag where programm_id = ${p.id}`,
   ).toEqual([]);

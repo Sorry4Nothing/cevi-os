@@ -163,6 +163,27 @@ export function personAusSitzung(
   });
 }
 
+// Für Routen, die auch ohne Anmeldung gelten (öffentliche Formulare, #819): Mit gültiger Sitzung setzt sie die Person wie personAusSitzung, ohne Sitzung (401) geht die Anfrage ohne Person weiter. Ein Konto mit Pflichtwechsel des Passworts bekommt weiter das 403 von personAusSitzung: Wer ein Konto hat, gilt nie stillschweigend als anonym. Ein gesperrtes Konto (banned) hat keine Sitzung (401) und gilt wie jede Person ohne Anmeldung
+export function optionalePersonAusSitzung(
+  auth: ReturnType<typeof erstelleAuth>,
+  db: Db,
+) {
+  const mitPerson = personAusSitzung(auth, db);
+  return createMiddleware<{ Variables: { person?: Person } }>(
+    async (c, next) => {
+      try {
+        // Der innere Aufruf endet hier: Die Route selbst läuft erst nach dem try
+        await mitPerson(c as never, async () => {});
+      } catch (fehler) {
+        if (!(fehler instanceof HTTPException && fehler.status === 401)) {
+          throw fehler;
+        }
+      }
+      await next();
+    },
+  );
+}
+
 // Die Art der Sitzung (#785); ein unbekannter Wert gilt als «web». Der Wert steuert kein Recht
 function clientArtVon(sitzung: object): NonNullable<Person["clientArt"]> {
   const art = (sitzung as { clientArt?: unknown }).clientArt;

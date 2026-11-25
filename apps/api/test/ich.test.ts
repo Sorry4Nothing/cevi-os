@@ -83,6 +83,7 @@ describe("GET /api/v1/ich", () => {
       id: konto.id,
       name: "Leitende A und zugleich Elternteil B",
       ceviName: null,
+      geschlecht: null,
       benutzername: konto.benutzername,
       abteilungsleitung: false,
       entwickler: false,
@@ -297,6 +298,8 @@ describe("PATCH /api/v1/ich", () => {
     ["ein leerer Body", {}],
     ["ein Wert, der kein Boolean ist", { pushChat: "nein" }],
     ["ein fremdes Feld", { abteilungId: "x" }],
+    // Das Geschlecht ändert nur, wer Personen bearbeiten darf (#817)
+    ["das Geschlecht", { geschlecht: "w" }],
     [
       "ein fremdes Feld neben einem Schalter",
       { pushChat: false, email: "x@example.org" },

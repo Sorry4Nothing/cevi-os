@@ -146,6 +146,18 @@ Cevi OS besteht aus einer App für iOS und Android und einem Server mit API und 
 
 Wie Cevi OS die Daten schützt und welche Risiken bleiben, steht im [Bedrohungsmodell](sicherheit/bedrohungsmodell.md).
 
+## Formulare der Website (#819)
+
+Ein Baustein «Formular» holt Angaben auf einer Seite ein; die Antworten gehen in die Verwaltung, nie per E-Mail oder an einen Dienst von Dritten.
+
+- **Definition:** im Dokument der Seite (`seite_version.inhalt`), mit stabilen Feld-IDs (Schema `website/bausteine-formular.ts`). Es gibt keine eigene Tabelle dafür: Der Server liest den veröffentlichten Stand (`formular/formular.ts`).
+- **Antworten:** `formular_antwort` (JSON mit den Feld-IDs, dazu die Version der Seite, die Person oder nichts, `loeschen_am`). Die Verwaltung zeigt jede Antwort mit den Beschriftungen ihrer Version. Löschfrist je Formular (7 bis 730 Tage, vorgegeben 180), täglicher Lauf in `server.ts`; mit dem Konto verschwindet nur die Zuordnung.
+- **Eingang:** `POST /api/v1/formulare/:id/antworten` hängt vor der Sitzung und liest eine vorhandene mit (`optionalePersonAusSitzung`). Sichtbarkeit nach `sichtbarkeit.ts`, Spamschutz im Arbeitsspeicher (Falle, Mindestzeit, Zähler, Obergrenze), Sperre und Wartung der Website.
+- **Verwaltung:** `/api/v1/admin/formulare*`, Seite «Website, Formulare» (`website-formulare.js`), eigene Rechte `formular.antworten_sehen`, `…_exportieren`, `…_loeschen`. Der Editor des Bausteins ist `website-felder-formular.js`.
+- **Datenkategorie:** «Antworten auf Formulare der Website» (`datenkategorien.ts`). Gesundheitsdaten sind in Formularen nicht erlaubt (Sperrliste), Dateien gibt es nicht.
+
+Sicherheit: [Bedrohung 69](sicherheit/bedrohungsmodell.md), Rechte: [Abschnitt 4.6b](rechte.md).
+
 ## Lädeli (#566)
 
 Das Lädeli ist ein eigener kleiner Bereich neben Website, Terminen und Lager: Artikel der Abteilung, Bestellungen angemeldeter Personen, keine Zahlung, kein Lagerbestand.

@@ -9,6 +9,7 @@ import { sk } from "./lader.js";
 import { feldFehler } from "./liste-hilfen.js";
 import { melde } from "./melden.js";
 import { rolleVon } from "./navigation.js";
+import { rollenName } from "./rollenname.js";
 import { setzeKontoBild } from "./rahmen.js";
 import { zweiStufig } from "./rueckgaengig.js";
 import { istAbteilungsleitung, istEntwickler, siehtAlles } from "./sicht.js";
@@ -63,6 +64,14 @@ const PASSWORT_FEHLER = {
   ],
 };
 
+// Anzeige der freiwilligen Angabe (#817); «d» und leer heissen für die Rolle gleich
+const GESCHLECHT_TEXT = {
+  w: "Weiblich",
+  m: "Männlich",
+  d: "Andere",
+  keine: "Keine Angabe",
+};
+
 // ===== Reine Funktionen (getestet in test/admin-konto.test.ts) =====
 
 // Chips der Rollen im Klartext: Abteilungsleitung, Entwickler, je Stufe «Stufenleitung Artemis», Website-Redaktion. Die Rechte entscheidet der Server, das hier ist nur die Anzeige
@@ -75,7 +84,10 @@ export function rollenChips({ profil, zugang }) {
   for (const r of profil.rollen) {
     const stufe = stufenName.get(r.stufeId);
     if (stufe && ROLLEN_NAME[r.typ]) {
-      chips.push({ text: `${ROLLEN_NAME[r.typ]} ${stufe}`, art: "stufe" });
+      chips.push({
+        text: `${rollenName(r.typ, profil.geschlecht)} ${stufe}`,
+        art: "stufe",
+      });
     }
   }
   const rechte = zugang?.rechte ?? [];
@@ -506,6 +518,11 @@ function zeichne(bereich, ctx, profil) {
     profil.ceviName || "Nicht gesetzt",
     `Erscheint auf der Website, wenn du Leitung oder Stufenleitung bist. ${wer}`,
   );
+  const geschlecht = lesefeld(
+    "Geschlecht",
+    GESCHLECHT_TEXT[profil.geschlecht] ?? GESCHLECHT_TEXT.keine,
+    `Bestimmt, wie deine Rolle heisst, z. B. Stufenleiterin. Es ist freiwillig. ${siehtAlles(profil) ? "Ändere es unter «Personen»." : "Es ändert die Abteilungsleitung."}`,
+  );
   const benutzername = lesefeld(
     "Benutzername",
     profil.benutzername,
@@ -712,6 +729,7 @@ function zeichne(bereich, ctx, profil) {
         { class: "kt-felder" },
         name.wurzel,
         ceviName.wurzel,
+        geschlecht.wurzel,
         benutzername.wurzel,
         telefon.wurzel,
       ),

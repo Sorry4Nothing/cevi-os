@@ -20,6 +20,7 @@ import { ansichtVonKnopf } from "./rueckgaengig.js";
 import { zurueckKlick } from "./verlauf.js";
 import { anlassKarte, anlassText, ladeFreieAnlaesse } from "./tags-anlass.js";
 import { raeumeKarte } from "./tags-raeume.js";
+import { rollenName } from "./rollenname.js";
 
 // Gruppe (= Tag der Abteilung): Dialoge zum Anlegen, Umbenennen, Löschen und für die Mitglieder, dazu die Detailseite A5 (#personen/gruppen/<id>)
 export const TYPEN = [
@@ -250,7 +251,10 @@ export function tagLoeschen({ tag, anzahl, ctx, neu, danach, ereignis }) {
 
 // Die Rollen «leitung» und «stufenleitung» kommen aus den Stufenrollen der Personen und stehen als Rohwert in der Gruppe der Stufe
 const ROLLENNAME = { leitung: "Leitung", stufenleitung: "Stufenleitung" };
-const rolleText = (roh) => ROLLENNAME[roh] ?? roh ?? "";
+// geschlecht (#817): Die Person bestimmt die Form der Stufenrolle («Stufenleiterin»); freie Rollen bleiben, wie sie sind. Die Gruppierung nach Funktion und die Reihenfolge nutzen die neutrale Form ohne Geschlecht
+const rolleText = (roh, geschlecht) =>
+  roh in ROLLENNAME ? rollenName(roh, geschlecht) : (roh ?? "");
+const neutralText = (roh) => ROLLENNAME[roh] ?? roh ?? "";
 // Wer in einer Stufe Leitung oder Stufenleitung ist, hat die Zuordnung und die Rolle bei der Person bekommen (Rechte und Rollen); hier lässt sie sich nicht ändern, sonst fiele die Stufenrolle still weg
 const istStufenrolle = (tag, m) => tag.typ === "stufe" && m.rolle in ROLLENNAME;
 
@@ -319,6 +323,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
   );
 
   const nameVon = (m) => bekannt.get(m.userId)?.name ?? "Unbekannte Person";
+  const geschlechtVon = (m) => bekannt.get(m.userId)?.geschlecht;
   const zusatzVon = (m) => {
     const p = bekannt.get(m.userId);
     return [p?.ceviName, p?.deaktiviert && "deaktiviert"]
@@ -378,7 +383,11 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
       el(
         "ul",
         { class: "chips" },
-        chip(m.rolle ? rolleText(m.rolle) : "ohne Funktion", undefined, false),
+        chip(
+          m.rolle ? rolleText(m.rolle, geschlechtVon(m)) : "ohne Funktion",
+          undefined,
+          false,
+        ),
       ),
       istStufenrolle(tag, m)
         ? el("span", { class: "klein leise" }, "Bei der Person ändern")
@@ -451,7 +460,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
     f.eingabe.focus();
   }
 
-  const funktion = (m) => (m.rolle ? rolleText(m.rolle) : "");
+  const funktion = (m) => (m.rolle ? neutralText(m.rolle) : "");
   // Die Funktionen mit Stufenrolle zuerst, die übrigen nach Name, «Ohne Funktion» zuletzt
   const funktionsRang = (n) =>
     n === "" ? 3 : ["Stufenleitung", "Leitung"].indexOf(n) + 1 || 2;
@@ -467,7 +476,9 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
   const kopfVon = (m, gross) =>
     mitgliedKopf({
       name: nameVon(m),
-      ceviName: zusatzVon(m),
+      // Unbekannte Person: der Platzhaltertext ist kein Name, dessen erstes Wort zählt
+      ceviName: bekannt.get(m.userId)?.ceviName ?? nameVon(m),
+      zusatz: bekannt.get(m.userId)?.deaktiviert ? "deaktiviert" : undefined,
       bildUrl: bekannt.get(m.userId)?.bildUrl,
       gross,
     });
@@ -493,7 +504,7 @@ function zeichneDetail(bereich, ctx, { tag, personen }, neu) {
       nameVon(a).localeCompare(nameVon(b), "de-CH"),
     );
     const treffer = sortiert.filter((m) =>
-      `${nameVon(m)} ${zusatzVon(m)} ${rolleText(m.rolle)}`
+      `${nameVon(m)} ${zusatzVon(m)} ${neutralText(m.rolle)} ${rolleText(m.rolle, geschlechtVon(m))}`
         .toLowerCase()
         .includes(frage),
     );

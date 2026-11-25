@@ -56,6 +56,11 @@
     // Ohne Speicher gibt es keinen Merker
   }
 
+  // Geschützte Seiten (#816): Bis geschuetzt.js die Sitzung kennt, verbirgt website.css den Hinweis «Nur angemeldet sichtbar» und zeigt ein Skelett. Kommt das Skript nicht (Netz, Datei fehlt), gilt der Hinweis nach acht Sekunden wieder
+  window.setTimeout(function () {
+    wurzel.setAttribute("data-skript-spaet", "");
+  }, 8000);
+
   // Die Verwaltung baut ihren Kopf erst nach dem Laden und ruft binde() danach selbst auf (#578); auf der Website läuft es einmal nach dem Laden der Seite
   var aktuell = wirksam();
   var beobachtet = false;

@@ -1,14 +1,4 @@
-import {
-  and,
-  asc,
-  eq,
-  exists,
-  inArray,
-  isNull,
-  ne,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, asc, eq, exists, inArray, isNull, or, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -39,7 +29,6 @@ import {
   type Person,
 } from "../rechte.js";
 import { programmSichtbar } from "../programmsicht.js";
-import { darf } from "../rechtemodell/darf.js";
 import {
   hatRechtMitFaktor,
   stufeObjekt,
@@ -50,7 +39,7 @@ import {
 type Antwort = "ja" | "nein" | "offen";
 
 const tag = z.iso.date().refine((wert) => !wert.startsWith("0000"));
-// «alle=1» holt auch ausgeblendete (intern) Programme, nur für die Abteilungsleitung; für alle anderen gilt es nicht
+// «alle=1» ohne Wirkung seit #807 (es gibt keine ausgeblendeten Programme mehr); bleibt erlaubt, damit ältere Aufrufer kein 400 bekommen
 const fensterSchema = z.strictObject({
   von: tag,
   bis: tag,
@@ -69,7 +58,6 @@ function programmFelder() {
     id: programm.id,
     titel: programm.titel,
     status: programm.status,
-    sichtbarkeit: programm.sichtbarkeit,
     ganztaegig: programm.ganztaegig,
     beginn: programm.beginn,
     ende: programm.ende,
@@ -146,19 +134,13 @@ export function erstelleProgrammRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   return new Hono<{ Variables: { person: Person } }>()
     .get("/", eingabe("query", fensterSchema), async (c) => {
       const person = c.get("person");
-      const { von, bis, alle } = c.req.valid("query");
-      const internSehen =
-        alle && (await darf(db, person, "programm.intern_sehen"));
+      const { von, bis } = c.req.valid("query");
       const programme = await db
         .select(programmFelder())
         .from(programm)
         .where(
           and(
             programmSichtbar(person),
-            // «intern» heisst in der App für niemanden sichtbar; die Verwaltung holt sie mit alle=1 zum Einblenden, wer das Recht dazu hat (#650)
-            alle && internSehen
-              ? undefined
-              : ne(programm.sichtbarkeit, "intern"),
             // Inklusive Schweizer Kalendertage: Ein Lager zählt an jedem seiner Tage
             sql`coalesce(programm.tag_bis, (programm.ende at time zone 'Europe/Zurich')::date) >= ${von}`,
             sql`coalesce(programm.tag_von, (programm.beginn at time zone 'Europe/Zurich')::date) <= ${bis}`,

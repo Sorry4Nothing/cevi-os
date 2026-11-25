@@ -8,7 +8,7 @@ import {
   fehlertext,
   setzeVerlassen,
 } from "./api.js";
-import { codefeld, el, feld, icon, knopf, leere } from "./dom.js";
+import { el, icon, knopf, leere, rufname, vollerNameZusatz } from "./dom.js";
 import { schliesseAlle } from "./fluss.js";
 import { erstellePalette } from "./befehlspalette.js";
 import { erstelleHinweisband } from "./hinweisband.js";
@@ -17,6 +17,7 @@ import { erstelleEinrichtung } from "./zweiter-faktor-einrichten.js";
 import { istAbteilungsleitung, istEntwickler, siehtAlles } from "./sicht.js";
 import {
   BEREICHE,
+  anmeldeAdresse,
   loese,
   neueAdresse,
   rolleVon,
@@ -74,8 +75,6 @@ const palette = erstellePalette({
   ich: () => ich?.id ?? null,
 });
 
-const ZU_VIELE = ["429 · Zu viele Versuche", "uhr", "warn"];
-
 function zeichne(...knoten) {
   for (const dialog of document.querySelectorAll("dialog")) dialog.remove();
   schliesseAlle();
@@ -85,35 +84,16 @@ function zeichne(...knoten) {
   bindeThema();
 }
 
-function fehlerfeld() {
-  return el("p", {
-    class: "hinweis hinweis--fehler",
-    role: "alert",
-    hidden: true,
-    tabindex: "-1",
-  });
-}
-
-function zeigeFehler(knoten, text) {
-  knoten.textContent = text;
-  knoten.hidden = false;
-  knoten.focus();
-}
-
-// Karte in der Mitte: Überzeile, Titel und Text zuerst; der Fokus liegt danach auf dem Hinweis oder dem Titel
+// Karte in der Mitte für Zustände nach der Anmeldung (zweiten Faktor einrichten, kein Zugang): Überzeile, Titel und Text zuerst; der Fokus liegt auf dem Titel. Die Anmeldung selbst steht auf der Website (#818)
 // kopfzeichen: Chip oder Symbol über der Überzeile
 function anmeldeSeite({
   ueber = "Cevi OS · Verwaltung",
   titel,
   text,
-  hinweis,
   kopfzeichen,
   inhalt = [],
 }) {
   const ueberschrift = el("h1", { tabindex: "-1" }, titel);
-  const meldung =
-    hinweis &&
-    el("p", { class: "hinweis", role: "status", tabindex: "-1" }, hinweis);
   // Auch die Anmeldung trägt den Kopf der Website mit Marke und Umschalter Hell/Dunkel (#578); ohne Sitzung kennt sie weder Name noch Logo der Abteilung
   zeichne(
     el(
@@ -134,175 +114,21 @@ function anmeldeSeite({
             ueberschrift,
             el("p", { class: "leise" }, text),
           ),
-          meldung,
           ...inhalt,
         ),
       ),
     ),
   );
-  (meldung || ueberschrift).focus();
+  ueberschrift.focus();
 }
 
-// kopfzeichen: Chip-Definition für zeichen(), z. B. ["429 · Zu viele Versuche", "uhr", "warn"]
-function zeigeLogin(hinweis, kopfzeichen) {
+// Die einzige Anmeldeseite ist die der Website unter /anmelden (#818): Benutzername, Passwort, zweiter Faktor, Ersatzcode und die Fehlertexte stehen dort (website/anmelden.js). Von hier geht es mit einem Rücksprung zurück in die Verwaltung, mit dem Bereich nach dem «#». Die Seite prüft den Rücksprung selbst gegen eine Liste (website/weiter.js).
+// grund: Schlüssel eines festen Hinweises auf der Anmeldeseite («abgemeldet», «alle», «sitzung», «code»)
+function zurAnmeldeseite(grund) {
   ich = null;
   // Die Suche behält nichts vom bisherigen Konto
   palette.vergiss();
-  // Der Chip für «zu viele Versuche» steht von Anfang an im Kopf und erscheint erst bei einer 429
-  const zuViele = zeichen(ZU_VIELE);
-  zuViele.hidden = true;
-  const name = feld({
-    label: "Benutzername",
-    autocomplete: "username",
-    autocapitalize: "none",
-    spellcheck: "false",
-    required: true,
-  });
-  const passwort = feld({
-    label: "Passwort",
-    typ: "password",
-    autocomplete: "current-password",
-    required: true,
-  });
-  const sichtbar = el("input", { id: "passwort-zeigen", type: "checkbox" });
-  sichtbar.addEventListener("change", () => {
-    passwort.eingabe.type = sichtbar.checked ? "text" : "password";
-  });
-  const fehler = fehlerfeld();
-  const senden = el(
-    "button",
-    { type: "submit", class: "knopf knopf--haupt knopf--gross" },
-    "Anmelden",
-  );
-  const formular = el(
-    "form",
-    { class: "formular", novalidate: true },
-    name.wurzel,
-    passwort.wurzel,
-    el(
-      "div",
-      { class: "wahl" },
-      sichtbar,
-      el("label", { for: "passwort-zeigen" }, "Passwort anzeigen"),
-    ),
-    fehler,
-    senden,
-  );
-  formular.addEventListener("submit", async (ereignis) => {
-    ereignis.preventDefault();
-    fehler.hidden = true;
-    zuViele.hidden = true;
-    if (!name.eingabe.value.trim() || !passwort.eingabe.value) {
-      zeigeFehler(fehler, "Bitte gib Benutzername und Passwort ein.");
-      return;
-    }
-    senden.disabled = true;
-    try {
-      const antwort = await anfrage("POST", "/api/auth/sign-in/username", {
-        username: name.eingabe.value.trim(),
-        password: passwort.eingabe.value,
-      });
-      passwort.eingabe.value = "";
-      if (antwort?.twoFactorRedirect) zeigeCode();
-      else await pruefeKonto();
-    } catch (f) {
-      const gebremst = f.status === 429;
-      zuViele.hidden = !gebremst;
-      fehler.className = gebremst
-        ? "hinweis hinweis--warn"
-        : "hinweis hinweis--fehler";
-      zeigeFehler(fehler, fehlertext(f));
-    } finally {
-      senden.disabled = false;
-    }
-  });
-  anmeldeSeite({
-    titel: "Anmelden",
-    text: "Melde dich mit deinem Konto an.",
-    hinweis,
-    kopfzeichen: kopfzeichen ? zeichen(kopfzeichen) : zuViele,
-    inhalt: [formular],
-  });
-}
-
-function zeigeCode(ersatz = false) {
-  const code = ersatz
-    ? feld({
-        label: "Ersatzcode",
-        hilfe: "Format: xxxxx-xxxxx. Jeder Ersatzcode gilt nur einmal.",
-        autocomplete: "off",
-        autocapitalize: "none",
-        spellcheck: "false",
-        required: true,
-      })
-    : codefeld({
-        label: "Code aus der Authenticator-App",
-        hilfe: "Sechs Ziffern. Der Code wird nach der letzten Ziffer geprüft.",
-        required: true,
-      });
-  const fehler = fehlerfeld();
-  const senden = el(
-    "button",
-    { type: "submit", class: "knopf knopf--haupt knopf--gross" },
-    "Bestätigen",
-  );
-  const formular = el(
-    "form",
-    { class: "formular", novalidate: true },
-    code.wurzel,
-    fehler,
-    senden,
-    knopf(ersatz ? "Code aus der App verwenden" : "Ersatzcode verwenden", {
-      art: "still",
-      onclick: () => zeigeCode(!ersatz),
-    }),
-    knopf("Abbrechen", { art: "still", onclick: () => zeigeLogin() }),
-  );
-  formular.addEventListener("submit", async (ereignis) => {
-    ereignis.preventDefault();
-    fehler.hidden = true;
-    const wert = code.eingabe.value.trim();
-    if (!wert) {
-      zeigeFehler(fehler, "Bitte gib den Code ein.");
-      return;
-    }
-    senden.disabled = true;
-    try {
-      await anfrage(
-        "POST",
-        ersatz
-          ? "/api/auth/two-factor/verify-backup-code"
-          : "/api/auth/two-factor/verify-totp",
-        { code: wert },
-      );
-      await pruefeKonto();
-    } catch (f) {
-      // Ohne gültiges Zwischen-Cookie hilft nur eine neue Anmeldung
-      if (
-        f.code === "INVALID_TWO_FACTOR_COOKIE" ||
-        f.code === "TOO_MANY_ATTEMPTS_REQUEST_NEW_CODE"
-      ) {
-        zeigeLogin(fehlertext(f));
-      } else {
-        code.eingabe.value = "";
-        code.eingabe.dispatchEvent(new window.Event("input"));
-        code.eingabe.setAttribute("aria-invalid", "true");
-        zeigeFehler(fehler, fehlertext(f));
-      }
-    } finally {
-      senden.disabled = false;
-    }
-  });
-  anmeldeSeite({
-    ueber: "Schritt 2 von 2",
-    titel: "Zweiter Faktor",
-    text: ersatz
-      ? "Gib einen deiner Ersatzcodes ein."
-      : "Gib den Code aus deiner Authenticator-App ein.",
-    kopfzeichen: el("span", { class: "kreis" }, icon("schild")),
-    inhalt: [formular],
-  });
-  code.eingabe.focus();
+  location.replace(anmeldeAdresse(location.hash, grund));
 }
 
 const SPERRE_2FA = ["Zweiter Faktor fehlt", "schild", "warn"];
@@ -310,7 +136,7 @@ const SPERRE_2FA = ["Zweiter Faktor fehlt", "schild", "warn"];
 // Pflicht, aber noch nicht eingerichtet (#715): statt einer Fehlermeldung der Ablauf zum Einrichten. Danach geht es mit dem neuen Zustand der Sitzung in die Verwaltung. Der Faktor gilt für die Verwaltung; die Website und die Apps brauchen ihn nie
 function zeigeEinrichtung() {
   const einrichtung = erstelleEinrichtung({
-    beiFertig: () => pruefeKonto(false).catch(zeigeStartFehler),
+    beiFertig: () => pruefeKonto().catch(zeigeStartFehler),
     fertigText: "Zur Verwaltung",
   });
   anmeldeSeite({
@@ -338,25 +164,21 @@ function zeigeSperre(text, grund = SPERRE_2FA) {
   });
 }
 
-// Das Konto hat den zweiten Faktor, diese Sitzung aber keinen Code geprüft (#721). Die Anmeldung hier fragt immer nach dem Code, so eine Sitzung stammt also nicht aus ihr (die der App haben nie Zugang zur Verwaltung). Nachholen geht nicht, die API lehnt es ab: abmelden und neu anmelden, dann folgt der Code
+// Das Konto hat den zweiten Faktor, diese Sitzung aber keinen Code geprüft (#721). Die Anmeldeseite fragt immer nach dem Code, so eine Sitzung stammt also nicht aus ihr (die der App haben nie Zugang zur Verwaltung). Nachholen geht nicht, die API lehnt es ab: abmelden und neu anmelden, dann folgt der Code
 async function neuAnmeldenMitCode() {
   try {
     await anfrage("POST", "/api/auth/sign-out", {});
   } catch {
     // Die neue Anmeldung ersetzt das Cookie ohnehin
   }
-  zeigeLogin("Für die Verwaltung braucht es den Code. Melde dich neu an.");
+  zurAnmeldeseite("code");
 }
 
-// Beim Start ist «keine Sitzung» der Normalfall; nach einer Anmeldung ist es ein Fehler
-async function pruefeKonto(nachAnmeldung = true) {
+// Ohne Sitzung geht es zur Anmeldeseite der Website, mit Rücksprung hierher
+async function pruefeKonto() {
   const sitzung = await anfrage("GET", "/api/auth/get-session");
   if (!sitzung) {
-    zeigeLogin(
-      nachAnmeldung
-        ? "Die Anmeldung hat keine Sitzung ergeben. Versuche es nochmals."
-        : undefined,
-    );
+    zurAnmeldeseite();
     return;
   }
   // Eine Abfrage mehr als die Sitzung: Das Konto trägt die Rollen nicht (#737). Sie ist auch vor dem Pflichtwechsel und ohne zweiten Faktor offen
@@ -376,10 +198,8 @@ async function pruefeKonto(nachAnmeldung = true) {
   };
   zugang = null;
   if (ich.mussPasswortAendern) {
-    zeigeSperre(
-      "Du musst zuerst dein Startpasswort ändern. Das geht in der App. Melde dich danach hier neu an.",
-      ["Startpasswort offen", "schluessel", "warn"],
-    );
+    // Der Wechsel steht in «Mein Konto» der Website; die Anmeldeseite führt auch dorthin (website/anmelden.js)
+    location.replace("/konto");
   } else if (!profil) {
     await zeigeNurPlattform();
   } else if (siehtAlles(ich)) {
@@ -469,10 +289,10 @@ async function abmelden() {
     await anfrage("POST", "/api/auth/sign-out", {});
   } catch (f) {
     if (toasts.wurzel.isConnected) melde(fehlertext(f), "fehler");
-    else zeigeLogin(fehlertext(f));
+    else zeigeStartFehler(f);
     return;
   }
-  zeigeLogin("Du bist abgemeldet.");
+  zurAnmeldeseite("abgemeldet");
 }
 
 // Rückmeldung als Toast (#761); ohne Aufbau der Verwaltung (Anmeldeseite, Rahmenseiten) zeigt sie nichts
@@ -503,14 +323,17 @@ function zeigeRahmenSeite(daten, aktionen) {
 // A30: Sitzung abgelaufen (401); die Eingaben bleiben im Browser, nur die Anmeldung fehlt
 function zeigeSitzungAbgelaufen() {
   zeigeRahmenSeite(zustandsDaten(new ApiFehler(401)), [
-    knopf("Neu anmelden", { art: "haupt", onclick: () => zeigeLogin() }),
+    knopf("Neu anmelden", {
+      art: "haupt",
+      onclick: () => zurAnmeldeseite("sitzung"),
+    }),
   ]);
 }
 
 // Ist die API beim Start nicht erreichbar, hilft keine Anmeldung: eigene Seite mit «Nochmals versuchen»
 function zeigeStartFehler(f) {
   zeigeRahmenSeite(zustandsDaten(f), [
-    nochmals(() => pruefeKonto(false).catch(zeigeStartFehler)),
+    nochmals(() => pruefeKonto().catch(zeigeStartFehler)),
   ]);
 }
 
@@ -562,6 +385,8 @@ async function zeigeVerwaltung(profil) {
     zugang,
     profil,
   });
+  // Der Cevi-Name steht im Kopf; ohne ihn der Vorname (#815)
+  const ceviName = profil?.ceviName ?? ich.ceviName;
   // Name und Logo der Abteilung aus den Einstellungen der Website; ohne Recht darauf bleibt, was die öffentliche Website zeigt, sonst die Wortmarke «CEVI»
   if (einstellungen) setzeMarke(einstellungen);
   zaehlerStand.clear();
@@ -576,7 +401,12 @@ async function zeigeVerwaltung(profil) {
         "header",
         { class: "kopfzeile" },
         logozeile({
-          konto: { name: ich.name, rolle, bildUrl: profil?.bildUrl ?? null },
+          konto: {
+            name: rufname({ name: ich.name, ceviName }),
+            vollerName: vollerNameZusatz({ name: ich.name, ceviName }),
+            rolle,
+            bildUrl: profil?.bildUrl ?? null,
+          },
           beiAbmelden: abmelden,
           suche: palette.knopf,
         }),
@@ -699,7 +529,7 @@ async function navigiere() {
     // Wo die Person gerade ist (für Module, die mehrere Seiten bedienen, und für den Platzhalter)
     seite: { bereich: gruppe, unter },
     // Für «Mein Konto» (#621): der Weg zur Anmeldung, wenn alle Sitzungen beendet sind
-    zurAnmeldung: (text) => zeigeLogin(text),
+    zurAnmeldung: () => zurAnmeldeseite("alle"),
     melde,
     // Aktion mit «Rückgängig» statt Rückfrage (rueckgaengig.js)
     mitRueckgaengig,
@@ -748,4 +578,4 @@ beiSitzungsende(() => {
 
 // Marke der Abteilung schon für die Anmeldung (öffentliche Website); nach der Anmeldung gehen die Einstellungen vor
 ladeOeffentlicheMarke();
-pruefeKonto(false).catch(zeigeStartFehler);
+pruefeKonto().catch(zeigeStartFehler);

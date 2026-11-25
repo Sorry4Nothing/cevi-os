@@ -1,4 +1,13 @@
-import { auswahl, avatar, el, icon, knopf, neueId } from "./dom.js";
+import {
+  auswahl,
+  avatar,
+  el,
+  icon,
+  knopf,
+  neueId,
+  rufname,
+  vollerNameZusatz,
+} from "./dom.js";
 import { ROLLEN } from "./lager-gemeinsam.js";
 import { melde } from "./melden.js";
 
@@ -93,6 +102,8 @@ export function personenWahl({
     );
     liste.replaceChildren(
       ...treffer.map((p) => {
+        const ruf = rufname(p);
+        const voll = vollerNameZusatz(p);
         const box = el("input", {
           type: "checkbox",
           checked: gewaehlt.has(p.id),
@@ -109,12 +120,12 @@ export function personenWahl({
             "label",
             { class: "lg-person" },
             box,
-            avatar(p.name, { hell: true, bildUrl: p.bildUrl }),
+            avatar(ruf, { hell: true, bildUrl: p.bildUrl }),
             el(
               "span",
               { class: "lg-person-text" },
-              el("span", { class: "name" }, p.name),
-              p.ceviName && el("span", { class: "klein leise" }, p.ceviName),
+              el("span", { class: "name" }, ruf),
+              voll && el("span", { class: "klein leise" }, voll),
             ),
           ),
         );

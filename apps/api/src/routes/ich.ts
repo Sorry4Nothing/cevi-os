@@ -36,6 +36,7 @@ export function erstelleIchRouten({ db }: { db: Db }) {
             id: user.id,
             name: user.name,
             ceviName: user.ceviName,
+            geschlecht: user.geschlecht,
             benutzername: user.username,
             mussPasswortAendern: user.mussPasswortAendern,
             datenschutzGelesenAm: user.datenschutzGelesenAm,

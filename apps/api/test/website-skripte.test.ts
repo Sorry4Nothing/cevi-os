@@ -98,7 +98,7 @@ describe("knoten: sicherer Aufbau ohne innerHTML (#354)", () => {
   });
 
   test("unbekannte Elemente fallen weg, samt Kindern", () => {
-    for (const tag of ["script", "iframe", "style", "object", "svg", "form"]) {
+    for (const tag of ["script", "iframe", "style", "object", "svg", "embed"]) {
       expect(baue({ tag, kinder: ["x"] })).toBeNull();
     }
     const k = baue({

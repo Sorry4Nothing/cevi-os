@@ -32,6 +32,10 @@ const ERLAUBT: Record<string, [number, string]> = {
     3,
     "Fehlerzusammenfassung beim Absenden, Zustand «schon angemeldet» (Seite statt Formular) und «Server antwortet nicht» mit «Nochmals senden»",
   ],
+  "formular.js": [
+    3,
+    "Fehlerzusammenfassung beim Absenden, Fehler des ganzen Vorgangs über dem Formular (zu schnell, schon beantwortet, voll), Hinweis «geschlossen» und die Meldung «Gesendet» als Statusregion, die das Formular ersetzt (#819)",
+  ],
   "fotos.js": [1, "Ladefehler der Alben mit «Nochmals versuchen»"],
   "geschuetzt.js": [
     1,

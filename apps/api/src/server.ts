@@ -47,6 +47,7 @@ import { loescheAlteTeilnehmende } from "./lager/teilnehmer.js";
 import { loescheAlteAnmeldungen } from "./termine/anlass-anmeldungen.js";
 import { loescheAlteBuchungen } from "./termine/raum-buchung.js";
 import { ladeLadenDaten, loescheAlteBestellungen } from "./laden/laden.js";
+import { loescheAlteFormularAntworten } from "./formular/formular.js";
 import { ladeKonfiguration } from "./konfiguration.js";
 import { loescheWiderrufene } from "./termine/ical-token.js";
 import {
@@ -270,6 +271,11 @@ starteSitzungenAufraeumen(() => loescheAlteBuchungen(db), "raum_buchungen");
 starteSitzungenAufraeumen(
   () => loescheAlteBestellungen(db),
   "laden_bestellungen",
+);
+// Antworten auf Formulare der Website nach der Frist des Formulars löschen (#819)
+starteSitzungenAufraeumen(
+  () => loescheAlteFormularAntworten(db),
+  "formular_antworten",
 );
 // Frist-Erinnerung des Lagers (#374): stündlicher Lauf, eine Abfrage über alle Lager; ohne Push-Schlüssel entstehen die Einträge der Glocke trotzdem
 starteFristErinnerung(() => sendeFristErinnerungen(db, { fcm }));

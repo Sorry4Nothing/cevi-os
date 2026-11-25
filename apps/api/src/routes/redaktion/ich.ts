@@ -20,6 +20,12 @@ const BEREICH_NACH_RECHT: Record<string, readonly string[]> = {
   system: ["system.lesen", "zeitregeln.verwalten", "cevi_db.verwalten"],
   // Fotos aus Flickr (#690): gehören zur Website, öffnen aber nur ihre eigene Seite («recht:fotos.verwalten»)
   fotos: ["fotos.verwalten"],
+  // Antworten auf Formulare der Website (#819): öffnen nur ihre eigene Seite («recht:formular.antworten_sehen»)
+  formulare: [
+    "formular.antworten_sehen",
+    "formular.antworten_exportieren",
+    "formular.antworten_loeschen",
+  ],
 };
 
 // Was die Verwaltung im Browser wissen muss (GET /api/v1/redaktion/ich); auch der Kopf der Website (GET /api/v1/website/konto) leitet daraus ab, ob die Person die Verwaltung öffnen darf

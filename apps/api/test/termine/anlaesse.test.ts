@@ -134,7 +134,6 @@ async function neuerAnlass(spez: AnlassSpez = {}) {
   const abteilungId = spez.abteilungId ?? welt.testabteilungId;
   const termin = await legeProgrammAn(db, {
     abteilungId,
-    sichtbarkeit: "eltern",
     titel: `Anlass ${randomUUID().slice(0, 6)}`,
     beginn: spez.beginn,
     ende: spez.ende,
@@ -1220,7 +1219,6 @@ describe("Mein Kalender nennt den Anlass", () => {
     });
     const ohne = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
     });
     await db
       .insert(schema.programmTag)

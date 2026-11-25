@@ -484,6 +484,7 @@ describe("Wartungsmodus: wer schalten darf", () => {
       "lager",
       "system",
       "fotos",
+      "formulare",
     ]);
     expect(await bereiche(webmaster)).toEqual(["website", "fotos"]);
     expect(await bereiche(slA)).toEqual(["website"]);

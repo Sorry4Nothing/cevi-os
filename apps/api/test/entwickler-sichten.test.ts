@@ -84,7 +84,6 @@ beforeAll(async () => {
     stufeA: (
       await legeProgrammAn(db, {
         abteilungId: welt.testabteilungId,
-        sichtbarkeit: "leitende",
         stufen: [welt.stufeAId],
         titel: "Nur Stufe A",
         beginn: new Date(Date.UTC(2027, 4, 1, 8)),
@@ -93,7 +92,6 @@ beforeAll(async () => {
     ohneStufe: (
       await legeProgrammAn(db, {
         abteilungId: welt.testabteilungId,
-        sichtbarkeit: "eltern",
         titel: "Ohne Stufe",
         beginn: new Date(Date.UTC(2027, 4, 1, 10)),
       })

@@ -81,6 +81,8 @@ export const user = pgTable(
     displayUsername: text("display_username"),
     // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
     ceviName: text("cevi_name"),
+    // Freiwillige Angabe (#817): w, m oder d; null = keine Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt («Stufenleiterin», «Stufenleiter», sonst «Stufenleitung»)
+    geschlecht: text("geschlecht"),
     // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
     ceviDbId: text("cevi_db_id"),
     // Nur noch die Spalte, die das admin-Plugin von better-auth in seinem Schema verlangt: immer «user» (CHECK), nirgends gelesen. Die Rollen stehen in abteilungsleitung_person und plattform_entwickler (#784)
@@ -110,6 +112,10 @@ export const user = pgTable(
   },
   (t) => [
     check("user_role_nur_user", sql`${t.role} is null or ${t.role} = 'user'`),
+    check(
+      "user_geschlecht_check",
+      sql`${t.geschlecht} is null or ${t.geschlecht} in ('w', 'm', 'd')`,
+    ),
   ],
 );
 
@@ -496,12 +502,6 @@ export const programm = pgTable(
     status: text("status", { enum: ["aktiv", "abgesagt", "pruefen"] })
       .notNull()
       .default("aktiv"),
-    // «intern» blendet das Programm in der App für alle aus; neue Programme sind für Eltern sichtbar
-    sichtbarkeit: text("sichtbarkeit", {
-      enum: ["intern", "leitende", "eltern"],
-    })
-      .notNull()
-      .default("eltern"),
     // Rohe Kategorien des Outlook-Termins (CATEGORIES), für die Warnliste; die Tags stehen in programm_tag (#432)
     kategorien: text("kategorien")
       .array()
@@ -518,10 +518,6 @@ export const programm = pgTable(
     check(
       "programm_status_check",
       sql`${t.status} in ('aktiv', 'abgesagt', 'pruefen')`,
-    ),
-    check(
-      "programm_sichtbarkeit_check",
-      sql`${t.sichtbarkeit} in ('intern', 'leitende', 'eltern')`,
     ),
     // Ganztägig genau dann, wenn Tage gesetzt und Zeitpunkte leer sind
     check(
@@ -942,6 +938,9 @@ export * from "./schema-laden.js";
 
 // Fotos aus Flickr (#690)
 export * from "./schema-fotos.js";
+
+// Antworten auf den Baustein «formular» (#819)
+export * from "./schema-formular.js";
 
 // Aktivitätsprotokoll (#637)
 export * from "./schema-aktivitaet.js";

@@ -342,18 +342,24 @@ describe("Was ausgeliefert wird", () => {
       ]),
     );
 
-    // Die Sperre leert die Ausgabe, behält aber das Favicon und trägt die Einträge auch auf ihrer Hinweisseite
+    // Die Sperre leert die Ausgabe, behält aber das Favicon und die gemeinsame Anmeldeseite (#818) und trägt die Einträge auch auf ihrer Hinweisseite
     await erstelleWebsiteSperre(ausgabe, abteilungId, zeichen).nimmVomNetz();
     expect((await ausgabe.liste()).sort()).toEqual(
       [
         "404.html",
+        "anmelden/index.html",
         "gesperrt.css",
         "index.html",
+        "website/website.css",
         "weiterleitungen.caddy",
         ...dateien,
       ].sort(),
     );
-    expect(await geprueft()).toEqual(["404.html", "index.html"]);
+    expect(await geprueft()).toEqual([
+      "404.html",
+      "anmelden/index.html",
+      "index.html",
+    ]);
     // Gleiche Adresse wie auf der Website: Der Browser holt nichts doppelt
     expect(await lies("index.html")).toContain(
       `href="/website/zeichen-32.png?v=${zeichenVersion(new TextEncoder().encode("favicon.ico:test"))}"`,

@@ -107,7 +107,7 @@ const person = (mitFaktor: boolean, persona: Persona = "elternA") =>
 const neuerAnlass = async (titel: string) => {
   const [p] = await sql<
     { id: string }[]
-  >`insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, sichtbarkeit) values (${abt()}, ${`g-${randomUUID()}`}, ${titel}, true, '2099-05-01', '2099-05-01', 'intern') returning id`;
+  >`insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis) values (${abt()}, ${`g-${randomUUID()}`}, ${titel}, true, '2099-05-01', '2099-05-01') returning id`;
   const [a] = await sql<
     { id: string }[]
   >`insert into anlass (abteilung_id, programm_id, anmeldung_fuer, sichtbarkeit) values (${abt()}, ${p!.id}, 'person', 'angemeldet') returning id`;

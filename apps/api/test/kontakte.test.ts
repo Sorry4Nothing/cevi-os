@@ -97,7 +97,6 @@ afterEach(() => ausgabe.mockRestore());
 const frisch = (stufen: string[]) =>
   legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: "eltern",
     stufen,
     beginn: new Date(Date.now() + 365 * 86_400_000),
   });

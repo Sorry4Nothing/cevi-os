@@ -161,6 +161,14 @@ describe("Verwaltung: navigation.js", () => {
         profil,
       }),
     ).toBe("Stufenleitung Pilami");
+    // Die Form folgt dem Geschlecht der Person (#817)
+    expect(
+      nav.rolleVon({
+        abteilungsleitung: false,
+        zugang: { rechte: [] },
+        profil: { ...profil, geschlecht: "w" },
+      }),
+    ).toBe("Stufenleiterin Pilami");
     expect(
       nav.rolleVon({
         abteilungsleitung: false,

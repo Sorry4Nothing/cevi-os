@@ -54,7 +54,11 @@ import {
   type FehlerBild,
 } from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
-import { HINWEIS_DATEIEN, HINWEIS_STIL_DATEI } from "./sperre.js";
+import {
+  ANMELDUNG_DATEI,
+  HINWEIS_DATEIEN,
+  HINWEIS_STIL_DATEI,
+} from "./sperre.js";
 import {
   ZEICHEN_DATEIEN,
   ZEICHEN_ICO,
@@ -96,8 +100,7 @@ const STYLESHEET = "website/website.css";
 // Seiten des Baums, auf die der Fuss verweist (Adresse auf der obersten Ebene); «datenschutz» selbst gehört der Plattform
 export const IMPRESSUM_ADRESSE = "impressum";
 export const DATENSCHUTZ_ADRESSE = "datenschutz-website";
-// Die Anmeldeseite (#354) liegt unter der reservierten Adresse «anmelden»
-const ANMELDUNG = "anmelden/index.html";
+const ANMELDUNG = ANMELDUNG_DATEI;
 // Nur diese Dateien löscht der Abgleich selbst, wenn sie nicht mehr gebraucht werden: die Seiten (und die Rückfallseiten der Weiterleitungen, die ebenso heissen) und weiterleitungen.caddy. Alles andere im Verzeichnis bleibt unangetastet
 const SEITENDATEI = /(^|\/)index\.html$/;
 
