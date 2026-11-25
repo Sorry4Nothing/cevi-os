@@ -5,10 +5,16 @@ import type { TerminEintrag } from "./rendern.js";
 import { TERMIN_BEGINN } from "../termine/sicht.js";
 
 // Die Termine für den Baustein «terminliste» (#549) und den öffentlichen Datenplan (#564). Der Abgleich holt sie beim Erzeugen der Dateien, nie beim Abruf einer Seite: höchstens drei Abfragen für alle Seiten und Bausteine, nie eine je Seite oder Termin.
-// Was die öffentliche Seite zeigt:
-// - ohne Gruppe: die kommenden Termine von Anlässen mit Sichtbarkeit «öffentlich»
-// - mit Gruppe: die kommenden Termine, die an der Gruppe hängen (dieselben Daten zeigt die Stufenseite schon über die Samstagsangaben der Stufen)
+// Was die öffentliche Seite zeigt (fail-closed, #835: Seit der Kalender alle Termine liefert und nicht mehr nur Samstage, darf ein Termin nie nur deshalb öffentlich sein, weil nichts dagegen spricht):
+// - Termine mit Anlass: nur bei Sichtbarkeit «öffentlich»
+// - Termine ohne Anlass: nur, wenn sie mindestens einen Stufen-Tag tragen und sonst keinen Tag (Funktion, Team, Lager, Anlass): Termine ohne Tag und alles mit einem Tag der Leitung oder des Vorstands bleiben intern
+// - mit Gruppe: der Termin trägt die gewählte Gruppe, die die Seite ausdrücklich zeigt; ohne Anlass dürfen ausser ihr nur Stufen-Tags dazukommen (ein Termin eines Anlasses folgt der Entscheidung des Anlasses, wie bisher)
 // Beides nur für Termine mit Status «aktiv». Ein Termin steht in der Datei, bis der Abgleich das nächste Mal läuft (beim Veröffentlichen, bei Ereignissen, alle 10 Minuten).
+const NUR_STUFEN = (ausser?: SQL) => sql`(
+  exists (select 1 from programm_tag pt join tag t on t.id = pt.tag_id where pt.programm_id = programm.id)
+  and not exists (select 1 from programm_tag pt join tag t on t.id = pt.tag_id where pt.programm_id = programm.id and t.typ <> 'stufe' ${ausser ? sql`and t.id <> ${ausser}` : sql``})
+)`;
+const OEFFENTLICH = sql`(anlass.id is null and ${NUR_STUFEN()} or anlass.sichtbarkeit = 'oeffentlich')`;
 
 type Zeile = {
   id: string;
@@ -65,7 +71,7 @@ export function planFenster(jetzt = new Date()) {
   };
 }
 
-// Was ohne Anmeldung im Netz steht: aktive Termine; ein Termin eines Anlasses nur, wenn der Anlass «öffentlich» ist. Nie Abgesagtes, «prüfen» oder eine andere Abteilung.
+// Was ohne Anmeldung im Netz steht: aktive Termine, die nach OEFFENTLICH (oben) öffentlich sind: ein Termin eines Anlasses nur, wenn der Anlass «öffentlich» ist, ein Termin ohne Anlass nur mit Stufen-Tags. Nie Abgesagtes, «prüfen» oder eine andere Abteilung.
 // Eine Abfrage je Lauf des Abgleichs, nie je Besuch. Die Felder sind dieselben wie in der Termin-Liste: Titel, Tage, Zeiten, Ort, Namen der Stufen; keine Personen, keine Anmeldezahlen, keine Notizen
 export async function ladeDatenplan(
   db: Db,
@@ -78,7 +84,7 @@ export async function ladeDatenplan(
     from programm
     left join anlass on anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id
     where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv'
-      and (anlass.id is null or anlass.sichtbarkeit = 'oeffentlich')
+      and ${OEFFENTLICH}
       and case when programm.ganztaegig
         then programm.tag_bis >= ${von}::date and programm.tag_von <= ${bis}::date
         else (programm.ende at time zone 'Europe/Zurich')::date >= ${von}::date and (programm.beginn at time zone 'Europe/Zurich')::date <= ${bis}::date end
@@ -141,6 +147,7 @@ export const ladeTerminlisten: Datenquelle = async (
         left join anlass on anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id
         where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv'
           and ${KOMMEND}
+          and (anlass.id is not null or ${NUR_STUFEN(sql`programm_tag.tag_id`)})
       ) t where rn <= ${mehr}
       order by pool, rn`);
     for (const z of zeilen) {
