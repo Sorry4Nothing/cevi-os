@@ -920,13 +920,13 @@ export const pinnwandBeitrag = pgTable(
   ],
 );
 
-// Teilnehmende des Lagers (#384): nur Name und Stufe, bewusst keine Gesundheitsdaten, kein Telefon und keine Adresse (Test in lager/teilnehmer.test.ts hält die Spaltenliste fest). cevi_name ist der Anzeigename für Aushänge (Cevi-Name, sonst Vorname). kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anlass-Anmeldung: anmeldung_id ohne Fremdschlüssel, bis der Auftrag Termine die Anmeldung anlegt; beide sind über die API noch nicht setzbar. Geschrieben wird nur über lager/sync.ts. Nach dem Lager löscht ein täglicher Lauf die Zeilen (lager/teilnehmer.ts)
+// Teilnehmende des Lagers (#384): nur Name und Stufe, bewusst keine Gesundheitsdaten, kein Telefon und keine Adresse (Test in lager/teilnehmer.test.ts hält die Spaltenliste fest). cevi_name ist der Anzeigename für Aushänge (Cevi-Name, sonst Vorname). kind_id verknüpft mit dem Kind, wenn Vor- und Nachname zu genau einem Kind der Abteilung passen (lager/teilnehmer.ts, nie geraten); löscht die Verwaltung das Kind, gehen die Teilnehmenden mit (#779, ON DELETE CASCADE). anmeldung_id ist die spätere Verknüpfung zur Anlass-Anmeldung, ohne Fremdschlüssel, bis der Auftrag Termine die Anmeldung anlegt; beide sind über die API nicht setzbar. Geschrieben wird nur über lager/sync.ts. Nach dem Lager löscht ein täglicher Lauf die Zeilen (lager/teilnehmer.ts)
 export const teilnehmer = pgTable(
   "teilnehmer",
   {
     ...lagerSpalten(),
     kindId: uuid("kind_id").references(() => kind.id, {
-      onDelete: "set null",
+      onDelete: "cascade",
     }),
     anmeldungId: uuid("anmeldung_id"),
     vorname: text("vorname").notNull(),
@@ -941,6 +941,10 @@ export const teilnehmer = pgTable(
     unique("teilnehmer_lager_id_id_uq").on(t.lagerId, t.id),
     // Die Liste: sortiert nach Name, mit Seitenwechsel über (nachname, vorname, id)
     index("teilnehmer_liste_idx").on(t.lagerId, t.nachname, t.vorname, t.id),
+    // Löschen eines Kindes (#779): die Teilnehmenden des Kindes finden
+    index("teilnehmer_kind_idx")
+      .on(t.kindId)
+      .where(sql`${t.kindId} is not null`),
     check(
       "teilnehmer_text_check",
       sql`char_length(${t.vorname}) between 1 and 100 and char_length(${t.nachname}) between 1 and 100 and (${t.ceviName} is null or char_length(${t.ceviName}) between 1 and 50) and (${t.stufe} is null or char_length(${t.stufe}) between 1 and 50)`,

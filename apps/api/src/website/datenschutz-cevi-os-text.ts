@@ -145,7 +145,7 @@ Zu jeder Kategorie stehen die Daten, der Zweck und die Aufbewahrung.
 
 - **Daten:** Für jede teilnehmende Person: Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name; dazu, wer den Eintrag erfasst oder geändert hat. Beim Abzählen ein Haken je Teilnehmende und je Mitglied des Lagers mit dem Zeitpunkt. Für die Einteilung in Programmgruppen, welcher Gruppe eine teilnehmende Person oder ein Mitglied des Lagers angehört, und ob eine teilnehmende Person «nicht dabei» ist. Keine Angaben zur Gesundheit, keine Telefonnummer, keine Adresse. Das Team sieht Vorname, Nachname und Stufe.
 - **Zweck:** Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.
-- **Aufbewahrung:** Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden, das Abzählen und die Einteilung in Gruppen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.
+- **Aufbewahrung:** Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden, das Abzählen und die Einteilung in Gruppen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Löscht die Verwaltung ein Kind, gehen die Einträge dieses Kindes als Teilnehmende in allen Lagern sofort mit (die Zuordnung klappt bei gleichem Vor- und Nachnamen; ein Eintrag, der keinem Kind eindeutig gehört, bleibt und muss im Lager entfernt werden). Auf Anfrage löscht die Leitung Daten.
 
 #### Zimmer und Zelte im Lager
 
