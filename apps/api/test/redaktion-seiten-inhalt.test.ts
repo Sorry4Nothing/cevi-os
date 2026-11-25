@@ -594,6 +594,62 @@ describe("Verweisprüfung", () => {
     );
   });
 
+  test("Kinder-Konto und Eltern in Personen, Kontaktperson und Kontaktkarte: Fehler beim Speichern und beim Veröffentlichen (#776)", async () => {
+    const [stufe] = await db
+      .insert(schema.tag)
+      .values({
+        abteilungId: welt.testabteilungId,
+        typ: "stufe",
+        name: `Stufe ${randomUUID()}`,
+        kuerzel: "K",
+      })
+      .returning({ id: schema.tag.id });
+    // Das Konto eines Kindes mit Cevi-Name; die Zuordnung steht nur direkt in der Datenbank, die Routen vergeben keine
+    const [konto] = await db
+      .insert(schema.user)
+      .values({
+        name: "Kai Kindlein",
+        email: `${randomUUID()}@example.org`,
+        abteilungId: welt.testabteilungId,
+        ceviName: "Wirbel",
+      })
+      .returning({ id: schema.user.id });
+    await db.insert(schema.kind).values({
+      abteilungId: welt.testabteilungId,
+      vorname: "Kai",
+      nachname: "Kindlein",
+      ceviName: "Wirbel",
+      stufeId: stufe.id,
+      userId: konto.id,
+    });
+    await db
+      .insert(schema.personTag)
+      .values({ userId: konto.id, tagId: stufe.id, rolle: "leitung" });
+    const id = await neueSeite("oeffentlich");
+    for (const personId of [konto.id, eltern.id]) {
+      for (const b of [
+        baustein("kontaktperson", { personId }),
+        baustein("kontaktkarte", { personId }),
+        baustein("personen", { eintraege: [{ personId }] }),
+      ]) {
+        const antwort = await speichere(admin, id, dokument(b), 0, 422);
+        expect(await code(antwort)).toBe("PERSON_NICHT_AUF_WEBSITE");
+      }
+    }
+    // Ein schon gespeicherter Entwurf kommt am Veröffentlichen nicht vorbei
+    await db
+      .update(schema.seite)
+      .set({
+        entwurf: dokument(baustein("kontaktperson", { personId: konto.id })),
+        entwurfZaehler: 1,
+      })
+      .where(eq(schema.seite.id, id));
+    const antwort = await veroeffentliche(admin, id);
+    expect(antwort.status).toBe(422);
+    expect(await code(antwort)).toBe("PERSON_NICHT_AUF_WEBSITE");
+    expect(await versionen(id)).toHaveLength(0);
+  });
+
   test("Veröffentlichen prüft noch einmal: Wird die Seite öffentlich, scheitert das interne Bild", async () => {
     const id = await neueSeite("angemeldet");
     const intern = await neuesMedium("angemeldet");

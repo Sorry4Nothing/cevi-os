@@ -559,6 +559,61 @@ describe("Notfall", () => {
     }
   });
 
+  test("die Nummer eines Kontos erscheint nur, solange die Person im Lager ist und ihr Konto aktiv (#777)", async () => {
+    const lager = await legeLager();
+    await db.insert(schema.ressort).values({
+      lagerId: lager,
+      kuerzel: "si",
+      name: "Sicherheit",
+      leitungPersonId: konten.leitung.id!,
+      stvPersonId: konten.lesen.id!,
+      lagerSeq: 0,
+    });
+    const kontakt = await anfrage(
+      leiter(),
+      "POST",
+      `${L(lager)}/notfall/kontakte`,
+      { funktion: "Arzt", personId: konten.team.id },
+    );
+    expect(kontakt.status).toBe(201);
+    const nummern = async () =>
+      JSON.stringify(
+        (await anfrage(leiter(), "GET", `${L(lager)}/notfall`)).body,
+      );
+    const vorher = await nummern();
+    for (const t of [TELEFON.leitung, TELEFON.lesen, TELEFON.team]) {
+      expect(vorher).toContain(t);
+    }
+    // Aus dem Lager entfernt: Der Name bleibt Eintrag, die Nummer verschwindet (Kontakt und Ressort)
+    for (const p of ["team", "leitung"] as const) {
+      await db
+        .delete(schema.lagerMitglied)
+        .where(
+          and(
+            eq(schema.lagerMitglied.lagerId, lager),
+            eq(schema.lagerMitglied.personId, konten[p].id!),
+          ),
+        );
+    }
+    const nachher = await nummern();
+    expect(nachher).not.toContain(TELEFON.team);
+    expect(nachher).not.toContain(TELEFON.leitung);
+    expect(nachher).toContain(TELEFON.lesen);
+    // Deaktiviertes Konto eines Mitglieds: ebenfalls keine Nummer
+    await db
+      .update(schema.user)
+      .set({ deaktiviertAm: new Date() })
+      .where(eq(schema.user.id, konten.lesen.id!));
+    try {
+      expect(await nummern()).not.toContain(TELEFON.lesen);
+    } finally {
+      await db
+        .update(schema.user)
+        .set({ deaktiviertAm: null })
+        .where(eq(schema.user.id, konten.lesen.id!));
+    }
+  });
+
   test("ein erfasstes Konto kommt nicht noch einmal aus dem Ressort", async () => {
     const lager = await legeLager();
     const [si] = await db

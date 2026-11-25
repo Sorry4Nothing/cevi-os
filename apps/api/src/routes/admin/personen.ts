@@ -38,6 +38,7 @@ import { beendeSitzungenBeiNeuerPflicht } from "../../rechtemodell/faktor-pflich
 import {
   geschuetzteKonten,
   personenSicht,
+  schuetzeUeberKonto,
   sichtbareKinderStufen,
   stufeObjekt,
 } from "../../rechtemodell/personenrechte.js";
@@ -81,19 +82,6 @@ const KONFLIKT = {
   KEIN_ZWEITER_FAKTOR: {
     code: "KEIN_ZWEITER_FAKTOR",
     message: "Diese Person hat keinen zweiten Faktor.",
-  },
-} as const;
-
-// 403 beim Löschen eines Kontos, das über dem Löschenden steht (#771): sonst könnte eine Rolle mit «Konten löschen» die Leitung stürzen
-const GESCHUETZT = {
-  ABTEILUNGSLEITUNG: {
-    code: "KONTO_GESCHUETZT",
-    message:
-      "Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler löschen.",
-  },
-  ENTWICKLER: {
-    code: "KONTO_GESCHUETZT",
-    message: "Dieses Konto darf nur ein Entwickler löschen.",
   },
 } as const;
 
@@ -187,10 +175,8 @@ export function erstellePersonenRouten({
     await verlange(db, person, "personen.verwalten", {
       abteilungId: person.abteilungId,
     });
-    // Eskalationsschutz: Die Konten der Abteilungsleitung betreut nur sie selbst, dazu der Entwickler (#722)
-    if (ziel.abteilungsleitung && !(await betreutKontenMitRechten(person))) {
-      throw new HTTPException(403);
-    }
+    // Eskalationsschutz: Konten von Entwicklern verändert nur ein Entwickler, die der Abteilungsleitung nur sie selbst oder ein Entwickler (#722, #777); gilt für jede Route hier
+    await schuetzeUeberKonto(db, person, id);
     return ziel;
   }
 
@@ -753,6 +739,7 @@ export function erstellePersonenRouten({
       if (!ziel) throw new HTTPException(404);
       // Das Recht «profilbild.entfernen» (Katalog): Abteilungsleitung und Entwickler, beide mit zweitem Faktor; die einzige Stelle dieser Regel
       await verlange(db, person, "profilbild.entfernen");
+      await schuetzeUeberKonto(db, person, id);
       const entfernt = await db.transaction(async (tx) => {
         const weg = await tx
           .delete(profilbild)
@@ -854,19 +841,12 @@ export function erstellePersonenRouten({
       const person = c.get("person");
       const { id } = c.req.valid("param");
       // Konto löschen ist ein eigenes, verteilbares Recht (konto.loeschen, #771) und gilt ohne «Personen verwalten»; geschützt bleibt, wer über dem Löschenden steht
-      const ziel = await ladeZielOhneRecht(person, id);
+      await ladeZielOhneRecht(person, id);
       await verlange(db, person, "konto.loeschen", {
         abteilungId: person.abteilungId,
       });
       if (id === person.id) return c.json(KONFLIKT.EIGENES_KONTO, 409);
-      const geschuetzt =
-        ziel.abteilungsleitung && !(await betreutKontenMitRechten(person))
-          ? GESCHUETZT.ABTEILUNGSLEITUNG
-          : !(await istEntwickler(db, person)) &&
-              (await istEntwickler(db, { id, abteilungId: person.abteilungId }))
-            ? GESCHUETZT.ENTWICKLER
-            : null;
-      if (geschuetzt) return c.json(geschuetzt, 403);
+      await schuetzeUeberKonto(db, person, id, "löschen");
       try {
         await db.transaction(async (tx) => {
           await sperreLetzteAbteilungsleitung(tx, person.abteilungId, id);

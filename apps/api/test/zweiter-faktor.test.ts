@@ -131,6 +131,37 @@ describe("Einrichten", () => {
     expect(await antwort.json()).toMatchObject({ code: "OTP_NOT_CONFIGURED" });
   });
 
+  test("Kontobremse (#777): Nach fünf falschen Passwörtern wartet das Konto, auch bei enable mit wechselnder IP; auch das richtige Passwort kommt nicht durch", async () => {
+    const konto = await neuerAdmin();
+    for (let i = 0; i < 5; i++) {
+      const falsch = await post("/api/auth/two-factor/enable", konto.headers, {
+        password: "ein-falsches-passwort-12",
+      });
+      expect(falsch.status).toBe(400);
+    }
+    const gebremst = await enable(konto);
+    expect(gebremst.status).toBe(429);
+    expect(await gebremst.json()).toMatchObject({ code: "ZU_VIELE_ANFRAGEN" });
+    expect(await faktorZeilen(konto.id!)).toEqual([]);
+  });
+
+  test("Kontobremse (#777): dasselbe gilt für change-password", async () => {
+    const konto = await neuerAdmin();
+    for (let i = 0; i < 5; i++) {
+      const falsch = await post("/api/auth/change-password", konto.headers, {
+        currentPassword: "ein-falsches-passwort-12",
+        newPassword: "ein-ganz-neues-passwort-34",
+      });
+      expect(falsch.status).toBe(400);
+    }
+    const gebremst = await post("/api/auth/change-password", konto.headers, {
+      currentPassword: konto.passwort,
+      newPassword: "ein-ganz-neues-passwort-34",
+    });
+    expect(gebremst.status).toBe(429);
+    expect(await gebremst.json()).toMatchObject({ code: "ZU_VIELE_ANFRAGEN" });
+  });
+
   test("bei aktivem Faktor gibt enable 400 TOTP_ALREADY_ENABLED", async () => {
     const konto = await neuerAdmin();
     const { headers } = await richteEin(konto);
@@ -322,6 +353,13 @@ describe("Zurücksetzen", () => {
     expect(antwort.status).toBe(204);
 
     expect(await faktorZeilen(konto.id!)).toEqual([]);
+    // Alle Sitzungen des Kontos enden (#777), auch die geprüfte von eben
+    expect(
+      await db
+        .select()
+        .from(schema.session)
+        .where(eq(schema.session.userId, konto.id!)),
+    ).toEqual([]);
     const [zeile] = await db
       .select({ an: schema.user.twoFactorEnabled })
       .from(schema.user)
@@ -338,12 +376,8 @@ describe("Zurücksetzen", () => {
       details: null,
     });
 
-    // Die laufende Sitzung bleibt, aber die Verwaltungsrouten sind wieder zu
-    const gesperrt = await hole("/api/v1/admin/personen", headers);
-    expect(gesperrt.status).toBe(403);
-    expect(await gesperrt.json()).toMatchObject({
-      code: "ZWEITER_FAKTOR_FEHLT",
-    });
+    // Die Sitzung endet mit dem Zurücksetzen (#777): Die Verwaltungsrouten sind zu
+    expect((await hole("/api/v1/admin/personen", headers)).status).toBe(401);
     // Neue Anmeldung ohne Code
     const anmeldung = await meldeAn(konto);
     expect(anmeldung.status).toBe(200);

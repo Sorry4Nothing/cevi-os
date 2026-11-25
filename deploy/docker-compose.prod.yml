@@ -48,6 +48,7 @@ services:
       FLICKR_API_SECRET:
       FLICKR_OAUTH_TOKEN:
       FLICKR_OAUTH_TOKEN_SECRET:
+      FLICKR_KONTO:
       # Website (#705): Die API schreibt die fertigen Seiten in das Volume «website», der Edge-Caddy liefert sie aus (docs/website-auslieferung.md); ohne diese drei erzeugt sie nichts
       # Nur mit gesetzter ID: Die API verlangt alle drei oder keine
       WEBSITE_AUSGABE_PFAD: ${WEBSITE_ABTEILUNG_ID:+/srv/website}

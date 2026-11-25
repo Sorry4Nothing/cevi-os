@@ -26,6 +26,7 @@ import type { Person } from "../../rechte.js";
 import { darf, verlange } from "../../rechtemodell/darf.js";
 import { pruefeEigeneRechte as pruefeEigeneRechteModell } from "../../rechtemodell/eskalation.js";
 import { istRecht, type RechtId } from "../../rechtemodell/katalog.js";
+import { schuetzeUeberKonto } from "../../rechtemodell/personenrechte.js";
 import { verlangeEines } from "../../rechtemodell/tuer.js";
 
 // Plattformrollen der Abteilung (#423): anlegen, Rechte einstellen, einer Person zuweisen und entziehen. Die Abteilungsleitung (zweiter Faktor wie überall unter /admin); die Rechte der Rollen (Liste ohne Namen, anlegen, ändern, löschen) seit #663 auch der Entwickler mit zweitem Faktor, einer Person zuweisen und entziehen ebenso (er hat seit #722 jedes Recht, auch «Rechte und Rollen vergeben»). Die Rolle «Abteilungsleitung» steht hier nicht: Ihre Rechte ändert nur der Entwickler, über /admin/rechte/abteilungsleitung.
@@ -351,6 +352,7 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
       const rolle = await ladeRolle(person, id);
       await ladeZiel(person, userId);
       await nurAbteilungsleitung(person);
+      await schuetzeUeberKonto(db, person, userId);
       // Die Rechte dieses Katalogs wie bisher; die übrigen, die die Matrix der Rolle gibt, prüft der Eskalationsschutz des Rechtemodells (#643)
       await pruefeEigeneRechte(person, imKatalog(rolle.rechte));
       await pruefeEigeneRechteModell(
@@ -392,6 +394,7 @@ export function erstellePlattformRollenRouten({ db }: { db: Db }) {
         const rolle = await ladeRolle(person, id);
         await ladeZiel(person, userId);
         await nurAbteilungsleitung(person);
+        await schuetzeUeberKonto(db, person, userId);
         await db.transaction(async (tx) => {
           const entfernt = await tx
             .delete(personPlattformRolle)

@@ -11,6 +11,7 @@ import {
   type IcsTermin,
 } from "../../termine/ical-text.js";
 import { pruefeToken } from "../../termine/ical-token.js";
+import { clientIp } from "../../client-ip.js";
 import {
   ladeSichtTags,
   meineTermine,
@@ -129,8 +130,7 @@ export function erstelleIcalRoute({
 
   return new Hono().get("/ical/:datei", async (c) => {
     // Vor jeder Abfrage, auch Fehlversuche zählen. Hinter dem Edge-Caddy ist der letzte Eintrag von X-Forwarded-For die Adresse, die er gesehen hat
-    const ip =
-      c.req.header("x-forwarded-for")?.split(",").at(-1)?.trim() || "unbekannt";
+    const ip = clientIp(c.req.header("x-forwarded-for")) ?? "unbekannt";
     const datei = DATEI.exec(c.req.param("datei"));
     if (
       zuVieleIp(`ip:${ip}`) ||

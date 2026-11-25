@@ -1168,6 +1168,7 @@ export const TYPEN = {
             {
               optional: true,
               maxlength: 254,
+              hilfe: "Nur die Adresse der Funktion, nie eine private.",
               type: "email",
               spellcheck: "false",
               autocapitalize: "off",

@@ -42,7 +42,11 @@ export async function holeKalender(adresse: string): Promise<string> {
   let antwort: Response;
   let text: string;
   try {
-    antwort = await fetch(url, { signal: AbortSignal.timeout(ZEITLIMIT_MS) });
+    // Keine Weiterleitung: Sie könnte auf eine interne Adresse zeigen (wie bei den anderen Abrufen, #775)
+    antwort = await fetch(url, {
+      redirect: "error",
+      signal: AbortSignal.timeout(ZEITLIMIT_MS),
+    });
     if (!antwort.ok) throw new KalenderFehler(antwortMitStatus(antwort.status));
     text = await leseGedeckelt(antwort);
   } catch (fehler) {

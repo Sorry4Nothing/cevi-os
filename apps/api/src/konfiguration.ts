@@ -30,9 +30,11 @@ const WEBSITE_PFLICHT = [
 const CEVI_DB_PFLICHT = ["CEVI_DB_URL", "CEVI_DB_TOKEN"] as const;
 // Fotos aus Flickr (#690): Schlüssel und Secret gehören zusammen, ebenso Token und Token-Secret; ein Token ohne Schlüssel gibt es nicht (geprüft unten). Alle vier sind Geheimnisse und stehen nur in deploy/.env
 const FLICKR_SCHLUESSEL = ["FLICKR_API_KEY", "FLICKR_API_SECRET"] as const;
+// FLICKR_KONTO ist kein Geheimnis, gehört aber zum Token: Nur für dieses Konto signiert der Server (#777)
 const FLICKR_TOKEN = [
   "FLICKR_OAUTH_TOKEN",
   "FLICKR_OAUTH_TOKEN_SECRET",
+  "FLICKR_KONTO",
 ] as const;
 const GRUPPEN: readonly (readonly (keyof z.infer<typeof schema>)[])[] = [
   MEDIEN_PFLICHT,
@@ -115,6 +117,8 @@ const schema = z.object({
   FLICKR_OAUTH_TOKEN_SECRET: freiwillig(
     z.string().regex(/^[0-9a-zA-Z]{8,64}$/),
   ),
+  // Kennung des Kontos, dem das Token gehört (das Skript flickr-token.mjs nennt sie), zum Beispiel 12345678@N00
+  FLICKR_KONTO: freiwillig(z.string().regex(/^[0-9]{1,20}@N[0-9]{2}$/)),
   // Nur für Tests und lokale Läufe mit einer Attrappe von Flickr; in Produktion verboten (unten): Dort sind die Adressen von Flickr fest im Code
   FLICKR_API_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
   FLICKR_BILD_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),

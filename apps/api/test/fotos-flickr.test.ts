@@ -127,6 +127,7 @@ describe("Albumliste", () => {
       apiSecret: GEHEIM,
       token: TOKEN,
       tokenSecret: TOKEN_GEHEIM,
+      tokenKonto: KONTO,
       fetch: f,
       jetzt: () => 1_780_000_000_000,
     });
@@ -139,6 +140,33 @@ describe("Albumliste", () => {
     // Die Secrets gehen nie als Parameter hinaus, nur als Schlüssel der Signatur
     expect(u.href).not.toContain(GEHEIM);
     expect(u.href).not.toContain(TOKEN_GEHEIM);
+  });
+
+  test("signiert wird nur für das Konto des Tokens; jedes andere Konto sieht nur Öffentliches (#777)", async () => {
+    const { f, aufrufe } = attrappe(() => json(liste));
+    const q = erstelleFlickr({
+      apiKey: SCHLUESSEL,
+      apiSecret: GEHEIM,
+      token: TOKEN,
+      tokenSecret: TOKEN_GEHEIM,
+      tokenKonto: KONTO,
+      fetch: f,
+    });
+    await q.alben("87654321@N00");
+    expect(aufrufe[0]!.url.searchParams.has("oauth_signature")).toBe(false);
+    expect(aufrufe[0]!.url.searchParams.has("oauth_token")).toBe(false);
+    // Ohne bekanntes Konto des Tokens signiert nichts
+    const ohneKonto = attrappe(() => json(liste));
+    await erstelleFlickr({
+      apiKey: SCHLUESSEL,
+      apiSecret: GEHEIM,
+      token: TOKEN,
+      tokenSecret: TOKEN_GEHEIM,
+      fetch: ohneKonto.f,
+    }).alben(KONTO);
+    expect(ohneKonto.aufrufe[0]!.url.searchParams.has("oauth_signature")).toBe(
+      false,
+    );
   });
 
   test("eine Kontokennung, die keine ist, geht gar nicht erst hinaus", async () => {

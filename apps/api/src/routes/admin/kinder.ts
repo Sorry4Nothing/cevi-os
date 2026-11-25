@@ -32,7 +32,11 @@ import {
   verification,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
-import { ladeKindKontoEinstellung, zugangVon } from "../../kind-konto.js";
+import {
+  keinKindKonto,
+  ladeKindKontoEinstellung,
+  zugangVon,
+} from "../../kind-konto.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import { darf, verlange } from "../../rechtemodell/darf.js";
 import {
@@ -186,6 +190,8 @@ export function erstelleKinderRouten({
         and(
           inArray(user.id, [...eltern]),
           eq(user.abteilungId, person.abteilungId),
+          // Ein Kinder-Konto ist nie Elternteil: Es bekäme Einsicht und Chats der Eltern (#777)
+          keinKindKonto(user.id),
         ),
       );
     if (eigene.length !== eltern.length) throw new HTTPException(400);

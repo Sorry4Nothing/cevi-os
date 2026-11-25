@@ -10,6 +10,7 @@ import {
   test,
   vi,
 } from "vitest";
+import { erstelleAktivitaetsprotokoll } from "../../src/aktivitaet.js";
 import { erstelleApp } from "../../src/app.js";
 import { erstelleDb } from "../../src/db/client.js";
 import * as schema from "../../src/db/schema.js";
@@ -53,7 +54,21 @@ const app = erstelleApp({
   seiten: ladeSeiten(),
   fcm,
 });
-afterAll(() => sql.end());
+// Mit echter Aktivitätssenke: Das Änderungsprotokoll darf keine anonyme Meldung einer Person zuordnen
+const protokoll = erstelleAktivitaetsprotokoll(db, { taktMs: null });
+const appMitProtokoll = erstelleApp({
+  appMinVersion: "1.2.0",
+  sql,
+  db,
+  auth,
+  seiten: ladeSeiten(),
+  fcm,
+  aktivitaet: protokoll,
+});
+afterAll(async () => {
+  protokoll.stopp();
+  await sql.end();
+});
 let logZeilen: ReturnType<typeof vi.spyOn>;
 beforeEach(() => {
   gesendet = [];
@@ -507,6 +522,39 @@ describe("Anonym heisst: die Person steht nirgends", () => {
     await sende("team", lagerId);
     const nachher = await vorkommen([konten.team.id!, konto!.email]);
     expect(nachher.eingang! - vorher.eingang!).toBe(1);
+  });
+
+  test("das Änderungsprotokoll nennt die Person nur bei der namentlichen Meldung, nie bei der anonymen", async () => {
+    const zeilen = async () => {
+      await protokoll.leere();
+      return db
+        .select({ id: schema.aktivitaet.id })
+        .from(schema.aktivitaet)
+        .where(
+          and(
+            eq(schema.aktivitaet.userId, konten.team.id!),
+            eq(schema.aktivitaet.aktion, "POST /api/v1/lager/:id/eingang"),
+          ),
+        );
+    };
+    const sendeMitProtokoll = async (felder: Record<string, unknown>) => {
+      const body = JSON.stringify({ ...meldung, ...felder });
+      const res = await appMitProtokoll.request(`${L(lagerId)}/eingang`, {
+        method: "POST",
+        headers: {
+          ...konten.team.headers,
+          "content-type": "application/json",
+          "content-length": String(Buffer.byteLength(body)),
+        },
+        body,
+      });
+      expect(res.status).toBe(201);
+    };
+    const vorher = (await zeilen()).length;
+    await sendeMitProtokoll({ anonym: true });
+    expect(await zeilen()).toHaveLength(vorher);
+    await sendeMitProtokoll({ anonym: false });
+    expect(await zeilen()).toHaveLength(vorher + 1);
   });
 
   test("Antwort an die anonyme Person: kein Push, keine Benachrichtigung; mit dem Code liest sie die Antwort, ein falscher Code gibt 404", async () => {

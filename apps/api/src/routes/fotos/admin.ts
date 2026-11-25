@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -29,6 +29,30 @@ const VERSION_KONFLIKT = {
   code: "VERSION_KONFLIKT",
   message: "Jemand anders hat das gerade geändert. Lade die Seite neu.",
 } as const;
+
+// Ein Konto gehört einer Abteilung: Eine andere trägt es nicht ein, sonst sähe sie über den Server dessen nicht öffentliche Fotos (#777)
+const KONTO_VERGEBEN = {
+  code: "FLICKR_KONTO_VERGEBEN",
+  message: "Dieses Flickr-Konto gehört schon einer anderen Abteilung.",
+} as const;
+
+const gehoertAndererAbteilung = async (
+  db: Pick<Db, "select">,
+  abteilungId: string,
+  konto: string,
+) =>
+  (
+    await db
+      .select({ id: fotoEinstellung.abteilungId })
+      .from(fotoEinstellung)
+      .where(
+        and(
+          eq(fotoEinstellung.flickrKonto, konto),
+          ne(fotoEinstellung.abteilungId, abteilungId),
+        ),
+      )
+      .limit(1)
+  ).length > 0;
 
 // Was die Verbindung zu Flickr gerade tut, als Wort für die Verwaltung
 type Verbindung =
@@ -134,6 +158,9 @@ export function erstelleAdminFotoRouten({
             c.req.valid("json").flickrKonto ??
             (await ladeEinstellung(db, person.abteilungId)).flickrKonto;
           if (!konto) return c.json({ ok: false, art: "kein_konto" as const });
+          if (await gehoertAndererAbteilung(db, person.abteilungId, konto)) {
+            return c.json(KONTO_VERGEBEN, 409);
+          }
           speicher.leere();
           try {
             const alben = await speicher.alben(konto);
@@ -154,6 +181,16 @@ export function erstelleAdminFotoRouten({
         const person = c.get("person");
         await verlange(db, person, RECHT);
         const neu = c.req.valid("json");
+        if (
+          neu.flickrKonto &&
+          (await gehoertAndererAbteilung(
+            db,
+            person.abteilungId,
+            neu.flickrKonto,
+          ))
+        ) {
+          return c.json(KONTO_VERGEBEN, 409);
+        }
         const version = await db.transaction(async (tx) => {
           const jetzt = await ladeEinstellung(tx, person.abteilungId);
           if (jetzt.version !== neu.version) return null;
