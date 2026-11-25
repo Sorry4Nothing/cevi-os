@@ -51,8 +51,8 @@ const DEMO = {
 
 // Unabhängig von der Fabrik: Rollen und Kinder nur aus der Abteilung der Person, mit Namen statt IDs
 const ERWARTET: Record<Persona, object | null> = {
-  admin: { ...TEST, role: "admin", two_factor_enabled: true },
-  adminOhneZweitenFaktor: { ...TEST, role: "admin" },
+  admin: { ...TEST, two_factor_enabled: true },
+  adminOhneZweitenFaktor: { ...TEST },
   slA: { ...TEST, rollen: ["stufenleitung in Stufe A"] },
   slB: { ...TEST, rollen: ["stufenleitung in Stufe B"] },
   leitendeA: { ...TEST, rollen: ["leitung in Stufe A"] },
@@ -81,7 +81,7 @@ const ERWARTET: Record<Persona, object | null> = {
     deaktiviert_am: expect.any(Date),
   },
   ohneLogin: null,
-  demoAdmin: { ...DEMO, role: "admin", two_factor_enabled: true },
+  demoAdmin: { ...DEMO, two_factor_enabled: true },
   demoEltern: { ...DEMO, kinder: ["Kind Demo in Demo-Stufe"] },
 };
 

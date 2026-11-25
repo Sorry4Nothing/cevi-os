@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { and, eq, inArray, ne, sql } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -12,6 +12,7 @@ import {
   ladeAlbumZeilen,
   ladeEinstellung,
   reihenfolgeSchema,
+  sichtbarkeitSchema,
 } from "../../fotos/daten.js";
 import { QuellFehler, istKonto } from "../../fotos/quelle.js";
 import type { Zwischenspeicher } from "../../fotos/zwischenspeicher.js";
@@ -53,6 +54,25 @@ const gehoertAndererAbteilung = async (
       )
       .limit(1)
   ).length > 0;
+
+// Ein Album, das neu auf der Website erscheint, steht am Ende der sichtbaren Alben: Die Reihenfolge gilt nur für sie (#794)
+const naechsteStelle = async (tx: Pick<Db, "select">, abteilungId: string) =>
+  Math.min(
+    (
+      await tx
+        .select({
+          n: sql<number>`coalesce(max(${fotoAlbum.reihenfolge}) + 1, 0)::int`,
+        })
+        .from(fotoAlbum)
+        .where(
+          and(
+            eq(fotoAlbum.abteilungId, abteilungId),
+            eq(fotoAlbum.sichtbar, true),
+          ),
+        )
+    )[0]?.n ?? 0,
+    9999,
+  );
 
 // Was die Verbindung zu Flickr gerade tut, als Wort für die Verwaltung
 type Verbindung =
@@ -244,6 +264,97 @@ export function erstelleAdminFotoRouten({
           return c.body(null, 204);
         },
       )
+      // Mehrere Alben auf einmal zeigen oder ausblenden (#794): alles oder nichts. Jedes Album bringt seine Version mit; passt eine nicht, ändert sich nichts (409). Neu sichtbare Alben kommen in der genannten Reihenfolge ans Ende der sichtbaren
+      .put(
+        "/alben/sichtbarkeit",
+        eingabe("json", sichtbarkeitSchema),
+        async (c) => {
+          const person = c.get("person");
+          const { sichtbar, alben } = c.req.valid("json");
+          // Wie bei einem einzelnen Album: erst das Objekt (404), dann das Recht (403)
+          const e = await ladeEinstellung(db, person.abteilungId);
+          if (!speicher || !e.flickrKonto) throw new HTTPException(404);
+          await verlange(db, person, RECHT);
+          try {
+            const bei = new Set(
+              (await speicher.alben(e.flickrKonto)).map((x) => x.id),
+            );
+            if (alben.some((a) => !bei.has(a.id))) {
+              throw new HTTPException(404);
+            }
+          } catch (f) {
+            if (f instanceof HTTPException) throw f;
+            if (f instanceof QuellFehler && f.art === "nicht_gefunden") {
+              throw new HTTPException(404);
+            }
+            throw new HTTPException(502);
+          }
+          const ergebnis = await db.transaction(async (tx) => {
+            const zeilen = await tx
+              .select({
+                id: fotoAlbum.flickrAlbumId,
+                version: fotoAlbum.version,
+                sichtbar: fotoAlbum.sichtbar,
+              })
+              .from(fotoAlbum)
+              .where(
+                and(
+                  eq(fotoAlbum.abteilungId, person.abteilungId),
+                  inArray(
+                    fotoAlbum.flickrAlbumId,
+                    alben.map((a) => a.id),
+                  ),
+                ),
+              )
+              .for("update");
+            const jetzt = new Map(zeilen.map((z) => [z.id, z]));
+            if (
+              alben.some((a) => (jetzt.get(a.id)?.version ?? 0) !== a.version)
+            ) {
+              return null;
+            }
+            let stelle = sichtbar
+              ? await naechsteStelle(tx, person.abteilungId)
+              : 0;
+            const neu: { id: string; version: number }[] = [];
+            for (const a of alben) {
+              const z = jetzt.get(a.id);
+              const reihenfolge =
+                sichtbar && !z?.sichtbar ? Math.min(stelle++, 9999) : undefined;
+              const version = (z?.version ?? 0) + 1;
+              if (z) {
+                await tx
+                  .update(fotoAlbum)
+                  .set({
+                    sichtbar,
+                    ...(reihenfolge !== undefined && { reihenfolge }),
+                    version,
+                    geaendertAm: new Date(),
+                  })
+                  .where(
+                    and(
+                      eq(fotoAlbum.abteilungId, person.abteilungId),
+                      eq(fotoAlbum.flickrAlbumId, a.id),
+                    ),
+                  );
+              } else {
+                await tx.insert(fotoAlbum).values({
+                  abteilungId: person.abteilungId,
+                  flickrAlbumId: a.id,
+                  sichtbar,
+                  // Ein unsichtbares Album hat noch keinen Platz: Beim Zeigen bekommt es einen am Ende
+                  reihenfolge: reihenfolge ?? 0,
+                  version,
+                });
+              }
+              neu.push({ id: a.id, version });
+            }
+            return { alben: neu };
+          });
+          if (ergebnis === null) return c.json(VERSION_KONFLIKT, 409);
+          return c.json(ergebnis);
+        },
+      )
       // Ein Album zeigen oder ausblenden und ihm einen eigenen Titel geben. «version» ist die des Albums im Stand (0 ohne Zeile)
       .put(
         "/alben/:id",
@@ -275,7 +386,7 @@ export function erstelleAdminFotoRouten({
             const [zeile] = await tx
               .select({
                 version: fotoAlbum.version,
-                reihenfolge: fotoAlbum.reihenfolge,
+                sichtbar: fotoAlbum.sichtbar,
               })
               .from(fotoAlbum)
               .where(
@@ -292,9 +403,17 @@ export function erstelleAdminFotoRouten({
               geaendertAm: new Date(),
             };
             if (zeile) {
+              // Wer neu erscheint, kommt ans Ende der sichtbaren Alben
+              const neuSichtbar = a.sichtbar === true && !zeile.sichtbar;
               await tx
                 .update(fotoAlbum)
-                .set({ ...aenderung, version: zeile.version + 1 })
+                .set({
+                  ...aenderung,
+                  ...(neuSichtbar && {
+                    reihenfolge: await naechsteStelle(tx, person.abteilungId),
+                  }),
+                  version: zeile.version + 1,
+                })
                 .where(
                   and(
                     eq(fotoAlbum.abteilungId, person.abteilungId),
@@ -304,16 +423,10 @@ export function erstelleAdminFotoRouten({
               return { version: zeile.version + 1 };
             }
             // Neue Zeile ans Ende
-            const [ende] = await tx
-              .select({
-                n: sql<number>`coalesce(max(${fotoAlbum.reihenfolge}) + 1, 0)::int`,
-              })
-              .from(fotoAlbum)
-              .where(eq(fotoAlbum.abteilungId, person.abteilungId));
             await tx.insert(fotoAlbum).values({
               abteilungId: person.abteilungId,
               flickrAlbumId: id,
-              reihenfolge: Math.min(ende?.n ?? 0, 9999),
+              reihenfolge: await naechsteStelle(tx, person.abteilungId),
               version: 1,
               ...aenderung,
             });

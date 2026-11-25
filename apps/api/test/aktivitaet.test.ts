@@ -943,6 +943,10 @@ describe("Aufbewahrung", () => {
     const marke = `flut_${randomUUID().slice(0, 8)}`;
     await db.execute(sql`insert into aktivitaet (art, aktion, bereich, ergebnis)
       select 'system', ${marke}, 'test', 'erfolg' from generate_series(1, 10050)`);
+    // Parallele Testdateien schreiben laufend ins Protokoll: Zählen darf nur, was beim Löschen schon da war
+    const [{ stand }] = await db.execute<{ stand: Date }>(
+      sql`select clock_timestamp() as stand`,
+    );
     const geloescht = await loescheAlteAktivitaet(db, {
       tage: 365,
       maxZeilen: 1,
@@ -950,7 +954,8 @@ describe("Aufbewahrung", () => {
     expect(geloescht).toBeGreaterThanOrEqual(50);
     const [{ n }] = await db
       .select({ n: sql<number>`count(*)::int` })
-      .from(schema.aktivitaet);
+      .from(schema.aktivitaet)
+      .where(sql`${schema.aktivitaet.zeit} <= ${stand}`);
     expect(n).toBeLessThanOrEqual(10_000);
   });
 });

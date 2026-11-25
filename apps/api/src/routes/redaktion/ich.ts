@@ -8,8 +8,8 @@ import { hatWebsiteZugang } from "../../website/seiten.js";
 
 // Welche Bereiche der Verwaltung ein Katalogrecht öffnet (#648): Die Navigation zeigt einen Bereich, sobald die Person eines davon abteilungsweit hat; welche Seite darin, entscheidet das einzelne Recht (Navigation `zugang: "recht:<name>"`)
 const BEREICH_NACH_RECHT: Record<string, readonly string[]> = {
-  // Wartung der Website (#424) und der übrigen Bereiche (#648)
-  plattform: ["wartungsmodus.website", "wartung.bereiche"],
+  // Wartung (#424, nur Entwickler seit #802) und Informationssperre (#425): Die Seite «Wartung und Sperre» zeigt den Stand auch der Abteilungsleitung
+  plattform: ["wartungsmodus.website", "wartung.bereiche", "plattform.sperren"],
   laedeli: [
     "laden.ansehen",
     "laden.artikel_pflegen",

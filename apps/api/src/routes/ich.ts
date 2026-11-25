@@ -141,11 +141,13 @@ export function erstelleIchRouten({ db }: { db: Db }) {
         return c.json({
           ...rest,
           ...(person.rollen.length > 0 && { pushAnmeldungen }),
-          // Die Rollen kommen von hier, nie aus role von better-auth: Abteilungsleitung = das Konto steht in abteilungsleitung_person, Entwickler = es steht in plattform_entwickler (#736)
+          // Die Rollen kommen von hier, nie aus better-auth: Abteilungsleitung = das Konto steht in abteilungsleitung_person, Entwickler = es steht in plattform_entwickler (#736)
           abteilungsleitung: person.abteilungsleitung,
           entwickler: person.entwickler,
           // Das Konto hat ihn eingerichtet; ob diese Sitzung den Code geprüft hat, steht nicht hier (App-Sitzungen nie, #721)
           zweiterFaktor: person.zweiterFaktorKonto ?? person.zweiterFaktor,
+          // Woher diese Sitzung kommt (#785): web, app_nachgewiesen oder app_ungeprueft; kein Recht hängt daran
+          clientArt: person.clientArt ?? ("web" as const),
           rollen: person.rollen,
           rechte,
           stufen,

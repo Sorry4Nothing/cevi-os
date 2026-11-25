@@ -360,13 +360,19 @@ async function pruefeKonto(nachAnmeldung = true) {
     return;
   }
   // Eine Abfrage mehr als die Sitzung: Das Konto trägt die Rollen nicht (#737). Sie ist auch vor dem Pflichtwechsel und ohne zweiten Faktor offen
-  const profil = await anfrage("GET", "/api/v1/ich");
+  // Unter der Sperre von «alles» antwortet auch diese Route mit 423 (#803): Dann kennt die Verwaltung die Person nur aus der Sitzung und öffnet nur «Wartung und Sperre»
+  let profil = null;
+  try {
+    profil = await anfrage("GET", "/api/v1/ich");
+  } catch (f) {
+    if (!(f instanceof ApiFehler && f.code === "GESPERRT")) throw f;
+  }
   ich = {
     ...sitzung.user,
-    abteilungsleitung: profil.abteilungsleitung === true,
-    entwickler: profil.entwickler === true,
+    abteilungsleitung: profil?.abteilungsleitung === true,
+    entwickler: profil?.entwickler === true,
     // Die Rechte des Katalogs, die der Server der Person gibt (GET /api/v1/ich, nach Abzügen der Abteilungsleitung): nur für die Anzeige, zum Beispiel «Konto löschen» (#771)
-    rechte: Array.isArray(profil.rechte) ? profil.rechte : [],
+    rechte: Array.isArray(profil?.rechte) ? profil.rechte : [],
   };
   zugang = null;
   if (ich.mussPasswortAendern) {
@@ -374,6 +380,8 @@ async function pruefeKonto(nachAnmeldung = true) {
       "Du musst zuerst dein Startpasswort ändern. Das geht in der App. Melde dich danach hier neu an.",
       ["Startpasswort offen", "schluessel", "warn"],
     );
+  } else if (!profil) {
+    await zeigeNurPlattform();
   } else if (siehtAlles(ich)) {
     if (!ich.twoFactorEnabled) {
       zeigeEinrichtung();
@@ -419,6 +427,39 @@ async function pruefeKonto(nachAnmeldung = true) {
     }
     await zeigeVerwaltung(profil);
   }
+}
+
+// Sperre von «alles» (#803): GET /api/v1/plattform/schalter ist die einzige Route der Verwaltung, die noch antwortet. Wer dort schalten darf, bekommt «Wartung und Sperre» und nichts sonst; für alle anderen weist schon die Anmeldung ab
+async function zeigeNurPlattform() {
+  try {
+    await anfrage("GET", "/api/v1/plattform/schalter");
+  } catch (f) {
+    if (f instanceof ApiFehler && f.code === "ZWEITER_FAKTOR_FEHLT") {
+      zeigeEinrichtung();
+      return;
+    }
+    if (f instanceof ApiFehler && f.code === "ZWEITER_FAKTOR_SITZUNG") {
+      await neuAnmeldenMitCode();
+      return;
+    }
+    if (!(f instanceof ApiFehler && f.status === 403)) throw f;
+    zeigeSperre("Dieses Konto hat keinen Zugang zur Verwaltung.", [
+      "403 · Kein Zugang",
+      "sperre",
+      "fehler",
+    ]);
+    return;
+  }
+  zugang = mitDarf(
+    {
+      redigieren: false,
+      bereiche: ["plattform"],
+      verwalten: false,
+      rechte: [],
+    },
+    false,
+  );
+  await zeigeVerwaltung(null);
 }
 
 async function abmelden() {

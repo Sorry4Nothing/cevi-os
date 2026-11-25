@@ -144,6 +144,7 @@ describe("person aus der Sitzung", () => {
       entwickler: false,
       zweiterFaktor: false,
       zweiterFaktorKonto: false,
+      clientArt: "web",
       rollen: [{ stufeId: welt.stufeAId, typ: "stufenleitung" }],
     });
   });

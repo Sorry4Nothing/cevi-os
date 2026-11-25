@@ -203,6 +203,8 @@ function istSicherheit(methode: string, route: string, status: number) {
   if (status < 400 || methode !== "POST") return false;
   return (
     route === "/api/auth/sign-in/username" ||
+    // Der Nachweis der App (#785): ein abgelehnter Nachweis ist ein Sicherheitsereignis, nie mit dem Inhalt des Tokens
+    route === "/api/v1/app/nachweis" ||
     route === "/api/auth/two-factor/verify-totp" ||
     route === "/api/auth/two-factor/verify-backup-code"
   );

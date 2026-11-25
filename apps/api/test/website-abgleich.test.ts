@@ -358,7 +358,8 @@ describe("Was ausgeliefert wird", () => {
     expect(await lies("index.html")).toContain(
       `href="/website/zeichen-32.png?v=${zeichenVersion(new TextEncoder().encode("favicon.ico:test"))}"`,
     );
-  });
+    // Hunderte Dateizugriffe nacheinander: unter Last (parallele Testdateien, CI) reichen die 5 s der Vorgabe nicht
+  }, 30_000);
 
   test("Favicon (#558): Dateien an der Wurzel und unter website/, Einträge auf jeder Seite; nur ein öffentliches Bild der Abteilung ist Quelle", async () => {
     await seite({ adresse: "start", inhalt: dok("Start", text("Hallo")) });
@@ -841,6 +842,28 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     expect(nachNeustart.geschrieben).toBe(15);
     expect(schreibt).toHaveBeenCalledTimes(15);
     expect(await hash(id)).toEqual(vorher);
+  });
+
+  test("nach einer Sperre ohne Verwaltung (Notausgang in der Datenbank) ersetzt der nächste Lauf die Hinweisseiten (#803)", async () => {
+    await seite({ adresse: "start", inhalt: dok("Start", text("Echt")) });
+    const merker = new Map<string, string>();
+    await lauf({ merker });
+    const echt = await lies("index.html");
+    expect(echt).toContain("Echt");
+    // Die Sperre nimmt die Website vom Netz; aufgehoben wird sie in der Datenbank, ohne gibFrei: Hash und Merker bleiben unverändert
+    await erstelleWebsiteSperre(ausgabe, abteilungId).nimmVomNetz();
+    expect(await lies("index.html")).toContain(
+      "Vorübergehend nicht erreichbar",
+    );
+    await lauf({ merker });
+    expect(await lies("index.html")).toBe(echt);
+    expect(await lies("404.html")).not.toContain("Vorübergehend");
+    expect(await ausgabe.liste()).not.toContain("gesperrt.css");
+    // Ebenso nach einem Neustart (leerer Merker); danach schreibt ein Lauf nichts mehr
+    await erstelleWebsiteSperre(ausgabe, abteilungId).nimmVomNetz();
+    await lauf();
+    expect(await lies("index.html")).toBe(echt);
+    expect(await lauf({ merker })).toMatchObject({ geschrieben: 0, fehler: 0 });
   });
 
   test("eine geänderte Seite schreibt nur sich; eine fehlende Datei kommt zurück", async () => {

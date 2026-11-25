@@ -144,6 +144,15 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 | `POST /api/auth/two-factor/verify-backup-code` | Ersatzcode prüfen (Anmeldung ohne Authenticator) | **400** adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, mussPasswortAendern, demoEltern<br>**401** admin, elternB, deaktiviert, ohneLogin, demoAdmin |
 | `POST /api/auth/two-factor/enable`             | Zweiten Faktor (TOTP) einrichten                 | **400** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, mussPasswortAendern, demoAdmin, demoEltern<br>**404** deaktiviert, ohneLogin |
 
+## App-Nachweis (ohne Sitzung)
+
+Von Hand ergänzt (#785); die Matrix läuft mit `APP_NACHWEIS=aus`, dort gibt es beide Routen nicht (404, auch ohne Anmeldung). Die Modi `pruefen` und `pflicht` belegt `apps/api/test/app-nachweis.test.ts`, der Ablauf steht in [../app-nachweis.md](../app-nachweis.md).
+
+| Route                                 | Zweck                                          | Status je Persona |
+| ------------------------------------- | ---------------------------------------------- | ----------------- |
+| `POST /api/v1/app/nachweis/challenge` | Herausforderung für den Nachweis der App holen | **404** alle      |
+| `POST /api/v1/app/nachweis`           | Nachweis der App prüfen                        | **404** alle      |
+
 ## App: ich
 
 | Route                          | Zweck                                               | Status je Persona                                                                                                                                                                                 |
@@ -313,10 +322,11 @@ Die Abschnitte «Lager» gelten für ein aktives Lager der Testabteilung. Die Ro
 
 ## App: website
 
-| Route                        | Zweck                                                  | Status je Persona                                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/website/inhalt` | Geschützte Bausteine einer Seite der Website nachladen | **401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern |
-| `GET /api/v1/website/konto`  | Konto-Menü im Kopf der Website                         | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
+| Route                            | Zweck                                                  | Status je Persona                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/website/inhalt`     | Geschützte Bausteine einer Seite der Website nachladen | **401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern |
+| `GET /api/v1/website/konto`      | Konto-Menü im Kopf der Website                         | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
+| `GET /api/v1/website/navigation` | Menü der Website für Angemeldete                       | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
 
 ## App: push-token
 

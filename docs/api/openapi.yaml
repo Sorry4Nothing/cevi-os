@@ -3390,6 +3390,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/AppHerkunft"
+        - $ref: "#/components/parameters/AppNachweisTicket"
       description: |
         Öffentlich. Einziger Weg zur Anmeldung (E-Mail-Anmeldung und Registrierung gibt es nicht).
 
@@ -3410,6 +3411,17 @@ paths:
         dann entsteht die Sitzung, und sie ist geprüft (`zweiterFaktorGeprueft: true`). Die Kopfzeile ist keine
         Sicherheitsgrenze (ein Skript setzt sie frei, ein Browser nicht); sicher ist die Markierung der Sitzung.
 
+        **Nachweis der App (#785).** Ob die Anmeldung wirklich von der App kommt, belegt der Nachweis des
+        Betriebssystems (Google Play Integrity, Apple App Attest), nicht der `Origin`. Der Betreiber stellt das mit
+        `APP_NACHWEIS` ein. `aus` (Vorgabe): Der `Origin` entscheidet wie bisher, die Sitzung hat
+        `clientArt: app_ungeprueft`. `pruefen`: Die App schickt ihr Ticket in `X-Cevi-Nachweis`; mit gültigem Ticket
+        ist die Sitzung `app_nachgewiesen`, ohne oder mit ungültigem trotzdem angemeldet (`app_ungeprueft`), das Ergebnis
+        steht im Log. `pflicht`: Eine Anmeldung mit `Origin` der App ohne gültiges Ticket antwortet 401
+        `APP_NACHWEIS_FEHLT` (kein Ticket) oder `APP_NACHWEIS_UNGUELTIG` (unbekannt, abgelaufen, schon benutzt oder für
+        einen anderen Benutzernamen); das Passwort wird dann nicht geprüft. Das Ticket kommt aus
+        `POST /api/v1/app/nachweis`, gilt 2 Minuten, einmal und nur für den Benutzernamen, an den es gebunden wurde.
+        Die Rechte der App-Sitzung ändern sich dadurch nicht (ohne zweiten Faktor, keine Verwaltung, keine Rechte mit «erweitert»).
+
         **Startpasswort.** Hat die Person noch ein Startpasswort (`mussPasswortAendern` in
         `GET /api/auth/get-session` und `GET /api/v1/ich`), zählen bei der Eingabe Gross-/Kleinschreibung,
         Bindestriche und Leerzeichen nicht. Ist das Startpasswort abgelaufen (7 Tage), ist keine Anmeldung möglich.
@@ -3419,7 +3431,8 @@ paths:
         **Fehler.** Jeder Fehlschlag mit Status 4xx (ausser 429) antwortet mit demselben 401 und demselben Text
         `ANMELDUNG_FEHLGESCHLAGEN`: falsches Passwort, unbekannter Name, Wartezeit, abgelaufenes Startpasswort,
         deaktiviertes Konto, ungültiger Name, ungültige Herkunft, fehlerhafter Body. Es wird kein Cookie gesetzt.
-        Die App kann die Fälle nicht unterscheiden.
+        Die App kann die Fälle nicht unterscheiden. Die einzige Ausnahme sind `APP_NACHWEIS_FEHLT` und
+        `APP_NACHWEIS_UNGUELTIG` im Modus `pflicht` (ebenfalls 401, ohne Cookie): Die App holt dann einen neuen Nachweis.
 
         **Bremse.** Ab dem 5. Fehlversuch in Folge gilt pro Benutzername eine Wartezeit: 1 Minute, dann 5, dann
         15 Minuten. Liegt der letzte Fehlversuch 15 Minuten zurück, also spätestens nach der längsten Wartezeit,
@@ -3451,7 +3464,7 @@ paths:
                   - $ref: "#/components/schemas/AuthAnmeldungErfolg"
                   - $ref: "#/components/schemas/AuthZweiterFaktorAufforderung"
         "401":
-          description: Anmeldung fehlgeschlagen (jeder Grund, immer derselbe Text), ohne Cookie.
+          description: Anmeldung fehlgeschlagen (jeder Grund, immer derselbe Text), ohne Cookie. Im Modus `pflicht` ohne gültigen Nachweis der App `APP_NACHWEIS_FEHLT` oder `APP_NACHWEIS_UNGUELTIG`.
           content:
             application/json:
               schema:
@@ -3852,6 +3865,134 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/app/nachweis/challenge:
+    post:
+      operationId: appNachweisChallenge
+      summary: Herausforderung für den Nachweis der App holen
+      tags:
+        - Authentifizierung
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Erster Schritt des Nachweises der App (#785, Ablauf und Beispiele: docs/app-nachweis.md). Ohne Sitzung und
+        ausserhalb der Versionsprüfung. Liefert eine zufällige Nonce (32 Byte, base64url), 5 Minuten gültig und
+        **einmal** verwendbar, dazu die Parameter, die die App für ihren Aufruf beim Betriebssystem braucht
+        (Android: Paketname; iOS: App-Kennung `TeamID.BundleID` und Umgebung).
+
+        Die App bindet den Nachweis an die Anmeldung: `bindung = SHA-256(nonce + "\n" + benutzername in Kleinbuchstaben)`.
+        Android gibt `base64url(bindung)` als `nonce` an Play Integrity, iOS gibt `bindung` als `clientDataHash` an App Attest.
+
+        Ist der Nachweis nicht eingeschaltet (`APP_NACHWEIS=aus`), antwortet die Route 404 `NICHT_GEFUNDEN`; die App meldet sich
+        dann wie bisher an. Limit: 30 Anfragen je 15 Minuten und Client-IP (429 `ZU_VIELE_ANFRAGEN`), ebenso bei zu
+        vielen offenen Herausforderungen.
+
+        **Rollen.** Jede Person, auch ohne Konto. Statuscodes: 200, 400, 404, 413, 429.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppNachweisChallengeAnfrage"
+      responses:
+        "200":
+          description: Die Herausforderung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppNachweisChallenge"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "404":
+          description: Der Nachweis ist nicht eingeschaltet (`APP_NACHWEIS=aus`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "413":
+          description: Body grösser als 64 KiB (code ZU_GROSS).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/app/nachweis:
+    post:
+      operationId: appNachweisPruefen
+      summary: Nachweis der App prüfen
+      tags:
+        - Authentifizierung
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      description: |
+        Zweiter Schritt (#785, docs/app-nachweis.md). Ohne Sitzung. Die App schickt den Beleg des Betriebssystems zur
+        Herausforderung: Android das Integrity-Token (`integrityToken`), iOS die Attestation (erster Nachweis eines neuen
+        Schlüssels) oder die Assertion (jeder spätere). Der Server prüft die Bindung an die Herausforderung und den
+        Benutzernamen, das Paket (Android) bzw. die App-Kennung (iOS), das App-Zertifikat und das Gerätesiegel (Android:
+        mindestens `MEETS_DEVICE_INTEGRITY`) oder die Kette bis zur Wurzel von Apple und den Zähler der Assertions (iOS).
+
+        Die Herausforderung gilt für **einen** Versuch: Ein gescheiterter Nachweis verbraucht sie, die App holt eine neue.
+        Bei Erfolg liefert die Antwort ein **Ticket** (32 Byte, base64url, 2 Minuten, einmal, nur für diesen Benutzernamen),
+        das die App in `X-Cevi-Nachweis` an `POST /api/auth/sign-in/username` mitschickt.
+
+        Die Antwort bei einem Fehler nennt keinen Grund (401 `APP_NACHWEIS_UNGUELTIG`); der Grund steht nur im Log. Ist
+        Google gerade nicht erreichbar, antwortet die Route 503 `APP_NACHWEIS_NICHT_ERREICHBAR`: Ein neuer Versuch mit
+        neuer Herausforderung kann gelingen. Weder Token noch Attestation noch Benutzername erscheinen je in Log oder Protokoll.
+        Eine iOS-Attestation für einen schon bekannten Schlüssel wird abgelehnt: Die App richtet in dem Fall einen neuen Schlüssel ein.
+
+        Ist der Nachweis nicht eingeschaltet (`APP_NACHWEIS=aus`), antwortet die Route 404 `NICHT_GEFUNDEN`. Limit wie die
+        Herausforderung (429).
+
+        **Rollen.** Jede Person, auch ohne Konto. Statuscodes: 200, 400, 401, 404, 413, 429, 503.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AppNachweisAnfrage"
+      responses:
+        "200":
+          description: Der Nachweis ist gültig; das Ticket für die Anmeldung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppNachweisTicket"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          description: Der Nachweis ist ungültig, die Herausforderung unbekannt, abgelaufen oder schon benutzt (`APP_NACHWEIS_UNGUELTIG`), ohne Grund.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+              example:
+                code: APP_NACHWEIS_UNGUELTIG
+                message: Der Nachweis der App ist ungültig.
+        "404":
+          description: Der Nachweis ist nicht eingeschaltet (`APP_NACHWEIS=aus`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "413":
+          description: Body grösser als 64 KiB (code ZU_GROSS).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "503":
+          description: Der Dienst von Google war nicht erreichbar (`APP_NACHWEIS_NICHT_ERREICHBAR`); nochmals versuchen, mit neuer Herausforderung.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+              example:
+                code: APP_NACHWEIS_NICHT_ERREICHBAR
+                message: Der Nachweis ist gerade nicht möglich. Bitte später nochmals versuchen.
   /api/v1/ich:
     get:
       operationId: ichLesen
@@ -3864,7 +4005,7 @@ paths:
         Das Profil der angemeldeten Person: Anzeigename, Benutzername, Schalter, die Rollen `abteilungsleitung` und `entwickler`,
         Stand des zweiten Faktors, Stufenrollen, die zugehörigen Stufen und die aktiven Kinder (nur Eltern haben welche).
         **Die Rollen stehen nur hier.** Die Apps und die Verwaltung lesen `abteilungsleitung` und `entwickler` aus dieser Antwort und nie `role` aus
-        `get-session` von better-auth; `role` ist nur ein Spiegel und entfällt mit Teil 10 des Umbaus (Epic #714). Das Feld `admin` gibt es nicht mehr, ohne Alias.
+        `get-session` von better-auth: Das Feld `role` gibt es dort nicht mehr (Teil 10 des Umbaus, Epic #714). Das Feld `admin` gibt es nicht mehr, ohne Alias.
 
         Nie enthalten sind E-Mail, Bremsfelder, Sperrstatus, Ablauf des Startpassworts sowie Geheimnisse
         und Codes des zweiten Faktors.
@@ -4491,7 +4632,7 @@ paths:
       operationId: listePlattformSchalter
       summary: Aktive Schalter der Abteilung (Wartungsmodus und Informationssperre)
       description: |
-        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website, eine mit `wartung.bereiche` die Wartung von Lager, Chat, Programme und Verwaltung (#648); die Sperre und die Wartung von `alles` sieht sie nie. Wer nichts davon darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
+        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle; die Abteilungsleitung liest die Wartung nur (`darfWartung: false`), schalten darf sie nur der Entwickler (#802). Wer weder die Informationssperre noch die Wartung darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
 
         Jede Route hier braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
 
@@ -4523,7 +4664,7 @@ paths:
 
         **Wartungsmodus (`art: wartung`, #424):** Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
 
-        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich und jede Art; eine andere Rolle nur die Wartung, die Website mit dem Recht `wartungsmodus.website`, Lager, Chat, Programme und Verwaltung mit `wartung.bereiche` (#648). Die Sperre und die Wartung von `alles` bleiben bei Entwickler und Abteilungsleitung (`plattform.sperren`, fest). Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
+        Wer schalten darf: Die Wartung (`art: wartung`, jeder Bereich, auch `alles` und `website`) schaltet nur der Entwickler (`wartung.bereiche` und `wartungsmodus.website`, fest und nur Entwickler, #802); die Abteilungsleitung und jede Rolle bekommen 403. Die Informationssperre schalten Entwickler und Abteilungsleitung (`plattform.sperren`, fest). Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
 
         Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400, auch `sitzungenBeenden` oder `websiteOffline` bei der Wartung), Recht auf genau diese Art und diesen Bereich (403).
 
@@ -6690,7 +6831,7 @@ paths:
       operationId: loescheAdminKind
       summary: Kind löschen
       description: |
-        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen. Hat das Kind ein eigenes Konto, geht das Konto mit seinen Sitzungen und Nachrichten mit. Nicht mit: Namenskopien in den Teilnehmenden von Lagern. Sie hängen nicht am Kind und müssen im Lager getrennt gelöscht werden (sie gehen sonst sechs Monate nach Lagerende).
+        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen. Hat das Kind ein eigenes Konto, geht das Konto mit seinen Sitzungen und Nachrichten mit. Mit: die Teilnehmenden des Kindes in allen Lagern samt Einteilung, Abzählen, Anwesenheit und Fahrten (der Feed meldet sie als gelöscht). Sie hängen am Kind, wenn Vor- und Nachname beim Erfassen oder Importieren zu genau einem Kind der Abteilung passten (ohne Beachtung der Gross- und Kleinschreibung). Ein Eintrag, der keinem Kind eindeutig zugeordnet ist, bleibt und muss im Lager getrennt gelöscht werden (er geht sonst sechs Monate nach Lagerende). Das Protokoll hält nur die Zahlen, nie Namen.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn das Kind unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -24685,6 +24826,45 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/website/navigation:
+    get:
+      operationId: leseWebsiteNavigation
+      summary: Menü der Website für Angemeldete
+      description: |
+        Für das Skript der öffentlichen Website (#795). Das statische Menü der Website kennt nur öffentliche Seiten; nach der Anmeldung fragt das Skript hier, welche Seiten, die nicht öffentlich sind, die Person im Menü sehen darf, und fügt sie an ihrer Stelle im Seitenbaum ein.
+
+        Die Liste hat genau die Seiten der Abteilung der Person mit veröffentlichter Version, die nicht öffentlich sind und die die Person laut Sichtbarkeit sehen darf (dieselbe Regel wie bei `GET /api/v1/website/inhalt`): «nur angemeldet» für jede Person der Abteilung, «bestimmte Gruppen» für Personen mit einer der Gruppen und für die Abteilungsleitung. Entwürfe, Seiten ohne veröffentlichte Version, öffentliche Seiten und Seiten anderer Abteilungen kommen nie vor; es gibt keinen Hinweis und keine Zahl zu Seiten ohne Recht. Pro Eintrag nur Titel, Adresse und Position, nie Inhalt.
+
+        Die Position: `eltern` ist die Adresse der nächsten Elternseite, die im Menü steht (öffentlich oder für die Person sichtbar), `null` heisst oberste Ebene. `davor` ist die Adresse der öffentlichen Geschwisterseite, vor der der Eintrag steht (Reihenfolge der Seitenliste), `null` heisst ans Ende. Eltern stehen vor ihren Kindern in der Liste. Höchstens 200 Einträge.
+
+        Ohne Sitzung 401 mit dem üblichen neutralen Body. Die Antwort ist `Cache-Control: private, no-store` und `Vary: Cookie`.
+
+        Statuscodes: 200, 401, 403 (Pflichtwechsel des Passworts offen).
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Seiten, die die Person im Menü zusätzlich sieht (leer, wenn es keine gibt).
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                  - private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteNavigation"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/website:
     get:
       operationId: leseRedaktionWebsiteEinstellungen
@@ -26180,12 +26360,59 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/fotos/alben/sichtbarkeit:
+    put:
+      operationId: setzeAdminFotosSichtbarkeit
+      summary: Sichtbarkeit mehrerer Fotoalben ändern
+      description: |
+        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet mehrere Alben in einer Transaktion (`sichtbar`, höchstens 500, ohne Doppelte): alles oder nichts. Jedes Album bringt `version` mit (0 ohne Zeile); passt eine nicht, ändert sich nichts und die Antwort ist 409 `VERSION_KONFLIKT`. Alle Alben müssen zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). Neu sichtbare Alben kommen in der Reihenfolge der Liste ans Ende der sichtbaren Alben; ein einzelnes Album über `PUT /api/v1/admin/fotos/alben/{id}` verhält sich ebenso (#794).
+
+        Statuscodes: 200 mit den neuen Versionen. 400, 401, 403, 404, 409, 502.
+
+        Datenbanklast: eine Abfrage für die Einstellung, ein Abruf der Albumliste aus dem Speicher, eine Transaktion mit Sperre der Zeilen und je Album ein Schreibzugriff.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FotoSichtbarkeit"
+      responses:
+        "200":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoSichtbarkeitAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Jemand anders hat eines der Alben geändert (`VERSION_KONFLIKT`); nichts wurde geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoKonflikt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "502":
+          description: Flickr antwortet nicht.
   /api/v1/admin/fotos/alben/{id}:
     put:
       operationId: setzeAdminFotosAlbum
       summary: Fotoalbum speichern
       description: |
-        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet ein Album aus (`sichtbar`) und setzt einen eigenen Titel (`titel`, `null` zurück auf den von Flickr); mindestens eines von beiden. Das Album muss zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). `version` ist die des Albums im Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`.
+        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet ein Album aus (`sichtbar`) und setzt einen eigenen Titel (`titel`, `null` zurück auf den von Flickr); mindestens eines von beiden. Das Album muss zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). `version` ist die des Albums im Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`. Ein Album, das neu erscheint, steht am Ende der sichtbaren Alben (#794); für mehrere Alben auf einmal gibt es `PUT /api/v1/admin/fotos/alben/sichtbarkeit`.
 
         Statuscodes: 200 mit der neuen Version. 400, 401, 403, 404, 409, 502.
 
@@ -26238,6 +26465,36 @@ paths:
     get:
       operationId: getAdminWebsiteFotosSkript
       summary: Skript der Verwaltung – Bereich Website, Fotos
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-fotos-alben.js:
+    get:
+      operationId: getAdminWebsiteFotosAlbenSkript
+      summary: Skript der Verwaltung – Bereich Website, Fotos, Albumliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-fotos-logik.js:
+    get:
+      operationId: getAdminWebsiteFotosLogikSkript
+      summary: Skript der Verwaltung – Bereich Website, Fotos, Logik der Albumliste
       tags:
         - Allgemein
       security: []
@@ -26502,7 +26759,8 @@ components:
       description: |
         Person aus better-auth. Die E-Mail-Adresse ist ein Platzhalter (`…@benutzer.invalid`) und nicht für die
         Anzeige gedacht. Weitere Felder (z. B. Bremsfelder, `createdAt`, `emailVerified`) können vorkommen;
-        die App ignoriert sie. Das vollständige Profil liefert `GET /api/v1/ich`.
+        die App ignoriert sie. Ein Feld `role` gibt es nicht mehr (Teil 10 des Umbaus, Epic #714): Die Abteilungsleitung und der Entwickler
+        stehen allein in `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`). Das vollständige Profil liefert `GET /api/v1/ich`.
       required:
         - id
         - name
@@ -26519,12 +26777,6 @@ components:
             - string
             - "null"
           description: Benutzername, kleingeschrieben.
-        role:
-          type:
-            - string
-            - "null"
-          description: "Spiegel der Rolle in better-auth (Übergang, entfällt in einem späteren Release). Nicht lesen: Die Abteilungsleitung und der Entwickler stehen in `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`)."
-          example: admin
         twoFactorEnabled:
           type:
             - boolean
@@ -26557,6 +26809,13 @@ components:
           type: string
           format: date-time
           description: Ablauf der Sitzung (90 Tage ab der letzten Verlängerung).
+        clientArt:
+          type: string
+          enum:
+            - web
+            - app_nachgewiesen
+            - app_ungeprueft
+          description: Woher die Sitzung kommt (#785); siehe `clientArt` in `GET /api/v1/ich`.
         zweiterFaktorGeprueft:
           type: boolean
           description: |
@@ -26569,6 +26828,103 @@ components:
         updatedAt:
           type: string
           format: date-time
+    AppNachweisChallengeAnfrage:
+      type: object
+      additionalProperties: false
+      required:
+        - plattform
+      properties:
+        plattform:
+          type: string
+          enum:
+            - android
+            - ios
+    AppNachweisChallenge:
+      type: object
+      description: Die Herausforderung samt den Parametern der Plattform.
+      required:
+        - nonce
+        - laeuftAb
+        - plattform
+      properties:
+        nonce:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+          description: 32 Byte Zufall, base64url. Einmal verwendbar.
+        laeuftAb:
+          type: string
+          format: date-time
+          description: 5 Minuten nach der Ausgabe.
+        plattform:
+          type: string
+          enum:
+            - android
+            - ios
+        paketname:
+          type: string
+          description: Nur Android; der Paketname, den die App im Integrity-Token belegen muss.
+        appId:
+          type: string
+          description: Nur iOS; `TeamID.BundleID`, aus der der Server den `rpIdHash` bildet.
+        umgebung:
+          type: string
+          enum:
+            - production
+            - development
+          description: Nur iOS; die Umgebung von App Attest, die der Server erwartet.
+    AppNachweisAnfrage:
+      type: object
+      additionalProperties: false
+      description: |
+        Für `plattform: android` gilt `integrityToken`, für `ios` `schluesselId` und genau eines von `attestation` und `assertion`.
+      required:
+        - plattform
+        - nonce
+        - benutzername
+      properties:
+        plattform:
+          type: string
+          enum:
+            - android
+            - ios
+        nonce:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+          description: Die Nonce der Herausforderung.
+        benutzername:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: Der Benutzername der Anmeldung; an ihn ist der Nachweis gebunden (Gross- und Kleinschreibung zählt nicht).
+        integrityToken:
+          type: string
+          maxLength: 16384
+          description: Android; das Integrity-Token von Play Integrity.
+        schluesselId:
+          type: string
+          description: iOS; die Kennung des Schlüssels (base64) aus `generateKey`.
+        attestation:
+          type: string
+          maxLength: 24576
+          description: iOS; die Attestation von `attestKey` (base64), nur beim ersten Nachweis eines neuen Schlüssels.
+        assertion:
+          type: string
+          maxLength: 4096
+          description: iOS; die Assertion von `generateAssertion` (base64), für jeden späteren Nachweis.
+    AppNachweisTicket:
+      type: object
+      required:
+        - ticket
+        - laeuftAb
+      properties:
+        ticket:
+          type: string
+          pattern: ^[A-Za-z0-9_-]{43}$
+          description: Für den Header `X-Cevi-Nachweis` der Anmeldung. Einmal, nur für den Benutzernamen des Nachweises.
+        laeuftAb:
+          type: string
+          format: date-time
+          description: 2 Minuten nach dem Nachweis.
     AuthAnmeldungErfolg:
       type: object
       description: Angemeldet. Das Session-Cookie steht im `Set-Cookie`-Header.
@@ -26808,6 +27164,7 @@ components:
         - abteilungsleitung
         - entwickler
         - zweiterFaktor
+        - clientArt
         - rollen
         - rechte
         - stufen
@@ -26859,13 +27216,24 @@ components:
           description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
         abteilungsleitung:
           type: boolean
-          description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier und nie aus `role` von better-auth.
+          description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier; `role` von better-auth gibt es nicht mehr.
         entwickler:
           type: boolean
           description: Ob das Konto ein Entwickler ist (es steht in `plattform_entwickler`, vergeben nur per CLI). Der Entwickler hat jedes Recht des Katalogs; die Verwaltung zeigt damit ihre Oberfläche, die Prüfung bleibt auf dem Server.
         zweiterFaktor:
           type: boolean
           description: Ob das Konto den zweiten Faktor eingerichtet hat. Abteilungsleitung und Entwickler brauchen ihn für `/api/v1/admin`. Sagt nichts über die Sitzung. Eine App-Sitzung hat den Code nie geprüft (Verwaltung und Rechte mit «erweitert» antworten dann 403 `ZWEITER_FAKTOR_SITZUNG`).
+        clientArt:
+          type: string
+          enum:
+            - web
+            - app_nachgewiesen
+            - app_ungeprueft
+          description: |
+            Woher diese Sitzung kommt (#785): `web` (Anmeldung im Browser oder ohne `Origin` der App), `app_nachgewiesen`
+            (die Anmeldung trug einen gültigen Nachweis des Betriebssystems) oder `app_ungeprueft` (`Origin` der App ohne
+            Nachweis; nur mit `APP_NACHWEIS=aus` oder `pruefen`). Kein Recht hängt daran; der zweite Faktor und die Rechte
+            der App-Sitzung bleiben wie bisher.
         rollen:
           type: array
           description: Stufenrollen der Person (Leitende und Stufenleitung); für Eltern und die Abteilungsleitung ohne Stufenrolle leer.
@@ -28671,7 +29039,6 @@ components:
         - medien.verwalten
         - weiterleitungen.verwalten
         - vorlagen.nutzen
-        - wartungsmodus.website
     AdminPlattformRolleAnlegen:
       type: object
       required:
@@ -40507,7 +40874,7 @@ components:
           description: Ob die Person Zugang zur Website-Verwaltung hat (Abteilungsleitung, Stufenleitung, ein Plattformrecht der Website, ein Recht auf eine Seite in `bearbeiter` oder Verantwortung für ein Team).
         bereiche:
           type: array
-          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person die Wartung schalten darf (Recht `wartungsmodus.website` oder `wartung.bereiche`, Entwickler, Abteilungsleitung); `laedeli`, `lager` und `system`, wenn die Person dort ein Recht des Katalogs abteilungsweit hat (#648). Ohne Zugang leer.
+          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person die Wartung schalten oder die Informationssperre kennen darf (Recht `wartung.bereiche`, `wartungsmodus.website` oder `plattform.sperren`, also Entwickler und Abteilungsleitung); `laedeli`, `lager` und `system`, wenn die Person dort ein Recht des Katalogs abteilungsweit hat (#648). Ohne Zugang leer.
           items:
             type: string
             enum:
@@ -40536,7 +40903,6 @@ components:
               - medien.verwalten
               - weiterleitungen.verwalten
               - vorlagen.nutzen
-              - wartungsmodus.website
         katalogRechte:
           type: array
           description: "Alle Rechte des Rechtekatalogs, die die Person abteilungsweit hat (Geltung «alle»), so wie der Server sie durchsetzt; ohne Rechte, die jede Person hat. Sortiert, ohne Daten Dritter (#648). Die Navigation der Verwaltung folgt dieser Liste; jede Route prüft selbst."
@@ -40690,11 +41056,15 @@ components:
         - schalter
         - bereiche
         - darfSperre
+        - darfWartung
         - websiteVorhanden
       properties:
         darfSperre:
           type: boolean
           description: Ob die Person die Informationssperre sehen, auslösen und aufheben darf (Entwickler und Abteilungsleitung).
+        darfWartung:
+          type: boolean
+          description: Ob die Person den Wartungsmodus ein- und ausschalten darf. Nur der Entwickler; für alle anderen zeigt die Verwaltung den Stand nur lesend (#802).
         websiteVorhanden:
           type: boolean
           description: Ob es eine öffentliche Website gibt, die sich vom Netz nehmen lässt.
@@ -40704,7 +41074,7 @@ components:
             $ref: "#/components/schemas/PlattformSchalter"
         bereiche:
           type: array
-          description: Die Bereiche, die die Person schalten darf (für die Anzeige; jede Schaltung prüft selbst).
+          description: Die Bereiche, die die Person sperren oder (mit `darfWartung`) in Wartung setzen darf, für die Anzeige; leer, wenn sie keines von beidem darf. Jede Schaltung prüft selbst.
           items:
             $ref: "#/components/schemas/PlattformBereich"
     PlattformSchalterSetzen:
@@ -41197,6 +41567,44 @@ components:
         verwaltung:
           type: boolean
           description: Die Person darf die Verwaltung öffnen. Nur Anzeige für den Eintrag «Verwaltung»; jede Route prüft selbst.
+    WebsiteNavigation:
+      type: object
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required:
+              - pfad
+              - titel
+              - eltern
+              - davor
+            properties:
+              pfad:
+                type: string
+                maxLength: 400
+                pattern: "^/[a-z0-9-]{1,60}(/[a-z0-9-]{1,60}){0,4}$"
+                description: Adresse der Seite auf der Website.
+              titel:
+                type: string
+                minLength: 1
+                maxLength: 200
+                description: Titel der Seite wie in der Seitenliste.
+              eltern:
+                type:
+                  - string
+                  - "null"
+                pattern: "^/[a-z0-9-]{1,60}(/[a-z0-9-]{1,60}){0,4}$"
+                description: Adresse der nächsten Elternseite, die im Menü steht; `null` für die oberste Ebene.
+              davor:
+                type:
+                  - string
+                  - "null"
+                pattern: "^/[a-z0-9-]{1,60}(/[a-z0-9-]{1,60}){0,4}$"
+                description: Adresse der öffentlichen Geschwisterseite, vor der der Eintrag steht; `null` für ans Ende.
     WebsiteKnoten:
       description: Ein Text (Zeichenkette) oder ein Element. Das Skript setzt Text als Textknoten und lässt nur bekannte Elemente und Attribute mit geprüften Werten zu.
       oneOf:
@@ -43116,6 +43524,50 @@ components:
           items:
             type: string
             pattern: "^[0-9]{1,20}$"
+    FotoSichtbarkeit:
+      type: object
+      additionalProperties: false
+      required:
+        - sichtbar
+        - alben
+      properties:
+        sichtbar:
+          type: boolean
+        alben:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+            properties:
+              id:
+                type: string
+                pattern: "^[0-9]{1,20}$"
+              version:
+                type: integer
+                minimum: 0
+    FotoSichtbarkeitAntwort:
+      type: object
+      required:
+        - alben
+      properties:
+        alben:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - version
+            properties:
+              id:
+                type: string
+              version:
+                type: integer
+                minimum: 1
     FotoVerbindungAnfrage:
       type: object
       additionalProperties: false
@@ -43206,6 +43658,17 @@ components:
         type: string
         pattern: ^\d+\.\d+\.\d+$
         example: 1.2.0
+    AppNachweisTicket:
+      name: X-Cevi-Nachweis
+      in: header
+      required: false
+      description: |
+        Das Ticket des Nachweises der App (`POST /api/v1/app/nachweis`, #785). Nur die Anmeldung der App (mit `Origin`
+        oder `expo-origin` `cevi-os://`) wertet es aus. Im Modus `pflicht` ist es Pflicht, im Modus `pruefen` macht es die Sitzung
+        zu `app_nachgewiesen`, im Modus `aus` bleibt es unbeachtet.
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9_-]{43}$
     AppHerkunft:
       name: Origin
       in: header

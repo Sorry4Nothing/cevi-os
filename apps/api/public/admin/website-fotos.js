@@ -1,25 +1,13 @@
 import { anfrage, fehlertext } from "./api.js";
-import { ankreuzen, el, feld, knopf, neueId } from "./dom.js";
-import { sortierListe } from "./sortieren.js";
+import { ankreuzen, el, feld, knopf } from "./dom.js";
 import { band } from "./website-dialoge.js";
+import { albenBereich } from "./website-fotos-alben.js";
 import { leerKarte } from "./zustaende.js";
 
 // Fotos (#690): Die Fotos der Abteilung liegen bei Flickr und erscheinen auf der Website, nur für angemeldete Personen. Hier stellt die Abteilung ein, welches Flickr-Konto gilt und welche Alben die Website zeigt.
 // Adresse: #website/fotos. Der Server holt Alben und Bilder bei Flickr und reicht sie weiter; Schlüssel und Token stehen nie hier, nur in der Umgebung des Servers (docs/flickr-einrichten.md). Ein neues Album bei Flickr erscheint nie von selbst: Es braucht erst den Schalter «Auf der Website zeigen».
 const API = "/api/v1/admin/fotos";
-const MAX_TITEL = 120;
 const KONTO = /^[0-9]{1,20}@N[0-9]{2}$/;
-
-const datumFormat = new Intl.DateTimeFormat("de-CH", {
-  day: "numeric",
-  month: "long",
-  year: "numeric",
-});
-const datumText = (iso) =>
-  typeof iso === "string" && /^\d{4}-\d{2}-\d{2}$/.test(iso)
-    ? datumFormat.format(new Date(`${iso}T12:00:00`))
-    : "";
-const fotosText = (n) => `${n} ${n === 1 ? "Foto" : "Fotos"}`;
 
 // Was die Verbindung gerade sagt, in Worten und mit der Art des Hinweises
 const VERBINDUNG = {
@@ -66,6 +54,7 @@ function zeichne(bereich, ctx, daten, neuLaden) {
 
   // «Verbindung testen»: ein frischer Abruf; ein Konto, das noch nicht gespeichert ist, lässt sich vorher prüfen
   const testen = knopf("Verbindung testen", {
+    klein: true,
     onclick: async () => {
       testen.disabled = true;
       testen.setAttribute("aria-busy", "true");
@@ -92,7 +81,6 @@ function zeichne(bereich, ctx, daten, neuLaden) {
       }
     },
   });
-  if (daten.eingerichtet) ctx.kopfAktion(testen);
 
   // ---------- Konto ----------
   const konto = feld({
@@ -152,7 +140,7 @@ function zeichne(bereich, ctx, daten, neuLaden) {
         flickrLinkZeigen: linkWahl.eingabe.checked,
         version: stand.version,
       });
-      ctx.melde("Die Angaben sind gespeichert.", "ok");
+      ctx.melde("Gespeichert.", "ok");
       neuLaden();
     } catch (f) {
       if (f?.code === "VERSION_KONFLIKT") {
@@ -169,20 +157,58 @@ function zeichne(bereich, ctx, daten, neuLaden) {
     }
   });
 
+  // Verbindung und «Verbindung testen» in einer Zeile
+  const status = band(bandArt, bandText, daten.eingerichtet ? testen : null);
+  status.classList.add("foto-verbindung");
+
+  // Das Konto ist ein aufklappbarer Abschnitt: zu, solange es gesetzt ist und die Verbindung Alben liefert
+  const kontoOffen =
+    !daten.flickrKonto || daten.verbindung !== "ok" || daten.alben.length === 0;
+  const kontoBlock = el(
+    "details",
+    { class: "flaeche foto-konto-block", open: kontoOffen },
+    el(
+      "summary",
+      { class: "foto-konto-kopf" },
+      el("span", { class: "foto-konto-titel" }, "Flickr-Konto"),
+      el(
+        "span",
+        { class: "meta" },
+        daten.flickrKonto ?? "Noch keine Kennung eingetragen",
+      ),
+    ),
+    kontoOffen ? betreiberHilfe() : null,
+    kontoForm,
+  );
+
   bereich.append(
     el(
       "div",
       { class: "foto-seite" },
-      band(bandArt, bandText),
+      status,
       daten.eingerichtet ? null : anleitung(),
-      el(
-        "section",
-        { class: "flaeche", "aria-labelledby": "foto-konto-titel" },
-        el("h2", { id: "foto-konto-titel" }, "Flickr-Konto"),
-        kontoForm,
-      ),
-      albenFlaeche(ctx, daten, neuLaden),
+      kontoBlock,
+      daten.verbindung !== "ok"
+        ? null
+        : daten.alben.length === 0
+          ? leerKarte(
+              "Keine Alben gefunden. Prüfe das Konto und die Verbindung.",
+            )
+          : albenBereich(ctx, daten, neuLaden).wurzel,
     ),
+  );
+}
+
+// Wenn die Verbindung fehlt oder das Konto leer ist: Das Konto, für das der Server Flickr abfragt, steht in seiner Umgebung
+function betreiberHilfe() {
+  return el(
+    "p",
+    { class: "hilfe foto-betreiber" },
+    "Die Person, die den Server betreibt, trägt dort die Einstellung ",
+    el("code", {}, "FLICKR_KONTO"),
+    " ein (in ",
+    el("code", {}, "deploy/.env"),
+    "). Sie muss mit der Kennung hier übereinstimmen, sonst sieht Cevi OS nur öffentliche Alben.",
   );
 }
 
@@ -241,218 +267,5 @@ function anleitung() {
       { class: "meta" },
       "Die ausführliche Anleitung steht im Repository: docs/flickr-einrichten.md.",
     ),
-  );
-}
-
-// ---------- Alben ----------
-
-function albenFlaeche(ctx, daten, neuLaden) {
-  const flaeche = el(
-    "section",
-    { class: "flaeche", "aria-labelledby": "foto-alben-titel" },
-    el("h2", { id: "foto-alben-titel" }, "Alben"),
-  );
-  if (daten.verbindung !== "ok") {
-    flaeche.append(
-      el(
-        "p",
-        { class: "meta" },
-        "Die Alben erscheinen hier, sobald die Verbindung steht.",
-      ),
-    );
-    return flaeche;
-  }
-  if (daten.alben.length === 0) {
-    flaeche.append(
-      leerKarte("Bei Flickr gibt es für dieses Konto noch keine Alben."),
-    );
-    return flaeche;
-  }
-  // Die Version je Album ändert sich mit jeder Speicherung; die Zeile liest sie hier
-  const albumStand = new Map(daten.alben.map((a) => [a.id, { ...a }]));
-  const liste = sortierListe({
-    beschriftung: "Alben der Website",
-    eintraege: daten.alben.map((a) => ({
-      id: a.id,
-      text: a.eigenerTitel ?? a.titel,
-      inhalt: zeile(ctx, albumStand, a.id, neuLaden),
-    })),
-    aktionstext: "Reihenfolge der Alben geändert",
-    mitRueckgaengig: ctx.mitRueckgaengig,
-    beiNeu: (ids) => anfrage("PUT", `${API}/alben/reihenfolge`, { ids }),
-  });
-  flaeche.append(
-    el(
-      "p",
-      { class: "meta" },
-      "Schalte ein Album ein, damit angemeldete Personen es auf der Website sehen. Neue Alben bei Flickr bleiben unsichtbar, bis du sie einschaltest. Zeige nur Alben, die Eltern und Leitende sehen dürfen: Die Fotos zeigen oft Kinder.",
-    ),
-    liste.wurzel,
-    el(
-      "p",
-      { class: "klein leise" },
-      "Ordne die Alben per Ziehen oder mit den Pfeilen. Die Website zeigt sie in dieser Reihenfolge.",
-    ),
-  );
-  return flaeche;
-}
-
-function zeile(ctx, albumStand, id, neuLaden) {
-  const a = albumStand.get(id);
-  const titelText = el("strong", { class: "foto-titel" });
-  const meta = el("span", { class: "meta" });
-  const zustandText = el("span", { class: "foto-zustand" });
-  const schalterId = neueId("foto-schalter");
-  const schalter = el("button", {
-    type: "button",
-    class: "schalter",
-    role: "switch",
-    "aria-labelledby": `${schalterId} ${schalterId}-t`,
-  });
-  const beschriftung = el(
-    "span",
-    { id: schalterId, class: "foto-schalter-text" },
-    "Auf der Website zeigen",
-  );
-
-  function zeichneZeile() {
-    const titel = a.eigenerTitel ?? a.titel;
-    titelText.textContent = titel || "Ohne Titel";
-    meta.textContent = [
-      fotosText(a.anzahl),
-      datumText(a.datum),
-      a.eigenerTitel ? `Bei Flickr: «${a.titel}»` : "",
-    ]
-      .filter(Boolean)
-      .join(" · ");
-    schalter.setAttribute("aria-checked", String(a.sichtbar));
-    // Der Zustand steht auch als Wort, nicht nur im Schalter
-    zustandText.textContent = a.sichtbar ? "Sichtbar" : "Nicht sichtbar";
-    zustandText.id = `${schalterId}-t`;
-  }
-  zeichneZeile();
-
-  async function setzeSichtbar(sichtbar, mitRueckgaengig) {
-    const vorher = a.sichtbar;
-    a.sichtbar = sichtbar;
-    zeichneZeile();
-    schalter.disabled = true;
-    try {
-      const r = await anfrage("PUT", `${API}/alben/${id}`, {
-        sichtbar,
-        version: a.version,
-      });
-      a.version = r.version;
-      if (mitRueckgaengig) {
-        ctx.melde(
-          sichtbar
-            ? `«${a.eigenerTitel ?? a.titel}» ist jetzt auf der Website zu sehen.`
-            : `«${a.eigenerTitel ?? a.titel}» ist ausgeblendet.`,
-          "ok",
-          {
-            text: "Rückgängig",
-            onclick: () => setzeSichtbar(vorher, false),
-          },
-        );
-      }
-    } catch (f) {
-      a.sichtbar = vorher;
-      zeichneZeile();
-      if (f?.code === "VERSION_KONFLIKT") {
-        ctx.melde(FEHLER.VERSION_KONFLIKT, "warn");
-        neuLaden();
-      } else {
-        ctx.melde(`Das hat nicht geklappt. ${fehlertext(f)}`.trim(), "fehler");
-      }
-    } finally {
-      schalter.disabled = false;
-    }
-  }
-  schalter.addEventListener("click", () => setzeSichtbar(!a.sichtbar, true));
-
-  // Eigener Titel: ein Feld in der Zeile, kein Fenster
-  const titelPlatz = el("div", { class: "foto-titelform" });
-  titelPlatz.hidden = true;
-  const titelKnopf = knopf("Titel ändern", {
-    klein: true,
-    kontext: a.titel,
-    "aria-expanded": "false",
-    onclick: () => {
-      if (!titelPlatz.hidden) return schliesse();
-      const f = feld({
-        label: "Eigener Titel",
-        wert: a.eigenerTitel ?? "",
-        maxlength: MAX_TITEL,
-        autocomplete: "off",
-        hilfe: `Leer lassen, dann gilt der Titel von Flickr: «${a.titel}».`,
-      });
-      const sichern = knopf("Speichern", { art: "haupt", klein: true });
-      const abbrechen = knopf("Abbrechen", { klein: true, onclick: schliesse });
-      const fehler = el("div");
-      const form = el(
-        "form",
-        { class: "formular", novalidate: true },
-        f.wurzel,
-        fehler,
-        el("div", { class: "foto-titelknoepfe" }, sichern, abbrechen),
-      );
-      sichern.type = "submit";
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const wert = f.eingabe.value.trim();
-        sichern.disabled = true;
-        try {
-          const r = await anfrage("PUT", `${API}/alben/${id}`, {
-            titel: wert === "" ? null : wert,
-            version: a.version,
-          });
-          a.version = r.version;
-          a.eigenerTitel = wert === "" ? null : wert;
-          zeichneZeile();
-          schliesse();
-          ctx.melde("Der Titel ist gespeichert.", "ok");
-        } catch (g) {
-          if (g?.code === "VERSION_KONFLIKT") {
-            ctx.melde(FEHLER.VERSION_KONFLIKT, "warn");
-            neuLaden();
-          } else {
-            fehler.replaceChildren(
-              band("fehler", `Das hat nicht geklappt. ${fehlertext(g)}`.trim()),
-            );
-          }
-        } finally {
-          sichern.disabled = false;
-        }
-      });
-      titelPlatz.replaceChildren(form);
-      titelPlatz.hidden = false;
-      titelKnopf.setAttribute("aria-expanded", "true");
-      f.eingabe.focus();
-    },
-  });
-  function schliesse() {
-    titelPlatz.hidden = true;
-    titelPlatz.replaceChildren();
-    titelKnopf.setAttribute("aria-expanded", "false");
-    titelKnopf.focus();
-  }
-
-  return el(
-    "div",
-    { class: "foto-zeile" },
-    el("div", { class: "foto-info" }, titelText, meta),
-    el(
-      "div",
-      { class: "foto-aktionen" },
-      el(
-        "div",
-        { class: "schalterzeile foto-schalter" },
-        beschriftung,
-        el("span", { class: "foto-zustand-feld" }, zustandText),
-        schalter,
-      ),
-      titelKnopf,
-    ),
-    titelPlatz,
   );
 }

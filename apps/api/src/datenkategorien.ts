@@ -144,9 +144,9 @@ export const KATEGORIEN = {
   technik: {
     titel: "Technische Daten",
     zweck:
-      "Sitzungen führen, Anfragen begrenzen und Fehler finden. Dazu gehören IP-Adressen in den Logs und für die Begrenzung.",
+      "Sitzungen führen, die App als echte App erkennen, Anfragen begrenzen und Fehler finden. Dazu gehören IP-Adressen in den Logs und für die Begrenzung.",
     frist:
-      "Logs 14 Tage. Die Begrenzung der Anfragen löscht ihre Einträge frühestens 15 Minuten nach der letzten Anfrage. Sitzungen enden nach 90 Tagen ohne Nutzung oder früher mit dem Abmelden.",
+      "Logs 14 Tage. Die Begrenzung der Anfragen löscht ihre Einträge frühestens 15 Minuten nach der letzten Anfrage. Sitzungen enden nach 90 Tagen ohne Nutzung oder früher mit dem Abmelden. Herausforderungen des App-Nachweises löscht der tägliche Lauf eine Stunde nach ihrem Ablauf.",
     apple: ["Diagnostics: Other Diagnostic Data"],
     google: ["App info and performance: Diagnostics"],
   },
@@ -197,7 +197,7 @@ export const KATEGORIEN = {
     zweck:
       "Die Lagerleitung erfasst, wer am Lager teilnimmt, und das Team zählt im Lager ab, wer da ist. Gespeichert sind nur Vorname, Nachname, Stufe und ein freiwilliger Cevi-Name, keine Angaben zur Gesundheit, keine Telefonnummer und keine Adresse. Das Team sieht Vorname, Nachname und Stufe.",
     frist:
-      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden, das Abzählen und die Einteilung in Gruppen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Auf Anfrage löscht die Leitung Daten.",
+      "Sechs Monate nach dem Ende des Lagers löscht ein automatischer Lauf die Teilnehmenden, das Abzählen und die Einteilung in Gruppen endgültig; im Protokoll der Verwaltung bleibt nur die Anzahl. Die Lagerleitung kann Einträge früher entfernen. Löscht die Verwaltung ein Kind, gehen die Einträge dieses Kindes als Teilnehmende in allen Lagern sofort mit (die Zuordnung klappt bei gleichem Vor- und Nachnamen; ein Eintrag, der keinem Kind eindeutig gehört, bleibt und muss im Lager entfernt werden). Auf Anfrage löscht die Leitung Daten.",
     apple: ["Contact Info: Name"],
     google: ["Personal info: Name"],
   },
@@ -815,6 +815,31 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "zuletzt_gesehen",
     ],
   },
+  // App-Nachweis (#785): Herausforderungen (Nonce und Ticket nur als Hash, der Benutzername kurz zur Bindung) und Schlüssel der iOS-Geräte; ein Aufräumlauf löscht abgelaufene Herausforderungen
+  app_nachweis_challenge: {
+    technik: [
+      "id",
+      "nonce_hash",
+      "plattform",
+      "erstellt_am",
+      "laeuft_ab_am",
+      "eingeloest_am",
+      "benutzername",
+      "ticket_hash",
+      "ticket_laeuft_ab_am",
+      "schluessel_id",
+      "verbraucht_am",
+    ],
+  },
+  app_nachweis_geraet: {
+    technik: [
+      "schluessel_id",
+      "oeffentlicher_schluessel",
+      "zaehler",
+      "user_id",
+      "erstellt_am",
+    ],
+  },
   rate_limit: { technik: ["id", "key", "count", "last_request"] },
   // Seit Migration 0035 (#332) sind «rolle» und «stufe» Sichten auf person_tag und tag; die Daten stehen dort, die Einträge bleiben für die Spalten, die die Sichten den Routen zeigen
   rolle: {
@@ -832,6 +857,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "user_id",
       "impersonated_by",
       "zweiter_faktor_geprueft",
+      "client_art",
     ],
   },
   stufe: {
@@ -1224,7 +1250,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "traktandum_id",
     ],
   },
-  // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id und anmeldung_id sind die spätere Verknüpfung zum Kind und zur Anmeldung, über die API noch nicht gesetzt
+  // Teilnehmende und Abzählen (#384): nur Name und Stufe; kind_id verknüpft mit dem Kind, wenn der Name zu genau einem Kind der Abteilung passt (#779): Das Löschen des Kindes löscht den Eintrag mit (CASCADE). anmeldung_id ist die spätere Verknüpfung zur Anmeldung, über die API nicht gesetzt
   teilnehmer: {
     lagerTeilnehmende: [
       ...LAGER_BASIS_SPALTEN,

@@ -13,7 +13,7 @@ import {
 import { BEREICHE, GEAENDERT } from "./hinweisband.js";
 import { zweistufig } from "./rueckgaengig.js";
 
-// Bereich «Plattform» (#424 Wartungsmodus, #425 Informationssperre): Schalter je Bereich setzen und aufheben. Wer hier schalten darf, sagt der Server (GET /api/v1/plattform/schalter: «bereiche», «darfSperre»); jede Schaltung prüft er selbst.
+// Bereich «Plattform» (#424 Wartungsmodus, #425 Informationssperre): Schalter je Bereich setzen und aufheben. Wer hier schalten darf, sagt der Server (GET /api/v1/plattform/schalter: «bereiche», «darfSperre», «darfWartung»); jede Schaltung prüft er selbst. Den Wartungsmodus schaltet nur der Entwickler (#802): Alle anderen sehen ihn lesend, ohne Knöpfe.
 // Was gerade gilt, zeigt auf jeder Seite der Verwaltung das Hinweisband (hinweisband.js); nach einer Schaltung fragt es den neuen Stand.
 export function zeige(bereich, ctx) {
   ctx.lade(
@@ -192,8 +192,8 @@ async function sperreAufheben(eintrag, ctx, neu) {
 }
 
 // Eine Zeile je Bereich: Name, Zustand (Wort und Symbol, nie nur Farbe), Einzelheiten und die Aktionen. Auf schmalen Bildschirmen stehen die Aktionen unter dem Text, es gibt keine Tabelle zum Seitwärtsscrollen.
-// art: «wartung» oder «sperre»
-function schalterListe({ art, eintraege, schalter, ctx, daten, neu }) {
+// art: «wartung» oder «sperre»; lesend: nur der Stand, keine Knöpfe
+function schalterListe({ art, eintraege, schalter, ctx, daten, neu, lesend }) {
   const istSperre = art === "sperre";
   const nachBereich = new Map(
     schalter.filter((s) => s.art === art).map((s) => [s.bereich, s]),
@@ -209,47 +209,49 @@ function schalterListe({ art, eintraege, schalter, ctx, daten, neu }) {
     eintraege.map((eintrag) => {
       const [schluessel, name, beschreibung] = eintrag;
       const aktiv = nachBereich.get(schluessel);
-      const aktionen = aktiv
-        ? [
-            !istSperre &&
-              knopf("Ändern", {
-                klein: true,
-                symbol: "bearbeiten",
-                kontext: name,
-                onclick: () =>
-                  wartungDialog({ eintrag, schalter: aktiv, ctx, neu }),
-              }),
-            zweistufig(
-              knopf("Aufheben", {
-                klein: true,
-                symbol: "haken",
-                kontext: name,
-              }),
-              istSperre ? "Sperre wirklich aufheben?" : "Wirklich aufheben?",
-              () =>
-                (istSperre ? sperreAufheben : wartungAufheben)(
-                  eintrag,
-                  ctx,
-                  neu,
-                ),
-            ),
-          ]
-        : [
-            istSperre
-              ? knopf("Sperren", {
+      const aktionen = lesend
+        ? []
+        : aktiv
+          ? [
+              !istSperre &&
+                knopf("Ändern", {
                   klein: true,
-                  symbol: "sperre",
-                  kontext: name,
-                  onclick: () => sperreDialog({ eintrag, daten, ctx, neu }),
-                })
-              : knopf("Einschalten", {
-                  klein: true,
-                  symbol: "uhr",
+                  symbol: "bearbeiten",
                   kontext: name,
                   onclick: () =>
                     wartungDialog({ eintrag, schalter: aktiv, ctx, neu }),
                 }),
-          ];
+              zweistufig(
+                knopf("Aufheben", {
+                  klein: true,
+                  symbol: "haken",
+                  kontext: name,
+                }),
+                istSperre ? "Sperre wirklich aufheben?" : "Wirklich aufheben?",
+                () =>
+                  (istSperre ? sperreAufheben : wartungAufheben)(
+                    eintrag,
+                    ctx,
+                    neu,
+                  ),
+              ),
+            ]
+          : [
+              istSperre
+                ? knopf("Sperren", {
+                    klein: true,
+                    symbol: "sperre",
+                    kontext: name,
+                    onclick: () => sperreDialog({ eintrag, daten, ctx, neu }),
+                  })
+                : knopf("Einschalten", {
+                    klein: true,
+                    symbol: "uhr",
+                    kontext: name,
+                    onclick: () =>
+                      wartungDialog({ eintrag, schalter: aktiv, ctx, neu }),
+                  }),
+            ];
       return el(
         "li",
         { class: `sch-zeile${aktiv ? ` sch-zeile--${art}` : ""}` },
@@ -285,7 +287,9 @@ function schalterListe({ art, eintraege, schalter, ctx, daten, neu }) {
               : chip("In Wartung", "warn", "uhr")
             : chip(istSperre ? "Offen" : "Frei", "ok"),
         ),
-        el("div", { class: "aktionen sch-aktionen" }, aktionen),
+        ...(aktionen.length > 0
+          ? [el("div", { class: "aktionen sch-aktionen" }, aktionen)]
+          : []),
       );
     }),
   );
@@ -304,7 +308,8 @@ function abschnitt(titel, text, ...inhalt) {
 
 function zeichne(bereich, ctx, daten, neu) {
   const alleBereiche = BEREICHE.filter(([s]) => daten.bereiche.includes(s));
-  const teile = (art) => ({
+  const teile = (art, lesend = false) => ({
+    lesend,
     art,
     eintraege: alleBereiche,
     schalter: daten.schalter,
@@ -323,8 +328,8 @@ function zeichne(bereich, ctx, daten, neu) {
     ),
     abschnitt(
       "Wartungsmodus",
-      "Im Wartungsmodus ist ein Bereich nur lesbar. Schreibende Anfragen und Bearbeitungsansichten antworten mit dem Hinweistext; Abteilungsleitung und Entwickler arbeiten weiter.",
-      schalterListe(teile("wartung")),
+      `Im Wartungsmodus ist ein Bereich nur lesbar. Schreibende Anfragen und Bearbeitungsansichten antworten mit dem Hinweistext; Abteilungsleitung und Entwickler arbeiten weiter.${daten.darfWartung ? "" : " Den Wartungsmodus schaltet nur ein Entwickler."}`,
+      schalterListe(teile("wartung", !daten.darfWartung)),
     ),
   );
   if (!daten.darfSperre) return;

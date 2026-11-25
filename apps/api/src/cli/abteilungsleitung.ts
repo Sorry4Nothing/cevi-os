@@ -94,11 +94,6 @@ if (!argumente) {
                   .where(eq(abteilungsleitungPerson.userId, ziel.id))
                   .returning({ id: abteilungsleitungPerson.userId });
           if (zeilen.length === 0) return false;
-          // Spiegel (#720): Die Tabelle ist die Quelle, role schreibt weiter als Spiegel bis Teil 10 (Epic #714)
-          await tx
-            .update(user)
-            .set({ role: aktion === "vergeben" ? "admin" : "user" })
-            .where(eq(user.id, ziel.id));
           await tx.insert(auditLog).values({
             abteilungId: ziel.abteilungId,
             akteurId: "cli",
