@@ -52,7 +52,7 @@ export const outlookKategorie = pgTable(
   {
     abteilungId: uuid("abteilung_id")
       .notNull()
-      .references(() => abteilung.id, { onDelete: "cascade" }),
+      .references(() => abteilung.id, { onDelete: "restrict" }),
     // Kleingeschrieben und getrimmt, wie der Vergleich mit den Tags
     nameKlein: text("name_klein").notNull(),
     name: text("name").notNull(),

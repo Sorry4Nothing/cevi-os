@@ -34,7 +34,7 @@ CREATE TABLE "outlook_aenderung" (
 );
 --> statement-breakpoint
 ALTER TABLE "outlook_verbindung" ADD CONSTRAINT "outlook_verbindung_abteilung_id_abteilung_id_fk" FOREIGN KEY ("abteilung_id") REFERENCES "public"."abteilung"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "outlook_kategorie" ADD CONSTRAINT "outlook_kategorie_abteilung_id_abteilung_id_fk" FOREIGN KEY ("abteilung_id") REFERENCES "public"."abteilung"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "outlook_kategorie" ADD CONSTRAINT "outlook_kategorie_abteilung_id_abteilung_id_fk" FOREIGN KEY ("abteilung_id") REFERENCES "public"."abteilung"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "outlook_aenderung" ADD CONSTRAINT "outlook_aenderung_programm_id_programm_id_fk" FOREIGN KEY ("programm_id") REFERENCES "public"."programm"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "outlook_aenderung" ADD CONSTRAINT "outlook_aenderung_abteilung_id_abteilung_id_fk" FOREIGN KEY ("abteilung_id") REFERENCES "public"."abteilung"("id") ON DELETE restrict ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "outlook_aenderung_offen_idx" ON "outlook_aenderung" USING btree ("abteilung_id","naechster_versuch") WHERE "outlook_aenderung"."geschrieben_am" is null;

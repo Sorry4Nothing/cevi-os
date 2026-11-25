@@ -2108,6 +2108,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/termine-tags.js:
+    get:
+      operationId: getAdminTermineTagsSkript
+      summary: Skript der Verwaltung – Bereich Termine, Tags eines Termins ändern
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/termine-outlook.js:
     get:
       operationId: getAdminTermineOutlookSkript
@@ -29360,7 +29375,7 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-          description: Leerraum am Rand wird entfernt. In der Abteilung eindeutig, ohne Gross-/Kleinschreibung, über alle Typen. Ohne Komma und Steuerzeichen (400): Der Name ist zugleich der Name der Kategorie in Outlook, und dort trennt das Komma zwei Kategorien.
+          description: "Leerraum am Rand wird entfernt. In der Abteilung eindeutig, ohne Gross-/Kleinschreibung, über alle Typen. Ohne Komma und Steuerzeichen (400): Der Name ist zugleich der Name der Kategorie in Outlook, und dort trennt das Komma zwei Kategorien."
         kuerzel:
           type: string
           minLength: 1
@@ -29379,7 +29394,7 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-          description: Ohne Komma und Steuerzeichen (400), wie beim Anlegen.
+          description: "Ohne Komma und Steuerzeichen (400), wie beim Anlegen."
         kuerzel:
           type: string
           minLength: 1
