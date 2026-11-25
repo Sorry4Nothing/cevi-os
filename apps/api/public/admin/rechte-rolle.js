@@ -12,12 +12,10 @@ import { suchWahl } from "./personen-wahl.js";
 import { siehtAlles } from "./sicht.js";
 import { ansichtVon } from "./rueckgaengig.js";
 import {
-  entzieheGlobaleRolle,
   legeGlobaleRolleAn,
   legeRolleAn,
   loescheRolle,
   ordneZu,
-  vergebeGlobaleRolle,
 } from "./rechte-api.js";
 import {
   bestaetigeAmOrt,
@@ -172,7 +170,7 @@ export function rolleLoeschenFrage(z, rolle, { ort, ausloeser, danach }) {
 
 // ---------- Personen der Rolle ----------
 
-// rolle: Gruppen- oder globale Rolle; mitglieder: Map userId -> Rolle-Kennung in der Gruppe (nur Gruppenrollen); schreibgeschuetzt: Text, warum die Zuordnung hier nicht geht
+// rolle: Gruppenrolle (mit Zuordnen und Entziehen) oder globale Rolle (nur die Liste, #801); mitglieder: Map userId -> Rolle-Kennung in der Gruppe (nur Gruppenrollen); schreibgeschuetzt: Text, warum die Zuordnung hier nicht geht
 export function personenBlock(
   z,
   rolle,
@@ -190,7 +188,8 @@ export function personenBlock(
     el("h3", { id: titelId }, `Personen mit der Rolle «${rolle.name}»`),
   );
   const namenVon = new Map(z.personen.map((p) => [p.id, p]));
-  const entzieht = rolle.art === "global" ? entzieheGlobaleRolle : null;
+  // Funktionen (globale Rollen) vergibt und entzieht man im Blatt der Person (#801): Hier steht nur die Liste, jede Person führt dorthin
+  const nurLesen = rolle.art === "global";
 
   const zeile = (p) => {
     const person = namenVon.get(p.id) ?? { id: p.id, name: p.name };
@@ -216,7 +215,20 @@ export function personenBlock(
         ),
       ),
     );
-    if (!schreibgeschuetzt) {
+    if (nurLesen) {
+      li.append(
+        el(
+          "a",
+          {
+            class: "knopf knopf--klein knopf--still",
+            href: `#personen/personen/${p.id}`,
+            "aria-label": `Bearbeiten im Blatt: ${person.name}`,
+          },
+          icon("bearbeiten"),
+          "Bearbeiten im Blatt",
+        ),
+      );
+    } else if (!schreibgeschuetzt) {
       li.append(
         knopf("Entziehen", {
           klein: true,
@@ -228,9 +240,7 @@ export function personenBlock(
               text: `«${person.name}» ist nicht mehr «${rolle.name}».`,
               ansicht: ansichtVon(li),
               ausfuehren: () =>
-                entzieht
-                  ? entzieht(rolle.id, p.id)
-                  : ordneZu(rolle.tagId, p.id, null, { mitglied: true }),
+                ordneZu(rolle.tagId, p.id, null, { mitglied: true }),
               danach: () => z.neu(),
               fehlertext: text,
             }),
@@ -246,6 +256,16 @@ export function personenBlock(
   );
   wurzel.append(liste);
 
+  if (nurLesen) {
+    wurzel.append(
+      el(
+        "p",
+        { class: "klein leise" },
+        "Funktionen vergibst du im Blatt der Person (Personen → Person → Rechte und Rollen).",
+      ),
+    );
+    return wurzel;
+  }
   if (schreibgeschuetzt) {
     wurzel.append(el("p", { class: "klein leise" }, schreibgeschuetzt));
     return wurzel;
@@ -296,12 +316,9 @@ export function personenBlock(
     let ok = 0;
     try {
       for (const id of ids) {
-        if (rolle.art === "global") await vergebeGlobaleRolle(rolle.id, id);
-        else {
-          await ordneZu(rolle.tagId, id, rolle.id, {
-            mitglied: mitglieder.has(id),
-          });
-        }
+        await ordneZu(rolle.tagId, id, rolle.id, {
+          mitglied: mitglieder.has(id),
+        });
         ok++;
       }
       ctx.melde(

@@ -1605,3 +1605,29 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frisch migrierte 
 - Server über HTTP mit einer Rolle «Datenschutz» (nur `konto.loeschen`, zweiter Faktor): Konto ohne Rechte 204; Entwickler 403 `KONTO_GESCHUETZT`; Abteilungsleitung 403 `KONTO_GESCHUETZT`; eigenes Konto 409 `EIGENES_KONTO`; Personenliste 403 (das Recht gibt keine Liste).
 
 **Nicht geprüft:** 86.4 und 86.5 im Browser (86.5: nur die Katalogantwort mit Klartext und Erklärung gelesen, die Seite des Rechte-Editors nicht bedient), Bildschirmleser, Safari und Firefox, Zoom 200 %. Offen: Die Seite «Personen» der Verwaltung öffnet sich nur für Abteilungsleitung und Entwickler (`navigation.js`, Standard `abteilungsleitung`). Eine Rolle mit `konto.loeschen` kann die Route über die API nutzen, bekommt in der Verwaltung aber noch keinen Weg zum Blatt der Person.
+
+## 87. Verwaltung: Funktionen im Blatt der Person (#801)
+
+Funktionen (globale Rollen wie «Webmaster» oder «Redaktion») vergibt und entzieht man im Blatt der Person (Bereich Personen, Abschnitt «Rechte und Rollen», Block «Funktionen», `funktionenFelder` in `personen-blatt.js`), im Muster der Stufenrollen. Auf der Seite einer globalen Rolle (Rechte, Rollen) steht nur noch die Liste «Personen mit der Rolle …» zum Lesen, mit dem Link «Bearbeiten im Blatt» (`#personen/personen/<id>`) und dem Hinweis «Funktionen vergibst du im Blatt der Person (Personen → Person → Rechte und Rollen).». Gruppenrollen bleiben unverändert. Leitplanke: `test/admin-personen-umbau.test.ts`.
+
+### Prüfpunkte
+
+- [ ] **87.1** Der Block «Funktionen» steht unter «Stufen und Rollen» mit derselben Zwischenüberschrift, Zeilenform und Abständen. Jede Funktion der Person ist eine Zeile: Chip mit Text, «Entfernen». Ohne Funktion steht «Die Person hat keine Funktion.». Wer «Rechte und Rollen vergeben» nicht hat, sieht den Block nicht. Bei «Person erfassen» steht der Hinweis, dass Funktionen erst nach dem Erfassen möglich sind.
+- [ ] **87.2** «Entfernen» hat den Namen «Funktion <Funktion> entfernen: <Person>», streicht die Zeile durch und schreibt «wird beim Speichern entfernt» (nie nur Farbe); der Knopf heisst dann «Rückgängig» (Name «Entfernen rückgängig: Funktion <Funktion>, <Person>»). Eine Funktion, die erst neu dazukam, ist mit dem Entfernen weg. Der Fokus bleibt auf dem Knopf der Zeile. Jede Änderung meldet ein Toast (Info, 4 Sekunden); nichts gilt vor «Speichern», das Formular fragt beim Verlassen.
+- [ ] **87.3** «Funktion hinzufügen»: Auswahl «Funktion» (eigenes Auswahlfeld, Tastatur) und Knopf. Ohne Wahl steht die Meldung am Feld («Wähle eine Funktion.», `aria-invalid`, Fokus auf dem Feld). Zur Auswahl stehen nur Funktionen, deren Rechte die handelnde Person selbst in der Geltung «alle» hat und die die Person noch nicht trägt; sonst steht ein Satz («Es gibt keine weitere Funktion, die du vergeben darfst.»). Nach dem Hinzufügen liegt der Fokus auf «Entfernen» der neuen Zeile.
+- [ ] **87.4** «Speichern» entzieht zuerst und vergibt dann; das Toast sagt «Die Funktionen gelten ab der nächsten Anfrage der Person.». Geht eine Änderung nicht durch (403 Eskalationsschutz, 403 `KONTO_GESCHUETZT`, 404), steht ein Warn-Toast (8 Sekunden) mit Funktion und Grund; die übrigen Angaben sind gespeichert.
+- [ ] **87.5** Die Seite einer globalen Rolle hat kein «Personen zuordnen», kein «Zuordnen» und kein «Entziehen». Jede Zeile hat «Bearbeiten im Blatt» (Link mit Namen «Bearbeiten im Blatt: <Person>», Zielgrösse mindestens 44 Pixel); der Link öffnet das Blatt der Person. Eine ungültige Kennung in der Adresse zeigt «Diese Seite gibt es nicht».
+- [ ] **87.6** Bei 390 und 1280 Pixel, hell und dunkel: kein waagrechtes Scrollen, Chip, Hinweis und Fehlermeldung lesbar, Fokusring sichtbar, Knöpfe mindestens 44 Pixel hoch.
+
+### Stand der Prüfung (#801)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server, Kopie der Demo-Datenbank, Sitzung des Test-Entwicklers mit zweitem Faktor) bei 1280 x 900 hell und 390 x 844 dunkel:
+
+- **87.1:** Block unter «Stufen und Rollen» mit gleicher Zeilenform; Chip «Webmaster» bei «Webmaster Demo».
+- **87.2:** Entfernen mit Enter: Zeile durchgestrichen, «wird beim Speichern entfernt», Fokus auf «Entfernen rückgängig: Funktion Webmaster, Webmaster Demo»; Knopf 142 x 44 Pixel.
+- **87.3:** «Funktion hinzufügen» ohne Wahl: «Wähle eine Funktion.» am Feld (dunkel, 390 Pixel gesehen); mit Wahl «Webmaster»: Zeile da, Fokus auf deren «Entfernen».
+- **87.4:** Speichern entzog die Funktion (Datenbank: 0 Zeilen), erneutes Speichern vergab sie (1 Zeile); Toast wie beschrieben. Fehlerfälle im Browser nicht ausgelöst.
+- **87.5:** Rollenseite «Webmaster»: Liste mit «Bearbeiten im Blatt», kein Zuordnen, Hinweis da; der Link öffnet das Blatt (`#personen/personen/<id>`).
+- **87.6:** bei beiden Grössen ohne waagrechtes Scrollen (Ansichten gesehen, kein Messwert).
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 %, erzwungene Farben, Touch am echten Gerät, die Sicht einer Person ohne «Rechte und Rollen vergeben», die Fehlerfälle 87.4 im Browser.

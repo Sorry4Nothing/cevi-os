@@ -19,6 +19,8 @@ import { formularRaster } from "./formularraster.js";
 import { melde } from "./melden.js";
 import { entferneFehler, feldFehler, pruefHinweis } from "./liste-hilfen.js";
 import { suchWahl } from "./personen-wahl.js";
+import { entzieheGlobaleRolle, vergebeGlobaleRolle } from "./rechte-api.js";
+import { rechteFehlerText } from "./rechte-modell.js";
 import { istEntwickler, siehtAlles } from "./sicht.js";
 import { zweistufig } from "./rueckgaengig.js";
 import { typName } from "./tags-detail.js";
@@ -282,6 +284,175 @@ export function kinderFelder(kinder, stufen, gewaehlt) {
     leerText: "Es gibt noch keine Kinder.",
     keinerText: "Die Person ist bei keinem Kind als Elternteil eingetragen.",
   });
+}
+
+// Funktionen der Person (globale Rollen wie Webmaster oder Redaktion, #801), im Muster der Stufenrollen: Zeile mit Chip und «Entfernen» («Rückgängig» holt sie zurück), darunter die Auswahl für die nächste. Die Änderungen gelten mit «Speichern».
+// funktionen: die globalen Rollen aus GET /api/v1/admin/rechte/rollen (mit ihren Personen), ich: GET /api/v1/ich. Angeboten wird nur, was die handelnde Person selbst in vollem Umfang hat (Eskalationsschutz); der Server prüft es nochmals
+export function funktionenFelder(person, funktionen, ich) {
+  const eigene = new Map((ich?.rechte ?? []).map((r) => [r.recht, r.geltung]));
+  const darfVergeben = (r) =>
+    r.rechte.every((recht) => eigene.get(recht) === "alle");
+  // rolleId -> { neu, weg }; die Reihenfolge der Zeilen ist die der Funktionen
+  const zugewiesen = new Map(
+    funktionen
+      .filter((r) => r.personen.some((p) => p.id === person.id))
+      .map((r) => [r.id, { neu: false, weg: false }]),
+  );
+  const wurzel = el("div", { class: "pe-stufenzuweisung" });
+  const aendere = () =>
+    wurzel.dispatchEvent(new Event("change", { bubbles: true }));
+
+  const zeichne = (fokusId) => {
+    const zeilen = funktionen
+      .filter((r) => zugewiesen.has(r.id))
+      .map((r) => {
+        const z = zugewiesen.get(r.id);
+        return el(
+          "li",
+          {
+            "data-funktion": r.id,
+            class: z.weg
+              ? "pe-stufenzeile pe-stufenzeile--weg"
+              : "pe-stufenzeile",
+          },
+          el("ul", { class: "chips" }, chip(r.name, undefined, false)),
+          z.weg || z.neu
+            ? el(
+                "span",
+                { class: "klein leise" },
+                z.weg
+                  ? "wird beim Speichern entfernt"
+                  : "wird beim Speichern vergeben",
+              )
+            : null,
+          knopf(z.weg ? "Rückgängig" : "Entfernen", {
+            klein: true,
+            art: "still",
+            symbol: z.weg ? "zurueck" : "schliessen",
+            "aria-label": z.weg
+              ? `Entfernen rückgängig: Funktion ${r.name}, ${person.name}`
+              : `Funktion ${r.name} entfernen: ${person.name}`,
+            onclick: () => {
+              if (z.weg) z.weg = false;
+              // Eine Funktion, die erst neu dazukam, ist mit dem Entfernen wieder weg
+              else if (z.neu) zugewiesen.delete(r.id);
+              else z.weg = true;
+              melde(
+                `Funktion ${r.name}: ${zugewiesen.get(r.id)?.weg || !zugewiesen.has(r.id) ? "wird entfernt" : "bleibt"}.`,
+                "info",
+              );
+              zeichne(r.id);
+              aendere();
+            },
+          }),
+        );
+      });
+
+    const frei = funktionen.filter(
+      (r) => !zugewiesen.has(r.id) && darfVergeben(r),
+    );
+    const wahl = auswahl({
+      label: "Funktion",
+      optionen: [["", "Funktion wählen"], ...frei.map((r) => [r.id, r.name])],
+      wert: "",
+    });
+    const wahlKnopf = () => wahl.wurzel.querySelector(".auswahl-knopf");
+    const hinzufuegen = knopf("Funktion hinzufügen", {
+      symbol: "plus",
+      onclick: () => {
+        entferneFehler({ ...wahl, fokus: wahlKnopf() });
+        const rolle = funktionen.find((r) => r.id === wahl.eingabe.value);
+        if (!rolle) {
+          feldFehler({ ...wahl, fokus: wahlKnopf() }, "Wähle eine Funktion.");
+          wahlKnopf().focus();
+          return;
+        }
+        zugewiesen.set(rolle.id, { neu: true, weg: false });
+        melde(
+          `Funktion ${rolle.name} ist hinzugefügt. Sie gilt mit «Speichern».`,
+          "info",
+        );
+        zeichne(rolle.id);
+        aendere();
+      },
+    });
+
+    wurzel.replaceChildren(
+      el("h3", { class: "pe-teiltitel" }, "Funktionen"),
+      zeilen.length > 0
+        ? el(
+            "ul",
+            {
+              class: "liste-zeilen pe-stufenzeilen",
+              "aria-label": "Funktionen der Person",
+            },
+            zeilen,
+          )
+        : el("p", { class: "leise" }, "Die Person hat keine Funktion."),
+      frei.length > 0
+        ? el(
+            "div",
+            { class: "pe-tag-neu pe-stufe-neu" },
+            wahl.wurzel,
+            hinzufuegen,
+          )
+        : el(
+            "p",
+            { class: "hilfe" },
+            funktionen.length === 0
+              ? "Es gibt noch keine Funktion. Lege sie unter «Rechte», «Rollen» an."
+              : "Es gibt keine weitere Funktion, die du vergeben darfst.",
+          ),
+      el(
+        "p",
+        { class: "hilfe" },
+        "Eine Funktion wie Webmaster gibt der Person Rechte in der ganzen Abteilung. Sie gilt mit «Speichern», ab der nächsten Anfrage der Person.",
+      ),
+    );
+    // Nach dem Entfernen oder Hinzufügen bleibt der Fokus bei der betroffenen Zeile
+    if (fokusId) {
+      const zeile = wurzel.querySelector(`[data-funktion="${fokusId}"]`);
+      (
+        zeile?.querySelector("button") ?? wurzel.querySelector(".auswahl-knopf")
+      )?.focus();
+    }
+  };
+  zeichne();
+  return {
+    wurzel,
+    // Entziehen vor Vergeben; liefert die Zahl der Änderungen und was nicht durchging: [{ name, vergeben, text }]
+    async speichere() {
+      const fehler = [];
+      let anzahl = 0;
+      const lauf = [
+        ...funktionen
+          .filter((r) => zugewiesen.get(r.id)?.weg === true)
+          .map((r) => [r, false]),
+        ...funktionen
+          .filter((r) => zugewiesen.get(r.id)?.neu === true)
+          .map((r) => [r, true]),
+      ];
+      for (const [r, vergeben] of lauf) {
+        try {
+          await (vergeben ? vergebeGlobaleRolle : entzieheGlobaleRolle)(
+            r.id,
+            person.id,
+          );
+          anzahl += 1;
+        } catch (f) {
+          fehler.push({
+            name: r.name,
+            vergeben,
+            text:
+              f?.code === "KONTO_GESCHUETZT"
+                ? "Dieses Konto darf nur die Abteilungsleitung oder ein Entwickler ändern."
+                : rechteFehlerText(f, fehlertext(f)),
+          });
+        }
+      }
+      return { anzahl, fehler };
+    },
+  };
 }
 
 // Telefon (Muster «phone-input»): tolerant beim Tippen, beim Verlassen des Felds die einheitliche Schreibweise; darunter steht, was gespeichert wird
@@ -755,6 +926,11 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
     gewaehlt: person?.abteilungsleitung ?? false,
   });
   const rollen = rollenFelder(daten.stufen, person?.rollen ?? []);
+  // Nur wer Rechte vergeben darf, bekommt die Funktionen geliefert (personen.js ladeDaten)
+  const funktionen =
+    person && daten.funktionen
+      ? funktionenFelder(person, daten.funktionen, ctx.ich)
+      : null;
   const kinder = kinderFelder(
     daten.kinder,
     daten.stufen,
@@ -838,6 +1014,14 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           "Diese Person ist auch Entwickler. Die Rolle «Entwickler» lässt sich hier nur ansehen: Sie vergibt, wer Zugang zum Server hat, auf der Kommandozeile.",
         ),
       rollen.wurzel,
+      funktionen?.wurzel,
+      !person &&
+        daten.funktionen &&
+        el(
+          "p",
+          { class: "hilfe" },
+          "Funktionen vergibst du, sobald die Person erfasst ist.",
+        ),
     ),
     tags
       ? karte(
@@ -979,19 +1163,38 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           misslungen += 1;
         }
       }
+      // Funktionen zuletzt: Sie laufen einzeln und brauchen ein anderes Recht als die Angaben oben
+      const fk = funktionen
+        ? await funktionen.speichere()
+        : { anzahl: 0, fehler: [] };
       beiFokus(person.id);
       seite.close();
       neu();
-      if (misslungen > 0) {
+      if (misslungen > 0 || fk.fehler.length > 0) {
+        const teile = [
+          ...(misslungen > 0
+            ? [
+                `${misslungen === 1 ? "1 Änderung" : `${misslungen} Änderungen`} an den Tags ${misslungen === 1 ? "ging" : "gingen"} nicht durch.`,
+              ]
+            : []),
+          ...fk.fehler.map(
+            (x) =>
+              `Die Funktion ${x.name} ist nicht ${x.vergeben ? "vergeben" : "entzogen"}. ${x.text}`,
+          ),
+        ];
         ctx.melde(
-          `«${person.name}» ist gespeichert, aber ${misslungen === 1 ? "1 Änderung" : `${misslungen} Änderungen`} an den Tags ${misslungen === 1 ? "ging" : "gingen"} nicht durch. Öffne die Person und versuche es nochmals.`,
+          `«${person.name}» ist gespeichert, aber nicht alles ging durch. ${teile.join(" ")} Öffne die Person und versuche es nochmals.`,
           "warn",
         );
       } else {
         ctx.melde(
-          aenderungen.length > 0
-            ? `«${name.eingabe.value.trim()}» ist gespeichert. Die Tags gelten ab sofort.`
-            : `«${name.eingabe.value.trim()}» ist gespeichert.`,
+          [
+            `«${name.eingabe.value.trim()}» ist gespeichert.`,
+            ...(aenderungen.length > 0 ? ["Die Tags gelten ab sofort."] : []),
+            ...(fk.anzahl > 0
+              ? ["Die Funktionen gelten ab der nächsten Anfrage der Person."]
+              : []),
+          ].join(" "),
         );
       }
     } catch (f) {
