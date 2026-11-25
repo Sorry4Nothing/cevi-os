@@ -742,8 +742,13 @@ describe("Was ausgeliefert wird", () => {
       .insert(schema.tag)
       .values({ abteilungId, typ: "team", name: "Leitung", kuerzel: "L" })
       .returning();
+    const [stufe] = await db
+      .insert(schema.tag)
+      .values({ abteilungId, typ: "stufe", name: "Pfadi", kuerzel: "Pf" })
+      .returning();
     await db.insert(schema.personTag).values([
       { userId: mit, tagId: t!.id, rolle: "Stufenleitung", prioritaet: 1 },
+      { userId: mit, tagId: stufe!.id, rolle: "stufenleitung" },
       { userId: ohne, tagId: t!.id },
       { userId: aus, tagId: t!.id },
     ]);
@@ -1200,6 +1205,7 @@ describe("Personen mit Profilbild nach Rolle (#560, #610)", () => {
     const team = await tagNeu("team", "Kontaktteam");
     const anna = await person("Anna Muster", { ceviName: "Wolke" }, false);
     await rolle(anna, team, "Kontakt");
+    await rolle(anna, await tagNeu("stufe", "Pfadi"), "leitung");
     await rolle(anna, ok, "OK-Leitung-Geheim");
     const beat = await person("Beat Beispiel", { ceviName: "Pfanne" }, false);
     await rolle(beat, ok, "Mitglied-Geheim");
@@ -1415,6 +1421,92 @@ describe("Personen mit Profilbild nach Rolle (#560, #610)", () => {
     expect(html).toContain(
       '<span class="name">Flink</span><span class="funktion">Co-Leitung</span>',
     );
+  });
+
+  test("Kinder-Konten erscheinen in keinem Personen-Baustein, auch nicht mit Cevi-Name, Rolle und Bild (#776)", async () => {
+    const stufe = await tagNeu("stufe", "Biber");
+    const team = await tagNeu("team", "Vorstand");
+    // Das Konto eines Kindes: Cevi-Name des Kindes, Zuordnungen nur direkt in der Datenbank (die Routen vergeben keine)
+    const konto = await person("Kai Kindlein", { ceviName: "Wirbel" });
+    await db.insert(schema.kind).values({
+      abteilungId,
+      vorname: "Kai",
+      nachname: "Kindlein",
+      ceviName: "Wirbel",
+      stufeId: stufe,
+      userId: konto,
+    });
+    await rolle(konto, stufe, "leitung");
+    await rolle(konto, team, "Kasse");
+    const echt = await person("Anna Muster", { ceviName: "Flink" });
+    await rolle(echt, stufe, "stufenleitung");
+    await seite({
+      adresse: "team",
+      inhalt: dok(
+        "Team",
+        baustein(konto, echt),
+        { id: randomUUID(), typ: "kontaktperson", daten: { personId: konto } },
+        { id: randomUUID(), typ: "kontaktkarte", daten: { personId: konto } },
+        { id: randomUUID(), typ: "leitungsteam", daten: { tagId: stufe } },
+        { id: randomUUID(), typ: "leitungsteam", daten: { tagId: team } },
+      ),
+    });
+    await lauf();
+    const html = await lies("team/index.html");
+    // Die echte Leitung steht auf der Seite, das Kinder-Konto nirgends
+    expect(html).toContain("Flink");
+    for (const nein of ["Wirbel", "Kai", "Kindlein", "Kasse"]) {
+      expect(html).not.toContain(nein);
+    }
+    expect(await bilder()).toHaveLength(1);
+  });
+
+  test("Kontaktperson und Kontaktkarte zeigen nur Personen mit Rolle mit Aussenwirkung (#776)", async () => {
+    const stufe = await tagNeu("stufe", "Pfadi");
+    const team = await tagNeu("team", "Vorstand");
+    const leitung = await person("Anna Muster", { ceviName: "Flink" }, false);
+    await rolle(leitung, stufe, "leitung");
+    const kasse = await person("Beat Beispiel", { ceviName: "Pfanne" }, false);
+    await rolle(kasse, team, "Kasse");
+    await seite({
+      adresse: "kontakt",
+      inhalt: dok(
+        "Kontakt",
+        {
+          id: randomUUID(),
+          typ: "kontaktperson",
+          daten: { personId: leitung },
+        },
+        { id: randomUUID(), typ: "kontaktperson", daten: { personId: kasse } },
+        { id: randomUUID(), typ: "kontaktkarte", daten: { personId: kasse } },
+      ),
+    });
+    await lauf();
+    const html = await lies("kontakt/index.html");
+    expect(html).toContain("Flink");
+    expect(html).not.toContain("Pfanne");
+  });
+
+  test("Leitungsteam einer Funktionsgruppe zeigt nur Mitglieder mit Rolle; wer ohne Rolle dabei ist, gar nicht (#776)", async () => {
+    const team = await tagNeu("team", "Vorstand");
+    const kasse = await person("Anna Muster", { ceviName: "Flink" }, false);
+    await rolle(kasse, team, "Kasse");
+    const eltern = await person("Beat Beispiel", { ceviName: "Pfanne" }, false);
+    await rolle(eltern, team, null);
+    await seite({
+      adresse: "vorstand",
+      inhalt: dok("Vorstand", {
+        id: randomUUID(),
+        typ: "leitungsteam",
+        daten: { tagId: team },
+      }),
+    });
+    await lauf();
+    const html = await lies("vorstand/index.html");
+    expect(html).toContain(
+      '<span class="name">Flink</span><span class="funktion">Kasse</span>',
+    );
+    expect(html).not.toContain("Pfanne");
   });
 
   test("Leitungsteam einer Stufe ohne Leitende bleibt leer und zeigt nicht die Mitglieder ohne Stufenrolle (#760)", async () => {

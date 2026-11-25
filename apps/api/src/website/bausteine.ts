@@ -240,6 +240,7 @@ export const bausteinSchema = z.discriminatedUnion("typ", [
           z.strictObject({
             personId: z.uuid(),
             funktion: kurztext(MAX_KURZTEXT).optional(),
+            // Freitext mit Formatprüfung: Der Server kann eine private Adresse nicht erkennen. Gehört nur die Funktionsadresse hinein, nie eine private (Hinweis im Editor)
             email: z.email().max(254).optional(),
           }),
         )
