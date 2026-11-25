@@ -49,6 +49,10 @@ services:
       FLICKR_OAUTH_TOKEN:
       FLICKR_OAUTH_TOKEN_SECRET:
       FLICKR_KONTO:
+      # Outlook-Kalender schreiben (#835, docs/betrieb.md): leer = aus. Mandant und Client-ID sind Geheimnisse aus deploy/.env
+      OUTLOOK_GRAPH:
+      OUTLOOK_TENANT_ID:
+      OUTLOOK_CLIENT_ID:
       # App-Nachweis (#785, docs/betrieb.md, docs/app-nachweis.md): leer = aus. Ausser bei «aus» braucht es beide Plattformen vollständig. Die Schlüsseldatei des Google-Dienstkontos liegt unter deploy/secrets/play-integrity-service-account.json und wird nie in die Umgebung geschrieben
       APP_NACHWEIS:
       ANDROID_PAKETNAME:

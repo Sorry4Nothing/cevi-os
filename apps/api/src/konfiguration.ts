@@ -47,6 +47,8 @@ const IOS_NACHWEIS = [
   "IOS_BUNDLE_ID",
   "IOS_NACHWEIS_UMGEBUNG",
 ] as const;
+// Outlook schreiben (#835): Mandant und Client-ID der App-Registrierung gehören zusammen und sind Geheimnisse (nur in deploy/.env); mit dem Schalter OUTLOOK_GRAPH=true sind sie Pflicht
+const OUTLOOK_IDS = ["OUTLOOK_TENANT_ID", "OUTLOOK_CLIENT_ID"] as const;
 const GRUPPEN: readonly (readonly (keyof z.infer<typeof schema>)[])[] = [
   MEDIEN_PFLICHT,
   WEBSITE_PFLICHT,
@@ -55,6 +57,7 @@ const GRUPPEN: readonly (readonly (keyof z.infer<typeof schema>)[])[] = [
   CEVI_DB_PFLICHT,
   ANDROID_NACHWEIS,
   IOS_NACHWEIS,
+  OUTLOOK_IDS,
 ];
 
 // Fingerabdrücke SHA-256 des App-Zertifikats, wie die Play Console sie zeigt (AB:CD:…) oder ohne Doppelpunkte; getrennt durch Komma oder Leerraum. Gespeichert wird kleingeschrieben, ohne Doppelpunkte
@@ -181,6 +184,24 @@ const schema = z.object({
   // Nur für Tests und lokale Läufe mit einer Attrappe von Flickr; in Produktion verboten (unten): Dort sind die Adressen von Flickr fest im Code
   FLICKR_API_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
   FLICKR_BILD_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
+  // Outlook schreiben (#835): «false» (Vorgabe) liest den Kalender wie bisher nur; «true» führt Kategorien und Termin-Kategorien in Outlook nach (Microsoft Graph, delegierte Anmeldung, einmal verbunden mit «npm run kalender:outlook-verbinden»). Mandant und Client-ID sind Geheimnisse und stehen nur in der Umgebung; das Token liegt verschlüsselt in der Datenbank
+  OUTLOOK_GRAPH: z.preprocess(
+    (wert) => (wert === "" ? undefined : wert),
+    z.enum(["true", "false"]).default("false"),
+  ),
+  OUTLOOK_TENANT_ID: freiwillig(
+    z
+      .string()
+      .regex(/^[A-Za-z0-9][A-Za-z0-9.-]{2,99}$/)
+      .refine(
+        (t) => !["common", "organizations", "consumers"].includes(t),
+        "nur der eigene Mandant",
+      ),
+  ),
+  OUTLOOK_CLIENT_ID: freiwillig(z.uuid()),
+  // Nur für Tests und lokale Läufe mit einer Attrappe von Microsoft; in Produktion verboten (unten)
+  OUTLOOK_GRAPH_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
+  OUTLOOK_LOGIN_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
   // Telefon der Abteilung für Fuss und Kontaktkarte der Website (#549); öffentlich, steht nur in der Umgebung, nie im Repo. Ohne Angabe fehlt es dort. Anschrift und E-Mail sind die der verantwortlichen Stelle
   KONTAKT_TELEFON: freiwillig(
     z
@@ -198,6 +219,8 @@ const produktion = schema.extend({
   // Keine fremde Adresse für Flickr: Der Server holt nur dort, wo der Code es festlegt
   FLICKR_API_BASIS: freiwillig(z.never()),
   FLICKR_BILD_BASIS: freiwillig(z.never()),
+  OUTLOOK_GRAPH_BASIS: freiwillig(z.never()),
+  OUTLOOK_LOGIN_BASIS: freiwillig(z.never()),
 });
 
 export function ladeKonfiguration(env: Record<string, string | undefined>) {
@@ -220,6 +243,12 @@ export function ladeKonfiguration(env: Record<string, string | undefined>) {
     // Ausser im Modus «aus» braucht der Nachweis beide Plattformen
     if (ergebnis.data.APP_NACHWEIS !== "aus") {
       for (const n of [...ANDROID_NACHWEIS, ...IOS_NACHWEIS]) {
+        if (ergebnis.data[n] === undefined) namen.add(n);
+      }
+    }
+    // Schreiben nach Outlook braucht Mandant und Client-ID
+    if (ergebnis.data.OUTLOOK_GRAPH === "true") {
+      for (const n of OUTLOOK_IDS) {
         if (ergebnis.data[n] === undefined) namen.add(n);
       }
     }

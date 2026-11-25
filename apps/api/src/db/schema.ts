@@ -929,6 +929,8 @@ export * from "./schema-ical.js";
 export * from "./schema-vorschlag.js";
 export * from "./schema-anlass.js";
 export * from "./schema-raum.js";
+// Schreibanbindung an Outlook (#835)
+export * from "./schema-outlook.js";
 
 // Bereichsschalter (#424, #425)
 export * from "./schema-bereichsschalter.js";
