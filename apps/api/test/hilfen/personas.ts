@@ -270,7 +270,6 @@ export async function legePersonaAn(
         ? normalisiereStartpasswort(startpasswort)
         : PASSWORT,
       name: steckbrief.name,
-      role: steckbrief.abteilungsleitung ? "admin" : "user",
       data: {
         username: benutzername,
         abteilungId,
@@ -282,7 +281,7 @@ export async function legePersonaAn(
     },
   });
 
-  // Die Abteilungsleitung ist eine Zeile in abteilungsleitung_person (#720); role = 'admin' oben ist nur der Spiegel
+  // Die Abteilungsleitung ist eine Zeile in abteilungsleitung_person (#720)
   if (steckbrief.abteilungsleitung) {
     await db.insert(schema.abteilungsleitungPerson).values({ userId: user.id });
   }

@@ -112,7 +112,7 @@ export function personAusSitzung(
             eq(kind.abteilungId, sitzung.user.abteilungId),
           ),
         ),
-      // Die Abteilungsleitung steht in einer eigenen Tabelle (#720), nicht mehr in user.role
+      // Die Abteilungsleitung steht in einer eigenen Tabelle (#720)
       db
         .select({
           stufeId: sql<string | null>`null::uuid`.as("stufe_id"),

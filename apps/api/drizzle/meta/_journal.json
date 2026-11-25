@@ -792,6 +792,13 @@
       "when": 1793558000000,
       "tag": "0160_sitzung_zweiter_faktor",
       "breakpoints": true
+    },
+    {
+      "idx": 162,
+      "version": "7",
+      "when": 1793558200000,
+      "tag": "0162_user_role_spiegel_entfernt",
+      "breakpoints": true
     }
   ]
 }

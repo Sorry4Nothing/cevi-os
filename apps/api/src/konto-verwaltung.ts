@@ -2,7 +2,7 @@ import { hashPassword } from "better-auth/crypto";
 import { isPasswordCompromised } from "better-auth/plugins";
 import type { erstelleAuth } from "./auth.js";
 
-// Die Schritte der Verwaltungs-Endpunkte von better-auth (set-user-password, revoke-user-sessions, ban-user, unban-user, remove-user) ohne deren Rollenprüfung (#650). Die Endpunkte verlangen eine Sitzung mit der Rolle «admin» und lesen deren ID; wer nur «Personen verwalten» hat, hat sie nicht. Die Route prüft das Recht selbst (verlange, Schutz der Konten mit Rechten) und ruft erst dann diese Schritte, sie ändern nichts anderes als die Endpunkte.
+// Die Schritte der Verwaltungs-Endpunkte von better-auth (set-user-password, revoke-user-sessions, ban-user, unban-user, remove-user) ohne deren Rollenprüfung (#650). Die Endpunkte verlangten eine Sitzung mit der Rolle «admin» (user.role, #650, bis #784); das Recht der Route zählt, nicht eine Rolle im Konto. Die Route prüft das Recht selbst (verlange, Schutz der Konten mit Rechten) und ruft erst dann diese Schritte, sie ändern nichts anderes als die Endpunkte.
 type Auth = ReturnType<typeof erstelleAuth>;
 
 export async function setzePasswort(

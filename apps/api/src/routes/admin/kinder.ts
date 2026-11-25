@@ -37,6 +37,13 @@ import {
   ladeKindKontoEinstellung,
   zugangVon,
 } from "../../kind-konto.js";
+import {
+  beendeSitzungen,
+  entferneKonto as entferneBenutzer,
+  entsperreKonto,
+  setzePasswort,
+  sperreKonto,
+} from "../../konto-verwaltung.js";
 import { legePersonAn } from "../../personen-anlegen.js";
 import { darf, verlange } from "../../rechtemodell/darf.js";
 import {
@@ -251,7 +258,6 @@ export function erstelleKinderRouten({
 
   // Neues Startpasswort, alle Sitzungen weg, Pflichtwechsel, 7 Tage und Bremse von vorn (wie bei den Personen)
   async function setzeStartpasswortNeu(
-    headers: Headers,
     person: Person,
     kindId: string,
     userId: string,
@@ -259,14 +265,8 @@ export function erstelleKinderRouten({
     weitereFelder: Partial<typeof user.$inferInsert> = {},
   ) {
     const startpasswort = erzeugeStartpasswort();
-    await auth.api.setUserPassword({
-      body: {
-        userId,
-        newPassword: normalisiereStartpasswort(startpasswort),
-      },
-      headers,
-    });
-    await auth.api.revokeUserSessions({ body: { userId }, headers });
+    await setzePasswort(auth, userId, normalisiereStartpasswort(startpasswort));
+    await beendeSitzungen(auth, userId);
     await db.transaction(async (tx) => {
       await tx
         .update(user)
@@ -281,9 +281,9 @@ export function erstelleKinderRouten({
   }
 
   // Konto weg: Der Benutzer geht mit Sitzungen und Nachrichten (CASCADE), die Verknüpfung am Kind wird per SET NULL leer. Der zweite Faktor legt die Person-ID als Wert ab; better-auth räumt sie nicht weg
-  async function entferneKonto(headers: Headers, userId: string) {
+  async function entferneKonto(userId: string) {
     await db.delete(verification).where(eq(verification.value, userId));
-    await auth.api.removeUser({ body: { userId }, headers });
+    await entferneBenutzer(auth, userId);
   }
 
   return (
@@ -640,7 +640,6 @@ export function erstelleKinderRouten({
         const ziel = await ladeKonto(person, id);
         return c.json({
           startpasswort: await setzeStartpasswortNeu(
-            c.req.raw.headers,
             person,
             id,
             ziel.userId,
@@ -656,10 +655,7 @@ export function erstelleKinderRouten({
           // Vor banUser: Scheitert das, nimmt die Transaktion den Eintrag zurück
           await protokolliereKonto(tx, person, "kind_konto_gesperrt", id);
           // banUser löscht auch die Sitzungen und läuft auf eigener Verbindung; die Transaktion fasst vorher keine Zeile des Kontos an, sonst drohte ein Deadlock
-          await auth.api.banUser({
-            body: { userId: ziel.userId },
-            headers: c.req.raw.headers,
-          });
+          await sperreKonto(auth, ziel.userId);
           await tx
             .update(user)
             .set({ deaktiviertAm: sql`now()` })
@@ -673,17 +669,13 @@ export function erstelleKinderRouten({
         const ziel = await ladeKonto(person, id);
         // Zuerst das neue Startpasswort, dann die Sperre weg: Scheitert ein Schritt, bleibt das alte Passwort ungültig und das Konto gesperrt
         const startpasswort = await setzeStartpasswortNeu(
-          c.req.raw.headers,
           person,
           id,
           ziel.userId,
           "kind_konto_entsperrt",
           { deaktiviertAm: null },
         );
-        await auth.api.unbanUser({
-          body: { userId: ziel.userId },
-          headers: c.req.raw.headers,
-        });
+        await entsperreKonto(auth, ziel.userId);
         return c.json({ startpasswort });
       })
       // Konto entfernen: Das Kind bleibt, das Konto geht mit seinen Nachrichten. Die Eltern sehen danach wieder, was sie vorher sahen
@@ -691,7 +683,7 @@ export function erstelleKinderRouten({
         const person = c.get("person");
         const { id } = c.req.valid("param");
         const ziel = await ladeKonto(person, id);
-        await entferneKonto(c.req.raw.headers, ziel.userId);
+        await entferneKonto(ziel.userId);
         await db.transaction(async (tx) => {
           await tx
             .update(kind)
@@ -711,7 +703,7 @@ export function erstelleKinderRouten({
         const { id } = c.req.valid("param");
         const ziel = await ladeZiel(person, id);
         // Das Konto geht mit dem Kind. Zuerst das Konto: Es setzt kind.user_id per SET NULL, und das braucht die Zeile des Kindes noch ungesperrt
-        if (ziel.userId) await entferneKonto(c.req.raw.headers, ziel.userId);
+        if (ziel.userId) await entferneKonto(ziel.userId);
         await db.transaction(async (tx) => {
           // Vor dem Löschen lesen: kind_eltern verschwindet per CASCADE
           const eltern = (

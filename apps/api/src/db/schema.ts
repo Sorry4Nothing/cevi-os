@@ -66,43 +66,52 @@ export const abteilung = pgTable("abteilung", {
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen
-export const user = pgTable("user", {
-  id: id(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  // Bleibt leer; better-auth verlangt die Spalte
-  image: text("image"),
-  createdAt: zeitpunkt("created_at").notNull().defaultNow(),
-  updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
-  username: text("username").unique(),
-  displayUsername: text("display_username"),
-  // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
-  ceviName: text("cevi_name"),
-  // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
-  ceviDbId: text("cevi_db_id"),
-  role: text("role"),
-  banned: boolean("banned").default(false),
-  banReason: text("ban_reason"),
-  banExpires: zeitpunkt("ban_expires"),
-  twoFactorEnabled: boolean("two_factor_enabled").default(false),
-  abteilungId: uuid("abteilung_id")
-    .notNull()
-    .references(() => abteilung.id, { onDelete: "restrict" }),
-  // Im Zweifel muss die Person das Passwort wechseln
-  mussPasswortAendern: boolean("muss_passwort_aendern").notNull().default(true),
-  startpasswortGueltigBis: zeitpunkt("startpasswort_gueltig_bis"),
-  // AES-GCM-verschlüsselt, nur solange das Startpasswort offen ist; die Verwaltung zeigt es an
-  startpasswortVerschluesselt: text("startpasswort_verschluesselt"),
-  fehlversuche: integer("fehlversuche").notNull().default(0),
-  naechsterVersuchAb: zeitpunkt("naechster_versuch_ab"),
-  deaktiviertAm: zeitpunkt("deaktiviert_am"),
-  telefon: text("telefon"),
-  pushChat: boolean("push_chat").notNull().default(true),
-  pushProgramme: boolean("push_programme").notNull().default(true),
-  pushAnmeldungen: boolean("push_anmeldungen").notNull().default(true),
-  datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    // Bleibt leer; better-auth verlangt die Spalte
+    image: text("image"),
+    createdAt: zeitpunkt("created_at").notNull().defaultNow(),
+    updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
+    ceviName: text("cevi_name"),
+    // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
+    ceviDbId: text("cevi_db_id"),
+    // Nur noch die Spalte, die das admin-Plugin von better-auth in seinem Schema verlangt: immer «user» (CHECK), nirgends gelesen. Die Rollen stehen in abteilungsleitung_person und plattform_entwickler (#784)
+    role: text("role"),
+    banned: boolean("banned").default(false),
+    banReason: text("ban_reason"),
+    banExpires: zeitpunkt("ban_expires"),
+    twoFactorEnabled: boolean("two_factor_enabled").default(false),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    // Im Zweifel muss die Person das Passwort wechseln
+    mussPasswortAendern: boolean("muss_passwort_aendern")
+      .notNull()
+      .default(true),
+    startpasswortGueltigBis: zeitpunkt("startpasswort_gueltig_bis"),
+    // AES-GCM-verschlüsselt, nur solange das Startpasswort offen ist; die Verwaltung zeigt es an
+    startpasswortVerschluesselt: text("startpasswort_verschluesselt"),
+    fehlversuche: integer("fehlversuche").notNull().default(0),
+    naechsterVersuchAb: zeitpunkt("naechster_versuch_ab"),
+    deaktiviertAm: zeitpunkt("deaktiviert_am"),
+    telefon: text("telefon"),
+    pushChat: boolean("push_chat").notNull().default(true),
+    pushProgramme: boolean("push_programme").notNull().default(true),
+    pushAnmeldungen: boolean("push_anmeldungen").notNull().default(true),
+    datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
+  },
+  (t) => [
+    check("user_role_nur_user", sql`${t.role} is null or ${t.role} = 'user'`),
+  ],
+);
 
 export const session = pgTable(
   "session",

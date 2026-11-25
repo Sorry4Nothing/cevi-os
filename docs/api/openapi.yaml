@@ -3864,7 +3864,7 @@ paths:
         Das Profil der angemeldeten Person: Anzeigename, Benutzername, Schalter, die Rollen `abteilungsleitung` und `entwickler`,
         Stand des zweiten Faktors, Stufenrollen, die zugehörigen Stufen und die aktiven Kinder (nur Eltern haben welche).
         **Die Rollen stehen nur hier.** Die Apps und die Verwaltung lesen `abteilungsleitung` und `entwickler` aus dieser Antwort und nie `role` aus
-        `get-session` von better-auth; `role` ist nur ein Spiegel und entfällt mit Teil 10 des Umbaus (Epic #714). Das Feld `admin` gibt es nicht mehr, ohne Alias.
+        `get-session` von better-auth: Das Feld `role` gibt es dort nicht mehr (Teil 10 des Umbaus, Epic #714). Das Feld `admin` gibt es nicht mehr, ohne Alias.
 
         Nie enthalten sind E-Mail, Bremsfelder, Sperrstatus, Ablauf des Startpassworts sowie Geheimnisse
         und Codes des zweiten Faktors.
@@ -26502,7 +26502,8 @@ components:
       description: |
         Person aus better-auth. Die E-Mail-Adresse ist ein Platzhalter (`…@benutzer.invalid`) und nicht für die
         Anzeige gedacht. Weitere Felder (z. B. Bremsfelder, `createdAt`, `emailVerified`) können vorkommen;
-        die App ignoriert sie. Das vollständige Profil liefert `GET /api/v1/ich`.
+        die App ignoriert sie. Ein Feld `role` gibt es nicht mehr (Teil 10 des Umbaus, Epic #714): Die Abteilungsleitung und der Entwickler
+        stehen allein in `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`). Das vollständige Profil liefert `GET /api/v1/ich`.
       required:
         - id
         - name
@@ -26519,12 +26520,6 @@ components:
             - string
             - "null"
           description: Benutzername, kleingeschrieben.
-        role:
-          type:
-            - string
-            - "null"
-          description: "Spiegel der Rolle in better-auth (Übergang, entfällt in einem späteren Release). Nicht lesen: Die Abteilungsleitung und der Entwickler stehen in `GET /api/v1/ich` (`abteilungsleitung`, `entwickler`)."
-          example: admin
         twoFactorEnabled:
           type:
             - boolean
@@ -26859,7 +26854,7 @@ components:
           description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
         abteilungsleitung:
           type: boolean
-          description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier und nie aus `role` von better-auth.
+          description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier; `role` von better-auth gibt es nicht mehr.
         entwickler:
           type: boolean
           description: Ob das Konto ein Entwickler ist (es steht in `plattform_entwickler`, vergeben nur per CLI). Der Entwickler hat jedes Recht des Katalogs; die Verwaltung zeigt damit ihre Oberfläche, die Prüfung bleibt auf dem Server.
