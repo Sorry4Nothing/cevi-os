@@ -69,11 +69,10 @@ const sendenSchema = z.strictObject({
 
 // Auch in den Importen ohne node:* und process: Die App prüft diese Datei über AppType
 export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
-  // Nur Programme, die auch Eltern der Stufe sehen: Sonst landete ein interner Titel im Chat
+  // Nur Programme der Stufe (Stufen-Tag): Sonst landete der Titel eines fremden Termins im Chat
   const fuerElternDerStufe = (stufeId: string, abteilungId: string) =>
     and(
       eq(programm.abteilungId, abteilungId),
-      eq(programm.sichtbarkeit, "eltern"),
       exists(
         db
           .select({ eins: sql`1` })

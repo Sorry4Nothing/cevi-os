@@ -97,7 +97,6 @@ async function token(konto: PersonaKonto) {
 const waldtag = () =>
   legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: "eltern",
     stufen: [welt.stufeAId],
     titel: "Waldtag",
     tagVon: "2027-10-30",
@@ -259,7 +258,6 @@ describe("Anmelde-Push bei PUT /programme/:id/teilnahmen/:kindId", () => {
     const p = await waldtag();
     const begonnen = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       beginn: new Date("2020-01-01T10:00:00Z"),
     });

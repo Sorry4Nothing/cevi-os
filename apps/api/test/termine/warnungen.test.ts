@@ -101,7 +101,6 @@ interface Spez {
   kategorien?: string[];
   tags?: string[];
   abteilungId?: string;
-  sichtbarkeit?: "intern" | "leitende" | "eltern";
   status?: "aktiv" | "abgesagt" | "pruefen";
   beginn?: Date;
   ende?: Date;
@@ -111,7 +110,6 @@ interface Spez {
 async function termin(spez: Spez) {
   const t = await legeProgrammAn(db, {
     abteilungId: spez.abteilungId ?? welt.testabteilungId,
-    sichtbarkeit: spez.sichtbarkeit ?? "eltern",
     titel: spez.titel,
     beginn: spez.beginn,
     ende: spez.ende,
@@ -167,7 +165,6 @@ describe("Warnliste: welche Termine und welche Kategorien", () => {
         beginn: ZUKUNFT(10),
       },
       { titel: "4 abgesagt", status: "abgesagt", beginn: ZUKUNFT(11) },
-      { titel: "5 intern", sichtbarkeit: "intern", beginn: ZUKUNFT(12) },
       { titel: "6 vorbei", beginn: VERGANGEN },
       {
         titel: "7 ganztägig vorbei",
@@ -241,11 +238,10 @@ describe("Warnliste: welche Termine und welche Kategorien", () => {
     ]);
   });
 
-  test("abgesagte, interne, vergangene und fremde Termine fehlen", async () => {
+  test("abgesagte, vergangene und fremde Termine fehlen", async () => {
     const t = titel(await liste());
     for (const name of [
       "4 abgesagt",
-      "5 intern",
       "6 vorbei",
       "7 ganztägig vorbei",
       "Demo ohne Kategorie",

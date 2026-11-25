@@ -122,7 +122,7 @@ export function erstelleUebersichtRouten({
             }>(sql`select
                 (select count(*) from termin_vorschlag where abteilung_id = ${a} and status = 'offen')::int as vorschlaege,
                 (select count(*) from programm
-                  where programm.abteilung_id = ${a} and programm.status <> 'abgesagt' and programm.sichtbarkeit <> 'intern' and ${KOMMEND}
+                  where programm.abteilung_id = ${a} and programm.status <> 'abgesagt' and ${KOMMEND}
                     and not exists (select 1 from programm_tag where programm_tag.programm_id = programm.id))::int as ohne_kategorie,
                 (select count(*) from laden_bestellung where abteilung_id = ${a} and status = 'offen')::int as bestellungen_offen,
                 (select count(*) from laden_bestellung where abteilung_id = ${a} and status = 'bereit')::int as bestellungen_bereit,
@@ -139,7 +139,7 @@ export function erstelleUebersichtRouten({
                 (select count(*) from anlass_anmeldung am join anlass an on an.id = am.anlass_id
                   join programm on programm.id = an.programm_id
                   where an.abteilung_id = ${a} and am.status = 'angemeldet' and ${KOMMEND})::int as anmeldungen,
-                (select count(*) from programm where programm.abteilung_id = ${a} and programm.status <> 'abgesagt' and programm.sichtbarkeit <> 'intern' and ${KOMMEND})::int as programme,
+                (select count(*) from programm where programm.abteilung_id = ${a} and programm.status <> 'abgesagt' and ${KOMMEND})::int as programme,
                 coalesce((select google_kalender_id is not null from abteilung where id = ${a}), false) as eingerichtet,
                 (select ${iso("sync_ok_am")} from abteilung where id = ${a}) as ok_am,
                 (select sync_fehler from abteilung where id = ${a}) as fehler,
@@ -273,7 +273,7 @@ export function erstelleUebersichtRouten({
             from medium where abteilung_id = ${a}`);
         return z;
       }),
-      // Termine wie «Alle Termine»: die Sicht der Person (Tags, «intern» nie)
+      // Termine wie «Alle Termine»: die Sicht der Person (Tags)
       teil("kommend", async () => {
         const sicht = alleTermine(person, await ladeSichtTags(db, person));
         const gueltig = sql`${sicht} and programm.status <> 'abgesagt' and ${KOMMEND} and ${TERMIN_BEGINN} < now() + make_interval(days => ${TAGE})`;

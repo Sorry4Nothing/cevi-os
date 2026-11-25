@@ -44,7 +44,7 @@ Das geht. Der Server liest alle Kategorien eines Termins (mehrere Zeilen oder du
 
 - Die **Stufen-Tags** entstanden mit der Umstellung der Stufen auf Tags (#331, #332): Jede Stufe ist ein Tag vom Typ «Stufe». Ihr Name ist der Name der Stufe.
 - **Funktions- und Team-Tags** legst du unter Verwaltung → Tags selbst an. Wer den Tag trägt, sieht die Termine mit dieser Kategorie. Eltern sehen sie nie. So bleiben Termine nur für Leitende sichtbar.
-- **Sondertags** mit eingebauter Wirkung gibt es nicht. Insbesondere gibt es keinen Tag `intern`: Die frühere Sichtbarkeit «Für niemanden» liess sich nur im alten Bereich «Kalender» setzen. Bestehende interne Termine bleiben ausgeblendet. Für einen neuen internen Termin nimm eine Funktions- oder Team-Kategorie (siehe oben).
+- **Sondertags** mit eingebauter Wirkung gibt es nicht. Insbesondere gibt es keinen Tag `intern`: Die frühere Sichtbarkeit je Termin (`intern`, `leitende`, `eltern`) ist mit #807 entfallen, und mit ihr die Ausblendung. Wer einen Termin sieht, bestimmen allein seine Tags (und bei einem Anlass dessen Sichtbarkeit). Für einen Termin nur für Leitende nimm eine Funktions- oder Team-Kategorie (siehe oben); trägt er einen Stufen-Tag, sehen ihn auch die Eltern der Stufe.
 - Tag-Namen sind in der Abteilung eindeutig, unabhängig vom Typ und ohne Gross- und Kleinschreibung. Vermeide Kommas im Tag-Namen: Ein Komma trennt in Outlook zwei Kategorien.
 
 ## Umstellung Schritt für Schritt
