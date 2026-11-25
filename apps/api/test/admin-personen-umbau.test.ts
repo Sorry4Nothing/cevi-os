@@ -118,6 +118,26 @@ describe("Panel der Abteilungsleitung: Personen, Gruppen, Kinder, Stufen, Import
     expect(blatt).toContain("über «Rechte und Rollen»");
   });
 
+  test("Abteilungsleitung (#799): dieselbe Zeile wie die Stufenrollen, kein loses Kontrollkästchen", () => {
+    const blatt = lies("personen-blatt.js");
+    // Segmentwahl «Nein | Ja» als Radiogruppe, benannt mit der Person
+    expect(blatt).toContain("export function abteilungFeld");
+    expect(blatt).toContain("`Abteilungsleitung: ${personName}`");
+    expect(blatt).toContain('[false, "Nein"]');
+    expect(blatt).toContain('[true, "Ja"]');
+    // Gleiche Bausteine und Klassen wie die Stufenzeilen, gleiche Überschriftenform
+    expect(blatt).toContain('"Abteilung"');
+    expect(blatt).toContain('"Stufen und Rollen"');
+    expect(blatt.match(/class: "pe-teiltitel"/g)).toHaveLength(2);
+    expect(blatt).toContain('chip("Abteilungsleitung", "stufe", "schild")');
+    // Der Wert geht wie bisher als abteilungsleitung an die API
+    expect(
+      blatt.match(/abteilungsleitung: abteilungsleitung\.wert\(\)/g),
+    ).toHaveLength(2);
+    expect(blatt).not.toContain("ankreuzen");
+    expect(blatt).not.toContain("abteilungsleitung.eingabe");
+  });
+
   test("Gruppe einer Stufe: Leitung und Stufenleitung ändert man nur bei der Person", () => {
     const detail = lies("tags-detail.js");
     expect(detail).toContain("istStufenrolle");
