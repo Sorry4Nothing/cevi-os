@@ -1606,7 +1606,7 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frisch migrierte 
 
 **Nicht geprüft:** 86.4 und 86.5 im Browser (86.5: nur die Katalogantwort mit Klartext und Erklärung gelesen, die Seite des Rechte-Editors nicht bedient), Bildschirmleser, Safari und Firefox, Zoom 200 %. Offen: Die Seite «Personen» der Verwaltung öffnet sich nur für Abteilungsleitung und Entwickler (`navigation.js`, Standard `abteilungsleitung`). Eine Rolle mit `konto.loeschen` kann die Route über die API nutzen, bekommt in der Verwaltung aber noch keinen Weg zum Blatt der Person.
 
-## 87. Website: Fotoalben neu gestaltet (#796)
+## 88. Website: Fotoalben neu gestaltet (#796)
 
 Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, `public/website/fotos.js`, `fotos-logik.js`, `fotos.css`) und die Grossansicht (`lichtkasten.js`). Sie ersetzt die Punkte 66.4, 66.6, 66.9 und 66.10 (Markup und Raster haben sich geändert); die übrigen Punkte von 66 gelten weiter. Massstab WCAG 2.2 AA; die Abschnitte 1 bis 4 und 9 gelten sinngemäss.
 
@@ -1614,14 +1614,18 @@ Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, 
 
 ### Prüfpunkte
 
-- [ ] **87.1** Überschriften: `h1` der Seite, in der Übersicht ab 9 Alben `h2` je Jahr (Knopf darin) und `h3` je Album, darunter `h2` je Album; im Album `h2` mit dem Titel, danach kein weiterer Titel. Keine Ebene wird übersprungen.
-- [ ] **87.2** Eine Albumkarte ist ein Link mit sprechendem Namen («Album 2026 - Herbstlager, 393 Fotos, 4. Oktober 2026»); der sichtbare Titel steht im Namen (2.5.3). Das Titelbild ist dekorativ.
-- [ ] **87.3** Jahre sind Knöpfe mit `aria-expanded` und `aria-controls`; das Dreieck dreht, der Zustand hängt nicht an der Farbe. Ältere Jahre sind zu, Treffer der Suche klappen auf.
-- [ ] **87.4** Die Suche hat ein sichtbares Label («Alben suchen»), die Taste `/` fokussiert sie (`aria-keyshortcuts`), nur wenn die Person nicht schreibt und keine Grossansicht offen ist; Esc leert. Die Anzahl («23 von 87 Alben») steht in einer Statusregion und wechselt erst, wenn die Person kurz nicht mehr tippt. Ohne Treffer steht «Keine Alben für «…».» mit «Suche zurücksetzen».
-- [ ] **87.5** Das Raster ist eine Liste mit Namen («Fotos im Album …»); jedes Bild ist ein Link «Foto 3 von 393». Der Platz jeder Kachel steht fest (Seitenverhältnis), nichts springt, wenn Bilder laden.
-- [ ] **87.6** «Weitere 48 Fotos anzeigen»: Der Fokus geht auf das erste neue Foto, die Statusregion sagt «96 von 393 Fotos angezeigt.», die Fortschrittsleiste ist für Screenreader verborgen (der Text trägt die Information).
-- [ ] **87.7** Grossansicht: Der Dialog heisst «Fotos im Album …: Grossansicht», der Stand «Bild 24 von 393» zählt über das ganze Album (auch über noch nicht gezeigte Bilder), Pfeiltasten, Esc und Wischen wie bisher, Schliessen-Knopf 44 px. Beim Schliessen steht der Fokus auf dem zuletzt gezeigten Bild, auch wenn es erst jetzt eingeblendet wird, und die Seite scrollt dorthin.
-- [ ] **87.8** Zielgrössen mindestens 44 px (Karte, Jahr, Suchfeld, «Alle Fotos», «Album auf Flickr öffnen»); Fokusring 3 px in allen Ansichten, auch auf den Fotos (ausserhalb der Kachel).
-- [ ] **87.9** Kontrast Hell und Dunkel (Titel, Meta, Anzahl, Jahr, Rand des Suchfelds) mindestens 4,5 : 1, Rand des Suchfelds und Fortschritt mindestens 3 : 1.
-- [ ] **87.10** 320 px, Zoom 200 % und 400 % ohne waagrechtes Scrollen; 1, 2, 3 und 4 Spalten bei 40, 62 und 80 em.
-- [ ] **87.11** Bewegung: Heranzoomen der Bilder beim Zeigen und Drehen des Dreiecks nur unter «Bewegung nicht reduzieren»; Skelette und Einblenden der Bilder folgen den Regeln der Website. Erzwungene Farben: Karten, Taste und Jahre behalten Rand und Linie.
+- [ ] **88.1** Überschriften: `h1` der Seite, in der Übersicht ab 9 Alben `h2` je Jahr (Knopf darin) und `h3` je Album, darunter `h2` je Album; im Album `h2` mit dem Titel, danach kein weiterer Titel. Keine Ebene wird übersprungen.
+- [ ] **88.2** Eine Albumkarte ist ein Link mit sprechendem Namen («Album 2026 - Herbstlager, 393 Fotos, 4. Oktober 2026»); der sichtbare Titel steht im Namen (2.5.3). Das Titelbild ist dekorativ.
+- [ ] **88.3** Jahre sind Knöpfe mit `aria-expanded` und `aria-controls`; das Dreieck dreht, der Zustand hängt nicht an der Farbe. Ältere Jahre sind zu, Treffer der Suche klappen auf.
+- [ ] **88.4** Die Suche hat ein sichtbares Label («Alben suchen»), die Taste `/` fokussiert sie (`aria-keyshortcuts`), nur wenn die Person nicht schreibt und keine Grossansicht offen ist; Esc leert. Die Anzahl («23 von 87 Alben») steht in einer Statusregion und wechselt erst, wenn die Person kurz nicht mehr tippt. Ohne Treffer steht «Keine Alben für «…».» mit «Suche zurücksetzen».
+- [ ] **88.5** Das Raster ist eine Liste mit Namen («Fotos im Album …»); jedes Bild ist ein Link «Foto 3 von 393». Der Platz jeder Kachel steht fest (Seitenverhältnis), nichts springt, wenn Bilder laden.
+- [ ] **88.6** «Weitere 48 Fotos anzeigen»: Der Fokus geht auf das erste neue Foto, die Statusregion sagt «96 von 393 Fotos angezeigt.», die Fortschrittsleiste ist für Screenreader verborgen (der Text trägt die Information).
+- [ ] **88.7** Grossansicht: Der Dialog heisst «Fotos im Album …: Grossansicht», der Stand «Bild 24 von 393» zählt über das ganze Album (auch über noch nicht gezeigte Bilder), Pfeiltasten, Esc und Wischen wie bisher, Schliessen-Knopf 44 px. Beim Schliessen steht der Fokus auf dem zuletzt gezeigten Bild, auch wenn es erst jetzt eingeblendet wird, und die Seite scrollt dorthin.
+- [ ] **88.8** Zielgrössen mindestens 44 px (Karte, Jahr, Suchfeld, «Alle Fotos», «Album auf Flickr öffnen»); Fokusring 3 px in allen Ansichten, auch auf den Fotos (ausserhalb der Kachel).
+- [ ] **88.9** Kontrast Hell und Dunkel (Titel, Meta, Anzahl, Jahr, Rand des Suchfelds) mindestens 4,5 : 1, Rand des Suchfelds und Fortschritt mindestens 3 : 1.
+- [ ] **88.10** 320 px, Zoom 200 % und 400 % ohne waagrechtes Scrollen; 1, 2, 3 und 4 Spalten bei 40, 62 und 80 em.
+- [ ] **88.11** Bewegung: Heranzoomen der Bilder beim Zeigen und Drehen des Dreiecks nur unter «Bewegung nicht reduzieren»; Skelette und Einblenden der Bilder folgen den Regeln der Website. Erzwungene Farben: Karten, Taste und Jahre behalten Rand und Linie.
+
+### Stand der Prüfung (#796)
+
+Im Browser (Chromium headless, Playwright) gegen eine Kopie der Vorschau-Datenbank und eine Attrappe von Flickr (erfundene Alben, selbst erzeugte Bilder in verschiedenen Seitenverhältnissen) bei 320, 390, 640 (Zoom 200 %), 1280 und 2560 Pixel, hell und dunkel; Tastatur: `/`, Tab, Enter, Esc, Pfeile, Zurück im Browser; Szenarien mit 90, 12, 1 und 0 Alben und mit 393, 48, 12 und 1 Foto. Gemessen: kein waagrechtes Scrollen, Kontraste und Zielgrössen (88.8 bis 88.10), Anzahl der Bildanfragen (vorher 52 bis 90 beim Öffnen und 393 nach dem Scrollen, nachher höchstens 48). **Nicht geprüft:** Screenreader (NVDA, VoiceOver, TalkBack), echte Fotos, Zoom 400 % am Gerät, Wischen am Handy, Safari und Firefox, Windows-Hochkontrast am Gerät.
