@@ -26321,12 +26321,59 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/fotos/alben/sichtbarkeit:
+    put:
+      operationId: setzeAdminFotosSichtbarkeit
+      summary: Sichtbarkeit mehrerer Fotoalben ändern
+      description: |
+        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet mehrere Alben in einer Transaktion (`sichtbar`, höchstens 500, ohne Doppelte): alles oder nichts. Jedes Album bringt `version` mit (0 ohne Zeile); passt eine nicht, ändert sich nichts und die Antwort ist 409 `VERSION_KONFLIKT`. Alle Alben müssen zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). Neu sichtbare Alben kommen in der Reihenfolge der Liste ans Ende der sichtbaren Alben; ein einzelnes Album über `PUT /api/v1/admin/fotos/alben/{id}` verhält sich ebenso (#794).
+
+        Statuscodes: 200 mit den neuen Versionen. 400, 401, 403, 404, 409, 502.
+
+        Datenbanklast: eine Abfrage für die Einstellung, ein Abruf der Albumliste aus dem Speicher, eine Transaktion mit Sperre der Zeilen und je Album ein Schreibzugriff.
+      tags:
+        - Fotos
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FotoSichtbarkeit"
+      responses:
+        "200":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoSichtbarkeitAntwort"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Jemand anders hat eines der Alben geändert (`VERSION_KONFLIKT`); nichts wurde geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoKonflikt"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "502":
+          description: Flickr antwortet nicht.
   /api/v1/admin/fotos/alben/{id}:
     put:
       operationId: setzeAdminFotosAlbum
       summary: Fotoalbum speichern
       description: |
-        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet ein Album aus (`sichtbar`) und setzt einen eigenen Titel (`titel`, `null` zurück auf den von Flickr); mindestens eines von beiden. Das Album muss zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). `version` ist die des Albums im Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`.
+        Nur mit dem Recht `fotos.verwalten`. Zeigt oder blendet ein Album aus (`sichtbar`) und setzt einen eigenen Titel (`titel`, `null` zurück auf den von Flickr); mindestens eines von beiden. Das Album muss zum Konto der Abteilung bei Flickr gehören (404 sonst, auch ohne Zugang oder Konto; erst das Objekt, dann das Recht). `version` ist die des Albums im Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`. Ein Album, das neu erscheint, steht am Ende der sichtbaren Alben (#794); für mehrere Alben auf einmal gibt es `PUT /api/v1/admin/fotos/alben/sichtbarkeit`.
 
         Statuscodes: 200 mit der neuen Version. 400, 401, 403, 404, 409, 502.
 
@@ -26379,6 +26426,36 @@ paths:
     get:
       operationId: getAdminWebsiteFotosSkript
       summary: Skript der Verwaltung – Bereich Website, Fotos
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-fotos-alben.js:
+    get:
+      operationId: getAdminWebsiteFotosAlbenSkript
+      summary: Skript der Verwaltung – Bereich Website, Fotos, Albumliste
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-fotos-logik.js:
+    get:
+      operationId: getAdminWebsiteFotosLogikSkript
+      summary: Skript der Verwaltung – Bereich Website, Fotos, Logik der Albumliste
       tags:
         - Allgemein
       security: []
@@ -43368,6 +43445,50 @@ components:
           items:
             type: string
             pattern: "^[0-9]{1,20}$"
+    FotoSichtbarkeit:
+      type: object
+      additionalProperties: false
+      required:
+        - sichtbar
+        - alben
+      properties:
+        sichtbar:
+          type: boolean
+        alben:
+          type: array
+          minItems: 1
+          maxItems: 500
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - version
+            properties:
+              id:
+                type: string
+                pattern: "^[0-9]{1,20}$"
+              version:
+                type: integer
+                minimum: 0
+    FotoSichtbarkeitAntwort:
+      type: object
+      required:
+        - alben
+      properties:
+        alben:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - version
+            properties:
+              id:
+                type: string
+              version:
+                type: integer
+                minimum: 1
     FotoVerbindungAnfrage:
       type: object
       additionalProperties: false
