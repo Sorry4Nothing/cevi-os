@@ -13,6 +13,10 @@ const passwort = $("passwort");
 const code = $("code");
 const ersatz = $("ersatz");
 const zeigen = $("zeigen");
+const karte = $("karte");
+const status = $("status");
+// Sechs einzelne Felder für den Code aus der App (#829); «code» ist das eine Feld für den Ersatzcode
+const ziffern = [...document.querySelectorAll(".ziffer")];
 
 // Nur ein Pfad dieser Website oder die Verwaltung (siehe weiter.js)
 const anfrageDerSeite = new URLSearchParams(location.search);
@@ -39,13 +43,15 @@ const GRUENDE = {
 // Falsche Angaben stehen am Feld und oben im Band; was die Anmeldung als Ganzes betrifft (Netz, Sperre, abgelaufen) ist ein Toast (#762)
 const TOAST = { zuViele: "fehler", netz: "fehler", abgelaufen: "info" };
 
-const felder = [benutzername, passwort, code];
+const felder = [benutzername, passwort, ...ziffern, code];
 
 function raeumeFehler() {
   meldung.replaceChildren();
   for (const f of felder) {
     f.removeAttribute("aria-invalid");
-    f.removeAttribute("aria-describedby");
+    // Der Hinweis unter dem Feld bleibt am Feld, nur der Fehlertext geht
+    if (f === code) f.setAttribute("aria-describedby", "code-hilfe");
+    else f.removeAttribute("aria-describedby");
     f.closest(".feld")?.classList.remove("fehler");
     $(`${f.id}-f`)?.remove();
   }
@@ -72,7 +78,10 @@ function zeigeFehlt(fehlende) {
     link.href = `#${feld.id}`;
     liste.append(el("li", "", link));
     feld.setAttribute("aria-invalid", "true");
-    feld.setAttribute("aria-describedby", `${feld.id}-f`);
+    feld.setAttribute(
+      "aria-describedby",
+      feld === code ? `${feld.id}-f code-hilfe` : `${feld.id}-f`,
+    );
     const huelle = feld.closest(".feld");
     huelle.classList.add("fehler");
     const t = el("p", "fehlertext", symbol("warnung"), text);
@@ -145,7 +154,8 @@ async function weiter() {
 }
 
 // «Melde an …»: Der Knopf bleibt fokussierbar (aria-disabled statt disabled), die Felder sind schreibgeschützt
-function laeuft(form, an, text) {
+// «ansage» hört der Screenreader in der Statusregion, solange der Aufruf läuft
+function laeuft(form, an, text, ansage = "") {
   const knopf = form.querySelector("button[type=submit]");
   const felderDerForm = [...form.querySelectorAll("input")];
   if (an) {
@@ -155,26 +165,76 @@ function laeuft(form, an, text) {
     knopf.replaceChildren(el("span", "lade"), text);
     knopf.firstChild.setAttribute("aria-hidden", "true");
     felderDerForm.forEach((f) => (f.readOnly = true));
+    status.textContent = ansage;
   } else {
     knopf.removeAttribute("aria-disabled");
     knopf.removeAttribute("aria-busy");
     knopf.replaceChildren(knopf.dataset.text);
     felderDerForm.forEach((f) => (f.readOnly = false));
+    status.textContent = "";
   }
 }
 const istBeschaeftigt = (form) =>
   form.querySelector("button[type=submit]").getAttribute("aria-busy") ===
   "true";
 
+// Die Verwaltung verlangt den zweiten Faktor: Wer dorthin will (oder von dort mit «code» zurückkommt), sieht schon im ersten Schritt «Schritt 1 von 2». Für die Website bleibt die Überzeile weg, denn ob ein Konto den Faktor hat, weiss die Seite erst nach dem Passwort
+const faktorBekannt =
+  ziel.startsWith("/admin") || anfrageDerSeite.get("grund") === "code";
+
+// Kopf der Karte je Schritt: Symbol, Überzeile, Titel, Text
+function zeigeKopf(schritt) {
+  karte.dataset.schritt = schritt;
+  $("sym-1").hidden = schritt === 2;
+  $("sym-2").hidden = schritt !== 2;
+  const ueber = $("ueber");
+  ueber.hidden = schritt === 1 && !faktorBekannt;
+  ueber.textContent = `Schritt ${schritt} von 2`;
+  $("titel").textContent = schritt === 1 ? "Anmelden" : "Zweiter Faktor";
+  $("kopftext").textContent =
+    schritt === 1
+      ? "Mit demselben Konto wie in der App."
+      : istErsatz
+        ? "Gib einen deiner Ersatzcodes ein."
+        : "Gib den Code aus deiner Authenticator-App ein.";
+}
+
+// Code aus der App (sechs Ziffern) oder Ersatzcode (ein Feld)
+let istErsatz = false;
+function setzeErsatz(an) {
+  istErsatz = an;
+  $("code-label").textContent = an
+    ? "Ersatzcode"
+    : "Code aus der Authenticator-App";
+  $("code-hilfe").textContent = an
+    ? "Format: xxxxx-xxxxx. Jeder Ersatzcode gilt nur einmal."
+    : "Sechs Ziffern. Der Code wird nach der letzten Ziffer geprüft.";
+  ersatz.textContent = an
+    ? "Code aus der App verwenden"
+    : "Ersatzcode verwenden";
+  $("ziffern").hidden = an;
+  code.hidden = !an;
+  if (karte.dataset.schritt === "2") zeigeKopf(2);
+}
+const leereCode = () => {
+  for (const z of ziffern) z.value = "";
+  code.value = "";
+};
+const codeFelder = () => (istErsatz ? [code] : ziffern);
+
 function zeigeFaktor() {
   anmeldung.hidden = true;
   faktor.hidden = false;
-  code.focus();
+  zeigeKopf(2);
+  codeFelder()[0].focus();
 }
 
 function zeigeAnmeldung(schluessel) {
   faktor.hidden = true;
   anmeldung.hidden = false;
+  leereCode();
+  setzeErsatz(false);
+  zeigeKopf(1);
   raeumeFehler();
   if (schluessel) zeigeMeldung(schluessel);
   benutzername.focus();
@@ -212,7 +272,7 @@ anmeldung.addEventListener("submit", async (e) => {
     zeigeFehlt(fehlt);
     return;
   }
-  laeuft(anmeldung, true, "Melde an …");
+  laeuft(anmeldung, true, "Melde an …", "Du wirst angemeldet.");
   const r = await sende("/api/auth/sign-in/username", {
     username: name,
     password: pw,
@@ -239,23 +299,60 @@ anmeldung.addEventListener("submit", async (e) => {
   );
 });
 
-let istErsatz = false;
+// Die Ziffernfelder (#829). Jedes Feld nimmt eine Ziffer; ein Code aus der Zwischenablage oder von der Autofüllung (ganzer Code im ersten Feld) wird auf alle Felder verteilt
+zeigeKopf(1);
+
+function fuelle(ab, text) {
+  const z = text.replace(/[^0-9]/g, "");
+  if (!z) return;
+  if (ziffern[0].hasAttribute("aria-invalid")) raeumeFehler();
+  // Ein ganzer Code ersetzt immer alle Felder, ein Rest füllt ab dem Feld
+  const start = z.length >= ziffern.length ? 0 : ab;
+  [...z].slice(0, ziffern.length - start).forEach((c, k) => {
+    ziffern[start + k].value = c;
+  });
+  ziffern[Math.min(start + z.length, ziffern.length - 1)].focus();
+  // Nach der letzten Ziffer wird der Code geprüft
+  if (ziffern.every((f) => f.value) && !istBeschaeftigt(faktor)) {
+    faktor.requestSubmit();
+  }
+}
+
+ziffern.forEach((feld, i) => {
+  feld.addEventListener("input", (e) => {
+    if (e.inputType?.startsWith("delete")) return;
+    // Getippt zählt nur das neue Zeichen; sonst (Autofüllung, Diktat) der ganze Wert
+    const roh = e.inputType === "insertText" && e.data ? e.data : feld.value;
+    if (/[0-9]/.test(roh)) fuelle(i, roh);
+    else feld.value = feld.value.replace(/[^0-9]/g, "").slice(0, 1);
+  });
+  feld.addEventListener("paste", (e) => {
+    e.preventDefault();
+    fuelle(i, e.clipboardData?.getData("text") ?? "");
+  });
+  feld.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowLeft" && i > 0) {
+      e.preventDefault();
+      ziffern[i - 1].focus();
+    } else if (e.key === "ArrowRight" && i < ziffern.length - 1) {
+      e.preventDefault();
+      ziffern[i + 1].focus();
+    } else if (e.key === "Backspace" && !feld.value && i > 0) {
+      // Leeres Feld: zurück ins vorige und dessen Ziffer löschen
+      e.preventDefault();
+      ziffern[i - 1].value = "";
+      ziffern[i - 1].focus();
+    }
+  });
+  // Die Ziffer ist markiert: Tippen ersetzt sie
+  feld.addEventListener("focus", () => feld.select());
+});
+
 ersatz.addEventListener("click", () => {
-  istErsatz = !istErsatz;
-  $("code-label").textContent = istErsatz
-    ? "Ersatzcode"
-    : "Code aus deiner App";
-  $("code-hilfe").textContent = istErsatz
-    ? "Format: xxxxx-xxxxx. Jeder Ersatzcode gilt nur einmal."
-    : "Sechs Ziffern. Einfügen geht auch.";
-  ersatz.textContent = istErsatz
-    ? "Code aus der App verwenden"
-    : "Ersatzcode verwenden";
-  code.setAttribute("inputmode", istErsatz ? "text" : "numeric");
-  code.setAttribute("autocomplete", istErsatz ? "off" : "one-time-code");
-  code.value = "";
+  setzeErsatz(!istErsatz);
+  leereCode();
   raeumeFehler();
-  code.focus();
+  codeFelder()[0].focus();
 });
 
 $("abbrechen").addEventListener("click", () => zeigeAnmeldung());
@@ -264,20 +361,26 @@ faktor.addEventListener("submit", async (e) => {
   e.preventDefault();
   if (istBeschaeftigt(faktor)) return;
   raeumeFehler();
-  const wert = code.value.trim();
+  const wert = istErsatz
+    ? code.value.trim()
+    : ziffern.map((f) => f.value).join("");
   if (!wert) {
-    zeigeFehlt([[code, "Gib den Code ein."]]);
+    zeigeFehlt([[codeFelder()[0], "Gib den Code ein."]]);
     return;
   }
-  laeuft(faktor, true, "Prüfe …");
+  if (!istErsatz && wert.length < ziffern.length) {
+    zeigeFehlt([[ziffern[0], "Der Code hat sechs Ziffern."]]);
+    return;
+  }
+  laeuft(faktor, true, "Prüfe …", "Der Code wird geprüft.");
   const r = await sende(
     istErsatz
       ? "/api/auth/two-factor/verify-backup-code"
       : "/api/auth/two-factor/verify-totp",
     { code: wert },
   );
-  code.value = "";
   if (r.status === 200) {
+    leereCode();
     weiter();
     return;
   }
@@ -292,5 +395,8 @@ faktor.addEventListener("submit", async (e) => {
   }
   const schluessel =
     r.status === 0 ? "netz" : r.status === 429 ? "zuViele" : "codeFalsch";
-  zeigeMeldung(schluessel, schluessel === "codeFalsch" ? [code] : []);
+  // Ein falscher Code ist verbraucht: neu tippen, der Fokus geht ins erste Feld. Bei Netz und Sperre bleibt, was getippt ist
+  if (schluessel === "codeFalsch") leereCode();
+  zeigeMeldung(schluessel, schluessel === "codeFalsch" ? codeFelder() : []);
+  if (schluessel === "codeFalsch") codeFelder()[0].focus();
 });

@@ -168,7 +168,7 @@ describe("Anmeldeseite: in der Mitte, bei jeder Breite (#818)", () => {
   };
 
   test("alle Schritte stehen in einer Karte: Anmelden, zweiter Faktor mit Ersatzcode, Hinweise und Fehler", () => {
-    const karte = html.slice(html.indexOf('<div class="anmelde-karte">'));
+    const karte = html.slice(html.indexOf('<div class="anmelde-karte"'));
     expect(karte).toContain('id="anmeldung"');
     expect(karte).toContain('id="faktor"');
     expect(karte).toContain('id="meldung"');
@@ -202,6 +202,75 @@ describe("Anmeldeseite: in der Mitte, bei jeder Breite (#818)", () => {
     // Der Abstand der übrigen Seiten, kein eigener Pixelwert
     expect(mitte).toMatch(/padding-block: var\(--abstand\)/);
     expect(mitte).not.toMatch(/100vh|calc\(/);
+  });
+});
+
+describe("Anmeldeseite im Kartenstil (#829)", () => {
+  const html = rendereAnmeldung(kontext);
+  const css = (wahl: string) => {
+    const von = CSS.indexOf(`\n${wahl} {`);
+    expect(von, wahl).toBeGreaterThan(-1);
+    return CSS.slice(von, CSS.indexOf("}", von));
+  };
+
+  test("Kopf der Karte: Symbol im Kreis, Überzeile (zuerst verborgen), eine Überschrift, Hilfetext", () => {
+    expect(html).toContain('<span class="kreis" aria-hidden="true">');
+    expect(html).toContain(
+      '<p class="ueber" id="ueber" hidden>Schritt 1 von 2</p>',
+    );
+    expect(html.match(/<h1/g)).toHaveLength(1);
+    expect(html).toContain('<h1 id="titel">Anmelden</h1>');
+  });
+
+  test("sechs Ziffernfelder in einer beschrifteten Gruppe, je Feld mit Nummer, Autofüllung nur am ersten", () => {
+    expect(html).toContain(
+      'id="ziffern" role="group" aria-labelledby="code-label" aria-describedby="code-hilfe"',
+    );
+    expect(html).toContain(
+      '<label for="code" id="code-label">Code aus der Authenticator-App</label>',
+    );
+    for (const n of [1, 2, 3, 4, 5, 6]) {
+      const autofuellen = n === 1 ? "one-time-code" : "off";
+      expect(html).toContain(
+        `<input class="ziffer" id="ziffer-${n}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="${autofuellen}" autocapitalize="none" spellcheck="false" aria-label="Ziffer ${n} von 6">`,
+      );
+    }
+    expect(html.match(/class="ziffer"/g)).toHaveLength(6);
+    expect(html.match(/autocomplete="one-time-code"/g)).toHaveLength(1);
+    expect(html).toContain(
+      "Sechs Ziffern. Der Code wird nach der letzten Ziffer geprüft.",
+    );
+  });
+
+  test("Statusregion für die Ansage beim Prüfen, Ersatzcode als ein eigenes Feld (zuerst verborgen)", () => {
+    expect(html).toContain('<p class="nur-sr" id="status" role="status"></p>');
+    expect(html).toMatch(/<input class="eingabe" id="code"[^>]* hidden>/);
+  });
+
+  test("Ziffernfelder: Gruppe 3 + Lücke + 3, 60 px hoch, Fokus ohne Breitenänderung, nur Tokens", () => {
+    expect(css(".ziffer")).toContain("height: 3.75rem");
+    expect(css(".ziffer:nth-child(3)")).toContain("margin-inline-end");
+    expect(css(".ziffer:focus-visible")).toContain("box-shadow: inset");
+    const stil = [".anmelde-karte", ".kreis", ".ueber", ".ziffer"]
+      .map(css)
+      .join("");
+    expect(stil).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+    expect(css(".anmelde-karte")).toContain("background: var(--karte)");
+    expect(css(".kreis")).toContain("var(--secondary-container)");
+    expect(css(".ueber")).toContain("text-transform: uppercase");
+  });
+
+  test("Skript: Auto-Prüfung nach der letzten Ziffer, Einfügen, Pfeiltasten, Rücktaste, Fokus ins erste Feld", () => {
+    expect(ANMELDEN).toContain("faktor.requestSubmit()");
+    expect(ANMELDEN).toContain('"paste"');
+    expect(ANMELDEN).toContain('"ArrowLeft"');
+    expect(ANMELDEN).toContain('"ArrowRight"');
+    expect(ANMELDEN).toContain('"Backspace"');
+    expect(ANMELDEN).toContain(
+      'if (schluessel === "codeFalsch") codeFelder()[0].focus();',
+    );
+    // Die Überzeile des ersten Schritts nur, wenn die Verwaltung das Ziel ist
+    expect(ANMELDEN).toMatch(/faktorBekannt =\s*ziel\.startsWith\("\/admin"\)/);
   });
 });
 
