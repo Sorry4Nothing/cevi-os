@@ -45,7 +45,6 @@ export async function legeStufenprogrammAn(
     .values({
       abteilungId: eine.abteilungId,
       googleEventId,
-      sichtbarkeit: "eltern",
       ...werte,
     })
     .onConflictDoUpdate({

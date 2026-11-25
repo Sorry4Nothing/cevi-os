@@ -212,14 +212,7 @@ export const RECHTE_KATALOG = {
   "programm.alle_sehen": v(
     "termine",
     "Alle Programme sehen",
-    "Jedes Programm der Abteilung lesen, auch ohne die eigene Stufe, aber ohne interne Programme.",
-    "normal",
-    ALLE,
-  ),
-  "programm.intern_sehen": v(
-    "termine",
-    "Interne Programme sehen",
-    "Auch Programme sehen, die in der App für niemanden sichtbar sind (Sichtbarkeit «intern»), zum Beispiel zum Einblenden in der Verwaltung.",
+    "Jedes Programm der Abteilung lesen, auch ohne die eigene Stufe.",
     "normal",
     ALLE,
   ),

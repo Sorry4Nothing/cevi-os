@@ -9,7 +9,6 @@ export const VORBEREITUNG: NonNullable<
   // Ein kommender Termin ohne Tag: steht auf der Warnliste.
   const termin = await legeProgrammAn(welt.db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: "eltern",
     titel: "Matrix-Termin ohne Kategorie",
     beginn: new Date("2099-03-06T13:00:00Z"),
   });

@@ -54,8 +54,7 @@ export const alleSichtTags = (t: SichtTags) => [
   ...new Set([...t.eigene, ...t.ueberKinder]),
 ];
 
-// EXISTS statt Join: Ein Termin mit mehreren passenden Tags erscheint genau einmal. «intern» blendet den Termin für alle aus (A5).
-// Eigene Tags sehen «leitende» und «eltern», die Stufen der Kinder nur «eltern»
+// EXISTS statt Join: Ein Termin mit mehreren passenden Tags erscheint genau einmal. Allein die Tags entscheiden: der eigene Tag oder die Stufe eines Kindes.
 export function meineTermine(
   person: Pick<Person, "abteilungId">,
   t: SichtTags,
@@ -64,31 +63,27 @@ export function meineTermine(
     sql`exists (select 1 from programm_tag where programm_tag.programm_id = programm.id and ${inArray(sql`programm_tag.tag_id`, ids)})`;
   const teile: SQL[] = [];
   if (t.eigene.length > 0) {
-    teile.push(
-      sql`(programm.sichtbarkeit in ('leitende', 'eltern') and ${tagsDes(t.eigene)})`,
-    );
+    teile.push(tagsDes(t.eigene));
   }
   if (t.ueberKinder.length > 0) {
-    teile.push(
-      sql`(programm.sichtbarkeit = 'eltern' and ${tagsDes(t.ueberKinder)})`,
-    );
+    teile.push(tagsDes(t.ueberKinder));
   }
   if (teile.length === 0) return sql`false`;
   return sql`(programm.abteilung_id = ${person.abteilungId} and (${sql.join(teile, sql` or `)}))`;
 }
 
-// Termine von Anlässen, die allen Angemeldeten offenstehen (Annahme A2): Sichtbarkeit «angemeldet» oder «oeffentlich», auch ohne Tag der Person; der Termin braucht aber einen Tag der Abteilung. «intern» blendet ihn trotzdem aus (A5)
+// Termine von Anlässen, die allen Angemeldeten offenstehen (Annahme A2): Sichtbarkeit «angemeldet» oder «oeffentlich», auch ohne Tag der Person; der Termin braucht aber einen Tag der Abteilung.
 export function anlassTermine(person: Pick<Person, "abteilungId">): SQL {
-  return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern' and exists (select 1 from anlass where anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id and anlass.sichtbarkeit in ('angemeldet', 'oeffentlich')) and exists (select 1 from programm_tag join tag on tag.id = programm_tag.tag_id and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id))`;
+  return sql`(programm.abteilung_id = ${person.abteilungId} and exists (select 1 from anlass where anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id and anlass.sichtbarkeit in ('angemeldet', 'oeffentlich')) and exists (select 1 from programm_tag join tag on tag.id = programm_tag.tag_id and tag.abteilung_id = programm.abteilung_id where programm_tag.programm_id = programm.id))`;
 }
 
-// «Alle Termine» (Web): Die Abteilungsleitung und der Entwickler sehen jeden Termin der Abteilung, auch einen ohne Tag («intern» wie überall ausgeblendet, A5); alle anderen «Mein Kalender» plus die Anlass-Termine. Ein Termin ohne Tag ist keiner Gruppe zugewiesen (#449): Er steht nur in «Alle» für die Abteilungsleitung, nie in «Mein Kalender» und nie im ICS-Feed.
+// «Alle Termine» (Web): Die Abteilungsleitung und der Entwickler sehen jeden Termin der Abteilung, auch einen ohne Tag; alle anderen «Mein Kalender» plus die Anlass-Termine. Ein Termin ohne Tag ist keiner Gruppe zugewiesen (#449): Er steht nur in «Alle» für die Abteilungsleitung, nie in «Mein Kalender» und nie im ICS-Feed.
 export function alleTermine(
   person: Pick<Person, "abteilungId" | "abteilungsleitung" | "entwickler">,
   t: SichtTags,
 ) {
   if (siehtAlles(person)) {
-    return sql`(programm.abteilung_id = ${person.abteilungId} and programm.sichtbarkeit <> 'intern')`;
+    return sql`(programm.abteilung_id = ${person.abteilungId})`;
   }
   return sql`(${meineTermine(person, t)} or ${anlassTermine(person)})`;
 }

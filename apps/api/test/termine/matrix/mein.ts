@@ -8,7 +8,6 @@ export const VORBEREITUNG: NonNullable<
 > = async (welt) => {
   const termin = await legeProgrammAn(welt.db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: "eltern",
     // Der Termin trägt den Tag der Stufe A (legeProgrammAn setzt programm_tag)
     stufen: [welt.stufeAId],
     titel: "Matrix-Termin",

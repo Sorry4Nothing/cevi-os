@@ -48,7 +48,7 @@ export function erstelleAuswahlRouten({ db }: { db: Db }) {
           case when programm.ganztaegig then programm.tag_bis::text else to_char(coalesce(programm.ende, programm.beginn) at time zone 'Europe/Zurich', 'YYYY-MM-DD') end as bis
         from anlass join programm on programm.id = anlass.programm_id
         where anlass.abteilung_id = ${person.abteilungId} and programm.abteilung_id = ${person.abteilungId}
-          and programm.status = 'aktiv' and programm.sichtbarkeit = 'eltern' and anlass.sichtbarkeit = 'oeffentlich'
+          and programm.status = 'aktiv' and anlass.sichtbarkeit = 'oeffentlich'
           and coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich') >= now() - interval '90 days'
         order by coalesce(programm.beginn, programm.tag_von::timestamp at time zone 'Europe/Zurich'), anlass.id
         limit 200`);

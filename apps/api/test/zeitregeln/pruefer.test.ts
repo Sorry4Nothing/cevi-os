@@ -133,7 +133,6 @@ async function neueWelt() {
   ) =>
     legeProgrammAn(db, {
       abteilungId: abteilung!.id,
-      sichtbarkeit: "eltern",
       stufen: [stufeA.id],
       titel: "Waldtag",
       beginn: BEGINN,
@@ -392,15 +391,12 @@ describe("Erinnerungen", () => {
     expect(w.empfaenger()).toEqual([]);
   });
 
-  test("keine Erinnerung für interne, nur für Leitende sichtbare, abgesagte oder begonnene Programme, ausgeschaltete Regeln und fremde Abteilungen", async () => {
+  test("keine Erinnerung für abgesagte oder begonnene Programme, ausgeschaltete Regeln und fremde Abteilungen", async () => {
     const w = await neueWelt();
     const eltern = await w.elternteil("offen");
     await w.kindVon([eltern], w.stufeA.id);
     await w.regel();
     await w.regel({ aktiv: false, text: "aus" });
-    for (const sichtbarkeit of ["intern", "leitende"] as const) {
-      await w.programm({ sichtbarkeit });
-    }
     const abgesagt = await w.programm();
     await db
       .update(schema.programm)

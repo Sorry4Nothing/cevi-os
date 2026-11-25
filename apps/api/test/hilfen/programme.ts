@@ -11,7 +11,6 @@ export async function legeProgrammAn(
   db: Db,
   {
     abteilungId,
-    sichtbarkeit = "intern",
     stufen = [],
     titel = "Testprogramm",
     beginn = new Date("2027-03-06T13:00:00Z"),
@@ -20,7 +19,6 @@ export async function legeProgrammAn(
     tagBis,
   }: {
     abteilungId: string;
-    sichtbarkeit?: "intern" | "leitende" | "eltern";
     stufen?: readonly string[];
     titel?: string;
     beginn?: Date;
@@ -43,7 +41,6 @@ export async function legeProgrammAn(
         : (ende ?? new Date(beginn.getTime() + 7_200_000)),
       tagVon: ganztaegig ? tagVon : null,
       tagBis: ganztaegig ? (tagBis ?? tagVon) : null,
-      sichtbarkeit,
     })
     .returning({ id: schema.programm.id });
   if (stufen.length > 0) {

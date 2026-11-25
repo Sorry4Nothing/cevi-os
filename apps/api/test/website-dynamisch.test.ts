@@ -459,7 +459,6 @@ describe("Daten aus der Datenbank", () => {
     opt: {
       abt?: string;
       sicht?: "oeffentlich" | "angemeldet";
-      programmSicht?: "intern" | "leitende" | "eltern";
       status?: "aktiv" | "abgesagt";
       art?: "anlass" | "lager";
       offen?: boolean;
@@ -477,7 +476,6 @@ describe("Daten aus der Datenbank", () => {
         ganztaegig: false,
         beginn,
         ende: new Date(beginn.getTime() + 3 * 3_600_000),
-        sichtbarkeit: opt.programmSicht ?? "eltern",
         status: opt.status ?? "aktiv",
         ort: "Treffpunkt",
       })
@@ -513,8 +511,6 @@ describe("Daten aus der Datenbank", () => {
       offen: true,
     });
     await anlass("Nur angemeldet", 1, { sicht: "angemeldet" });
-    await anlass("Intern", 1, { programmSicht: "intern" });
-    await anlass("Leitende", 1, { programmSicht: "leitende" });
     await anlass("Abgesagt", 1, { status: "abgesagt" });
     await anlass("Vergangen", -10);
     await anlass("Fremd", 1, { abt: fremdId });
