@@ -26,18 +26,25 @@ function start() {
     : [...haupt.querySelectorAll("[data-geschuetzt]")];
   // Der Hinweis «Nur angemeldet sichtbar» steht im HTML; er kommt bei «nicht angemeldet» zurück
   const hinweisHuelle = huelle ? spalte.querySelector(".schutzblock") : null;
-  const zustand = huelle ? spalte.appendChild(el("div")) : null;
+  // Die Hülle bringt ihr Skelett mit (#816): Es steht vom ersten Zeichnen an, der Hinweis ist bis hierher verborgen (website.css)
+  const zustand = huelle
+    ? (spalte.querySelector(".huelle-laden") ??
+      spalte.appendChild(el("div", "huelle-laden")))
+    : null;
   const behaelter = huelle ? [zustand] : platzhalter;
   const original = new Map(platzhalter.map((p) => [p, [...p.childNodes]]));
   let hinweisTimer = 0;
   let abbruchTimer = 0;
   let abbruch = null;
+  // Ab jetzt entscheidet dieses Skript, was die Hülle zeigt; bis dahin verbirgt der Stil den Hinweis «Nur angemeldet sichtbar», damit er einer angemeldeten Person nie kurz erscheint
+  haupt.setAttribute("data-skript", "");
 
-  const raeume = () => {
+  // behalte: Das Skelett aus dem HTML bleibt stehen, ein zweites blendete neu ein (150 ms unsichtbar)
+  const raeume = (behalte = false) => {
     clearTimeout(hinweisTimer);
     clearTimeout(abbruchTimer);
     behaelter.forEach((b) => {
-      b.replaceChildren();
+      if (!behalte) b.replaceChildren();
       b.removeAttribute("aria-busy");
     });
     if (hinweisHuelle) hinweisHuelle.hidden = true;
@@ -50,9 +57,11 @@ function start() {
   };
 
   const zeigeLaden = () => {
-    raeume();
+    const behalte = zustand?.querySelector(".skelett") != null;
+    raeume(behalte);
     behaelter.forEach((b) => {
       b.setAttribute("aria-busy", "true");
+      if (behalte) return;
       // Formgleich zum Inhalt (Design G3, gemeinsamer Baustein aus ui.js)
       const skelett = skelettBaustein("h24 b40", "t b90", "t b60", "t b90");
       skelett.classList.add("karte");

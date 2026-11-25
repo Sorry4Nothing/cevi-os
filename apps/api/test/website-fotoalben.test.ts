@@ -348,3 +348,66 @@ describe("Gruppen, Suche, Schritte und Namen (fotos-logik.js)", () => {
     expect(mengeBis(48, 392, 393)).toBe(393);
   });
 });
+
+// Geschützte Seite (#816): Solange die Sitzung nicht geklärt ist, steht ein Skelett und nie «Nur angemeldet sichtbar». Es gibt kein jsdom: Der Ablauf im Browser steht in docs/barrierefreiheit.md (88); hier sind die Teile gesichert, auf denen er beruht.
+describe("Ladezustand der geschützten Seite (#816)", () => {
+  const huelle = rendereHuelle("/fotos", kontext);
+
+  test("die Hülle bringt ihr Skelett mit, der Hinweis bleibt im HTML (ohne Skript) und main trägt die Klasse für den Abstand unten", () => {
+    expect(huelle).toContain('class="huelle"');
+    expect(huelle).toContain("Nur angemeldet sichtbar");
+    const hinweis = huelle.indexOf('class="schutzblock"');
+    const laden = huelle.indexOf('class="huelle-laden"');
+    expect(hinweis).toBeGreaterThan(0);
+    expect(laden).toBeGreaterThan(hinweis);
+    // Formgleich zum Skelett, das geschuetzt.js sonst selbst baut; für Hilfstechnik verborgen
+    expect(huelle).toContain('<div class="skelett karte" aria-hidden="true">');
+  });
+
+  test("der Stil verbirgt den Hinweis erst mit Skript und bis zur Antwort, ein Rückfall zeigt ihn wieder; unten gilt der Abstand der Seiten", () => {
+    const css = lies("website.css");
+    expect(css).toMatch(
+      /html\.ladebild main\[data-huelle\]:not\(\[data-skript\]\) \.schutzblock \{\s*display: none;/,
+    );
+    expect(css).toMatch(
+      /html\.ladebild main:not\(\[data-skript\]\) \[data-geschuetzt\] > \.schutzblock \{\s*visibility: hidden;/,
+    );
+    expect(css).toMatch(
+      /html\[data-skript-spaet\] main\[data-huelle\]:not\(\[data-skript\]\) \.schutzblock \{\s*display: flex;/,
+    );
+    expect(css).toMatch(
+      /main\.huelle > \.wrap \{\s*padding-bottom: var\(--abstand\);/,
+    );
+    // Ohne Skript (kein html.ladebild) ist das Skelett nicht da
+    expect(css).toMatch(/\.huelle-laden \{\s*display: none;/);
+  });
+
+  test("geschuetzt.js übernimmt das Skelett, meldet sich an main an, bevor es fragt, und baut kein zweites", () => {
+    const js = lies("geschuetzt.js");
+    expect(js).toContain('.querySelector(".huelle-laden")');
+    expect(js.indexOf('haupt.setAttribute("data-skript", "")')).toBeGreaterThan(
+      0,
+    );
+    expect(js.indexOf('haupt.setAttribute("data-skript", "")')).toBeLessThan(
+      js.indexOf("await fetch("),
+    );
+    expect(js).toContain("raeume(behalte)");
+    // Der Hinweis kommt nur bei 401 zurück
+    expect(js).toMatch(
+      /if \(antwort\.status === 401\) return zeigeAbgemeldet\(\);/,
+    );
+  });
+
+  test("theme.js setzt nach acht Sekunden den Rückfall, falls geschuetzt.js nie kommt", () => {
+    expect(lies("theme.js")).toMatch(
+      /setAttribute\("data-skript-spaet", ""\);\s*\}, 8000\)/,
+    );
+  });
+
+  test("fotos.js zeigt den Hinweis nur nach der Antwort 401 der Schnittstelle, nie vorher", () => {
+    const js = lies("fotos.js");
+    expect(js.match(/Nur angemeldet sichtbar/g)?.length).toBe(2);
+    const stelle = js.indexOf("antwort.status === 401");
+    expect(stelle).toBeGreaterThan(js.indexOf("async function hole("));
+  });
+});
