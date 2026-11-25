@@ -521,7 +521,7 @@ function zeichne(bereich, ctx, profil) {
   const geschlecht = lesefeld(
     "Geschlecht",
     GESCHLECHT_TEXT[profil.geschlecht] ?? GESCHLECHT_TEXT.keine,
-    `Bestimmt, wie deine Rolle heisst, z. B. Stufenleiterin. Es ist freiwillig. ${wer}`,
+    `Bestimmt, wie deine Rolle heisst, z. B. Stufenleiterin. Es ist freiwillig. ${siehtAlles(profil) ? "Ändere es unter «Personen»." : "Es ändert die Abteilungsleitung."}`,
   );
   const benutzername = lesefeld(
     "Benutzername",
