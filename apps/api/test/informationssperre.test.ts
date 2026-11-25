@@ -255,7 +255,7 @@ describe("Informationssperre: Wirkung", () => {
   });
 
   test("die Sperre geht der Wartung vor", async () => {
-    await wartung(admin, "chat");
+    await wartung(entwickler, "chat");
     await sperre(admin, "chat");
     expect((await anfrage(eltern, "GET", "/api/v1/chats")).status).toBe(423);
     await hebeAuf(admin, "chat");
@@ -322,22 +322,14 @@ describe("Informationssperre: wer schalten darf", () => {
     expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
   });
 
-  test("der Webmaster mit dem Recht darf die Wartung der Website, aber die Sperre weder setzen noch aufheben noch sehen", async () => {
-    expect((await wartung(webmasterMitRecht, "website")).status).toBe(200);
+  test("die Abteilungsleitung schaltet die Sperre, die Wartung nicht (#802); der Webmaster mit dem alten Recht weder noch, er sieht nichts", async () => {
+    expect((await wartung(admin, "website")).status).toBe(403);
+    expect((await wartung(webmasterMitRecht, "website")).status).toBe(403);
     expect((await sperre(admin, "website")).status).toBe(200);
-    // Er sieht nur die Wartung, die Sperre bleibt ihm verborgen
-    const lesen = await anfrage(
-      webmasterMitRecht,
-      "GET",
-      "/api/v1/plattform/schalter",
-    );
-    expect(lesen.status).toBe(200);
-    const { schalter, darfSperre } = (await lesen.json()) as {
-      schalter: { art: string }[];
-      darfSperre: boolean;
-    };
-    expect(schalter.map((s) => s.art)).toEqual(["wartung"]);
-    expect(darfSperre).toBe(false);
+    expect(
+      (await anfrage(webmasterMitRecht, "GET", "/api/v1/plattform/schalter"))
+        .status,
+    ).toBe(403);
     expect((await hebeAuf(webmasterMitRecht, "website")).status).toBe(403);
     expect(
       zustand.trifft(welt.testabteilungId, "website", "sperre"),

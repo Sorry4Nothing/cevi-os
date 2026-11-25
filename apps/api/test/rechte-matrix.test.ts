@@ -2388,7 +2388,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Wartungsmodus (#424): Abteilungsleitung mit zweitem Faktor; die Webmaster-Rolle mit dem Recht steht in test/bereichsschalter.test.ts. PUT und DELETE stehen nebeneinander: Die Abteilungsleitung schaltet den Chat in Wartung und hebt es sofort wieder auf, damit keine spaetere Zeile in Wartung laeuft
+  // Wartungsmodus (#424, nur Entwickler seit #802): Die Abteilungsleitung liest den Stand (GET), schaltet ihn aber nicht (403); den Entwickler und die Rollen mit den alten Rechten decken test/bereichsschalter.test.ts und test/rechte-website-lager-plattform.test.ts ab. Die Matrix hat keine Persona Entwickler
   "GET /api/v1/plattform/schalter": {
     erwartet: {
       ...alle(403),
@@ -2402,8 +2402,6 @@ const MATRIX: Record<string, Zeile> = {
     body: () => ({ art: "wartung", bereich: "chat" }),
     erwartet: {
       ...alle(403),
-      admin: 200,
-      demoAdmin: 200,
       deaktiviert: 401,
       ohneLogin: 401,
     },
@@ -2412,8 +2410,6 @@ const MATRIX: Record<string, Zeile> = {
     url: () => "/api/v1/plattform/schalter?art=wartung&bereich=chat",
     erwartet: {
       ...alle(403),
-      admin: 204,
-      demoAdmin: 204,
       deaktiviert: 401,
       ohneLogin: 401,
     },

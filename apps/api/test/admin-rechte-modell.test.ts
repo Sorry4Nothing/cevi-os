@@ -23,10 +23,10 @@ const katalog = {
       id: "wartungsmodus.website",
       bereich: "website",
       klartext: "Wartung",
-      art: "vergebbar",
-      geltungen: ["alle"],
+      art: "fest",
+      geltungen: [],
       gruppenrolle: false,
-      nurEntwickler: false,
+      nurEntwickler: true,
     },
     {
       id: "anlass.anmeldungen_sehen",
@@ -160,7 +160,12 @@ describe("Katalog und Vorschläge", () => {
     expect(
       m.rechteFuer(katalog, "gruppe").map((r: { id: string }) => r.id),
     ).toEqual(["seiten.bearbeiten", "anlass.anmeldungen_sehen"]);
-    expect(m.rechteFuer(katalog, "global")).toHaveLength(3);
+    // Der Wartungsmodus ist fest und nur für den Entwickler (#802): Er steht in keiner Matrix zum Vergeben
+    const global = m
+      .rechteFuer(katalog, "global")
+      .map((r: { id: string }) => r.id);
+    expect(global).toEqual(["seiten.bearbeiten", "anlass.anmeldungen_sehen"]);
+    expect(global).not.toContain("wartungsmodus.website");
   });
 
   test("«eigene» gibt es nur bei Gruppenrollen und nur, wo der Katalog es kennt", () => {

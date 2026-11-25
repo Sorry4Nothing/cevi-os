@@ -4632,7 +4632,7 @@ paths:
       operationId: listePlattformSchalter
       summary: Aktive Schalter der Abteilung (Wartungsmodus und Informationssperre)
       description: |
-        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle, eine Rolle mit dem Recht `wartungsmodus.website` nur die Wartung der Website, eine mit `wartung.bereiche` die Wartung von Lager, Chat, Programme und Verwaltung (#648); die Sperre und die Wartung von `alles` sieht sie nie. Wer nichts davon darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
+        Liefert die aktiven Schalter der eigenen Abteilung, aus dem Speicher des Servers ohne Datenbankabfrage. Entwickler und Abteilungsleitung sehen alle; die Abteilungsleitung liest die Wartung nur (`darfWartung: false`), schalten darf sie nur der Entwickler (#802). Wer weder die Informationssperre noch die Wartung darf, bekommt 403. Die Route bleibt auch in einem gesperrten Bereich offen.
 
         Jede Route hier braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
 
@@ -4664,7 +4664,7 @@ paths:
 
         **Wartungsmodus (`art: wartung`, #424):** Schaltet den Bereich auf `wartung`: Er ist dann nur lesbar. Lesende Anfragen (GET, HEAD, OPTIONS) laufen weiter, schreibende und die Bearbeitungsansichten der Website (`/api/v1/redaktion`, ausser `/api/v1/redaktion/ich`) antworten mit 503 `IN_WARTUNG`, dem Hinweistext und dem geplanten Ende. Entwickler und Abteilungsleitung kommen durch, die Verwaltung bleibt für sie erreichbar. `/health`, die Anmeldung und `/api/v1/plattform` sind nie in Wartung. Der Wartungsmodus endet nicht von selbst; das Ende ist nur eine Angabe für die Anzeige.
 
-        Wer schalten darf: Entwickler und Abteilungsleitung jeden Bereich und jede Art; eine andere Rolle nur die Wartung, die Website mit dem Recht `wartungsmodus.website`, Lager, Chat, Programme und Verwaltung mit `wartung.bereiche` (#648). Die Sperre und die Wartung von `alles` bleiben bei Entwickler und Abteilungsleitung (`plattform.sperren`, fest). Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
+        Wer schalten darf: Die Wartung (`art: wartung`, jeder Bereich, auch `alles` und `website`) schaltet nur der Entwickler (`wartung.bereiche` und `wartungsmodus.website`, fest und nur Entwickler, #802); die Abteilungsleitung und jede Rolle bekommen 403. Die Informationssperre schalten Entwickler und Abteilungsleitung (`plattform.sperren`, fest). Jede Schaltung braucht den zweiten Faktor (403 `ZWEITER_FAKTOR_FEHLT`). Ein erneutes Setzen ändert Hinweis und Ende. Die Schaltung steht im Audit-Log (`schalter_gesetzt`, `schalter_geaendert`, ohne den Hinweistext; bei der Sperre mit den Wünschen).
 
         Reihenfolge der Prüfungen: Recht auf irgendeine Schaltung (403), zweiter Faktor (403), Body (400, auch `sitzungenBeenden` oder `websiteOffline` bei der Wartung), Recht auf genau diese Art und diesen Bereich (403).
 
@@ -28923,7 +28923,6 @@ components:
         - medien.verwalten
         - weiterleitungen.verwalten
         - vorlagen.nutzen
-        - wartungsmodus.website
     AdminPlattformRolleAnlegen:
       type: object
       required:
@@ -40759,7 +40758,7 @@ components:
           description: Ob die Person Zugang zur Website-Verwaltung hat (Abteilungsleitung, Stufenleitung, ein Plattformrecht der Website, ein Recht auf eine Seite in `bearbeiter` oder Verantwortung für ein Team).
         bereiche:
           type: array
-          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person die Wartung schalten darf (Recht `wartungsmodus.website` oder `wartung.bereiche`, Entwickler, Abteilungsleitung); `laedeli`, `lager` und `system`, wenn die Person dort ein Recht des Katalogs abteilungsweit hat (#648). Ohne Zugang leer.
+          description: Die Bereiche des Panels, die die Person sehen darf. `website`; dazu `plattform`, wenn die Person die Wartung schalten oder die Informationssperre kennen darf (Recht `wartung.bereiche`, `wartungsmodus.website` oder `plattform.sperren`, also Entwickler und Abteilungsleitung); `laedeli`, `lager` und `system`, wenn die Person dort ein Recht des Katalogs abteilungsweit hat (#648). Ohne Zugang leer.
           items:
             type: string
             enum:
@@ -40788,7 +40787,6 @@ components:
               - medien.verwalten
               - weiterleitungen.verwalten
               - vorlagen.nutzen
-              - wartungsmodus.website
         katalogRechte:
           type: array
           description: "Alle Rechte des Rechtekatalogs, die die Person abteilungsweit hat (Geltung «alle»), so wie der Server sie durchsetzt; ohne Rechte, die jede Person hat. Sortiert, ohne Daten Dritter (#648). Die Navigation der Verwaltung folgt dieser Liste; jede Route prüft selbst."
@@ -40942,11 +40940,15 @@ components:
         - schalter
         - bereiche
         - darfSperre
+        - darfWartung
         - websiteVorhanden
       properties:
         darfSperre:
           type: boolean
           description: Ob die Person die Informationssperre sehen, auslösen und aufheben darf (Entwickler und Abteilungsleitung).
+        darfWartung:
+          type: boolean
+          description: Ob die Person den Wartungsmodus ein- und ausschalten darf. Nur der Entwickler; für alle anderen zeigt die Verwaltung den Stand nur lesend (#802).
         websiteVorhanden:
           type: boolean
           description: Ob es eine öffentliche Website gibt, die sich vom Netz nehmen lässt.
@@ -40956,7 +40958,7 @@ components:
             $ref: "#/components/schemas/PlattformSchalter"
         bereiche:
           type: array
-          description: Die Bereiche, die die Person schalten darf (für die Anzeige; jede Schaltung prüft selbst).
+          description: Die Bereiche, die die Person sperren oder (mit `darfWartung`) in Wartung setzen darf, für die Anzeige; leer, wenn sie keines von beidem darf. Jede Schaltung prüft selbst.
           items:
             $ref: "#/components/schemas/PlattformBereich"
     PlattformSchalterSetzen:

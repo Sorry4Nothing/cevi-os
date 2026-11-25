@@ -127,7 +127,7 @@ describe("Rechtekatalog", () => {
     expect(brauchtZweitenFaktor("konto.loeschen")).toBe(true);
   });
 
-  test("vergebbar seit #648: Lädeli, Lager, Betriebszahlen, Zeitregeln und die Wartung der Bereiche, alle mit zweitem Faktor", () => {
+  test("vergebbar seit #648: Lädeli, Lager, Betriebszahlen und Zeitregeln, alle mit zweitem Faktor", () => {
     for (const id of [
       "laden.ansehen",
       "laden.artikel_pflegen",
@@ -137,7 +137,6 @@ describe("Rechtekatalog", () => {
       "lager.vorlagen_pflegen",
       "system.lesen",
       "zeitregeln.verwalten",
-      "wartung.bereiche",
     ] as const) {
       expect(RECHTE_KATALOG[id].art, id).toBe("vergebbar");
       expect(RECHTE_KATALOG[id].risiko, id).toBe("erweitert");
@@ -148,9 +147,24 @@ describe("Rechtekatalog", () => {
     expect(RECHTE_KATALOG["rechte.verwalten"].art).toBe("fest");
   });
 
-  test("Gruppenrollen tragen alles Vergebbare ausser dem Wartungsmodus der Website", () => {
-    expect(GRUPPENROLLEN_RECHTE).not.toContain("wartungsmodus.website");
-    expect(GRUPPENROLLEN_RECHTE.length).toBe(VERGEBBARE_RECHTE.length - 1);
+  test("der Wartungsmodus ist fest und nur für den Entwickler (#802): nie vergebbar, weder an Rollen noch an Gruppenrollen noch an die Abteilungsleitung", () => {
+    for (const id of ["wartung.bereiche", "wartungsmodus.website"] as const) {
+      const e = RECHTE_KATALOG[id] as { art: string; nurEntwickler?: true };
+      expect(e.art, id).toBe("fest");
+      expect(e.nurEntwickler, id).toBe(true);
+      expect(VERGEBBARE_RECHTE as readonly string[], id).not.toContain(id);
+      expect(GRUPPENROLLEN_RECHTE as readonly string[], id).not.toContain(id);
+      expect(brauchtZweitenFaktor(id), id).toBe(true);
+    }
+    // Die Informationssperre bleibt bei der Abteilungsleitung
+    expect(
+      (RECHTE_KATALOG["plattform.sperren"] as { nurEntwickler?: true })
+        .nurEntwickler,
+    ).toBeUndefined();
+  });
+
+  test("Gruppenrollen tragen alles Vergebbare", () => {
+    expect(GRUPPENROLLEN_RECHTE).toEqual(VERGEBBARE_RECHTE);
   });
 
   test("ein Name, den der Katalog nicht kennt, ist kein Recht (auch «toString»)", () => {

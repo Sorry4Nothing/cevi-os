@@ -166,7 +166,7 @@ const auditZeilen = (aktion: string, zielId: string) =>
     );
 
 describe("Rechtekatalog", () => {
-  test("jedes Recht ist erweitert; die Vorgabe des Webmasters ist alles ausser dem Wartungsmodus", () => {
+  test("jedes Recht ist erweitert; die Vorgabe des Webmasters ist alles; der Wartungsmodus steht nicht darin (#802)", () => {
     expect(PLATTFORM_RECHT_NAMEN).toEqual([
       "seiten.bearbeiten",
       "seiten.veroeffentlichen",
@@ -174,14 +174,11 @@ describe("Rechtekatalog", () => {
       "medien.verwalten",
       "weiterleitungen.verwalten",
       "vorlagen.nutzen",
-      "wartungsmodus.website",
     ]);
     for (const recht of PLATTFORM_RECHT_NAMEN) {
       expect(PLATTFORM_RECHTE[recht].erweitert, recht).toBe(true);
     }
-    expect(WEBMASTER_VORGABE).toEqual(
-      PLATTFORM_RECHT_NAMEN.filter((r) => r !== "wartungsmodus.website"),
-    );
+    expect(WEBMASTER_VORGABE).toEqual(PLATTFORM_RECHT_NAMEN);
   });
 
   test("nur Namen des Katalogs gelten, auch nicht «toString» und Verwandte", () => {
@@ -232,14 +229,14 @@ describe("hatPlattformRecht", () => {
   test("mehrere Rollen: die Rechte werden vereinigt, mit einer Abfrage je Person und Anfrage", async () => {
     const konto = await neuePerson("leitendeA");
     const eins = await rolleAnlegen(["medien.verwalten"]);
-    const zwei = await rolleAnlegen(["wartungsmodus.website"]);
+    const zwei = await rolleAnlegen(["vorlagen.nutzen"]);
     await vergebe(konto, eins);
     await vergebe(konto, zwei);
     abfragen.length = 0;
     const p = person(konto);
     expect([...(await plattformRechteVon(zaehlDb, p))].sort()).toEqual([
       "medien.verwalten",
-      "wartungsmodus.website",
+      "vorlagen.nutzen",
     ]);
     expect(await hatPlattformRecht(zaehlDb, p, "medien.verwalten")).toBe(true);
     expect(await hatPlattformRecht(zaehlDb, p, "seiten.bearbeiten")).toBe(
