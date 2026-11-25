@@ -71,11 +71,12 @@ describe("Gerüst der Termine: Panel der Abteilungsleitung", () => {
 
   test("navigation.js bindet jedes Modul-Skript der Termine ein, und der Bereich «termine» steht dort", () => {
     const navigation = lies("../../public/admin/navigation.js");
-    // termine-monat.js ist ein Baustein des Kalenders (kein Modul einer Unterseite), termine-kalender.js lädt ihn; termine-anmeldungen.js leitet nur um
+    // termine-monat.js und termine-tags.js (#835) sind Bausteine des Kalenders und der Warnliste (kein Modul einer Unterseite); termine-anmeldungen.js leitet nur um
     for (const datei of dateien.filter(
       (d) =>
         /^termine-.*\.js$/.test(d) &&
         d !== "termine-monat.js" &&
+        d !== "termine-tags.js" &&
         // Weiterleitung der alten Adresse «Anmeldungen» (#608), solange die Navigation sie noch nennt
         d !== "termine-anmeldungen.js",
     )) {

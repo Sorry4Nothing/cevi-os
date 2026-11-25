@@ -18,7 +18,7 @@ import { pushEntscheid } from "../../termine/vorschlag-push.js";
 import type { Fcm } from "../../push.js";
 import type { TermineEnv } from "./index.js";
 
-// Terminvorschläge entscheiden (#440, Epic #430): Das Recht «Terminvorschläge entscheiden» (rechtemodell/katalog.ts, erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einstellbar für Rollen (#649). Erst den Vorschlag der eigenen Abteilung laden (fremd = 404), dann das Recht (403). Cevi OS schreibt nie nach Outlook: «freigegeben» heisst, die Abteilungsleitung trägt den Termin dort von Hand ein und meldet es dann mit /eingetragen.
+// Terminvorschläge entscheiden (#440, Epic #430): Das Recht «Terminvorschläge entscheiden» (rechtemodell/katalog.ts, erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einstellbar für Rollen (#649). Erst den Vorschlag der eigenen Abteilung laden (fremd = 404), dann das Recht (403). Cevi OS legt Termine nie in Outlook an (Kategorien schreibt es seit #835, nur mit der Anbindung): «freigegeben» heisst, die Abteilungsleitung trägt den Termin dort von Hand ein und meldet es dann mit /eingetragen.
 const STATI = [
   "offen",
   "freigegeben",

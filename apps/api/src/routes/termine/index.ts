@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import type { CeviDbDienst } from "../../cevi-db/dienst.js";
 import type { Db } from "../../db/client.js";
+import type { OutlookDienst } from "../../outlook/dienst.js";
 import type { Fcm } from "../../push.js";
 import type { Person } from "../../rechte.js";
 import { erstelleAdminRaeumeRouten } from "./admin-raeume.js";
@@ -14,6 +15,7 @@ import { erstelleKategorieZuordnungenRouten } from "./kategorie-zuordnungen.js";
 import { erstelleMeinRouten } from "./mein.js";
 import { erstelleRaeumeRouten } from "./raeume.js";
 import { erstelleRaumAnfragenRouten } from "./raum-anfragen.js";
+import { erstelleTerminTagsRouten } from "./termin-tags.js";
 import { erstelleVorschlaegeRouten } from "./vorschlaege.js";
 import { erstelleWarnungenRouten } from "./warnungen.js";
 
@@ -31,10 +33,12 @@ export function erstelleTermineRouten({
   db,
   fcm,
   ceviDb,
+  outlook,
 }: {
   db: Db;
   fcm?: Fcm;
   ceviDb?: CeviDbDienst;
+  outlook?: OutlookDienst;
 }) {
   return new Hono<TermineEnv>()
     .route("/", erstelleAlleRouten({ db }))
@@ -45,6 +49,7 @@ export function erstelleTermineRouten({
     .route("/", erstelleWarnungenRouten({ db }))
     .route("/", erstelleKalenderLinkRouten({ db }))
     .route("/", erstelleKategorieZuordnungenRouten({ db }))
+    .route("/", erstelleTerminTagsRouten({ db, outlook }))
     .route("/", erstelleVorschlaegeRouten({ db, fcm }))
     .route("/", erstelleAdminVorschlaegeRouten({ db, fcm }))
     .route("/", erstelleRaeumeRouten({ db }))

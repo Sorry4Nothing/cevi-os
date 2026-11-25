@@ -33,6 +33,8 @@ import * as schema from "./db/schema.js";
 import { erstelleFcm } from "./fcm.js";
 import { erstelleFlickr } from "./fotos/flickr.js";
 import { starteKalenderSync, synchronisiere } from "./kalender/sync.js";
+import { erstelleOutlookDienst } from "./outlook/dienst.js";
+import { starteOutlookLauf, verarbeiteOutlook } from "./outlook/lauf.js";
 import { loescheGeleseneBenachrichtigungen } from "./lager/benachrichtigung.js";
 import { raeumeDateienOhneVerweisAuf } from "./lager/datei-verweise.js";
 import {
@@ -170,10 +172,23 @@ const websiteSperre =
         seiten.zeichen.holen,
       )
     : undefined;
+// Schreibanbindung an Outlook (#835): nur mit OUTLOOK_GRAPH=true (die Konfiguration verlangt dann Mandant und Client-ID); sonst liest der Server den Kalender wie bisher nur über den Feed
+const outlook =
+  konfiguration.OUTLOOK_GRAPH === "true" &&
+  konfiguration.OUTLOOK_TENANT_ID &&
+  konfiguration.OUTLOOK_CLIENT_ID
+    ? erstelleOutlookDienst(db, {
+        tenant: konfiguration.OUTLOOK_TENANT_ID,
+        clientId: konfiguration.OUTLOOK_CLIENT_ID,
+        graphBasis: konfiguration.OUTLOOK_GRAPH_BASIS,
+        loginBasis: konfiguration.OUTLOOK_LOGIN_BASIS,
+      })
+    : undefined;
 // Derselbe Lauf für den Takt im Hintergrund und den Knopf in der Verwaltung
 const kalenderLauf = () =>
   synchronisiere({
     datenbankUrl: konfiguration.DATABASE_URL,
+    outlook,
   });
 // Aktivitätsprotokoll (#637): Ereignisse ohne Anfrage (Läufe, Versand) kommen über log() hinein; der Start steht als eigene Zeile
 const aktivitaet = erstelleAktivitaetsprotokoll(db);
@@ -195,6 +210,7 @@ const app = erstelleApp({
   auth,
   fcm,
   ceviDb,
+  outlook,
   // Adresssuche der Orte (#695): Suche des Bundes, mit Zwischenspeicher und Obergrenze
   ortssuche: erstelleOrtssuche(sucheBeiGeoAdmin),
   kodiereBild: kodiereProfilbild,
@@ -218,6 +234,7 @@ const app = erstelleApp({
 // Ohne hostname auf allen Schnittstellen: Der Dev-Build auf dem Handy erreicht die API im LAN; in Produktion öffnet nur Caddy Ports
 serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
+if (outlook) starteOutlookLauf(() => verarbeiteOutlook(db, outlook));
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
 // Abgelaufene Herausforderungen und Tickets des App-Nachweises (#785)
 if (appNachweis) {

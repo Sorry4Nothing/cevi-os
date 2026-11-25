@@ -24,7 +24,7 @@ import type { TermineEnv } from "./index.js";
 const VORSCHLAEGE = 20;
 const FENSTER_MS = 10 * 60_000;
 
-// Terminvorschläge einreichen (#439, Epic #430). Vorschlagen darf, wer das Recht «Termine vorschlagen» hat (rechtemodell/katalog.ts, Annahme A9: Abteilungsleitung, Stufenleitung, Leitung, Team und Funktion; einstellbar, #649); lesen und zurückziehen darf jede Person ihre eigenen, wer Vorschläge entscheiden darf liest jeden der Abteilung. Ein Vorschlag einer anderen Abteilung oder einer anderen Person (ohne Leserecht) ist 404. Entscheiden gehört zu #440. Cevi OS schreibt nie nach Outlook
+// Terminvorschläge einreichen (#439, Epic #430). Vorschlagen darf, wer das Recht «Termine vorschlagen» hat (rechtemodell/katalog.ts, Annahme A9: Abteilungsleitung, Stufenleitung, Leitung, Team und Funktion; einstellbar, #649); lesen und zurückziehen darf jede Person ihre eigenen, wer Vorschläge entscheiden darf liest jeden der Abteilung. Ein Vorschlag einer anderen Abteilung oder einer anderen Person (ohne Leserecht) ist 404. Entscheiden gehört zu #440. Cevi OS legt Termine nie in Outlook an (Kategorien schreibt es seit #835, nur mit der Anbindung)
 export function erstelleVorschlaegeRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
   // shortcut: Zähler im Arbeitsspeicher, ein Neustart setzt ihn zurück und mehrere Instanzen zählen getrennt; in die Datenbank, sobald die API auf mehr als einer Instanz läuft
   const versuche = new Map<string, number[]>();
