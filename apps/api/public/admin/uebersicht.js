@@ -4,7 +4,7 @@
 // Aufbau: Karten im Zwölfspaltenraster in der Breite der Website (4/8, Band, 7/5, 5/7, Streifen), auf schmalem Schirm eine Spalte. Fehlt das Hauptdiagramm (Stufenleitung, Webmaster), stehen die vorhandenen Karten in einer Reihe. Bausteine: uebersicht-kacheln.js (Aufgaben, Kennzahlen, Zustand), uebersicht-verlauf.js (Hauptdiagramm), uebersicht-kommend.js (Kommendes, Aktivität, Teilnahme), uebersicht-diagramme.js (Zeichenhilfen), Stile in uebersicht.css.
 // Fehlt ein Teil (kein Recht), fehlt seine Karte. Scheitert ein Teil auf dem Server, zeigt nur diese Karte «Nochmals versuchen».
 import { anfrage } from "./api.js";
-import { el, knopf } from "./dom.js";
+import { el, knopf, rufname } from "./dom.js";
 import { sk } from "./lader.js";
 import {
   aufgabenKarte,
@@ -62,15 +62,13 @@ function melde(ctx, a) {
   z("raeume", "anfragen", a.raumanfragen);
 }
 
-// «Guten Morgen, Anna»: Tageszeit in Schweizer Zeit, Vorname aus dem eigenen Konto
+// «Guten Morgen, Anna»: Tageszeit in Schweizer Zeit, Rufname (Cevi-Name, sonst Vorname) aus dem eigenen Konto
 function gruss(ctx) {
   const std = Number(stunde.format(new Date()));
   const teil =
     std < 11 ? "Guten Morgen" : std < 17 ? "Guten Tag" : "Guten Abend";
-  const vorname = String(ctx.ich.name ?? "")
-    .trim()
-    .split(/\s+/)[0];
-  return vorname ? `${teil}, ${vorname}` : teil;
+  const name = rufname({ name: ctx.ich.name, ceviName: ctx.ich.ceviName });
+  return name ? `${teil}, ${name}` : teil;
 }
 
 // Ein Satz zum Stand: was offen ist und was als Nächstes ansteht (nur Titel und Zeit, nie Personen)
