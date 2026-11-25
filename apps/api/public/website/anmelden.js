@@ -1,6 +1,6 @@
-// Anmeldung auf der Website (#354, Design W9): dieselben Aufrufe wie die Verwaltung unter /api/auth (Rate-Limit und Sperre nach Fehlversuchen gelten dort), gleiche Herkunft, das Cookie setzt der Server.
+// Die einzige Anmeldeseite (#354, Design W9; seit #818 auch für die Verwaltung unter /admin): Aufrufe unter /api/auth (Rate-Limit und Sperre nach Fehlversuchen gelten dort), gleiche Herkunft, das Cookie setzt der Server.
 // Das Passwort geht nur als JSON im Body hin, nie in eine Adresse; es wird nach dem Absenden aus dem Feld gelöscht und nirgends gespeichert oder protokolliert.
-import { sicheresZiel } from "./weiter.js";
+import { sicheresRueckziel } from "./weiter.js";
 import { band, el, holeMitFrist, symbol } from "./ui.js";
 import { merkeToast, toast } from "./toast.js";
 
@@ -14,8 +14,9 @@ const code = $("code");
 const ersatz = $("ersatz");
 const zeigen = $("zeigen");
 
-// Nur ein Pfad dieser Website (siehe weiter.js)
-const ziel = sicheresZiel(new URLSearchParams(location.search).get("weiter"));
+// Nur ein Pfad dieser Website oder die Verwaltung (siehe weiter.js)
+const anfrageDerSeite = new URLSearchParams(location.search);
+const ziel = sicheresRueckziel(anfrageDerSeite.get("weiter"));
 
 // Gleicher Text für falsches Konto und falsches Passwort: Er verrät nicht, ob es das Konto gibt
 const TEXTE = {
@@ -27,6 +28,13 @@ const TEXTE = {
   netz: ["Keine Verbindung.", "Prüfe dein Internet und versuche es nochmals."],
   codeFalsch: ["Der Code stimmt nicht.", "Prüfe ihn und versuche es nochmals."],
   abgelaufen: ["Die Anmeldung ist abgelaufen.", "Melde dich nochmals an."],
+};
+// Hinweise, mit denen die Verwaltung zur Anmeldung schickt («grund» in der Adresse): feste Texte, nie ein Wert aus der Adresse
+const GRUENDE = {
+  abgemeldet: ["Du bist abgemeldet.", ""],
+  alle: ["Du bist auf allen Geräten abgemeldet.", ""],
+  sitzung: ["Die Sitzung ist abgelaufen.", "Melde dich nochmals an."],
+  code: ["Für die Verwaltung braucht es den Code.", "Melde dich neu an."],
 };
 // Falsche Angaben stehen am Feld und oben im Band; was die Anmeldung als Ganzes betrifft (Netz, Sperre, abgelaufen) ist ein Toast (#762)
 const TOAST = { zuViele: "fehler", netz: "fehler", abgelaufen: "info" };
@@ -121,7 +129,8 @@ async function sende(pfad, body) {
 // Ein Konto mit Startpasswort darf bis zum Wechsel nur sein Profil lesen (Pflichtwechsel): Die Anmeldung führt dann zu «Mein Konto», wo der Wechsel steht. Auf der Zielseite sähe die Person nichts von der Anmeldung (der Kopf bekommt ein 403)
 // Der Toast «Angemeldet.» erscheint auf der Seite, zu der es weitergeht (#762)
 async function weiter() {
-  merkeToast("Angemeldet.");
+  // Die Verwaltung zeigt keinen solchen Toast: Er bliebe bis zur nächsten Seite der Website liegen
+  if (!ziel.startsWith("/admin")) merkeToast("Angemeldet.");
   let sitzung = null;
   try {
     const r = await fetch("/api/auth/get-session", {
@@ -169,6 +178,15 @@ function zeigeAnmeldung(schluessel) {
   raeumeFehler();
   if (schluessel) zeigeMeldung(schluessel);
   benutzername.focus();
+}
+
+// Wer von der Verwaltung kommt, sieht zuerst, warum (ein ruhiger Hinweis, nicht als Fehler)
+const grundKey = anfrageDerSeite.get("grund");
+const grund = Object.hasOwn(GRUENDE, grundKey) ? GRUENDE[grundKey] : null;
+if (grund) {
+  const hinweis = band("", grund[0], grund[1], "info");
+  hinweis.setAttribute("role", "status");
+  meldung.replaceChildren(hinweis);
 }
 
 zeigen.addEventListener("click", () => {

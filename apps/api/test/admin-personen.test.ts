@@ -309,6 +309,7 @@ describe("GET /api/v1/admin/personen", () => {
       "deaktiviert",
       "elternteilVon",
       "entwickler",
+      "geschlecht",
       "id",
       "mussPasswortAendern",
       "name",
@@ -460,6 +461,65 @@ describe("Cevi-Name", () => {
         })
       ).status,
     ).toBe(400);
+  });
+});
+
+describe("Geschlecht (#817)", () => {
+  const geschlechtVon = async (id: string) =>
+    (
+      (await (await anfrage(admin, "GET")).json()) as {
+        personen: { id: string; geschlecht: string | null }[];
+      }
+    ).personen.find((p) => p.id === id)!.geschlecht;
+
+  test("ohne Angabe null; beim Anlegen gesetzt, über PATCH geändert und entfernt; ohne den Schlüssel bleibt es", async () => {
+    const ohne = await legePersonAn();
+    expect(await geschlechtVon(ohne.id)).toBeNull();
+    const mit = await legePersonAn({ geschlecht: "w" });
+    expect(await geschlechtVon(mit.id)).toBe("w");
+    expect(
+      (await anfrage(admin, "PATCH", `/${mit.id}`, { geschlecht: "m" })).status,
+    ).toBe(204);
+    expect(await geschlechtVon(mit.id)).toBe("m");
+    await anfrage(admin, "PATCH", `/${mit.id}`, { name: "Neuer Name" });
+    expect(await geschlechtVon(mit.id)).toBe("m");
+    await anfrage(admin, "PATCH", `/${mit.id}`, { geschlecht: "d" });
+    expect(await geschlechtVon(mit.id)).toBe("d");
+    await anfrage(admin, "PATCH", `/${mit.id}`, { geschlecht: null });
+    expect(await geschlechtVon(mit.id)).toBeNull();
+  });
+
+  test.each([["x"], ["W"], [""], [1], [true]])(
+    "der Wert %j ergibt 400 und ändert nichts",
+    async (wert) => {
+      const person = await legePersonAn({ geschlecht: "w" });
+      expect(
+        (await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: wert }))
+          .status,
+      ).toBe(400);
+      expect(
+        (await anfrage(admin, "POST", "", anlegenBody({ geschlecht: wert })))
+          .status,
+      ).toBe(400);
+      expect(await geschlechtVon(person.id)).toBe("w");
+    },
+  );
+
+  test("die Datenbank lehnt einen anderen Wert ab", async () => {
+    const person = await legePersonAn();
+    await expect(
+      sql`update "user" set geschlecht = 'x' where id = ${person.id}`,
+    ).rejects.toThrow(/user_geschlecht_check/);
+  });
+
+  test("ohne das Recht Personen zu verwalten geht es nicht (403)", async () => {
+    const person = await legePersonAn();
+    const eltern = await legePersonaAn(welt, "elternA");
+    expect(
+      (await anfrage(eltern, "PATCH", `/${person.id}`, { geschlecht: "w" }))
+        .status,
+    ).toBe(403);
+    expect(await geschlechtVon(person.id)).toBeNull();
   });
 });
 

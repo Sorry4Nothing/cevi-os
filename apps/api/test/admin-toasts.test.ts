@@ -32,7 +32,6 @@ const GRUENDE: Record<string, string> = {
 
 // Datei: [role="status", role="alert", aria-live, Klasse hinweis, Gründe]
 const ERLAUBT: Record<string, [number, number, number, number, string]> = {
-  "admin.js": [1, 1, 0, 2, "absenden+dauerhaft"],
   "aktionen.js": [1, 1, 0, 1, "entscheidung+ansage"],
   "anlass-anmeldungen.js": [3, 1, 0, 1, "zustand+dauerhaft+ansage"],
   "anlass-felder.js": [2, 1, 0, 2, "entscheidung+dauerhaft+absenden+ansage"],

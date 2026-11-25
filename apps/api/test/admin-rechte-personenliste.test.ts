@@ -41,7 +41,7 @@ const nichts = {
 describe("Personenliste von «Was darf wer?»", () => {
   test("die Rolle steht im Klartext, mehrere mit Komma, ohne Rolle leer", () => {
     expect(m.rolleText(lua1, stufen)).toBe("Stufenleitung Artemis");
-    expect(m.rolleText(lua2, stufen)).toBe("Leitung Exodus");
+    expect(m.rolleText(lua2, stufen)).toBe("Gruppenleitung Exodus");
     expect(m.rolleText(chef, stufen)).toBe("Abteilungsleitung");
     expect(m.rolleText(nichts, stufen)).toBe("");
     expect(m.rolleText({ ...chef, rollen: lua1.rollen }, stufen)).toBe(
@@ -49,6 +49,19 @@ describe("Personenliste von «Was darf wer?»", () => {
     );
     // Eine Stufe, die es nicht mehr gibt, lässt die Rolle ohne Namen stehen
     expect(m.rolleText(lua1, new Map())).toBe("Stufenleitung");
+  });
+
+  test("die Rolle folgt dem Geschlecht der Person, die Suche findet beide Formen (#817)", () => {
+    const frau = { ...lua1, geschlecht: "w" };
+    const mann = { ...lua2, geschlecht: "m" };
+    expect(m.rolleText(frau, stufen)).toBe("Stufenleiterin Artemis");
+    expect(m.rolleText(mann, stufen)).toBe("Gruppenleiter Exodus");
+    expect(m.rolleText({ ...frau, geschlecht: "d" }, stufen)).toBe(
+      "Stufenleitung Artemis",
+    );
+    const [z] = m.listenZeilen([frau], stufen);
+    expect(m.passtZurSuche(z, "stufenleiterin")).toBe(true);
+    expect(m.passtZurSuche(z, "stufenleitung")).toBe(true);
   });
 
   test("gleiche Namen bekommen Cevi-Name und Benutzername als Merkmal, die anderen nicht", () => {

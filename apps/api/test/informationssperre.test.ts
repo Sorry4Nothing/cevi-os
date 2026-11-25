@@ -554,16 +554,23 @@ describe("Informationssperre: öffentliche Website vom Netz", () => {
         "sitemap.xml",
         "robots.txt",
         "website/website.css",
+        "website/anmelden.js",
+        "website/person-0123456789abcdef.jpg",
+        "anmelden/index.html",
         "weiterleitungen.caddy",
       ]) {
         await ausgabeFs.schreibe(datei, `Inhalt ${datei}`);
       }
       const sperreFs = erstelleWebsiteSperre(ausgabeFs, "abteilung");
       await sperreFs.nimmVomNetz();
+      // Die gemeinsame Anmeldeseite bleibt mit Skript und Stil (#818); Seiten, Bilder der Personen und die Sitemap nicht
       expect(await ausgabeFs.liste()).toEqual([
         "404.html",
+        "anmelden/index.html",
         "gesperrt.css",
         "index.html",
+        "website/anmelden.js",
+        "website/website.css",
         "weiterleitungen.caddy",
       ]);
       expect(await readFile(join(wurzel, "index.html"), "utf8")).toBe(
@@ -571,7 +578,12 @@ describe("Informationssperre: öffentliche Website vom Netz", () => {
       );
       expect(HINWEISSEITE).not.toMatch(/<script|https?:\/\//);
       await sperreFs.gibFrei();
-      expect(await ausgabeFs.liste()).toEqual(["weiterleitungen.caddy"]);
+      expect(await ausgabeFs.liste()).toEqual([
+        "anmelden/index.html",
+        "website/anmelden.js",
+        "website/website.css",
+        "weiterleitungen.caddy",
+      ]);
     } finally {
       await rm(wurzel, { recursive: true, force: true });
     }

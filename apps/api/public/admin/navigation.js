@@ -7,6 +7,7 @@
 //   start      (am Bereich) die Unterseite, auf der die Bereichsleiste landet; sonst die erste
 // Adressen (Hash): #<bereich> · #<bereich>/<unterseite> · #<bereich>/<unterseite>/<rest…>. Bei einem Bereich mit nur einer Unterseite gehört alles nach dem Bereich dem Modul (#<bereich>/<rest>).
 
+import { rollenName } from "./rollenname.js";
 import { siehtAlles } from "./sicht.js";
 
 export const BEREICHE = [
@@ -410,7 +411,7 @@ export function darfSehen(
 }
 
 // Rolle unter dem Namen im Kopf, nur zur Anzeige (die Rechte entscheidet der Server): was die Person tatsächlich ist, nicht ein Sammelwort
-// profil: Antwort von GET /api/v1/ich (rollen, stufen) oder null; zugang: Antwort von GET /api/v1/redaktion/ich
+// profil: Antwort von GET /api/v1/ich (rollen, stufen, geschlecht) oder null; zugang: Antwort von GET /api/v1/redaktion/ich
 export function rolleVon({
   abteilungsleitung = false,
   entwickler = false,
@@ -429,9 +430,15 @@ export function rolleVon({
   const teile = [];
   if (entwickler) teile.push("Entwickler");
   const sl = namen("stufenleitung");
-  if (sl.length > 0) teile.push(`Stufenleitung ${sl.join(", ")}`);
+  if (sl.length > 0)
+    teile.push(
+      `${rollenName("stufenleitung", profil?.geschlecht)} ${sl.join(", ")}`,
+    );
   const leitung = namen("leitung");
-  if (leitung.length > 0) teile.push(`Leitung ${leitung.join(", ")}`);
+  if (leitung.length > 0)
+    teile.push(
+      `${rollenName("leitung", profil?.geschlecht)} ${leitung.join(", ")}`,
+    );
   const rechte = zugang?.rechte ?? [];
   if (rechte.some((r) => !r.startsWith("wartungsmodus."))) {
     teile.push("Website-Redaktion");
@@ -483,3 +490,11 @@ export const adresseVon = (bereich, unter) =>
   unter.schluessel === bereich.unter[0].schluessel && bereich.unter.length === 1
     ? `#${bereich.schluessel}`
     : `#${bereich.schluessel}/${unter.schluessel}`;
+
+// Die Anmeldeseite der Website (#818) mit Rücksprung in die Verwaltung an dieselbe Stelle («hash» wie location.hash, mit «#» oder leer). Die Seite prüft den Rücksprung selbst (website/weiter.js)
+// grund: Schlüssel eines festen Hinweises dort («abgemeldet», «alle», «sitzung», «code»)
+export function anmeldeAdresse(hash, grund) {
+  const anfrage = new URLSearchParams({ weiter: `/admin${hash}` });
+  if (grund) anfrage.set("grund", grund);
+  return `/anmelden?${anfrage}`;
+}

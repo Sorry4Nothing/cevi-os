@@ -451,11 +451,15 @@ describe("Fehler- und Wartungsseiten (#567)", () => {
     expect(HINWEISSEITE).toContain('<a href="">Nochmals versuchen</a>');
     // Der Weg für Berechtigte (#803): ein einfacher Link, nur dieser Verweis ausser der eigenen Seite
     expect(HINWEISSEITE).toContain(
-      '<a class="anmelden" href="/admin#system/plattform">Für Berechtigte: Anmelden</a>',
+      '<a class="anmelden" href="/anmelden?weiter=%2Fadmin%23system%2Fplattform">Für Berechtigte: Anmelden</a>',
     );
     expect(
       [...HINWEISSEITE.matchAll(/href="([^"]*)"/g)].map((m) => m[1]),
-    ).toEqual(["/gesperrt.css", "", "/admin#system/plattform"]);
+    ).toEqual([
+      "/gesperrt.css",
+      "",
+      "/anmelden?weiter=%2Fadmin%23system%2Fplattform",
+    ]);
     // Neutral: kein Wort zu Anlass, Sperre, Daten oder Panne
     expect(HINWEISSEITE).not.toMatch(
       /sperre|daten|panne|vorfall|sicherheit|angriff/i,
