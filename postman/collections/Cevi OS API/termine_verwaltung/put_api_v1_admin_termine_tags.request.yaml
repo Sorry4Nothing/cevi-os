@@ -1,0 +1,27 @@
+$kind: http-request
+name: "PUT /api/v1/admin/termine/tags"
+order: 698000
+method: PUT
+url: "{{baseUrl}}/api/v1/admin/termine/tags"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "terminIds": [
+        "01a21447-3a95-761f-bbab-156ba42039d1"
+      ],
+      "tagIds": [
+        "01a21447-3a98-7ee3-af32-850c5dd9cb06"
+      ]
+    }

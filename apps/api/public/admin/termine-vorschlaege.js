@@ -25,7 +25,7 @@ import {
   zustandsKarte,
 } from "./zustaende.js";
 
-// Unterseite «Vorschläge» (A9, A10, Epic #430): Die Abteilungsleitung prüft Terminvorschläge, gibt sie frei oder lehnt sie ab und meldet freigegebene als in Outlook eingetragen. Cevi OS schreibt nie nach Outlook: Die Schnittstelle zum Schreiben gibt es nicht, darum ist «Freigeben» immer die Fassung «Verbindung nicht eingerichtet» des Designs.
+// Unterseite «Vorschläge» (A9, A10, Epic #430): Die Abteilungsleitung prüft Terminvorschläge, gibt sie frei oder lehnt sie ab und meldet freigegebene als in Outlook eingetragen. Cevi OS legt Termine nie in Outlook an (Kategorien schreibt es seit #835, nur mit der Anbindung): Die Schnittstelle zum Schreiben gibt es nicht, darum ist «Freigeben» immer die Fassung «Verbindung nicht eingerichtet» des Designs.
 // Adressen: #termine/vorschlaege (offene) · #termine/vorschlaege/<status> (freigegeben, abgelehnt, eingetragen) · #termine/vorschlaege/<id> (ein Vorschlag, die Liste zeigt seinen Stand)
 // Datenbanklast: eine Abfrage der Liste beim Öffnen, beim Wechsel des Stands und je «Weitere laden» (50 Zeilen); eine Abfrage des Details je Auswahl und je Entscheid. Kein Polling. Die Rechte prüft der Server.
 

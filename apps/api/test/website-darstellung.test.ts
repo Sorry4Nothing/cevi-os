@@ -821,7 +821,11 @@ describe("Abgleich", () => {
         .values({ abteilungId, typ: "team", name: "Küchenteam", kuerzel: "KT" })
         .returning()
     )[0]!.id;
-    await termin("Programm Wölfe", 3, { tags: [woelfe, team] });
+    await termin("Programm Wölfe", 3, { tags: [woelfe] });
+    // Fail-closed (#835): ohne Tag, mit Tag der Leitung oder gemischt nie öffentlich
+    await termin("Ohne Tag", 3);
+    await termin("Nur Küchenteam", 3, { tags: [team] });
+    await termin("Wölfe und Küchenteam", 3, { tags: [woelfe, team] });
     const mitSeite = await termin("Weihnachtsfest", 5, {
       anlass: "oeffentlich",
     });

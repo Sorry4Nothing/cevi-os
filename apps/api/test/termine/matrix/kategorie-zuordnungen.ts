@@ -1,5 +1,6 @@
 import * as schema from "../../../src/db/schema.js";
 import type { Welt } from "../../hilfen/personas.js";
+import { legeProgrammAn } from "../../hilfen/programme.js";
 import type { TermineMatrix, TerminePersona } from "../matrix.js";
 
 // Matrix-Zeilen von TA3 (#434): Kategorie-Zuordnungen verwalten. Literale Werte, beobachtet und von Hand gegengelesen, nie aus der Policy berechnet.
@@ -50,7 +51,13 @@ async function neueZuordnung(welt: Welt) {
 }
 
 export async function VORBEREITUNG(welt: Welt) {
-  return { tag: await neuerTag(welt) };
+  // Ein eigener Termin für die Tags (#835): Die Warnliste und ihre Tests bleiben unberührt
+  const termin = await legeProgrammAn(welt.db, {
+    abteilungId: welt.testabteilungId,
+    titel: "Matrix-Termin für Tags",
+    beginn: new Date("2099-04-06T13:00:00Z"),
+  });
+  return { tag: await neuerTag(welt), termin: termin.id };
 }
 
 const BASIS = "/api/v1/admin/kategorie-zuordnungen";
@@ -70,6 +77,23 @@ export const ZEILEN: TermineMatrix = {
     body: (k) => ({
       kategorie: `Matrix ${crypto.randomUUID()}`,
       tagId: k.ids["kategorie-zuordnungen"]!.tag!,
+    }),
+  },
+  // Tags bestehender Termine setzen (#835), dasselbe Recht wie die Zuordnung. Mit dem Termin im Pfad: fremd ist 404 (auch für die fremde Abteilungsleitung); die Sammelaktion hat kein Objekt im Pfad, ihr fremder Tag ist 400
+  "PUT /api/v1/admin/termine/:id/tags": {
+    erwartet: status({
+      fremdeAbteilungsleitung: 404,
+      fremdeEltern: 404,
+    }),
+    url: (k) =>
+      `/api/v1/admin/termine/${k.ids["kategorie-zuordnungen"]!.termin}/tags`,
+    body: (k) => ({ tagIds: [k.ids["kategorie-zuordnungen"]!.tag!] }),
+  },
+  "PUT /api/v1/admin/termine/tags": {
+    erwartet: status({ fremdeAbteilungsleitung: 400, fremdeEltern: 403 }),
+    body: (k) => ({
+      terminIds: [k.ids["kategorie-zuordnungen"]!.termin!],
+      tagIds: [k.ids["kategorie-zuordnungen"]!.tag!],
     }),
   },
   // Jede Anfrage bekommt eine frische Zuordnung, weil das Löschen sie verbraucht

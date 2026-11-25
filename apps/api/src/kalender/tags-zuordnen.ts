@@ -1,6 +1,12 @@
 import { eq, inArray, sql as roh } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { kategorieZuordnung, programmTag, tag } from "../db/schema.js";
+import {
+  kategorieZuordnung,
+  outlookAenderung,
+  programmTag,
+  tag,
+} from "../db/schema.js";
+import { SCHUTZ_STUNDEN } from "../outlook/termin-tags.js";
 
 type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 
@@ -59,11 +65,41 @@ export async function ordneTagsZu(
   );
   const vorhanden = new Set(bisher.map((z) => `${z.programmId} ${z.tagId}`));
 
+  // Tags, die Cevi OS selbst geändert hat und die der Feed noch nicht zeigt (#835), dürfen nicht zurückgeschrieben werden: Zeigt der Feed dasselbe, ist die Änderung bestätigt und der Schutz endet; nach SCHUTZ_STUNDEN endet er auch ohne Bestätigung (Outlook gewinnt)
+  const geschuetzt = new Map(
+    (
+      await tx
+        .select({
+          programmId: outlookAenderung.programmId,
+          geaendertAm: outlookAenderung.geaendertAm,
+        })
+        .from(outlookAenderung)
+        .where(
+          inArray(
+            outlookAenderung.programmId,
+            programme.map((p) => p.id),
+          ),
+        )
+    ).map((z) => [z.programmId, z.geaendertAm]),
+  );
+  const schutzEnde: string[] = [];
+
   const neu: { programmId: string; tagId: string }[] = [];
   const soll = new Set<string>();
   const neuBerechnet = new Set<string>();
   for (const p of programme) {
     const ids = tagsFuerKategorien(p.kategorien, nachKategorie, tagsNachName);
+    const seit = geschuetzt.get(p.id);
+    if (seit !== undefined) {
+      const lokal = bisher.filter((z) => z.programmId === p.id);
+      const gleich =
+        lokal.length === ids.length &&
+        lokal.every((z) => ids.includes(z.tagId));
+      const abgelaufen =
+        Date.now() - seit.getTime() > SCHUTZ_STUNDEN * 3_600_000;
+      if (gleich || abgelaufen) schutzEnde.push(p.id);
+      else continue;
+    }
     if (ids.length === 0) continue;
     neuBerechnet.add(p.id);
     for (const tagId of ids) {
@@ -77,6 +113,11 @@ export async function ordneTagsZu(
       neuBerechnet.has(z.programmId) && !soll.has(`${z.programmId} ${z.tagId}`),
   );
 
+  if (schutzEnde.length > 0) {
+    await tx
+      .delete(outlookAenderung)
+      .where(inArray(outlookAenderung.programmId, schutzEnde));
+  }
   if (weg.length > 0) {
     await tx.delete(programmTag).where(
       roh`(${programmTag.programmId}, ${programmTag.tagId}) in (${roh.join(

@@ -289,6 +289,8 @@ export function monatsAnsicht({
   beiZahlen,
   ansichtswahl,
   werkzeugleiste,
+  // (termin, neuzeichnen) → Knopf «Tags ändern» oder null ohne Recht (#835)
+  tagsKnopf = () => null,
 }) {
   let daten = { termine: [], unvollstaendig: false };
   let karte = new Map();
@@ -657,6 +659,7 @@ export function monatsAnsicht({
           : t.tags.map((g) => chip(g.name, "stufe", "tag")),
         t.anlass && chip("Anlass mit Anmeldung", undefined, "haken"),
       ),
+      tagsKnopf(t, () => filterGeaendert()),
       t.anlass &&
         el(
           "a",

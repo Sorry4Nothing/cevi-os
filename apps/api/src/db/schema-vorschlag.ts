@@ -14,7 +14,7 @@ import { abteilung, user } from "./schema.js";
 
 const zeitpunkt = (name: string) => timestamp(name, { withTimezone: true });
 
-// Terminvorschläge (#439, Epic #430): Eine berechtigte Person schlägt einen Termin vor, die Abteilungsleitung entscheidet (#440). Cevi OS schreibt nie nach Outlook; «freigegeben» heisst: in Outlook von Hand einzutragen.
+// Terminvorschläge (#439, Epic #430): Eine berechtigte Person schlägt einen Termin vor, die Abteilungsleitung entscheidet (#440). Cevi OS legt Termine nie in Outlook an (Kategorien schreibt es seit #835, nur mit der Anbindung); «freigegeben» heisst: in Outlook von Hand einzutragen.
 // tag_ids sind die gewünschten Kategorien (Tags der Abteilung); die Zugehörigkeit zur Abteilung prüft die Route, kein Fremdschlüssel hält ein Array. Ein gelöschter Tag verschwindet in der Anzeige. Zurückziehen löscht die Zeile.
 export const terminVorschlag = pgTable(
   "termin_vorschlag",

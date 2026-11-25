@@ -23,11 +23,18 @@ import {
   hatRechtMitFaktor,
   verlangeEines,
 } from "../../rechtemodell/personenrechte.js";
+import { meldeKategorienAenderung } from "../../outlook/melden.js";
 import { legeSeiteFuerTagAn } from "../../website/automatik.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
 const typ = z.enum(["stufe", "funktion", "team", "lager", "anlass"]);
-const name = z.string().trim().min(1).max(100);
+// Ohne Komma und Steuerzeichen: In Outlook trennt das Komma zwei Kategorien, und der Tag-Name ist zugleich der Name der Kategorie (#835)
+const name = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .regex(/^[^,\p{Cc}]+$/u);
 const kuerzel = z.string().trim().min(1).max(20);
 const rolle = z.string().trim().min(1).max(50);
 const prioritaet = z.number().int().min(1).max(1000);
@@ -98,7 +105,14 @@ class Belegt extends Error {
   }
 }
 
-export function erstelleTagRouten({ db }: { db: Db }) {
+// outlook: true, wenn die Schreibanbindung an Outlook läuft; dann führt jede Änderung an den Namen der Tags die Kategorienliste des Postfachs nach (#835)
+export function erstelleTagRouten({
+  db,
+  outlook = false,
+}: {
+  db: Db;
+  outlook?: boolean;
+}) {
   // In SQL auf die Abteilung der Sitzung gefiltert: fremde wie unbekannte IDs sind 404, erst danach zählt das Recht (#650): Gruppen verwalten (alle) oder, für die Mitglieder, das Recht an dieser Gruppe
   async function ladeTag(
     person: Person,
@@ -224,6 +238,9 @@ export function erstelleTagRouten({ db }: { db: Db }) {
             zielId: zeile.id,
             details: { typ: felder.typ, anlassId: felder.anlassId },
           });
+          if (outlook) {
+            await meldeKategorienAenderung(tx, person.abteilungId, person.id);
+          }
           return { ...zeile, seiten };
         });
         for (const seiteId of neu.seiten) {
@@ -302,6 +319,13 @@ export function erstelleTagRouten({ db }: { db: Db }) {
                   kuerzel: felder.kuerzel !== undefined,
                 },
               });
+              if (outlook && felder.name !== undefined) {
+                await meldeKategorienAenderung(
+                  tx,
+                  person.abteilungId,
+                  person.id,
+                );
+              }
             });
           } catch (fehler) {
             if (pgCode(fehler) === "23505") return c.json(NAME_VERGEBEN, 409);
@@ -331,6 +355,9 @@ export function erstelleTagRouten({ db }: { db: Db }) {
             zielId: id,
             details: { typ: ziel.typ },
           });
+          if (outlook) {
+            await meldeKategorienAenderung(tx, person.abteilungId, person.id);
+          }
         });
       } catch (fehler) {
         // 23503: eine Zuordnung, die gleichzeitig entsteht

@@ -60,6 +60,7 @@ import { erstellePersonenRouten } from "./routes/admin/personen.js";
 import { erstelleAdminStufenRouten } from "./routes/admin/stufen.js";
 import { erstelleSystemRouten } from "./routes/admin/system.js";
 import { erstelleUebersichtRouten } from "./routes/admin/uebersicht.js";
+import type { OutlookDienst } from "./outlook/dienst.js";
 import { erstelleTagRouten } from "./routes/admin/tags.js";
 import { erstelleAdminLagerRouten } from "./routes/admin/lager.js";
 import { erstelleAdminLagerDateiRouten } from "./routes/admin/lager-dateien.js";
@@ -136,6 +137,7 @@ export function erstelleApp({
   auth,
   fcm,
   ceviDb,
+  outlook,
   wetter,
   ortssuche,
   jetzt,
@@ -159,6 +161,8 @@ export function erstelleApp({
   fcm?: Fcm;
   // Cevi-Datenbank (#691): Abruf der Personen der eigenen Ebene mit Zwischenspeicher; ohne Angabe ist die Funktion aus (die Anmeldung füllt nichts vor), die Tests spritzen einen Dienst mit einer Attrappe ein
   ceviDb?: CeviDbDienst;
+  // Schreibanbindung an Outlook (#835); ohne sie (Schalter aus) bleibt alles beim Lesen
+  outlook?: OutlookDienst;
   // Abruf der Wettervorhersage für das Lager (#391); ohne Angabe holt der Server sie bei Open-Meteo, die Tests spritzen eine Attrappe ein
   wetter?: Wetterdienst;
   // Adresssuche der Orte (#695); ohne Angabe antwortet die Suche mit 503, server.ts setzt die Suche des Bundes ein, die Tests eine Attrappe
@@ -376,7 +380,7 @@ export function erstelleApp({
       .route("/api/v1/chats", erstelleChatRouten({ db, fcm }))
       .route("/api/v1/lager", erstelleLagerRouten({ db, fcm, wetter, jetzt }))
       // Termine (Epic #430): Einstieg bei /api/v1, die Module tragen den vollen Pfad (routes/termine/index.ts)
-      .route("/api/v1", erstelleTermineRouten({ db, fcm, ceviDb }))
+      .route("/api/v1", erstelleTermineRouten({ db, fcm, ceviDb, outlook }))
       // Lädeli (#566): Laden, Bestellungen und ihre Verwaltung
       .route("/api/v1", erstelleLadenRouten({ db }))
       // Fotos aus Flickr (#690): nur angemeldet; die Verwaltung erbt den zweiten Faktor
@@ -387,7 +391,10 @@ export function erstelleApp({
       .route("/api/v1/admin/stufen", erstelleAdminStufenRouten({ db }))
       .route("/api/v1/admin/kinder", erstelleKinderRouten({ db, auth }))
       .route("/api/v1/admin/import", erstelleImportRouten({ db }))
-      .route("/api/v1/admin/tags", erstelleTagRouten({ db }))
+      .route(
+        "/api/v1/admin/tags",
+        erstelleTagRouten({ db, outlook: outlook !== undefined }),
+      )
       .route("/api/v1/admin/lager", erstelleAdminLagerRouten({ db, wetter }))
       .route("/api/v1/admin/lager", erstelleAdminLagerRechteRouten({ db }))
       .route("/api/v1/admin/vorlagen", erstelleAdminVorlagenRouten({ db }))

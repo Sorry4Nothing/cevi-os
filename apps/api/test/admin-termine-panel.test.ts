@@ -92,6 +92,7 @@ describe("Panel der Abteilungsleitung: Termine und Anlässe", () => {
       "kalenderhilfen.js",
       "termine-kalender.js",
       "termine-monat.js",
+      "termine-tags.js",
       "termine-warnliste.js",
       "termine-kategorien.js",
       "termine-outlook.js",

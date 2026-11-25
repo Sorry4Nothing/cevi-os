@@ -2108,6 +2108,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/termine-tags.js:
+    get:
+      operationId: getAdminTermineTagsSkript
+      summary: Skript der Verwaltung – Bereich Termine, Tags eines Termins ändern
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/termine-outlook.js:
     get:
       operationId: getAdminTermineOutlookSkript
@@ -23056,6 +23071,89 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/termine/{id}/tags:
+    put:
+      operationId: setzeTerminTags
+      summary: Tags eines bestehenden Termins setzen
+      description: |
+        Recht `termine.kategorien_zuordnen` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Ersetzt die Tags des Termins durch genau diese (leer entfernt alle). Cevi OS speichert zuerst lokal. Ist die Anbindung an Outlook eingeschaltet und verbunden, schreibt der Server danach nur das Feld `categories` dieses Termins in Outlook (erst lesen, nur die Differenz, fremde Kategorien bleiben), und der Lese-Abgleich überschreibt die Änderung nicht, bis Outlook sie zeigt (höchstens 24 Stunden, dann gewinnt Outlook). Prüfprotokoll `termin_tags_geaendert` mit der Zahl der Tags, nie mit Titel oder Namen.
+
+        Das Feld `outlook` der Antwort: `aus` (Schalter aus oder nicht verbunden: nur in Cevi OS gespeichert), `geschrieben` (auch in Outlook), `ausstehend` (in Cevi OS gespeichert, Outlook wird nachgeführt, zum Beispiel bei einem Ausfall).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe (höchstens 20 Tags, keine Doppelten) oder mit Code `TAG_UNBEKANNT`, wenn ein Tag nicht zur Abteilung gehört. 403 ohne Recht. 404, wenn der Termin nicht besteht oder zu einer anderen Abteilung gehört (vor der Rechteprüfung).
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Termins (UUID), in der Abteilung der Person.
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TerminTagsSetzen"
+      responses:
+        "200":
+          description: Die Tags des Termins sind gesetzt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TerminTagsErgebnis"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/termine/tags:
+    put:
+      operationId: setzeTermineTags
+      summary: Dieselben Tags für mehrere Termine setzen (Sammelaktion)
+      description: |
+        Recht `termine.kategorien_zuordnen` (erweitert: zweiter Faktor), wie `PUT /api/v1/admin/termine/{id}/tags`. Ersetzt die Tags jedes genannten Termins durch `tagIds`, in einer Transaktion: Gehört ein Termin nicht zur Abteilung, bleibt alles unverändert. Höchstens 100 Termine und 20 Tags, keine Doppelten, mindestens ein Tag. Outlook wird für diese Sammelaktion nie in der Anfrage nachgeführt: Ist die Anbindung verbunden, steht jeder Termin auf `ausstehend`, und der Lauf im Hintergrund schreibt die Kategorien (innerhalb einer Minute).
+
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder mit Code `TAG_UNBEKANNT`. 403 ohne Recht. 404, wenn ein Termin nicht zur Abteilung gehört.
+      tags:
+        - Termine
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TermineTagsSetzen"
+      responses:
+        "200":
+          description: Die Tags sind gesetzt.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TermineTagsErgebnis"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   # termine-pfade: mein (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
   /api/v1/termine/mein:
     get:
@@ -23743,7 +23841,7 @@ paths:
       operationId: entscheideTerminVorschlag
       summary: Terminvorschlag freigeben oder ablehnen
       description: |
-        Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Nie über den eigenen Vorschlag (403 `EIGENER_VORSCHLAG`). Erlaubt ist nur der Übergang `offen` zu `freigegeben` oder `abgelehnt`; sonst 409 `STATUS_UNGUELTIG`. Der Übergang ist ein bedingtes UPDATE: Bei gleichzeitigen Entscheiden gewinnt genau einer. Ablehnen braucht eine Begründung (1 bis 500 Zeichen), Freigeben hat keine. «Freigegeben» heisst: Die Abteilungsleitung trägt den Termin in Outlook von Hand ein und meldet es mit `/eingetragen`; Cevi OS schreibt nie nach Outlook.
+        Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Nie über den eigenen Vorschlag (403 `EIGENER_VORSCHLAG`). Erlaubt ist nur der Übergang `offen` zu `freigegeben` oder `abgelehnt`; sonst 409 `STATUS_UNGUELTIG`. Der Übergang ist ein bedingtes UPDATE: Bei gleichzeitigen Entscheiden gewinnt genau einer. Ablehnen braucht eine Begründung (1 bis 500 Zeichen), Freigeben hat keine. «Freigegeben» heisst: Die Abteilungsleitung trägt den Termin in Outlook von Hand ein und meldet es mit `/eingetragen`; Cevi OS legt Termine nie in Outlook an (Kategorien schreibt es seit #835, nur mit der Anbindung).
 
         Nach dem Speichern geht ein Push `termin_entscheid` (Kanal `termine`, `data.id` ist die Vorschlags-ID) an die vorschlagende Person, mit festem Text je Entscheid; nie der Titel und nie die Begründung. Das Protokoll hält ID und neuen Stand fest, nie Inhalt oder Begründung. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
 
@@ -29277,7 +29375,7 @@ components:
           type: string
           minLength: 1
           maxLength: 100
-          description: Leerraum am Rand wird entfernt. In der Abteilung eindeutig, ohne Gross-/Kleinschreibung, über alle Typen.
+          description: "Leerraum am Rand wird entfernt. In der Abteilung eindeutig, ohne Gross-/Kleinschreibung, über alle Typen. Ohne Komma und Steuerzeichen (400): Der Name ist zugleich der Name der Kategorie in Outlook, und dort trennt das Komma zwei Kategorien."
         kuerzel:
           type: string
           minLength: 1
@@ -29296,6 +29394,7 @@ components:
           type: string
           minLength: 1
           maxLength: 100
+          description: "Ohne Komma und Steuerzeichen (400), wie beim Anlegen."
         kuerzel:
           type: string
           minLength: 1
@@ -39726,6 +39825,95 @@ components:
           type: string
           format: uuid
           description: Tag der eigenen Abteilung.
+    TerminTagsSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - tagIds
+      properties:
+        tagIds:
+          type: array
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+          description: Die Tags des Termins nach der Änderung, alle aus der eigenen Abteilung; leer entfernt alle.
+    OutlookStand:
+      type: string
+      enum: [aus, geschrieben, ausstehend]
+      description: |
+        `aus`: nur in Cevi OS gespeichert (Anbindung aus oder nicht verbunden). `geschrieben`: auch in Outlook. `ausstehend`: in Cevi OS gespeichert, Outlook wird nachgeführt.
+    TerminTagsErgebnis:
+      type: object
+      required:
+        - tags
+        - outlook
+      properties:
+        tags:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - name
+              - typ
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+              typ:
+                type: string
+                enum: [stufe, funktion, team, lager, anlass]
+        outlook:
+          $ref: "#/components/schemas/OutlookStand"
+    TermineTagsSetzen:
+      type: object
+      additionalProperties: false
+      required:
+        - terminIds
+        - tagIds
+      properties:
+        terminIds:
+          type: array
+          minItems: 1
+          maxItems: 100
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+        tagIds:
+          type: array
+          minItems: 1
+          maxItems: 20
+          uniqueItems: true
+          items:
+            type: string
+            format: uuid
+    TermineTagsErgebnis:
+      type: object
+      required:
+        - geaendert
+        - outlook
+      properties:
+        geaendert:
+          type: integer
+          description: Zahl der Termine mit gesetzten Tags.
+        outlook:
+          type: object
+          required:
+            - geschrieben
+            - ausstehend
+            - aus
+          properties:
+            geschrieben:
+              type: integer
+            ausstehend:
+              type: integer
+            aus:
+              type: integer
     KategorieZuordnungId:
       type: object
       required:
