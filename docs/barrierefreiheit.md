@@ -1763,7 +1763,15 @@ Die Verwaltung nennt die Rolle einer bestimmten Person nach ihrem Geschlecht: «
 
 ### Stand der Prüfung (#817)
 
-Siehe Pull Request, Abschnitt «Barrierefreiheit».
+Im Browser (Chromium headless, Playwright, eigener Dev-Server, frische Datenbank mit erfundenen Personen, Konto des Entwicklers mit zweitem Faktor) bei 1280 x 900 dunkel und 390 x 844:
+
+- **92.1, 92.3:** Radiogruppe «Geschlecht (optional)» mit Hilfetext (`aria-describedby`) im Blatt; Optionen «Weiblich», «Männlich», «Keine Angabe oder andere»; die Vorwahl entspricht dem gespeicherten Wert; Speichern ändert die Form («Stufenleiterin» wird «Stufenleiter»).
+- **92.2:** Pfeil nach rechts wählt die nächste Option; alle drei Zielgrössen 44 Pixel hoch; Haken an der gewählten Option.
+- **92.4:** Personenliste («Gruppenleiterin · Artemis», «Stufenleiter · Artemis», «Gruppenleitung · Artemis» ohne Angabe), Untertitel und Profilkarte des Blatts, Mitglieder der Gruppe der Stufe (Gruppierung «Funktion» bleibt «Stufenleitung» und «Leitung»).
+- **92.6:** «Mein Konto» zeigt das Feld «Geschlecht» mit Hilfetext (Text gelesen).
+- **92.7:** bei 390 Pixel kein waagrechtes Scrollen (`scrollWidth` gleich `clientWidth`).
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (nur Ansicht), 92.4 bei Anwesenheit (Leitende), «Was darf wer?» und Kopf im Browser (nur Test), 92.5 im Browser (nur Test).
 
 ## 94. Verwaltung: Rufname statt vollem Namen (#815)
 
