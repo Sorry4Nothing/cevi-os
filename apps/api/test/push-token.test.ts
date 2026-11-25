@@ -235,3 +235,23 @@ test("beide Fremdschlüssel löschen per CASCADE", async () => {
     { conname: "push_token_user_id_user_id_fk", confdeltype: "c" },
   ]);
 });
+
+test("dasselbe Token gleichzeitig aus mehreren Sitzungen: alle 204, genau eine Zeile (#783)", async () => {
+  const konto = await legePersonaAn(welt, "elternA");
+  const geraet = token();
+  const sitzungen = [
+    konto.headers,
+    await zweiteSitzung(konto),
+    await zweiteSitzung(konto),
+    await zweiteSitzung(konto),
+  ];
+
+  const antworten = await Promise.all(
+    sitzungen.map((headers) =>
+      melden({ ...konto, headers }, { token: geraet, plattform: "ios" }),
+    ),
+  );
+
+  expect(antworten.map((a) => a.status)).toEqual([204, 204, 204, 204]);
+  expect(await zeilen(konto.id)).toHaveLength(1);
+});
