@@ -20,9 +20,7 @@ const klein = (id: string) => id.toLowerCase();
 // «(optional)» hinter der Beschriftung, bei Pflichtfeldern nichts (Handbuch 0.7)
 const beschriftung = (f: Feld): HtmlKnoten[] => [
   f.beschriftung,
-  ...(f.pflicht
-    ? []
-    : [el("span", { class: "bf-optional" }, " (optional)")]),
+  ...(f.pflicht ? [] : [el("span", { class: "bf-optional" }, " (optional)")]),
 ];
 
 function hilfe(id: string, f: Feld): HtmlKnoten[] {
@@ -102,15 +100,12 @@ function feldKnoten(bausteinId: string, f: Feld): HtmlKnoten {
       );
     case "textbereich":
       return feld(
-        el(
-          "textarea",
-          {
-            ...gemeinsam,
-            rows: "5",
-            maxlength: String(f.maxLaenge ?? STANDARD_BEREICH_LAENGE),
-            ...(f.minLaenge && { minlength: String(f.minLaenge) }),
-          },
-        ),
+        el("textarea", {
+          ...gemeinsam,
+          rows: "5",
+          maxlength: String(f.maxLaenge ?? STANDARD_BEREICH_LAENGE),
+          ...(f.minLaenge && { minlength: String(f.minLaenge) }),
+        }),
       );
     case "zahl":
       return feld(
@@ -245,10 +240,14 @@ export function rendereFormular(
       class: "bformular",
       "data-formular": bid,
       ...(d.schliesstAm && { "data-schliesst": d.schliesstAm }),
-      ...(titel ? { "aria-labelledby": `${id}-t` } : { "aria-label": "Formular" }),
+      ...(titel
+        ? { "aria-labelledby": `${id}-t` }
+        : { "aria-label": "Formular" }),
     },
     ...(titel ? [titel] : []),
-    ...(d.einleitung ? [el("p", { class: "bf-einleitung" }, d.einleitung)] : []),
+    ...(d.einleitung
+      ? [el("p", { class: "bf-einleitung" }, d.einleitung)]
+      : []),
     el(
       "noscript",
       undefined,
@@ -301,4 +300,3 @@ export function rendereFormular(
     }),
   );
 }
-

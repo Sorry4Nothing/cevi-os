@@ -23,10 +23,7 @@ import {
   teamAnzeige,
   PERSON_HILFE,
 } from "./website-personenwahl.js";
-import {
-  KATALOG_FORMULAR,
-  TYPEN_FORMULAR,
-} from "./website-felder-formular.js";
+import { KATALOG_FORMULAR, TYPEN_FORMULAR } from "./website-felder-formular.js";
 import {
   dynamischeBausteine,
   FELDNAMEN_DYNAMISCH,

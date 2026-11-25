@@ -64,8 +64,23 @@ const WAHL = randomUUID();
 const OK = randomUUID();
 const felder = () => [
   { id: NAME, typ: "text", beschriftung: "Name", pflicht: true, maxLaenge: 20 },
-  { id: ZAHL, typ: "zahl", beschriftung: "Anzahl", pflicht: false, ganzzahl: true, min: 1, max: 9 },
-  { id: WAHL, typ: "mehrfachwahl", beschriftung: "Mitbringen", pflicht: false, optionen: ["Zelt", "Topf", "Seil"], maxAuswahl: 2 },
+  {
+    id: ZAHL,
+    typ: "zahl",
+    beschriftung: "Anzahl",
+    pflicht: false,
+    ganzzahl: true,
+    min: 1,
+    max: 9,
+  },
+  {
+    id: WAHL,
+    typ: "mehrfachwahl",
+    beschriftung: "Mitbringen",
+    pflicht: false,
+    optionen: ["Zelt", "Topf", "Seil"],
+    maxAuswahl: 2,
+  },
   { id: OK, typ: "zustimmung", beschriftung: "Einverstanden", pflicht: true },
 ];
 const gueltig = (extra: Record<string, unknown> = {}) => ({
@@ -138,7 +153,8 @@ async function seite(
             daten: {
               titel: "Sommerlager",
               felder: felder(),
-              datenschutz: "Wir planen das Lager. Die Leitung sieht die Antworten.",
+              datenschutz:
+                "Wir planen das Lager. Die Leitung sieht die Antworten.",
               ...daten,
             },
           },
@@ -161,6 +177,7 @@ const anzahl = async (formularId: string) =>
       .from(schema.formularAntwort)
       .where(eq(schema.formularAntwort.formularId, formularId))
   )[0]!.n;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const json = async (a: Response) => (await a.json()) as Record<string, any>;
 
 beforeAll(async () => {
@@ -191,7 +208,11 @@ beforeAll(async () => {
 describe("öffentliches Formular", () => {
   test("eine anonyme Antwort wird gespeichert: ohne Person, mit Frist, ohne Wert in der Antwort", async () => {
     const f = await seite("oeffentlich");
-    const a = await sende(null, f.formularId, body(gueltig({ [ZAHL]: 3, [WAHL]: ["Seil", "Zelt"] })));
+    const a = await sende(
+      null,
+      f.formularId,
+      body(gueltig({ [ZAHL]: 3, [WAHL]: ["Seil", "Zelt"] })),
+    );
     expect(a.status).toBe(201);
     expect(await json(a)).toEqual({ ok: true });
     const [z] = await db
@@ -204,7 +225,12 @@ describe("öffentliches Formular", () => {
       versionId: f.versionId,
       abteilungId: welt.testabteilungId,
     });
-    expect(z!.antworten).toEqual({ [NAME]: "Pia", [OK]: true, [ZAHL]: 3, [WAHL]: ["Zelt", "Seil"] });
+    expect(z!.antworten).toEqual({
+      [NAME]: "Pia",
+      [OK]: true,
+      [ZAHL]: 3,
+      [WAHL]: ["Zelt", "Seil"],
+    });
     const tage = (z!.loeschenAm.getTime() - Date.now()) / 86_400_000;
     expect(tage).toBeGreaterThan(179.9);
     expect(tage).toBeLessThan(180.1);
@@ -212,7 +238,9 @@ describe("öffentliches Formular", () => {
 
   test("eine angemeldete Person sendet mit ihrem Konto, auch auf einer öffentlichen Seite", async () => {
     const f = await seite("oeffentlich");
-    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(201);
+    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
     const [z] = await db
       .select()
       .from(schema.formularAntwort)
@@ -237,7 +265,9 @@ describe("öffentliches Formular", () => {
     expect(a.status).toBe(422);
     const text = await a.text();
     expect(text).not.toContain(geheim);
-    const fehler = (JSON.parse(text) as { fehler: { feld: string; code: string }[] }).fehler;
+    const fehler = (
+      JSON.parse(text) as { fehler: { feld: string; code: string }[] }
+    ).fehler;
     expect(fehler).toEqual(
       expect.arrayContaining([
         { feld: NAME, code: "ZU_LANG" },
@@ -251,8 +281,16 @@ describe("öffentliches Formular", () => {
   });
 
   test("das Formular kommt aus der Datenbank: eine Antwort auf ein nicht veröffentlichtes, unbekanntes oder fremdes Formular ist 404", async () => {
-    const entwurf = await seite("oeffentlich", {}, undefined, welt.testabteilungId, false);
-    expect((await sende(null, entwurf.formularId, body(gueltig()))).status).toBe(404);
+    const entwurf = await seite(
+      "oeffentlich",
+      {},
+      undefined,
+      welt.testabteilungId,
+      false,
+    );
+    expect(
+      (await sende(null, entwurf.formularId, body(gueltig()))).status,
+    ).toBe(404);
     expect((await sende(null, randomUUID(), body(gueltig()))).status).toBe(404);
     const a = await sende(null, "kein-uuid", body(gueltig()));
     expect(a.status).toBe(400);
@@ -267,28 +305,45 @@ describe("öffentliches Formular", () => {
         body: b,
       });
     expect((await roh("{kaputt")).status).toBe(400);
-    expect((await roh("name=x", "application/x-www-form-urlencoded")).status).toBe(400);
-    expect((await sende(null, f.formularId, { antworten: "x" })).status).toBe(400);
-    expect((await sende(null, f.formularId, { ...body(gueltig()), rolle: "admin" })).status).toBe(400);
-    expect((await sende(null, f.formularId, body(gueltig(), { dauerMs: -1 }))).status).toBe(400);
-    expect((await roh(JSON.stringify(body({ [NAME]: "x".repeat(70_000) })))).status).toBe(413);
+    expect(
+      (await roh("name=x", "application/x-www-form-urlencoded")).status,
+    ).toBe(400);
+    expect((await sende(null, f.formularId, { antworten: "x" })).status).toBe(
+      400,
+    );
+    expect(
+      (await sende(null, f.formularId, { ...body(gueltig()), rolle: "admin" }))
+        .status,
+    ).toBe(400);
+    expect(
+      (await sende(null, f.formularId, body(gueltig(), { dauerMs: -1 })))
+        .status,
+    ).toBe(400);
+    expect(
+      (await roh(JSON.stringify(body({ [NAME]: "x".repeat(70_000) })))).status,
+    ).toBe(413);
     expect(await anzahl(f.formularId)).toBe(0);
   });
 
   test("nur POST: GET, PUT und DELETE gibt es nicht", async () => {
     const f = await seite("oeffentlich");
     for (const methode of ["GET", "PUT", "DELETE"]) {
-      const a = await app.request(`/api/v1/formulare/${f.formularId}/antworten`, {
-        method: methode,
-        headers: { "x-forwarded-for": ip() },
-      });
+      const a = await app.request(
+        `/api/v1/formulare/${f.formularId}/antworten`,
+        {
+          method: methode,
+          headers: { "x-forwarded-for": ip() },
+        },
+      );
       expect([401, 404, 405]).toContain(a.status);
     }
   });
 
   test("eine fremde Herkunft (Origin) ist 403, auch ohne Sitzung", async () => {
     const f = await seite("oeffentlich");
-    const a = await sende(null, f.formularId, body(gueltig()), { origin: "https://boese.example.org" });
+    const a = await sende(null, f.formularId, body(gueltig()), {
+      origin: "https://boese.example.org",
+    });
     expect(a.status).toBe(403);
     expect(await anzahl(f.formularId)).toBe(0);
   });
@@ -297,14 +352,22 @@ describe("öffentliches Formular", () => {
 describe("Spamschutz", () => {
   test("die Falle: gefüllt heisst «gesendet», gespeichert wird nichts", async () => {
     const f = await seite("oeffentlich");
-    const a = await sende(null, f.formularId, body(gueltig(), { homepage: "https://spam.example" }));
+    const a = await sende(
+      null,
+      f.formularId,
+      body(gueltig(), { homepage: "https://spam.example" }),
+    );
     expect(a.status).toBe(201);
     expect(await anzahl(f.formularId)).toBe(0);
   });
 
   test("zu schnell: 422 ZU_SCHNELL, nichts gespeichert", async () => {
     const f = await seite("oeffentlich");
-    const a = await sende(null, f.formularId, body(gueltig(), { dauerMs: 300 }));
+    const a = await sende(
+      null,
+      f.formularId,
+      body(gueltig(), { dauerMs: 300 }),
+    );
     expect(a.status).toBe(422);
     expect((await json(a)).code).toBe("ZU_SCHNELL");
     expect(await anzahl(f.formularId)).toBe(0);
@@ -316,13 +379,25 @@ describe("Spamschutz", () => {
     const kopf = { "x-forwarded-for": "192.0.2.77" };
     const stati: number[] = [];
     for (let i = 0; i < 12; i++) {
-      stati.push((await sende(null, f.formularId, body(gueltig()), kopf, frisch)).status);
+      stati.push(
+        (await sende(null, f.formularId, body(gueltig()), kopf, frisch)).status,
+      );
     }
     expect(stati.slice(0, 10)).toEqual(Array(10).fill(201));
     expect(stati.slice(10)).toEqual([429, 429]);
     expect(await anzahl(f.formularId)).toBe(10);
     // Eine andere Adresse ist nicht betroffen
-    expect((await sende(null, f.formularId, body(gueltig()), { "x-forwarded-for": "192.0.2.78" }, frisch)).status).toBe(201);
+    expect(
+      (
+        await sende(
+          null,
+          f.formularId,
+          body(gueltig()),
+          { "x-forwarded-for": "192.0.2.78" },
+          frisch,
+        )
+      ).status,
+    ).toBe(201);
   });
 
   test("je Adresse alle Formulare zusammen höchstens 30 Versuche, dann 429", async () => {
@@ -330,7 +405,8 @@ describe("Spamschutz", () => {
     const kopf = { "x-forwarded-for": "192.0.2.90" };
     let letzte = 0;
     for (let i = 0; i < 31; i++) {
-      letzte = (await sende(null, randomUUID(), body(gueltig()), kopf, frisch)).status;
+      letzte = (await sende(null, randomUUID(), body(gueltig()), kopf, frisch))
+        .status;
     }
     expect(letzte).toBe(429);
   });
@@ -338,7 +414,9 @@ describe("Spamschutz", () => {
   test("Obergrenze der Antworten: das Formular ist voll (409), auch bei gleichzeitigen Anfragen", async () => {
     const f = await seite("oeffentlich", { maxAntworten: 2 });
     const stati = await Promise.all(
-      Array.from({ length: 5 }, () => sende(null, f.formularId, body(gueltig()))),
+      Array.from({ length: 5 }, () =>
+        sende(null, f.formularId, body(gueltig())),
+      ),
     ).then((r) => r.map((a) => a.status).sort());
     expect(stati).toEqual([201, 201, 409, 409, 409]);
     expect(await anzahl(f.formularId)).toBe(2);
@@ -346,7 +424,9 @@ describe("Spamschutz", () => {
 
   test("eine Antwort je angemeldete Person: die zweite ist 409, anonyme bleiben unbegrenzt", async () => {
     const f = await seite("oeffentlich", { eineProPerson: true });
-    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(201);
+    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
     const zweite = await sende(elternA, f.formularId, body(gueltig()));
     expect(zweite.status).toBe(409);
     expect((await json(zweite)).code).toBe("BEREITS_BEANTWORTET");
@@ -360,27 +440,51 @@ describe("Sichtbarkeit", () => {
   test("Seite für Angemeldete: ohne Anmeldung 404, mit Anmeldung 201, andere Abteilung 404", async () => {
     const f = await seite("angemeldet");
     expect((await sende(null, f.formularId, body(gueltig()))).status).toBe(404);
-    expect((await sende(ohneLogin, f.formularId, body(gueltig()))).status).toBe(404);
-    expect((await sende(demoEltern, f.formularId, body(gueltig()))).status).toBe(404);
-    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(201);
+    expect((await sende(ohneLogin, f.formularId, body(gueltig()))).status).toBe(
+      404,
+    );
+    expect(
+      (await sende(demoEltern, f.formularId, body(gueltig()))).status,
+    ).toBe(404);
+    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
     expect(await anzahl(f.formularId)).toBe(1);
   });
 
   test("Seite für eine Gruppe: nur wer den Tag trägt (und die Abteilungsleitung)", async () => {
     const f = await seite("tags");
-    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(404);
+    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(
+      404,
+    );
     expect((await sende(slA, f.formularId, body(gueltig()))).status).toBe(404);
-    expect((await sende(leitendeA, f.formularId, body(gueltig()))).status).toBe(201);
-    expect((await sende(admin, f.formularId, body(gueltig()))).status).toBe(201);
+    expect((await sende(leitendeA, f.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
+    expect((await sende(admin, f.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
   });
 
   test("öffentliche Seite, aber Baustein nur für Angemeldete oder für eine Gruppe", async () => {
     const ang = await seite("oeffentlich", {}, { art: "angemeldet" });
-    expect((await sende(null, ang.formularId, body(gueltig()))).status).toBe(404);
-    expect((await sende(elternA, ang.formularId, body(gueltig()))).status).toBe(201);
-    const gruppe = await seite("oeffentlich", {}, { art: "tags", tagIds: [tagId] });
-    expect((await sende(elternA, gruppe.formularId, body(gueltig()))).status).toBe(404);
-    expect((await sende(leitendeA, gruppe.formularId, body(gueltig()))).status).toBe(201);
+    expect((await sende(null, ang.formularId, body(gueltig()))).status).toBe(
+      404,
+    );
+    expect((await sende(elternA, ang.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
+    const gruppe = await seite(
+      "oeffentlich",
+      {},
+      { art: "tags", tagIds: [tagId] },
+    );
+    expect(
+      (await sende(elternA, gruppe.formularId, body(gueltig()))).status,
+    ).toBe(404);
+    expect(
+      (await sende(leitendeA, gruppe.formularId, body(gueltig()))).status,
+    ).toBe(201);
   });
 
   test("ein 404 sieht für «gibt es nicht» und «darfst du nicht» gleich aus", async () => {
@@ -396,15 +500,28 @@ describe("Sichtbarkeit", () => {
     const a = await sende(null, zu.formularId, body(gueltig()));
     expect(a.status).toBe(410);
     expect((await json(a)).code).toBe("FORMULAR_GESCHLOSSEN");
-    const heute = new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Zurich" }).format(new Date());
+    const heute = new Intl.DateTimeFormat("sv-SE", {
+      timeZone: "Europe/Zurich",
+    }).format(new Date());
     const offen = await seite("oeffentlich", { schliesstAm: heute });
-    expect((await sende(null, offen.formularId, body(gueltig()))).status).toBe(201);
+    expect((await sende(null, offen.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
   });
 
   test("Sperre der Website: 423 auch für die öffentliche Route", async () => {
     const f = await seite("oeffentlich");
-    const schalter = (await import("../src/bereichsschalter.js")).erstelleSchalterZustand();
-    const gesperrt = erstelleApp({ appMinVersion: "1.2.0", sql, db, auth, seiten: ladeSeiten(), schalter });
+    const schalter = (
+      await import("../src/bereichsschalter.js")
+    ).erstelleSchalterZustand();
+    const gesperrt = erstelleApp({
+      appMinVersion: "1.2.0",
+      sql,
+      db,
+      auth,
+      seiten: ladeSeiten(),
+      schalter,
+    });
     schalter.setze({
       id: randomUUID(),
       abteilungId: welt.testabteilungId,
@@ -416,7 +533,9 @@ describe("Sichtbarkeit", () => {
       ausgeloestVon: "test",
       ausgeloestAm: new Date(),
     });
-    expect((await sende(null, f.formularId, body(gueltig()), {}, gesperrt)).status).toBe(423);
+    expect(
+      (await sende(null, f.formularId, body(gueltig()), {}, gesperrt)).status,
+    ).toBe(423);
     schalter.setze({
       id: randomUUID(),
       abteilungId: welt.testabteilungId,
@@ -429,7 +548,9 @@ describe("Sichtbarkeit", () => {
       ausgeloestAm: new Date(),
     });
     schalter.hebeAuf(welt.testabteilungId, "website", "sperre");
-    expect((await sende(null, f.formularId, body(gueltig()), {}, gesperrt)).status).toBe(503);
+    expect(
+      (await sende(null, f.formularId, body(gueltig()), {}, gesperrt)).status,
+    ).toBe(503);
     expect(await anzahl(f.formularId)).toBe(0);
   });
 });
@@ -445,7 +566,7 @@ describe("Antworten in der Verwaltung", () => {
     await sende(null, f.formularId, body(gueltig({ [NAME]: "=1+1" })));
     await sende(elternA, f.formularId, body(gueltig({ [NAME]: "@SUMME(A1)" })));
     await sende(null, f.formularId, body(gueltig({ [NAME]: "+41 79" })));
-    await sende(null, f.formularId, body(gueltig({ [NAME]: "-5; \"Zitat\"" })));
+    await sende(null, f.formularId, body(gueltig({ [NAME]: '-5; "Zitat"' })));
   });
 
   test("ohne Sitzung 401, ohne Recht 403: Eltern, Stufenleitung, Leitende", async () => {
@@ -454,8 +575,12 @@ describe("Antworten in der Verwaltung", () => {
       expect((await hole(k, "")).status).toBe(403);
       expect((await hole(k, `/${f.formularId}`)).status).toBe(403);
       expect((await hole(k, `/${f.formularId}/antworten`)).status).toBe(403);
-      expect((await hole(k, `/${f.formularId}/antworten.csv`)).status).toBe(403);
-      expect((await hole(k, `/${f.formularId}/antworten`, "DELETE")).status).toBe(403);
+      expect((await hole(k, `/${f.formularId}/antworten.csv`)).status).toBe(
+        403,
+      );
+      expect(
+        (await hole(k, `/${f.formularId}/antworten`, "DELETE")).status,
+      ).toBe(403);
     }
   });
 
@@ -475,13 +600,23 @@ describe("Antworten in der Verwaltung", () => {
     const kopf = await json(await hole(admin, `/${f.formularId}`));
     expect(kopf.rechte).toEqual({ exportieren: true, loeschen: true });
     expect(kopf.felder).toHaveLength(4);
-    const a = await json(await hole(admin, `/${f.formularId}/antworten?limit=3`));
+    const a = await json(
+      await hole(admin, `/${f.formularId}/antworten?limit=3`),
+    );
     expect(a.antworten).toHaveLength(3);
     expect(a.weitere).toBe(true);
-    const rest = await json(await hole(admin, `/${f.formularId}/antworten?limit=3&nach=${a.naechste}`));
+    const rest = await json(
+      await hole(
+        admin,
+        `/${f.formularId}/antworten?limit=3&nach=${a.naechste}`,
+      ),
+    );
     expect(rest.antworten).toHaveLength(1);
     expect(rest.weitere).toBe(false);
-    const alle = [...a.antworten, ...rest.antworten] as { person: string | null; eintraege: { beschriftung: string; wert: string }[] }[];
+    const alle = [...a.antworten, ...rest.antworten] as {
+      person: string | null;
+      eintraege: { beschriftung: string; wert: string }[];
+    }[];
     expect(alle.filter((x) => x.person !== null)).toHaveLength(1);
     expect(alle[0]!.eintraege[0]).toMatchObject({ beschriftung: "Name" });
     // Texte bleiben Text: kein HTML wird ausgewertet oder verändert
@@ -492,11 +627,17 @@ describe("Antworten in der Verwaltung", () => {
     const demo = await legePersonaAn(welt, "demoAdmin");
     expect((await hole(demo, `/${f.formularId}`)).status).toBe(404);
     expect((await hole(demo, `/${f.formularId}/antworten`)).status).toBe(404);
-    expect((await hole(demo, `/${f.formularId}/antworten.csv`)).status).toBe(404);
-    expect((await hole(demo, `/${f.formularId}/antworten`, "DELETE")).status).toBe(404);
+    expect((await hole(demo, `/${f.formularId}/antworten.csv`)).status).toBe(
+      404,
+    );
+    expect(
+      (await hole(demo, `/${f.formularId}/antworten`, "DELETE")).status,
+    ).toBe(404);
     expect((await hole(admin, `/${randomUUID()}`)).status).toBe(404);
     expect((await hole(admin, `/kein-uuid`)).status).toBe(400);
-    const liste = (await json(await hole(demo, ""))).formulare as { formularId: string }[];
+    const liste = (await json(await hole(demo, ""))).formulare as {
+      formularId: string;
+    }[];
     expect(liste.find((x) => x.formularId === f.formularId)).toBeUndefined();
   });
 
@@ -510,7 +651,9 @@ describe("Antworten in der Verwaltung", () => {
     const bytes = new Uint8Array(await a.arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const text = new TextDecoder("utf-8", { ignoreBOM: false }).decode(bytes);
-    expect(text.split("\r\n")[0]).toBe("Eingang;Person;Name;Anzahl;Mitbringen;Einverstanden");
+    expect(text.split("\r\n")[0]).toBe(
+      "Eingang;Person;Name;Anzahl;Mitbringen;Einverstanden",
+    );
     // Keine Zelle beginnt mit einem Formelzeichen
     for (const zeile of text.split("\r\n").slice(1).filter(Boolean)) {
       for (const zelle of zeile.split(";")) {
@@ -532,27 +675,49 @@ describe("Antworten in der Verwaltung", () => {
 
   test("Löschen: eine Antwort, dann alle; die Antwort der anderen Abteilung bleibt unberührt", async () => {
     const g = await seite("oeffentlich");
-    for (let i = 0; i < 3; i++) await sende(null, g.formularId, body(gueltig()));
-    const [erste] = (await json(await hole(admin, `/${g.formularId}/antworten`))).antworten as { id: string }[];
-    const weg = await hole(admin, `/${g.formularId}/antworten/${erste!.id}`, "DELETE");
+    for (let i = 0; i < 3; i++)
+      await sende(null, g.formularId, body(gueltig()));
+    const [erste] = (
+      await json(await hole(admin, `/${g.formularId}/antworten`))
+    ).antworten as { id: string }[];
+    const weg = await hole(
+      admin,
+      `/${g.formularId}/antworten/${erste!.id}`,
+      "DELETE",
+    );
     expect(weg.status).toBe(204);
-    expect((await hole(admin, `/${g.formularId}/antworten/${erste!.id}`, "DELETE")).status).toBe(404);
+    expect(
+      (await hole(admin, `/${g.formularId}/antworten/${erste!.id}`, "DELETE"))
+        .status,
+    ).toBe(404);
     expect(await anzahl(g.formularId)).toBe(2);
     const alle = await hole(admin, `/${g.formularId}/antworten`, "DELETE");
     expect(await json(alle)).toEqual({ geloescht: 2 });
     expect(await anzahl(g.formularId)).toBe(0);
     // Das Formular bleibt in der Liste (veröffentlicht), nur ohne Antworten
-    const liste = (await json(await hole(admin, ""))).formulare as { formularId: string; anzahl: number }[];
+    const liste = (await json(await hole(admin, ""))).formulare as {
+      formularId: string;
+      anzahl: number;
+    }[];
     expect(liste.find((x) => x.formularId === g.formularId)?.anzahl).toBe(0);
   });
 
   test("ein Formular, das nicht mehr auf der Seite steht, bleibt mit seinen Antworten sichtbar", async () => {
     const g = await seite("oeffentlich", { titel: "Altes Formular" });
     await sende(null, g.formularId, body(gueltig()));
-    await db.update(schema.seite).set({ veroeffentlichteVersionId: null }).where(eq(schema.seite.id, g.seiteId));
+    await db
+      .update(schema.seite)
+      .set({ veroeffentlichteVersionId: null })
+      .where(eq(schema.seite.id, g.seiteId));
     expect((await sende(null, g.formularId, body(gueltig()))).status).toBe(404);
-    const z = ((await json(await hole(admin, ""))).formulare as Record<string, unknown>[]).find((x) => x.formularId === g.formularId);
-    expect(z).toMatchObject({ veroeffentlicht: false, anzahl: 1, titel: "Altes Formular" });
+    const z = (
+      (await json(await hole(admin, ""))).formulare as Record<string, unknown>[]
+    ).find((x) => x.formularId === g.formularId);
+    expect(z).toMatchObject({
+      veroeffentlicht: false,
+      anzahl: 1,
+      titel: "Altes Formular",
+    });
     const a = await json(await hole(admin, `/${g.formularId}/antworten`));
     expect(a.antworten[0].eintraege[0].beschriftung).toBe("Name");
   });
@@ -561,22 +726,45 @@ describe("Antworten in der Verwaltung", () => {
     const g = await seite("oeffentlich");
     await sende(null, g.formularId, body(gueltig({ [NAME]: "Alt" })));
     // Neue Version: Feld «Name» umbenannt, Feld «Anzahl» entfernt
-    const neu = felder().filter((x) => x.id !== ZAHL).map((x) => (x.id === NAME ? { ...x, beschriftung: "Vorname" } : x));
+    const neu = felder()
+      .filter((x) => x.id !== ZAHL)
+      .map((x) => (x.id === NAME ? { ...x, beschriftung: "Vorname" } : x));
     const [v2] = await db
       .insert(schema.seiteVersion)
       .values({
         seiteId: g.seiteId,
         nr: 2,
-        inhalt: { v: 1, titel: "U", bausteine: [{ id: g.formularId, typ: "formular", daten: { felder: neu, datenschutz: "Hinweis" } }] },
+        inhalt: {
+          v: 1,
+          titel: "U",
+          bausteine: [
+            {
+              id: g.formularId,
+              typ: "formular",
+              daten: { felder: neu, datenschutz: "Hinweis" },
+            },
+          ],
+        },
       })
       .returning();
-    await db.update(schema.seite).set({ veroeffentlichteVersionId: v2!.id }).where(eq(schema.seite.id, g.seiteId));
+    await db
+      .update(schema.seite)
+      .set({ veroeffentlichteVersionId: v2!.id })
+      .where(eq(schema.seite.id, g.seiteId));
     await sende(null, g.formularId, body(gueltig({ [NAME]: "Neu" })));
     const a = await json(await hole(admin, `/${g.formularId}/antworten`));
-    const [neuere, aeltere] = a.antworten as { eintraege: { beschriftung: string; wert: string }[] }[];
-    expect(neuere!.eintraege[0]).toEqual(expect.objectContaining({ beschriftung: "Vorname", wert: "Neu" }));
-    expect(aeltere!.eintraege[0]).toEqual(expect.objectContaining({ beschriftung: "Name", wert: "Alt" }));
-    const csv = await (await hole(admin, `/${g.formularId}/antworten.csv`)).text();
+    const [neuere, aeltere] = a.antworten as {
+      eintraege: { beschriftung: string; wert: string }[];
+    }[];
+    expect(neuere!.eintraege[0]).toEqual(
+      expect.objectContaining({ beschriftung: "Vorname", wert: "Neu" }),
+    );
+    expect(aeltere!.eintraege[0]).toEqual(
+      expect.objectContaining({ beschriftung: "Name", wert: "Alt" }),
+    );
+    const csv = await (
+      await hole(admin, `/${g.formularId}/antworten.csv`)
+    ).text();
     expect(csv).toContain("Eingang;Person;Vorname;Mitbringen;Einverstanden");
     expect(csv).toContain("Alt");
     expect(csv).toContain("Neu");
@@ -588,7 +776,10 @@ describe("Aufbewahrung und Konto", () => {
     const f = await seite("oeffentlich");
     await sende(null, f.formularId, body(gueltig()));
     await sende(null, f.formularId, body(gueltig()));
-    const [erste] = await db.select().from(schema.formularAntwort).where(eq(schema.formularAntwort.formularId, f.formularId));
+    const [erste] = await db
+      .select()
+      .from(schema.formularAntwort)
+      .where(eq(schema.formularAntwort.formularId, f.formularId));
     await db
       .update(schema.formularAntwort)
       .set({ loeschenAm: new Date(Date.now() - 1000) })
@@ -619,7 +810,10 @@ describe("Aufbewahrung und Konto", () => {
       loeschenAm: new Date(Date.now() + 1e9),
     });
     await db.delete(schema.user).where(eq(schema.user.id, u!.id));
-    const [z] = await db.select().from(schema.formularAntwort).where(eq(schema.formularAntwort.formularId, f.formularId));
+    const [z] = await db
+      .select()
+      .from(schema.formularAntwort)
+      .where(eq(schema.formularAntwort.formularId, f.formularId));
     expect(z).toMatchObject({ userId: null });
     expect(z!.antworten).toEqual({ [NAME]: "Weg" });
   });

@@ -144,9 +144,7 @@ function pruefeGrenzen(f: Feld): boolean {
     case "textbereich":
       return (f.minLaenge ?? 1) <= (f.maxLaenge ?? MAX_BEREICH_LAENGE);
     case "zahl":
-      return (
-        f.min === undefined || f.max === undefined ? true : f.min <= f.max
-      );
+      return f.min === undefined || f.max === undefined ? true : f.min <= f.max;
     case "datum":
       return f.von === undefined || f.bis === undefined ? true : f.von <= f.bis;
     case "mehrfachwahl":
@@ -214,9 +212,7 @@ export const formularDaten = z
   });
 export type FormularDaten = z.infer<typeof formularDaten>;
 
-export const formularBausteine = [
-  baustein("formular", formularDaten),
-] as const;
+export const formularBausteine = [baustein("formular", formularDaten)] as const;
 
 // Der Baustein als Typ, ohne bausteine.ts zu importieren (das hängt diese Datei an)
 export type FormularBaustein = z.infer<(typeof formularBausteine)[0]>;
@@ -388,7 +384,10 @@ export function pruefeAntworten(
 }
 
 // Die Anzeige einer Antwort als Text (Liste und CSV); die Feld-ID kommt aus der Version, mit der die Antwort entstand
-export function antwortText(f: Feld | undefined, wert: AntwortWert | undefined) {
+export function antwortText(
+  f: Feld | undefined,
+  wert: AntwortWert | undefined,
+) {
   if (wert === undefined) return "";
   if (typeof wert === "boolean") {
     return f?.typ === "zustimmung" ? "Ja, zugestimmt" : wert ? "Ja" : "Nein";

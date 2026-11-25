@@ -67,7 +67,8 @@ function hrefOk(w) {
 // Formular (#819): Namen und IDs wie die Renderer sie bilden (a-z, 0-9, «-» und «_»)
 const idOk = (w) => typeof w === "string" && /^[a-z0-9_-]{1,100}$/.test(w);
 const FELD = new Set(["input", "select", "textarea"]);
-const ZAHL = (w, n) => typeof w === "string" && new RegExp("^[0-9]{1," + n + "}$").test(w);
+const ZAHL = (w, n) =>
+  typeof w === "string" && new RegExp("^[0-9]{1," + n + "}$").test(w);
 const GRENZE = /^-?[0-9.e+-]{1,25}$/;
 
 // Je Attribut eine Prüfung des Werts; was hier fehlt, wird nicht gesetzt (nie ein on…-Attribut, nie style)
@@ -129,10 +130,8 @@ const ATTRIBUTE = {
   "aria-describedby": (_tag, w) =>
     typeof w === "string" && w.split(" ").every(idOk),
   "aria-labelledby": (tag, w) => tag === "section" && idOk(w),
-  "data-formular": (tag, w) =>
-    tag === "section" && /^[0-9a-f-]{36}$/.test(w),
-  "data-schliesst": (tag, w) =>
-    tag === "section" && /^d{4}-d{2}-d{2}$/.test(w),
+  "data-formular": (tag, w) => tag === "section" && /^[0-9a-f-]{36}$/.test(w),
+  "data-schliesst": (tag, w) => tag === "section" && /^d{4}-d{2}-d{2}$/.test(w),
   "data-typ": (_tag, w) => typeof w === "string" && /^[a-z]{3,20}$/.test(w),
   "data-pflicht": (_tag, w) => w === "1",
   "data-ganz": (tag, w) => tag === "input" && w === "1",

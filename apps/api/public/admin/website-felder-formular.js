@@ -25,7 +25,6 @@ export const FELD_TYPEN = [
   ["janein", "Ja oder Nein"],
   ["zustimmung", "Zustimmung (Pflichtkästchen)"],
 ];
-const TYP_NAME = Object.fromEntries(FELD_TYPEN);
 const MIT_OPTIONEN = ["auswahl", "optionsfelder", "mehrfachwahl"];
 export const MAX_FELDER = 30;
 const STANDARD = {
@@ -79,7 +78,7 @@ const EIGEN = [
 
 function neuesFeld() {
   return {
-    id: crypto.randomUUID(),
+    id: window.crypto.randomUUID(),
     typ: "text",
     beschriftung: "",
     pflicht: false,
@@ -108,7 +107,12 @@ function zahlFeld(k, b, reg, ziel, schluessel, label, pfad, optionen = {}) {
 }
 
 function datumFeld(k, b, reg, ziel, schluessel, label, pfad, h) {
-  const f = feld({ label, typ: "date", wert: ziel[schluessel] ?? "", hilfe: h });
+  const f = feld({
+    label,
+    typ: "date",
+    wert: ziel[schluessel] ?? "",
+    hilfe: h,
+  });
   f.eingabe.addEventListener("input", () => {
     if (f.eingabe.value === "") delete ziel[schluessel];
     else ziel[schluessel] = f.eingabe.value;
@@ -189,27 +193,60 @@ function feldZeile(k, b, reg, f, pfad) {
       `${pfad}.beschriftung`,
       { maxlength: 300 },
     ),
-    teilEingabe(k, b, reg, f, "hilfe", "Hilfetext (optional)", `${pfad}.hilfe`, {
-      optional: true,
-      maxlength: 300,
-    }),
+    teilEingabe(
+      k,
+      b,
+      reg,
+      f,
+      "hilfe",
+      "Hilfetext (optional)",
+      `${pfad}.hilfe`,
+      {
+        optional: true,
+        maxlength: 300,
+      },
+    ),
   ];
   if (f.typ === "zustimmung") {
     teile.push(hilfe("Ohne Häkchen lässt sich das Formular nicht senden."));
   } else {
     teile.push(
-      haken(k, b, f, "pflicht", "Pflichtfeld", "Ohne Häkchen steht «(optional)» hinter der Beschriftung."),
+      haken(
+        k,
+        b,
+        f,
+        "pflicht",
+        "Pflichtfeld",
+        "Ohne Häkchen steht «(optional)» hinter der Beschriftung.",
+      ),
     );
   }
   if (f.typ === "text" || f.typ === "textbereich") {
     teile.push(
-      zahlFeld(k, b, reg, f, "minLaenge", "Mindestens Zeichen (optional)", `${pfad}.minLaenge`),
-      zahlFeld(k, b, reg, f, "maxLaenge", "Höchstens Zeichen (optional)", `${pfad}.maxLaenge`, {
-        hilfe:
-          f.typ === "text"
-            ? "Ohne Angabe 200, höchstens 500."
-            : "Ohne Angabe 1000, höchstens 2000.",
-      }),
+      zahlFeld(
+        k,
+        b,
+        reg,
+        f,
+        "minLaenge",
+        "Mindestens Zeichen (optional)",
+        `${pfad}.minLaenge`,
+      ),
+      zahlFeld(
+        k,
+        b,
+        reg,
+        f,
+        "maxLaenge",
+        "Höchstens Zeichen (optional)",
+        `${pfad}.maxLaenge`,
+        {
+          hilfe:
+            f.typ === "text"
+              ? "Ohne Angabe 200, höchstens 500."
+              : "Ohne Angabe 1000, höchstens 2000.",
+        },
+      ),
     );
   }
   if (f.typ === "zahl") {
@@ -221,15 +258,48 @@ function feldZeile(k, b, reg, f, pfad) {
   }
   if (f.typ === "datum") {
     teile.push(
-      datumFeld(k, b, reg, f, "von", "Frühestes Datum (optional)", `${pfad}.von`),
-      datumFeld(k, b, reg, f, "bis", "Spätestes Datum (optional)", `${pfad}.bis`),
+      datumFeld(
+        k,
+        b,
+        reg,
+        f,
+        "von",
+        "Frühestes Datum (optional)",
+        `${pfad}.von`,
+      ),
+      datumFeld(
+        k,
+        b,
+        reg,
+        f,
+        "bis",
+        "Spätestes Datum (optional)",
+        `${pfad}.bis`,
+      ),
     );
   }
-  if (MIT_OPTIONEN.includes(f.typ)) teile.push(optionenFeld(k, b, reg, f, pfad));
+  if (MIT_OPTIONEN.includes(f.typ))
+    teile.push(optionenFeld(k, b, reg, f, pfad));
   if (f.typ === "mehrfachwahl") {
     teile.push(
-      zahlFeld(k, b, reg, f, "minAuswahl", "Mindestens Antworten (optional)", `${pfad}.minAuswahl`),
-      zahlFeld(k, b, reg, f, "maxAuswahl", "Höchstens Antworten (optional)", `${pfad}.maxAuswahl`),
+      zahlFeld(
+        k,
+        b,
+        reg,
+        f,
+        "minAuswahl",
+        "Mindestens Antworten (optional)",
+        `${pfad}.minAuswahl`,
+      ),
+      zahlFeld(
+        k,
+        b,
+        reg,
+        f,
+        "maxAuswahl",
+        "Höchstens Antworten (optional)",
+        `${pfad}.maxAuswahl`,
+      ),
     );
   }
   return teile;
@@ -244,19 +314,38 @@ export const TYPEN_FORMULAR = {
       ...((d.felder ?? []).length === 0 ? [["daten.felder", "fehlen."]] : []),
       ...(d.datenschutz?.trim()
         ? []
-        : [["daten.datenschutz", "fehlt: Schreibe, wozu die Angaben dienen und wer sie sieht."]]),
+        : [
+            [
+              "daten.datenschutz",
+              "fehlt: Schreibe, wozu die Angaben dienen und wer sie sieht.",
+            ],
+          ]),
       ...(d.felder ?? []).flatMap((f, i) => {
         const p = `daten.felder.${i}`;
-        const texte = [f.beschriftung ?? "", f.hilfe ?? "", ...(f.optionen ?? [])];
+        const texte = [
+          f.beschriftung ?? "",
+          f.hilfe ?? "",
+          ...(f.optionen ?? []),
+        ];
         return [
           ...(f.beschriftung?.trim() ? [] : [[`${p}.beschriftung`, "fehlt."]]),
           ...(texte.some(gesundheit)
-            ? [[`${p}.beschriftung`, "fragt nach Gesundheit. Das ist hier nicht erlaubt: Frage nicht nach Gesundheitsdaten."]]
+            ? [
+                [
+                  `${p}.beschriftung`,
+                  "fragt nach Gesundheit. Das ist hier nicht erlaubt: Frage nicht nach Gesundheitsdaten.",
+                ],
+              ]
             : []),
           ...(MIT_OPTIONEN.includes(f.typ) &&
           ((f.optionen ?? []).length < 2 ||
             new Set(f.optionen).size !== f.optionen.length)
-            ? [[`${p}.optionen`, "braucht mindestens zwei verschiedene Antworten."]]
+            ? [
+                [
+                  `${p}.optionen`,
+                  "braucht mindestens zwei verschiedene Antworten.",
+                ],
+              ]
             : []),
         ];
       }),
@@ -314,13 +403,40 @@ export const TYPEN_FORMULAR = {
           { class: "hilfe" },
           "Zeit und Menge: Das Formular nimmt Antworten bis zum letzten Tag an (Mitternacht, Zürcher Zeit) oder bis die Obergrenze erreicht ist.",
         ),
-        datumFeld(k, b, reg, d, "schliesstAm", "Letzter Tag für Antworten (optional)", "daten.schliesstAm", "Ohne Datum bleibt das Formular offen, solange die Seite es zeigt."),
-        zahlFeld(k, b, reg, d, "maxAntworten", "Höchstens Antworten", "daten.maxAntworten", {
-          hilfe: `Ohne Angabe ${STANDARD.maxAntworten}, höchstens 10000. Danach nimmt das Formular nichts mehr an.`,
-        }),
-        zahlFeld(k, b, reg, d, "aufbewahrenTage", "Antworten löschen nach Tagen", "daten.aufbewahrenTage", {
-          hilfe: `Ohne Angabe ${STANDARD.aufbewahrenTage}, zwischen 7 und 730. Danach löscht der Server die Antworten von selbst.`,
-        }),
+        datumFeld(
+          k,
+          b,
+          reg,
+          d,
+          "schliesstAm",
+          "Letzter Tag für Antworten (optional)",
+          "daten.schliesstAm",
+          "Ohne Datum bleibt das Formular offen, solange die Seite es zeigt.",
+        ),
+        zahlFeld(
+          k,
+          b,
+          reg,
+          d,
+          "maxAntworten",
+          "Höchstens Antworten",
+          "daten.maxAntworten",
+          {
+            hilfe: `Ohne Angabe ${STANDARD.maxAntworten}, höchstens 10000. Danach nimmt das Formular nichts mehr an.`,
+          },
+        ),
+        zahlFeld(
+          k,
+          b,
+          reg,
+          d,
+          "aufbewahrenTage",
+          "Antworten löschen nach Tagen",
+          "daten.aufbewahrenTage",
+          {
+            hilfe: `Ohne Angabe ${STANDARD.aufbewahrenTage}, zwischen 7 und 730. Danach löscht der Server die Antworten von selbst.`,
+          },
+        ),
         haken(
           k,
           b,

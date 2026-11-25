@@ -18,7 +18,8 @@ export const istFormularId = (s: string) => UUID.test(s);
 export const heuteZuerich = (jetzt: Date) =>
   new Intl.DateTimeFormat("sv-SE", { timeZone: "Europe/Zurich" }).format(jetzt);
 export const istGeschlossen = (b: FormularBaustein, jetzt: Date) =>
-  b.daten.schliesstAm !== undefined && heuteZuerich(jetzt) > b.daten.schliesstAm;
+  b.daten.schliesstAm !== undefined &&
+  heuteZuerich(jetzt) > b.daten.schliesstAm;
 
 export type Veroeffentlicht = {
   seiteId: string;

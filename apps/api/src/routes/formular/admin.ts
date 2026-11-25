@@ -83,263 +83,273 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
   const rufname = (name: string | null, cevi: string | null) =>
     cevi?.trim() || name?.trim().split(/\s+/)[0] || "Unbekannt";
 
-  return new Hono<Env>()
-    // Alle Formulare der Abteilung mit der Zahl ihrer Antworten
-    .get("/", async (c) => {
-      const person = c.get("person");
-      await verlange(db, person, "formular.antworten_sehen");
-      const liste = await listeFormulare(db, person.abteilungId);
-      return c.json({ formulare: liste });
-    })
-    .get("/:id", eingabe("param", pfad), async (c) => {
-      const person = c.get("person");
-      const z = await lade(person, c.req.valid("param").id, "formular.antworten_sehen");
-      const b = await aktuelleDefinition(person.abteilungId, z);
-      return c.json({
-        formular: z,
-        // Was die Person mit den Antworten darf: Die Oberfläche blendet Knöpfe ohne das Recht aus, jede Route prüft selbst
-        rechte: {
-          exportieren: await darf(db, person, "formular.antworten_exportieren"),
-          loeschen: await darf(db, person, "formular.antworten_loeschen"),
-        },
-        felder: (b?.daten.felder ?? []).map((f) => ({
-          id: f.id,
-          beschriftung: f.beschriftung,
-          typ: f.typ,
-        })),
-      });
-    })
-    // Eine Seite Antworten, neueste zuerst (uuidv7 ist nach Zeit geordnet); nach ist die ID der letzten Antwort der Vorseite
-    .get(
-      "/:id/antworten",
-      eingabe("param", pfad),
-      eingabe("query", listeSchema),
-      async (c) => {
+  return (
+    new Hono<Env>()
+      // Alle Formulare der Abteilung mit der Zahl ihrer Antworten
+      .get("/", async (c) => {
+        const person = c.get("person");
+        await verlange(db, person, "formular.antworten_sehen");
+        const liste = await listeFormulare(db, person.abteilungId);
+        return c.json({ formulare: liste });
+      })
+      .get("/:id", eingabe("param", pfad), async (c) => {
         const person = c.get("person");
         const z = await lade(
           person,
           c.req.valid("param").id,
           "formular.antworten_sehen",
         );
-        const { limit, nach } = c.req.valid("query");
-        const zeilen = await db
-          .select({
-            id: formularAntwort.id,
-            erstelltAm: formularAntwort.erstelltAm,
-            versionId: formularAntwort.versionId,
-            antworten: formularAntwort.antworten,
-            userId: formularAntwort.userId,
-            name: user.name,
-            ceviName: user.ceviName,
-          })
-          .from(formularAntwort)
-          .leftJoin(user, eq(user.id, formularAntwort.userId))
-          .where(
-            and(
-              antwortenVon(person.abteilungId, z.formularId),
-              nach ? lt(formularAntwort.id, nach) : undefined,
-            ),
-          )
-          .orderBy(desc(formularAntwort.id))
-          .limit(limit + 1);
-        const weitere = zeilen.length > limit;
-        const seite = zeilen.slice(0, limit);
-        const versionen = await ladeVersionen(db, z.formularId, [
-          ...new Set(seite.map((s) => s.versionId)),
-        ]);
+        const b = await aktuelleDefinition(person.abteilungId, z);
         return c.json({
-          antworten: seite.map((s) => {
-            const felder = versionen.get(s.versionId)?.daten.felder ?? [];
-            const werte = s.antworten as Antworten;
-            return {
-              id: s.id,
-              erstelltAm: s.erstelltAm,
-              // Anonym, wenn die Person nicht angemeldet war oder ihr Konto inzwischen gelöscht ist
-              person: s.userId ? rufname(s.name, s.ceviName) : null,
-              eintraege: felder
-                .filter((f) => werte[f.id] !== undefined)
-                .map((f) => ({
-                  feldId: f.id,
-                  beschriftung: f.beschriftung,
-                  typ: f.typ,
-                  wert: antwortText(f, werte[f.id]),
-                })),
-            };
-          }),
-          weitere,
-          naechste: weitere ? seite[seite.length - 1]!.id : null,
-        });
-      },
-    )
-    // CSV für Excel in der Schweiz (UTF-8 mit BOM, Semikolon). Die Spalten sind die Felder der letzten Version zuerst, dann Felder älterer Versionen, die es nicht mehr gibt. Jede Zelle, die mit = + - @ beginnt, ist entschärft (termine/csv.ts)
-    .get("/:id/antworten.csv", eingabe("param", pfad), async (c) => {
-      const person = c.get("person");
-      const z = await lade(
-        person,
-        c.req.valid("param").id,
-        "formular.antworten_exportieren",
-      );
-      if (!exportErlaubt(person.id)) throw new HTTPException(429);
-      const versionRows = await db
-        .selectDistinct({ versionId: formularAntwort.versionId })
-        .from(formularAntwort)
-        .where(antwortenVon(person.abteilungId, z.formularId));
-      const versionen = await ladeVersionen(
-        db,
-        z.formularId,
-        versionRows.map((v) => v.versionId),
-      );
-      // Spalten: neueste Version zuerst. Die Reihenfolge der Versionen nach ID der Antwort ist hier nicht bekannt; die aktuelle Definition geht voran, dann die übrigen in der Reihenfolge ihres ersten Auftretens
-      const aktuell = await aktuelleDefinition(person.abteilungId, z);
-      const spalten = new Map<string, Feld>();
-      for (const b of [
-        ...(aktuell ? [aktuell] : []),
-        ...versionen.values(),
-      ]) {
-        for (const f of b.daten.felder) if (!spalten.has(f.id)) spalten.set(f.id, f);
-      }
-      const felder = [...spalten.values()];
-      await db.insert(auditLog).values({
-        abteilungId: person.abteilungId,
-        akteurId: person.id,
-        aktion: "formular_export",
-        zielTyp: "formular",
-        zielId: z.formularId,
-        details: { anzahl: z.anzahl },
-      });
-      const zeit = new Intl.DateTimeFormat("de-CH", {
-        timeZone: "Europe/Zurich",
-        dateStyle: "short",
-        timeStyle: "short",
-      });
-      const text = new TextEncoder();
-      let kopfGesendet = false;
-      let nachId: string | undefined;
-      const datei = new ReadableStream<Uint8Array>({
-        // pull läuft erst, wenn der Client Daten abnimmt: Ein abgebrochener Download fragt keinen weiteren Block ab
-        async pull(controller) {
-          try {
-            if (!kopfGesendet) {
-              kopfGesendet = true;
-              controller.enqueue(
-                text.encode(
-                  BOM +
-                    csvZeile([
-                      "Eingang",
-                      "Person",
-                      ...felder.map((f) => f.beschriftung),
-                    ]),
-                ),
-              );
-              return;
-            }
-            const block = await db
-              .select({
-                id: formularAntwort.id,
-                erstelltAm: formularAntwort.erstelltAm,
-                antworten: formularAntwort.antworten,
-                userId: formularAntwort.userId,
-                name: user.name,
-                ceviName: user.ceviName,
-              })
-              .from(formularAntwort)
-              .leftJoin(user, eq(user.id, formularAntwort.userId))
-              .where(
-                and(
-                  antwortenVon(person.abteilungId, z.formularId),
-                  nachId ? lt(formularAntwort.id, nachId) : undefined,
-                ),
-              )
-              .orderBy(desc(formularAntwort.id))
-              .limit(BLOCK);
-            if (block.length > 0) {
-              controller.enqueue(
-                text.encode(
-                  block
-                    .map((s) => {
-                      const werte = s.antworten as Antworten;
-                      return csvZeile([
-                        zeit.format(s.erstelltAm),
-                        s.userId ? rufname(s.name, s.ceviName) : "",
-                        ...felder.map((f) => antwortText(f, werte[f.id])),
-                      ]);
-                    })
-                    .join(""),
-                ),
-              );
-            }
-            if (block.length < BLOCK) controller.close();
-            else nachId = block[block.length - 1]!.id;
-          } catch (fehler) {
-            // Nur der Typ, nie Inhalt
-            console.error(
-              "formular_export abgebrochen",
-              fehler instanceof Error ? fehler.name : typeof fehler,
-            );
-            controller.error(fehler);
-          }
-        },
-      });
-      return new Response(datei, {
-        headers: {
-          "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": `attachment; filename="formular-${z.formularId}.csv"`,
-          "Cache-Control": "no-store",
-        },
-      });
-    })
-    // Eine Antwort löschen (endgültig)
-    .delete(
-      "/:id/antworten/:antwortId",
-      eingabe("param", pfadAntwort),
-      async (c) => {
-        const person = c.get("person");
-        const { id, antwortId } = c.req.valid("param");
-        const z = await lade(person, id, "formular.antworten_loeschen");
-        const weg = await db
-          .delete(formularAntwort)
-          .where(
-            and(
-              antwortenVon(person.abteilungId, z.formularId),
-              eq(formularAntwort.id, antwortId),
+          formular: z,
+          // Was die Person mit den Antworten darf: Die Oberfläche blendet Knöpfe ohne das Recht aus, jede Route prüft selbst
+          rechte: {
+            exportieren: await darf(
+              db,
+              person,
+              "formular.antworten_exportieren",
             ),
-          )
-          .returning({ id: formularAntwort.id });
-        if (weg.length === 0) throw new HTTPException(404);
+            loeschen: await darf(db, person, "formular.antworten_loeschen"),
+          },
+          felder: (b?.daten.felder ?? []).map((f) => ({
+            id: f.id,
+            beschriftung: f.beschriftung,
+            typ: f.typ,
+          })),
+        });
+      })
+      // Eine Seite Antworten, neueste zuerst (uuidv7 ist nach Zeit geordnet); nach ist die ID der letzten Antwort der Vorseite
+      .get(
+        "/:id/antworten",
+        eingabe("param", pfad),
+        eingabe("query", listeSchema),
+        async (c) => {
+          const person = c.get("person");
+          const z = await lade(
+            person,
+            c.req.valid("param").id,
+            "formular.antworten_sehen",
+          );
+          const { limit, nach } = c.req.valid("query");
+          const zeilen = await db
+            .select({
+              id: formularAntwort.id,
+              erstelltAm: formularAntwort.erstelltAm,
+              versionId: formularAntwort.versionId,
+              antworten: formularAntwort.antworten,
+              userId: formularAntwort.userId,
+              name: user.name,
+              ceviName: user.ceviName,
+            })
+            .from(formularAntwort)
+            .leftJoin(user, eq(user.id, formularAntwort.userId))
+            .where(
+              and(
+                antwortenVon(person.abteilungId, z.formularId),
+                nach ? lt(formularAntwort.id, nach) : undefined,
+              ),
+            )
+            .orderBy(desc(formularAntwort.id))
+            .limit(limit + 1);
+          const weitere = zeilen.length > limit;
+          const seite = zeilen.slice(0, limit);
+          const versionen = await ladeVersionen(db, z.formularId, [
+            ...new Set(seite.map((s) => s.versionId)),
+          ]);
+          return c.json({
+            antworten: seite.map((s) => {
+              const felder = versionen.get(s.versionId)?.daten.felder ?? [];
+              const werte = s.antworten as Antworten;
+              return {
+                id: s.id,
+                erstelltAm: s.erstelltAm,
+                // Anonym, wenn die Person nicht angemeldet war oder ihr Konto inzwischen gelöscht ist
+                person: s.userId ? rufname(s.name, s.ceviName) : null,
+                eintraege: felder
+                  .filter((f) => werte[f.id] !== undefined)
+                  .map((f) => ({
+                    feldId: f.id,
+                    beschriftung: f.beschriftung,
+                    typ: f.typ,
+                    wert: antwortText(f, werte[f.id]),
+                  })),
+              };
+            }),
+            weitere,
+            naechste: weitere ? seite[seite.length - 1]!.id : null,
+          });
+        },
+      )
+      // CSV für Excel in der Schweiz (UTF-8 mit BOM, Semikolon). Die Spalten sind die Felder der letzten Version zuerst, dann Felder älterer Versionen, die es nicht mehr gibt. Jede Zelle, die mit = + - @ beginnt, ist entschärft (termine/csv.ts)
+      .get("/:id/antworten.csv", eingabe("param", pfad), async (c) => {
+        const person = c.get("person");
+        const z = await lade(
+          person,
+          c.req.valid("param").id,
+          "formular.antworten_exportieren",
+        );
+        if (!exportErlaubt(person.id)) throw new HTTPException(429);
+        const versionRows = await db
+          .selectDistinct({ versionId: formularAntwort.versionId })
+          .from(formularAntwort)
+          .where(antwortenVon(person.abteilungId, z.formularId));
+        const versionen = await ladeVersionen(
+          db,
+          z.formularId,
+          versionRows.map((v) => v.versionId),
+        );
+        // Spalten: neueste Version zuerst. Die Reihenfolge der Versionen nach ID der Antwort ist hier nicht bekannt; die aktuelle Definition geht voran, dann die übrigen in der Reihenfolge ihres ersten Auftretens
+        const aktuell = await aktuelleDefinition(person.abteilungId, z);
+        const spalten = new Map<string, Feld>();
+        for (const b of [
+          ...(aktuell ? [aktuell] : []),
+          ...versionen.values(),
+        ]) {
+          for (const f of b.daten.felder)
+            if (!spalten.has(f.id)) spalten.set(f.id, f);
+        }
+        const felder = [...spalten.values()];
         await db.insert(auditLog).values({
           abteilungId: person.abteilungId,
           akteurId: person.id,
-          aktion: "formular_antwort_geloescht",
+          aktion: "formular_export",
           zielTyp: "formular",
           zielId: z.formularId,
-          details: { anzahl: 1 },
+          details: { anzahl: z.anzahl },
         });
-        meldeAenderung(c, { text: "Eine Antwort gelöscht" });
-        return c.body(null, 204);
-      },
-    )
-    // Alle Antworten eines Formulars löschen (endgültig); das Formular selbst bleibt auf der Seite
-    .delete("/:id/antworten", eingabe("param", pfad), async (c) => {
-      const person = c.get("person");
-      const z = await lade(
-        person,
-        c.req.valid("param").id,
-        "formular.antworten_loeschen",
-      );
-      const weg = await db
-        .delete(formularAntwort)
-        .where(antwortenVon(person.abteilungId, z.formularId))
-        .returning({ id: formularAntwort.id });
-      await db.insert(auditLog).values({
-        abteilungId: person.abteilungId,
-        akteurId: person.id,
-        aktion: "formular_antworten_geloescht",
-        zielTyp: "formular",
-        zielId: z.formularId,
-        details: { anzahl: weg.length },
-      });
-      meldeAenderung(c, { text: `${weg.length} Antworten gelöscht` });
-      return c.json({ geloescht: weg.length });
-    });
+        const zeit = new Intl.DateTimeFormat("de-CH", {
+          timeZone: "Europe/Zurich",
+          dateStyle: "short",
+          timeStyle: "short",
+        });
+        const text = new TextEncoder();
+        let kopfGesendet = false;
+        let nachId: string | undefined;
+        const datei = new ReadableStream<Uint8Array>({
+          // pull läuft erst, wenn der Client Daten abnimmt: Ein abgebrochener Download fragt keinen weiteren Block ab
+          async pull(controller) {
+            try {
+              if (!kopfGesendet) {
+                kopfGesendet = true;
+                controller.enqueue(
+                  text.encode(
+                    BOM +
+                      csvZeile([
+                        "Eingang",
+                        "Person",
+                        ...felder.map((f) => f.beschriftung),
+                      ]),
+                  ),
+                );
+                return;
+              }
+              const block = await db
+                .select({
+                  id: formularAntwort.id,
+                  erstelltAm: formularAntwort.erstelltAm,
+                  antworten: formularAntwort.antworten,
+                  userId: formularAntwort.userId,
+                  name: user.name,
+                  ceviName: user.ceviName,
+                })
+                .from(formularAntwort)
+                .leftJoin(user, eq(user.id, formularAntwort.userId))
+                .where(
+                  and(
+                    antwortenVon(person.abteilungId, z.formularId),
+                    nachId ? lt(formularAntwort.id, nachId) : undefined,
+                  ),
+                )
+                .orderBy(desc(formularAntwort.id))
+                .limit(BLOCK);
+              if (block.length > 0) {
+                controller.enqueue(
+                  text.encode(
+                    block
+                      .map((s) => {
+                        const werte = s.antworten as Antworten;
+                        return csvZeile([
+                          zeit.format(s.erstelltAm),
+                          s.userId ? rufname(s.name, s.ceviName) : "",
+                          ...felder.map((f) => antwortText(f, werte[f.id])),
+                        ]);
+                      })
+                      .join(""),
+                  ),
+                );
+              }
+              if (block.length < BLOCK) controller.close();
+              else nachId = block[block.length - 1]!.id;
+            } catch (fehler) {
+              // Nur der Typ, nie Inhalt
+              console.error(
+                "formular_export abgebrochen",
+                fehler instanceof Error ? fehler.name : typeof fehler,
+              );
+              controller.error(fehler);
+            }
+          },
+        });
+        return new Response(datei, {
+          headers: {
+            "Content-Type": "text/csv; charset=utf-8",
+            "Content-Disposition": `attachment; filename="formular-${z.formularId}.csv"`,
+            "Cache-Control": "no-store",
+          },
+        });
+      })
+      // Eine Antwort löschen (endgültig)
+      .delete(
+        "/:id/antworten/:antwortId",
+        eingabe("param", pfadAntwort),
+        async (c) => {
+          const person = c.get("person");
+          const { id, antwortId } = c.req.valid("param");
+          const z = await lade(person, id, "formular.antworten_loeschen");
+          const weg = await db
+            .delete(formularAntwort)
+            .where(
+              and(
+                antwortenVon(person.abteilungId, z.formularId),
+                eq(formularAntwort.id, antwortId),
+              ),
+            )
+            .returning({ id: formularAntwort.id });
+          if (weg.length === 0) throw new HTTPException(404);
+          await db.insert(auditLog).values({
+            abteilungId: person.abteilungId,
+            akteurId: person.id,
+            aktion: "formular_antwort_geloescht",
+            zielTyp: "formular",
+            zielId: z.formularId,
+            details: { anzahl: 1 },
+          });
+          meldeAenderung(c, { text: "Eine Antwort gelöscht" });
+          return c.body(null, 204);
+        },
+      )
+      // Alle Antworten eines Formulars löschen (endgültig); das Formular selbst bleibt auf der Seite
+      .delete("/:id/antworten", eingabe("param", pfad), async (c) => {
+        const person = c.get("person");
+        const z = await lade(
+          person,
+          c.req.valid("param").id,
+          "formular.antworten_loeschen",
+        );
+        const weg = await db
+          .delete(formularAntwort)
+          .where(antwortenVon(person.abteilungId, z.formularId))
+          .returning({ id: formularAntwort.id });
+        await db.insert(auditLog).values({
+          abteilungId: person.abteilungId,
+          akteurId: person.id,
+          aktion: "formular_antworten_geloescht",
+          zielTyp: "formular",
+          zielId: z.formularId,
+          details: { anzahl: weg.length },
+        });
+        meldeAenderung(c, { text: `${weg.length} Antworten gelöscht` });
+        return c.json({ geloescht: weg.length });
+      })
+  );
 }
-

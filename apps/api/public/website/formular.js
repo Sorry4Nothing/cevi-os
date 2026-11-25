@@ -45,27 +45,27 @@ function startFormular(wurzel) {
   const danke = wurzel.querySelector(".bf-danke");
   if (!form || !meldung || !danke) return;
   const formularId = wurzel.dataset.formular;
-  const beginn = performance.now();
+  const beginn = window.performance.now();
   let beschaeftigt = false;
   let veraendert = false;
   let gesendet = false;
 
   // Jedes Feld: Element mit data-typ (Eingabe, Auswahl, Gruppe, Kästchen) und seine Hülle
   const felder = [...form.querySelectorAll("[data-typ]")].map((e) => {
-      const gruppe = e.tagName === "FIELDSET";
-      const eingabe = gruppe ? e.querySelector("input") : e;
-      return {
-        typ: e.getAttribute("data-typ"),
-        el: e,
-        eingabe,
-        gruppe,
-        name: eingabe.name,
-        huelle: gruppe ? e : e.closest(".feld, .bf-zustimmung"),
-        pflicht: gruppe
-          ? e.getAttribute("data-pflicht") === "1"
-          : e.required === true,
-      };
-    });
+    const gruppe = e.tagName === "FIELDSET";
+    const eingabe = gruppe ? e.querySelector("input") : e;
+    return {
+      typ: e.getAttribute("data-typ"),
+      el: e,
+      eingabe,
+      gruppe,
+      name: eingabe.name,
+      huelle: gruppe ? e : e.closest(".feld, .bf-zustimmung"),
+      pflicht: gruppe
+        ? e.getAttribute("data-pflicht") === "1"
+        : e.required === true,
+    };
+  });
   const nachName = new Map(felder.map((f) => [f.name, f]));
   const beschriftung = (f) => {
     const t = f.gruppe
@@ -117,7 +117,8 @@ function startFormular(wurzel) {
         const t = e.value.trim();
         if (t === "") return { wert: undefined };
         const n = zahlVon(t);
-        if (n === null) return { fehler: "Gib eine Zahl ein, zum Beispiel 12." };
+        if (n === null)
+          return { fehler: "Gib eine Zahl ein, zum Beispiel 12." };
         if (e.dataset.ganz && !Number.isInteger(n)) {
           return { fehler: "Gib eine ganze Zahl ein, zum Beispiel 12." };
         }
@@ -225,7 +226,9 @@ function startFormular(wurzel) {
         el(
           "strong",
           "",
-          liste.length === 1 ? "1 Angabe prüfen" : `${liste.length} Angaben prüfen`,
+          liste.length === 1
+            ? "1 Angabe prüfen"
+            : `${liste.length} Angaben prüfen`,
         ),
         ul,
       ),
@@ -304,8 +307,8 @@ function startFormular(wurzel) {
       return;
     }
     laeuft(true);
-    let antwort = null;
-    let daten = null;
+    let antwort;
+    let daten;
     try {
       antwort = await holeMitFrist(`${API}/${formularId}/antworten`, {
         method: "POST",
@@ -318,7 +321,7 @@ function startFormular(wurzel) {
         body: JSON.stringify({
           antworten,
           homepage: form.querySelector("[name=homepage]")?.value ?? "",
-          dauerMs: Math.round(performance.now() - beginn),
+          dauerMs: Math.round(window.performance.now() - beginn),
         }),
       });
       daten = await antwort.json().catch(() => null);
@@ -333,16 +336,22 @@ function startFormular(wurzel) {
     laeuft(false);
     if (antwort.status === 201) {
       gesendet = true;
-      form.hidden = true;
-      meldung.replaceChildren();
+      // Erst die Meldung bauen, dann das Formular ausblenden: Schlägt der Bau fehl, bleibt das Formular stehen
       danke.replaceChildren(
         el(
           "div",
           "band ok",
-          symbol("haken"),
-          el("div", "text", el("strong", "", "Gesendet"), danke.dataset.danke ?? ""),
+          symbol("info"),
+          el(
+            "div",
+            "text",
+            el("strong", "", "Gesendet"),
+            danke.dataset.danke ?? "",
+          ),
         ),
       );
+      form.hidden = true;
+      meldung.replaceChildren();
       danke.tabIndex = -1;
       danke.focus();
       return;

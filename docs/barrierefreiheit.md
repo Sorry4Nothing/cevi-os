@@ -1798,5 +1798,15 @@ Ein Formular auf einer Seite der Website (Umfrage, Rückmeldung, Bedarfsabfrage)
 
 ### Stand der Prüfung (#819)
 
-Siehe unten: wird mit dem PR nachgeführt. Im Test (kein Browser): 95.1 bis 95.3 und 95.8 im Markup (`test/website-formular.test.ts`), 95.12 und 95.13 im Skript und im Renderer.
+Im Browser (Chromium, Playwright, eigener Dev-Server auf der Testdatenbank mit erfundenen Daten, öffentliche Seite mit einem Formular aus allen Feldarten; 1280 Pixel hell und 390 Pixel dunkel):
 
+- **95.1, 95.2:** Labels über den Feldern, «(optional)» bei freiwilligen, Gruppen mit Legende, Hilfetext sichtbar zwischen Label und Feld (Ansicht und Markup, Test `test/website-formular.test.ts`).
+- **95.4:** Absenden mit leeren Pflichtfeldern: Zusammenfassung «6 Angaben prüfen» mit Link je Feld, sie trägt den Fokus (`role="alert"`), sechs Fehlertexte am Feld und sechs `aria-invalid`.
+- **95.5, 95.6:** Eine Zahl ausserhalb der Grenze (12 bei 1 bis 9) meldet «Die Zahl muss zwischen 1 und 9 liegen.» und lässt alle Eingaben stehen. Absenden nach weniger als 2 Sekunden: Band «Das ging sehr schnell …», Formular und Eingaben bleiben.
+- **95.7:** Nach dem Senden verschwindet das Formular, «Gesendet» mit dem Text der Redaktion steht in der Statusregion und hat den Fokus; die Antwort steht in der Datenbank (Test).
+- **95.9:** Zeilen der Optionsfelder und Kästchen 44 Pixel hoch, Felder 52, Knopf 48 (gemessen).
+- **95.11:** 390 Pixel: kein waagrechtes Scrollen, der Knopf füllt die Breite (344 Pixel); die Zusammenfassung bricht lange Sätze um.
+- **95.12:** Das Skript setzt nie `innerHTML` (Test); ohne Skript steht der Hinweis (Markup).
+- **Beim Prüfen gefunden und behoben:** Nach dem Senden fehlte ein Symbol, das Skript brach ab und liess das Formular ohne Meldung verschwinden. Jetzt entsteht die Meldung vor dem Ausblenden, und ein Test prüft, dass jedes gezeichnete Symbol existiert.
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 %, Kontrast 95.10 nicht gemessen (Werte aus den Tokens), 95.8 Pfeiltasten und Tab-Reihenfolge nur im Markup, 95.13 geschütztes Formular (Nachladen) nur im Test (`knoten.js` kennt alle Elemente), 95.14 Bewegung reduziert, 95.15 bis 95.17 die Verwaltung (Editor des Bausteins und Seite «Formulare») nur über die Schnittstelle getestet, nicht im Browser, weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlte.

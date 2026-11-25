@@ -178,7 +178,15 @@ describe("GET /api/v1/redaktion/ich", () => {
       !koerper.redigieren
         ? []
         : name === "Abteilungsleitung"
-          ? ["website", "plattform", "laedeli", "lager", "system", "fotos", "formulare"]
+          ? [
+              "website",
+              "plattform",
+              "laedeli",
+              "lager",
+              "system",
+              "fotos",
+              "formulare",
+            ]
           : // Die Vorgabe «Webmaster» hat auch «fotos.verwalten» (#690)
             name === "Webmaster"
             ? ["website", "fotos"]

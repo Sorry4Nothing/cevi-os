@@ -1,7 +1,11 @@
 import { and, eq, sql } from "drizzle-orm";
 import { Hono, type MiddlewareHandler } from "hono";
 import { z } from "zod";
-import { GESPERRT, IN_WARTUNG, type SchalterZustand } from "../../bereichsschalter.js";
+import {
+  GESPERRT,
+  IN_WARTUNG,
+  type SchalterZustand,
+} from "../../bereichsschalter.js";
 import { clientIp } from "../../client-ip.js";
 import type { Db } from "../../db/client.js";
 import { formularAntwort } from "../../db/schema.js";
@@ -42,7 +46,11 @@ const koerperSchema = z.strictObject({
   // Die Falle: Menschen sehen das Feld nie
   homepage: z.string().max(200),
   // Millisekunden seit dem Laden der Seite, vom Skript gemessen
-  dauerMs: z.number().int().min(0).max(7 * 24 * 3600 * 1000),
+  dauerMs: z
+    .number()
+    .int()
+    .min(0)
+    .max(7 * 24 * 3600 * 1000),
 });
 
 const NICHT_GEFUNDEN = {
@@ -171,7 +179,11 @@ export function erstelleFormularOeffentlichRoute({
           ? !personFormular(`${person.id} ${formularId}`)
           : !formularAnonym(formularId))
       ) {
-        log(c, { ereignis: "formular_abgewiesen", grund: "zu_oft", formularId });
+        log(c, {
+          ereignis: "formular_abgewiesen",
+          grund: "zu_oft",
+          formularId,
+        });
         return c.json(ZU_OFT, 429);
       }
 
@@ -231,4 +243,3 @@ export function erstelleFormularOeffentlichRoute({
     },
   );
 }
-

@@ -33,7 +33,10 @@ export function zeige(bereich, ctx) {
   ctx.lade(
     () => anfrage("GET", BASIS),
     (daten) => zeichneListe(bereich, daten.formulare),
-    { skeleton: skeletonListe, fehlerTitel: "Die Formulare konnten nicht geladen werden." },
+    {
+      skeleton: skeletonListe,
+      fehlerTitel: "Die Formulare konnten nicht geladen werden.",
+    },
   );
 }
 
@@ -80,7 +83,10 @@ function zeigeFormular(bereich, ctx, id) {
   ctx.lade(
     () => anfrage("GET", `${BASIS}/${id}`),
     (kopf) => zeichneFormular(bereich, ctx, id, kopf),
-    { skeleton: skeletonListe, fehlerTitel: "Das Formular konnte nicht geladen werden." },
+    {
+      skeleton: skeletonListe,
+      fehlerTitel: "Das Formular konnte nicht geladen werden.",
+    },
   );
 }
 
@@ -213,7 +219,11 @@ function zeichneFormular(bereich, ctx, id, kopf) {
           el("span", { class: "fm-zeit" }, zeit(a.erstelltAm)),
           el("span", { class: "fm-person" }, a.person ?? "Anonym"),
           erste
-            ? el("span", { class: "fm-vorschau leise" }, erste.wert.slice(0, 80))
+            ? el(
+                "span",
+                { class: "fm-vorschau leise" },
+                erste.wert.slice(0, 80),
+              )
             : null,
         ),
         el(
@@ -255,7 +265,11 @@ function zeichneFormular(bereich, ctx, id, kopf) {
   }
 
   bereich.append(
-    el("p", { class: "leise" }, "Diese Antworten enthalten Personendaten. Gib sie nur weiter, wenn der Datenschutzhinweis des Formulars es erlaubt."),
+    el(
+      "p",
+      { class: "leise" },
+      "Diese Antworten enthalten Personendaten. Gib sie nur weiter, wenn der Datenschutzhinweis des Formulars es erlaubt.",
+    ),
     zaehlerP,
     werkzeuge,
     leer,
