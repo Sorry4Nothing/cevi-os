@@ -94,7 +94,6 @@ const detail = async (konto: PersonaKonto, programmId: string) => {
 const frisch = (extra: { beginn?: Date } = {}) =>
   legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: "eltern",
     stufen: [welt.stufeAId],
     ...extra,
   });
@@ -274,12 +273,10 @@ describe("GET /api/v1/programme mit Teilnahme je Kind", () => {
     const a = await frisch();
     const ab = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId, welt.stufeBId],
     });
     const nurB = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeBId],
     });
     await put(konten.elternA, a.id, welt.kindAId, { status: "ja" });

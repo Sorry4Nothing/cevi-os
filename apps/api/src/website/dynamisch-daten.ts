@@ -94,10 +94,10 @@ const FELDER = sql`
   (anlass.frist is null or anlass.frist > now()) as offen_jetzt,
   (case when programm.ganztaegig then programm.tag_bis >= (now() at time zone 'Europe/Zurich')::date else programm.ende >= now() end) as kommend`;
 
-// Aktiver Termin für Eltern an einem öffentlichen Anlass der Abteilung: dieselbe Regel wie die Termin-Liste
+// Aktiver Termin an einem öffentlichen Anlass der Abteilung: dieselbe Regel wie die Termin-Liste
 const OEFFENTLICH = (abteilungId: string) => sql`
   anlass.abteilung_id = ${abteilungId} and programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv'
-  and programm.sichtbarkeit = 'eltern' and anlass.sichtbarkeit = 'oeffentlich'`;
+  and anlass.sichtbarkeit = 'oeffentlich'`;
 const KOMMEND = sql`(case when programm.ganztaegig then programm.tag_bis >= (now() at time zone 'Europe/Zurich')::date else programm.ende >= now() end)`;
 
 const heuteZuerich = (jetzt: Date) =>

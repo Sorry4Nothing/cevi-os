@@ -101,102 +101,60 @@ const zeilen = (programmId: string) =>
     .where(eq(leitungAnmeldung.programmId, programmId));
 
 // Beginn standardmässig in einem Jahr: Der Standard der Hilfe (März 2027) liegt irgendwann in der Vergangenheit
-const frisch = (
-  sichtbarkeit: "intern" | "leitende" | "eltern",
-  stufen: string[],
-  beginn = zukunft(),
-) =>
+const frisch = (stufen: string[], beginn = zukunft()) =>
   legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit,
     stufen,
     beginn,
   });
 
 describe("PUT /api/v1/programme/:id/leitung: Status je Person", () => {
   type Erwartet = Partial<Record<Rolle, number>>;
-  const FAELLE: [string, "intern" | "leitende" | "eltern", Erwartet][] = [
-    [
-      "intern",
-      "intern",
-      {
-        slA: 204,
-        admin: 403,
-        slB: 403,
-        leitendeA: 404,
-        leitendeAElternB: 404,
-        leitendeB: 404,
-        elternA: 404,
-        elternB: 404,
-      },
-    ],
-    [
-      "leitende",
-      "leitende",
-      {
-        slA: 204,
-        leitendeA: 204,
-        leitendeAElternB: 204,
-        admin: 403,
-        slB: 403,
-        leitendeB: 404,
-        elternA: 404,
-        elternB: 404,
-      },
-    ],
-    [
-      "eltern",
-      "eltern",
-      {
-        slA: 204,
-        leitendeA: 204,
-        leitendeAElternB: 204,
-        admin: 403,
-        slB: 403,
-        elternA: 403,
-        leitendeB: 404,
-        elternB: 404,
-      },
-    ],
-  ];
+  const ERWARTET: Erwartet = {
+    slA: 204,
+    leitendeA: 204,
+    leitendeAElternB: 204,
+    admin: 403,
+    slB: 403,
+    elternA: 403,
+    leitendeB: 404,
+    elternB: 404,
+  };
 
-  test.each(FAELLE)(
-    "Programm der Stufe A, %s",
-    async (_name, sichtbarkeit, erwartet) => {
-      const p = await frisch(sichtbarkeit, [welt.stufeAId]);
-      const ergebnis: Erwartet = {};
-      for (const rolle of Object.keys(erwartet) as Rolle[]) {
-        ergebnis[rolle] = (
-          await put(konten[rolle], p.id, { status: "ja" })
-        ).status;
-      }
-      expect(ergebnis).toEqual(erwartet);
-      // Nur wer 204 bekam, hat eine Zeile
-      expect((await zeilen(p.id)).map((z) => z.userId).sort()).toEqual(
-        Object.entries(erwartet)
-          .filter(([, status]) => status === 204)
-          .map(([rolle]) => idVon(rolle as Rolle))
-          .sort(),
-      );
-    },
-  );
+  test("Programm der Stufe A", async () => {
+    const p = await frisch([welt.stufeAId]);
+    const ergebnis: Erwartet = {};
+    for (const rolle of Object.keys(ERWARTET) as Rolle[]) {
+      ergebnis[rolle] = (
+        await put(konten[rolle], p.id, { status: "ja" })
+      ).status;
+    }
+    expect(ergebnis).toEqual(ERWARTET);
+    // Nur wer 204 bekam, hat eine Zeile
+    expect((await zeilen(p.id)).map((z) => z.userId).sort()).toEqual(
+      Object.entries(ERWARTET)
+        .filter(([, status]) => status === 204)
+        .map(([rolle]) => idVon(rolle as Rolle))
+        .sort(),
+    );
+  });
 
   test("Programm der Stufen A und B: slB meldet sich an, die Abteilungsleitung nicht", async () => {
-    const p = await frisch("eltern", [welt.stufeAId, welt.stufeBId]);
+    const p = await frisch([welt.stufeAId, welt.stufeBId]);
     expect((await put(konten.slB, p.id, { status: "ja" })).status).toBe(204);
     expect((await put(konten.slA, p.id, { status: "nein" })).status).toBe(204);
     expect((await put(konten.admin, p.id, { status: "ja" })).status).toBe(403);
   });
 
   test("Leitende A sieht ein Programm der Stufe B nur als Elternteil: 403", async () => {
-    const p = await frisch("eltern", [welt.stufeBId]);
+    const p = await frisch([welt.stufeBId]);
     const res = await put(konten.leitendeAElternB, p.id, { status: "ja" });
     expect(res.status).toBe(403);
     expect(await zeilen(p.id)).toEqual([]);
   });
 
   test("ein Programm ohne Stufen-Tag gehört keiner Stufe: weder SL noch Abteilungsleitung können sich anmelden (#449)", async () => {
-    const p = await frisch("eltern", []);
+    const p = await frisch([]);
     expect((await put(konten.slA, p.id, { status: "ja" })).status).toBe(403);
     expect((await put(konten.admin, p.id, { status: "ja" })).status).toBe(403);
   });
@@ -209,7 +167,6 @@ describe("PUT /api/v1/programme/:id/leitung: Status je Person", () => {
   test("ein Programm einer anderen Abteilung: 404 trotz Rolle", async () => {
     const fremd = await legeProgrammAn(db, {
       abteilungId: welt.demoAbteilungId,
-      sichtbarkeit: "eltern",
       beginn: zukunft(),
     });
     expect((await put(konten.slA, fremd.id, { status: "ja" })).status).toBe(
@@ -219,7 +176,7 @@ describe("PUT /api/v1/programme/:id/leitung: Status je Person", () => {
   });
 
   test("ja, dann nein: eine Zeile mit nein, eigeneAnmeldung folgt", async () => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     const eigene = async () =>
       (await detail(konten.leitendeA, p.id)).body.eigeneAnmeldung;
     expect(await eigene()).toBe("offen");
@@ -237,7 +194,7 @@ describe("PUT /api/v1/programme/:id/leitung: Status je Person", () => {
   });
 
   test("zwei gleichzeitige Anfragen: beide 204, eine Zeile", async () => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     const antworten = await Promise.all([
       put(konten.slA, p.id, { status: "ja" }),
       put(konten.slA, p.id, { status: "ja" }),
@@ -251,7 +208,7 @@ describe("PUT /api/v1/programme/:id/leitung: Status je Person", () => {
     ["zusätzlicher Schlüssel", { status: "ja", userId: randomUUID() }],
     ["fehlender Status", {}],
   ])("%s: 400, nichts gespeichert", async (_name, body) => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     expect((await put(konten.slA, p.id, body)).status).toBe(400);
     expect(await zeilen(p.id)).toEqual([]);
   });
@@ -259,7 +216,7 @@ describe("PUT /api/v1/programme/:id/leitung: Status je Person", () => {
 
 describe("Programmbeginn", () => {
   test("nach dem Beginn: 409 mit eigenem Code, Zeile unverändert", async () => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     expect((await put(konten.slA, p.id, { status: "ja" })).status).toBe(204);
     await db
       .update(programm)
@@ -277,11 +234,7 @@ describe("Programmbeginn", () => {
   });
 
   test("404 und 403 gehen dem 409 vor", async () => {
-    const p = await frisch(
-      "eltern",
-      [welt.stufeAId],
-      new Date(Date.now() - 3_600_000),
-    );
+    const p = await frisch([welt.stufeAId], new Date(Date.now() - 3_600_000));
     expect((await put(konten.elternB, p.id, { status: "ja" })).status).toBe(
       404,
     );
@@ -300,7 +253,6 @@ describe("Programmbeginn", () => {
     const mitTag = (tagVon: string) =>
       legeProgrammAn(db, {
         abteilungId: welt.testabteilungId,
-        sichtbarkeit: "eltern",
         stufen: [welt.stufeAId],
         tagVon,
       });
@@ -315,7 +267,7 @@ describe("Programmbeginn", () => {
 
 describe("eigeneAnmeldung im Programm-Detail", () => {
   test("nur bei Leitung einer Stufe des Programms, sonst fehlt der Schlüssel", async () => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     const ergebnis: Record<string, unknown> = {};
     for (const rolle of [
       "slA",
@@ -340,7 +292,7 @@ describe("eigeneAnmeldung im Programm-Detail", () => {
   });
 
   test("jede Person sieht nur die eigene Anmeldung", async () => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     await put(konten.slA, p.id, { status: "nein" });
     expect((await detail(konten.leitendeA, p.id)).body.eigeneAnmeldung).toBe(
       "offen",
@@ -362,7 +314,7 @@ describe("Tabelle leitung_anmeldung", () => {
   });
 
   test("das Löschen von Programm oder Person entfernt die Zeilen", async () => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     const [wegwerf] = await db
       .insert(user)
       .values({
@@ -386,7 +338,7 @@ describe("Tabelle leitung_anmeldung", () => {
   });
 
   test("die Datenbank lehnt einen anderen Status und eine doppelte Zeile ab", async () => {
-    const p = await frisch("eltern", [welt.stufeAId]);
+    const p = await frisch([welt.stufeAId]);
     await zurueckgerollt(sql, async (tx) => {
       await scheitert(
         tx,

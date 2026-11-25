@@ -21,6 +21,7 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
+import { rendereFormular, SKRIPT_FORMULAR, STIL_FORMULAR } from "./formular.js";
 import { istDynamisch } from "./bausteine-dynamisch.js";
 import type { DynamischErgebnis } from "./dynamisch-daten.js";
 import {
@@ -497,6 +498,8 @@ function rendereBaustein(
     return rendereLaden(daten, Math.min(3, letzte.ebene + 1));
   }
   if (b.typ === "fotoalben") return rendereFotoalben();
+  // Formular (#819)
+  if (b.typ === "formular") return rendereFormular(b, letzte);
   if (istDynamisch(b)) return rendereDynamischenBaustein(b, daten, letzte);
   switch (b.typ) {
     case "ueberschrift": {
@@ -1451,6 +1454,8 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
   const geschuetzt = !s.dokument.bausteine.every(istOeffentlich);
   // Fotoalben (#690): der Baustein ist nur ein Behälter; das Skript holt die Alben nach der Anmeldung (auch in einem geschützten Baustein, den geschuetzt.js erst nachlädt)
   const mitFotos = s.dokument.bausteine.some((b) => b.typ === "fotoalben");
+  // Formular (#819): Stil und Skript auch dann, wenn der Baustein nur für Angemeldete ist und erst nachgeladen wird
+  const mitFormular = s.dokument.bausteine.some((b) => b.typ === "formular");
   return rahmen(k, {
     titel: s.dokument.titel,
     aktuell: s.pfad,
@@ -1474,6 +1479,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         ...(mitFotos || medien.lichtkasten ? [STIL_LICHTKASTEN] : []),
       ]),
       ...(mitFotos ? [STIL_FOTOS] : []),
+      ...(mitFormular ? [STIL_FORMULAR] : []),
       ...medien.stile,
       // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
       ...(s.dokument.bausteine.some(
@@ -1488,11 +1494,12 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         : []),
     ],
     // Das Skript nur, wenn die Seite einen Platzhalter hat; es kennt die Adresse der Seite aus data-pfad
-    ...((geschuetzt || mitLaden || mitFotos) && {
+    ...((geschuetzt || mitLaden || mitFotos || mitFormular) && {
       skript: [
         ...(geschuetzt ? [SKRIPT_GESCHUETZT] : []),
         ...(mitLaden ? [SKRIPT_LADEN] : []),
         ...(mitFotos ? [SKRIPT_FOTOS] : []),
+        ...(mitFormular ? [SKRIPT_FORMULAR] : []),
       ],
     }),
     ...(geschuetzt && { hauptAttr: ` data-pfad="${esc(s.pfad)}"` }),
@@ -1524,33 +1531,42 @@ export const rendereRobots = (basisUrl: string) =>
   `User-agent: *\nDisallow: /api/\nDisallow: /admin\nSitemap: ${basisUrl}/sitemap.xml\n`;
 
 // Hülle einer ganz geschützten Seite (#354): kein Titel, kein Inhalt, nur der Hinweis. Das Skript ersetzt sie nach der Anmeldung durch die Seite; ohne Sitzung bleibt der Hinweis stehen (Design W10)
+// Mit Skript steht zuerst das Skelett «huelle-laden» und der Hinweis ist verborgen, bis geschuetzt.js die Sitzung kennt (#816, website.css); ohne Skript gilt der Hinweis. Die Klasse «huelle» an main gibt der Seite unten den Abstand der übrigen Seiten und bleibt, wenn das Skript die Seite ersetzt
 export function rendereHuelle(pfad: string, k: Kontext): string {
   return rahmen(k, {
     titel: "Geschützte Seite",
     aktuell: null,
     robots: "noindex",
     // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell oder Fotoalbum findet Stil und Skript vor
-    skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS],
-    hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
+    skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS, SKRIPT_FORMULAR],
+    hauptAttr: ` data-huelle data-pfad="${esc(pfad)}" class="huelle"`,
     zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL, SKRIPT_VERGLEICH],
-    stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS, STIL_MEDIEN],
+    stile: [
+      STIL_LICHTKASTEN,
+      STIL_KARUSSELL,
+      STIL_FOTOS,
+      STIL_MEDIEN,
+      STIL_FORMULAR,
+    ],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>
 <p>Diese Seite ist nur für angemeldete Personen.</p>
 <a class="btn p gross" href="${esc(anmeldeAdresse(pfad))}">Anmelden</a>
-</div>`,
+</div>
+<div class="huelle-laden"><div class="skelett karte" aria-hidden="true"><span class="sk h24 b40"></span><span class="sk t b90"></span><span class="sk t b60"></span><span class="sk t b90"></span></div></div>`,
   });
 }
 
-// Anmeldeseite (#354, Design W9). Die Felder haben kein name-Attribut und das Formular sendet nichts selbst (form-action 'none'): Ein Passwort gelangt nie in eine Adresse. Das Skript sendet es als JSON an /api/auth
+// Anmeldeseite (#354, Design W9; seit #818 die einzige, auch für die Verwaltung). Die Felder haben kein name-Attribut und das Formular sendet nichts selbst (form-action 'none'): Ein Passwort gelangt nie in eine Adresse. Das Skript sendet es als JSON an /api/auth
 export function rendereAnmeldung(k: Kontext): string {
   return rahmen(k, {
     titel: "Anmelden",
     aktuell: null,
     robots: "noindex",
     skript: SKRIPT_ANMELDEN,
-    inhalt: `<div class="seitenkopf"><h1>Anmelden</h1></div>
+    inhalt: `<div class="anmelde-mitte"><div class="anmelde-karte">
+<div class="seitenkopf"><h1>Anmelden</h1></div>
 <noscript><div class="band wa">${serialisiere(symbol("warnung"))}<div class="text"><strong>Zum Anmelden braucht diese Seite JavaScript.</strong>Schalte es im Browser ein und lade die Seite neu.</div></div></noscript>
 <div id="meldung"></div>
 <form id="anmeldung" class="formular" method="post" action="#" novalidate>
@@ -1565,6 +1581,7 @@ export function rendereAnmeldung(k: Kontext): string {
 <div class="feld"><label for="code" id="code-label">Code aus deiner App</label><input class="eingabe code" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required aria-describedby="code-hilfe"><p class="hilfe" id="code-hilfe">Sechs Ziffern. Einfügen geht auch.</p></div>
 <button type="submit" class="btn p gross voll">Bestätigen</button>
 <div class="knopfreihe"><button type="button" id="ersatz" class="btn t">Ersatzcode verwenden</button><button type="button" id="abbrechen" class="btn t">Abbrechen</button></div>
-</form>`,
+</form>
+</div></div>`,
   });
 }

@@ -1,5 +1,6 @@
 import { anfrage } from "./api.js";
 import { el, filterGruppe, icon, knopf, tabelle } from "./dom.js";
+import { rollenName } from "./rollenname.js";
 
 // Bereich «Anwesenheit» (#195): pro Stufe eine Tabelle mit den letzten Anlässen, je ein Reiter für Kinder und Leitende. Gelesen wird nur; erfasst wird in der App, Zusagen ändert niemand für jemand anderen.
 // Adressen (Hash): #anwesenheit · #anwesenheit/<stufe> · #anwesenheit/<stufe>/<kinder|leitende>/<5|10|20>
@@ -11,7 +12,6 @@ const REITER = [
   ["kinder", "Kinder"],
   ["leitende", "Leitende"],
 ];
-const ROLLEN = { leitung: "Leitung", stufenleitung: "Stufenleitung" };
 const GUELTIG_MS = 60_000;
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -116,7 +116,9 @@ function personZeile(person, anlaesse, leitende) {
         el(
           "span",
           { class: "an-zusatz leise" },
-          [ROLLEN[person.rolle], person.ceviName].filter(Boolean).join(" · "),
+          [rollenName(person.rolle, person.geschlecht), person.ceviName]
+            .filter(Boolean)
+            .join(" · "),
         ),
     ),
     anlaesse.map((a, i) => zelle(a, person, i)),

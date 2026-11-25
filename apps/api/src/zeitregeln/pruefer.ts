@@ -38,7 +38,7 @@ export async function sendeFaelligeErinnerungen(
   { db, fcm }: { db: Db; fcm: Fcm },
   jetzt: Date,
 ) {
-  // Nur Programme, die Eltern sehen und die noch Anmeldungen annehmen (wie teilnahmeOffen)
+  // Nur aktive Programme, die noch Anmeldungen annehmen (wie teilnahmeOffen)
   const programme = await db
     .select({
       id: programm.id,
@@ -51,7 +51,6 @@ export async function sendeFaelligeErinnerungen(
     .where(
       and(
         eq(programm.status, "aktiv"),
-        eq(programm.sichtbarkeit, "eltern"),
         roh`${programmBeginn} > ${jetzt.toISOString()}`,
         roh`${programmBeginn} <= ${new Date(jetzt.getTime() + VORLAUF_MS).toISOString()}`,
       ),

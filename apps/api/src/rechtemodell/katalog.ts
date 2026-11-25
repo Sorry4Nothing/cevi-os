@@ -212,14 +212,7 @@ export const RECHTE_KATALOG = {
   "programm.alle_sehen": v(
     "termine",
     "Alle Programme sehen",
-    "Jedes Programm der Abteilung lesen, auch ohne die eigene Stufe, aber ohne interne Programme.",
-    "normal",
-    ALLE,
-  ),
-  "programm.intern_sehen": v(
-    "termine",
-    "Interne Programme sehen",
-    "Auch Programme sehen, die in der App für niemanden sichtbar sind (Sichtbarkeit «intern»), zum Beispiel zum Einblenden in der Verwaltung.",
+    "Jedes Programm der Abteilung lesen, auch ohne die eigene Stufe.",
     "normal",
     ALLE,
   ),
@@ -345,6 +338,29 @@ export const RECHTE_KATALOG = {
     "website",
     "Fotoalben verwalten",
     "Das Flickr-Konto wählen, Alben auf der Website zeigen oder ausblenden, ordnen und umbenennen und die Verbindung prüfen. Die Fotos selbst bleiben bei Flickr.",
+    "erweitert",
+    ALLE,
+  ),
+
+  // Antworten auf Formulare der Website (#819): Personendaten, darum nie automatisch bei der Redaktion
+  "formular.antworten_sehen": v(
+    "website",
+    "Antworten auf Formulare ansehen",
+    "Die Antworten auf die Formulare der Website lesen. Sie können Namen und Angaben von Personen enthalten, auch von Kindern. Wer Seiten bearbeitet, sieht sie damit nicht automatisch.",
+    "erweitert",
+    ALLE,
+  ),
+  "formular.antworten_exportieren": v(
+    "website",
+    "Antworten auf Formulare exportieren",
+    "Die Antworten eines Formulars als CSV-Datei herunterladen. Die Daten verlassen damit das System.",
+    "erweitert",
+    ALLE,
+  ),
+  "formular.antworten_loeschen": v(
+    "website",
+    "Antworten auf Formulare löschen",
+    "Einzelne Antworten oder alle Antworten eines Formulars löschen. Das lässt sich nicht rückgängig machen.",
     "erweitert",
     ALLE,
   ),

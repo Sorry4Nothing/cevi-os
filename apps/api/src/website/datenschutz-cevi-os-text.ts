@@ -32,6 +32,12 @@ Zu jeder Kategorie stehen die Daten, der Zweck und die Aufbewahrung.
 - **Zweck:** Eltern erreichen die Stufenleitung ihrer Stufe. Die Nummer ist freiwillig.
 - **Aufbewahrung:** Bis die Person die Nummer entfernt oder das Konto gelöscht wird.
 
+#### Geschlecht der Person
+
+- **Daten:** Die freiwillige Angabe «weiblich», «männlich» oder «andere» (oder keine Angabe) zu einer Person mit Konto.
+- **Zweck:** Die Verwaltung nennt die Rolle einer Leitung so, wie die Person heisst: «Stufenleiterin», «Stufenleiter» oder, ohne Angabe oder bei anderer Angabe, «Stufenleitung». Wer Personen bearbeiten darf, trägt die Angabe ein; die Person sieht sie in ihrem Konto. Sie erscheint nur in der Verwaltung, dort, wo Name und Rolle der Person stehen: nie auf der öffentlichen Website, im Kalender, in Mitteilungen, in der App der Eltern oder in Exporten. Von Kindern wird sie nicht erfasst.
+- **Aufbewahrung:** Bis eine berechtigte Person die Angabe entfernt oder das Konto gelöscht wird.
+
 #### Persönlicher Kalenderlink
 
 - **Daten:** Der Prüfwert deines geheimen Kalenderlinks (nie der Link selbst), die letzten vier Zeichen zur Anzeige, wann du ihn erzeugt hast und wann er zuletzt abgerufen wurde.

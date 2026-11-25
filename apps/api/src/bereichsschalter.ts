@@ -99,7 +99,7 @@ export type SchalterZustand = ReturnType<typeof erstelleSchalterZustand>;
 // Der Test «bereichsschalter-routen» geht alle Routen der App durch: Eine neue Route ohne Bereich fällt dort auf, bis sie hier steht oder in seiner Ausnahmeliste.
 const BEREICH_NACH_PFAD: [RegExp, SchalterBereich][] = [
   [
-    /^\/api\/v1\/(redaktion|website|medien|admin\/medien|laden|admin\/laden|fotos|admin\/fotos)(\/|$)/,
+    /^\/api\/v1\/(redaktion|website|medien|admin\/medien|laden|admin\/laden|fotos|admin\/fotos|formulare|admin\/formulare)(\/|$)/,
     "website",
   ],
   [

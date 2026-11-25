@@ -16,6 +16,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Rückmeldungen nach einer Aktion auf der öffentlichen Website (Toasts): Abschnitt 83, im Browser geprüft.
 - Fotos in der Verwaltung (Albumliste mit Suche, Filter und Sammelaktionen): Abschnitt 87, im Browser geprüft.
 - Funktionen im Blatt der Person (Verwaltung, Personen) und Rollenseite nur zum Lesen: Abschnitt 89, im Browser geprüft.
+- Rufname in der Verwaltung (Personenliste, Blatt, Kontomenü, Suche, Personenwahl): Abschnitt 94, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -131,7 +132,7 @@ Vorbereitung: eine Seite im Editor aufbauen und veröffentlichen, dann die erzeu
 - [ ] **11.10** Touch-Ziele sind mindestens 44 × 44 Pixel gross (WCAG 2.2 verlangt 24 × 24; hier gilt dasselbe Mass wie in der App).
 - [ ] **11.11** Mit «Bewegung reduzieren» bewegt sich nichts. Es gibt keine automatische Bewegung, kein Karussell und kein Blinken.
 - [ ] **11.12** Geschützte Bausteine laden nach: Der Platzhalter meldet «Wird geladen» (`aria-busy`, Live-Region), der Fehlerzustand und der Zustand «nicht angemeldet» sind Text mit einem Link oder einer Schaltfläche (zum Beispiel «Nochmals versuchen»), und der Fokus springt nicht ohne Grund. Ohne JavaScript bleibt die Seite lesbar: Der Platzhalter sagt «Nur angemeldet sichtbar» und führt mit «Anmelden» zur Anmeldung, die Hülle nennt den Grund. Das Skelett erscheint erst nach 200 ms, steht bei «Bewegung reduzieren» still, und nach 4 Sekunden meldet die Live-Region «Das dauert länger als sonst.».
-- [ ] **11.13** `/anmelden`: Jedes Feld hat eine sichtbare Beschriftung (`label`), ein Fehler steht als Text oben und trägt den Fokus (bei fehlenden Angaben als Liste mit Links auf die Felder und je Feld ein Text, das Feld trägt `aria-invalid` und `aria-describedby`), Benutzername und Passwort tragen `autocomplete`, der Code des zweiten Faktors `one-time-code` und `inputmode="numeric"`, das Einfügen geht, und ein Passwort-Manager füllt aus.
+- [ ] **11.13** `/anmelden`: Jedes Feld hat eine sichtbare Beschriftung (`label`), ein Fehler steht als Text oben und trägt den Fokus (bei fehlenden Angaben als Liste mit Links auf die Felder und je Feld ein Text, das Feld trägt `aria-invalid` und `aria-describedby`), Benutzername und Passwort tragen `autocomplete`, der Code des zweiten Faktors `one-time-code` und `inputmode="numeric"`, das Einfügen geht, und ein Passwort-Manager füllt aus. Seit #818 steht die Anmeldung auch für die Verwaltung hier; weitere Prüfpunkte im Abschnitt 93.
 - [ ] **11.14** Es gibt kein Zeitlimit und keine automatische Weiterleitung: Die Hülle einer geschützten Seite nennt den Link «Anmelden», statt selbst zu wechseln.
 
 ### Termine und Anlässe (#530)
@@ -288,7 +289,7 @@ Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung 
 
 ## 17. Verwaltung: Anmeldung, System, Plattform, Erinnerungen, Mitteilungen (#593)
 
-Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf), `system.js`, `plattform.js`, `hinweisband.js`, `zeitregeln.js`, `mitteilungen.js` und `system.css`. Die Abschnitte 1 bis 4, 6 und 9 gelten dafür sinngemäss.
+Dieser Abschnitt gilt für `admin.js` (Weiterleitung zur Anmeldung, Sitzungsablauf), `system.js`, `plattform.js`, `hinweisband.js`, `zeitregeln.js`, `mitteilungen.js` und `system.css`. Die Abschnitte 1 bis 4, 6 und 9 gelten dafür sinngemäss.
 
 - [ ] **17.1** Das Hinweisband ist ein Bereich mit Namen («Betriebshinweis»); Sperre und Wartung stehen als Wort («Informationssperre: …», «Wartung: … ist nur lesbar») mit Symbol, nie nur als Farbe. Text und Verweis erreichen 4.5:1, der Verweis «Zur Plattform» ist mit Tab erreichbar und mindestens 44 Pixel hoch.
 - [ ] **17.2** Die Plattform zeigt jeden Zustand als Chip mit Wort («Frei», «In Wartung», «Offen», «Gesperrt»); die Knöpfe tragen den Bereich im Namen («Aufheben: Website»). «Aufheben» fragt im Knopf («Wirklich aufheben?»), Esc nimmt die Frage zurück.
@@ -297,7 +298,7 @@ Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf
 - [ ] **17.5** Die Vorschau der Mitteilung ist für Screenreader ausgeblendet (`aria-hidden`), die Angaben stehen in den Feldern selbst; «Geht an» und «Rollen» stehen als Liste mit Name und Wert. Der Knopf «Senden» fragt im Knopf, die Frage nennt Empfänger und Rollen. Seit #625 gilt dafür Abschnitt 35.
 - [ ] **17.6** Das Diagramm der Anfragen hat einen Satz mit allen Werten, eine Ablesung mit Pfeiltasten und eine Tabelle («Als Tabelle anzeigen»); der Fehleranteil hat Legende und Zahl, nicht nur Farbe.
 - [ ] **17.7** Die Seite System aktualisiert sich nie von selbst; «Aktualisieren» meldet «Zahlen aktualisiert.» in der Live-Region.
-- [ ] **17.8** Anmeldung: Fehler, «zu viele Versuche» (Chip mit Wort) und der zweite Faktor (Codefeld mit sechs Zellen, Einfügen, Autofill) sind Meldungen mit `role="alert"`; der Fokus liegt auf der Meldung oder dem Titel. Der Sitzungsablauf sagt ehrlich, was verloren geht, und führt nach dem Anmelden auf dieselbe Seite zurück.
+- [ ] **17.8** Anmeldung: Seit #818 steht sie nur noch auf der Anmeldeseite der Website; ihre Prüfpunkte stehen im Abschnitt 93 (Fehler, «zu viele Versuche», zweiter Faktor). Der Sitzungsablauf sagt ehrlich, was verloren geht, und führt nach dem Anmelden auf dieselbe Seite der Verwaltung zurück.
 - [ ] **17.9** Hell, Dunkel und «Bewegung reduzieren»: Das Band und die Termine der Vorschau gleiten nur bei erlaubter Bewegung ein.
 - [ ] **17.10** 320, 390, 720 und 1440 Pixel: nichts scrollt waagrecht, auch Personen und Gruppen nicht (die Beschriftung der Tabelle für Screenreader liegt im Rahmen).
 
@@ -1662,6 +1663,8 @@ Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, 
 - [ ] **88.9** Kontrast Hell und Dunkel (Titel, Meta, Anzahl, Jahr, Rand des Suchfelds) mindestens 4,5 : 1, Rand des Suchfelds und Fortschritt mindestens 3 : 1.
 - [ ] **88.10** 320 px, Zoom 200 % und 400 % ohne waagrechtes Scrollen; 1, 2, 3 und 4 Spalten bei 40, 62 und 80 em.
 - [ ] **88.11** Bewegung: Heranzoomen der Bilder beim Zeigen und Drehen des Dreiecks nur unter «Bewegung nicht reduzieren»; Skelette und Einblenden der Bilder folgen den Regeln der Website. Erzwungene Farben: Karten, Taste und Jahre behalten Rand und Linie.
+- [ ] **88.12** Ladezustand (#816): Die Seite «Fotos» ist eine geschützte Hülle. Solange die Sitzung nicht geklärt ist, steht nur ein ruhiges Skelett (`aria-hidden`, erscheint nach 150 ms, `aria-busy` am Behälter, Ansage «Geschützte Inhalte werden geladen.» in der Statusregion) und **nie** «Nur angemeldet sichtbar»; der Hinweis erscheint nur nach der Antwort 401 (`role="status"`-Ansage «Melde dich an, um das zu sehen.»). Eine angemeldete Person sieht Skelett, dann direkt die Fotos: ohne Hinweis, ohne zweiten Ladevorgang und ohne dass der Fuss ins Bild springt (das Skelett reicht über die Höhe des Fensters). Ohne Skript und wenn `geschuetzt.js` nach acht Sekunden nicht läuft, steht der Hinweis mit dem Link zur Anmeldung (Rückfall, `data-skript-spaet`).
+- [ ] **88.13** Abstand unten (#816): Unter dem letzten Foto, «Weitere Fotos anzeigen» und dem Ende der Übersicht steht der Abschnittsabstand der Website (`--abstand`: 3 rem bis 5,5 rem, gemessen 48, 59 und 77 px bei 320 bis 390, 768 und 1280 px), gleich in Hell und Dunkel; er gilt für alle Zustände der Hülle (Hinweis, Fehler, Inhalt).
 
 ### Stand der Prüfung (#796)
 
@@ -1704,7 +1707,7 @@ Auf der Hinweisseite der Informationssperre (`index.html`, `404.html`, Code in `
 - [ ] **90.3** Der Link ist unterstrichen, nicht nur durch Farbe erkennbar. Kontrast der Schriftfarbe `--leise` zur Fläche: hell #4d4d4d auf #ffffff, dunkel #bebeb6 auf #1c1c1a (je über 4,5:1).
 - [ ] **90.4** Bei 390 und 1280 Pixel, hell und dunkel: der Link bleibt in der Textspalte, kein waagrechtes Scrollen. Im Modus «Erzwungene Farben» trägt er keinen Rahmen und bleibt als Linktext lesbar.
 - [ ] **90.5** Die Hinweisseite bleibt neutral: Kein Wort zu Anlass, Daten, Panne oder Sicherheit; der Link benennt keine Rollen und keine Sperre.
-- [ ] **90.6** Nach dem Link zeigt die Anmeldung der Verwaltung dieselben Prüfpunkte wie bisher (Abschnitt 9, Fokus auf der Überschrift, Fehler als `role="alert"`); nach dem Code liegt der Fokus auf der Überschrift «Wartung und Sperre», das Band «Informationssperre» steht als Bereich «Betriebshinweis» darüber.
+- [ ] **90.6** Nach dem Link zeigt die gemeinsame Anmeldeseite die Prüfpunkte des Abschnitts 93 (seit #818 statt der eigenen Anmeldung der Verwaltung); nach dem Code liegt der Fokus auf der Überschrift «Wartung und Sperre», das Band «Informationssperre» steht als Bereich «Betriebshinweis» darüber.
 
 ### Stand der Prüfung (#803)
 
@@ -1743,3 +1746,121 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vors
 - **Ablauf von Anfang bis Ende:** Sitzung, Seite «Fotos»: Hülle, danach Titel, Text und Baustein Fotoalben (ohne Alben: «Hier gibt es noch keine Fotos.»); Klick auf «Fotoarchiv» im Untermenü lädt die Seite und markiert den Punkt.
 
 **Nicht geprüft:** 91.5 (Bewegung reduzieren) und 91.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 91.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).
+
+## 92. Verwaltung: Rollenname nach Geschlecht der Person (#817)
+
+Die Verwaltung nennt die Rolle einer bestimmten Person nach ihrem Geschlecht: «Stufenleiter» und «Gruppenleiter» für Männer, «Stufenleiterin» und «Gruppenleiterin» für Frauen, sonst «Stufenleitung» und «Gruppenleitung» (Helfer `rollenName` in `rollenname.js`). Die Angabe ist freiwillig und wird im Blatt der Person gepflegt (Abschnitt «Angaben», Auswahl «Geschlecht (optional)»); in «Mein Konto» steht sie als gesperrtes Feld. Allgemeine Beschriftungen ohne Person (Rechtekatalog, Auswahl der Rolle, Mitteilungsziele) und die öffentliche Website bleiben neutral.
+
+### Prüfpunkte
+
+- [ ] **92.1** Die Auswahl «Geschlecht (optional)» im Blatt der Person ist eine Radiogruppe (`role="radiogroup"`) mit sichtbarer Beschriftung (`aria-labelledby`) und dem Hilfetext «Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin. Ohne Angabe heisst sie neutral, z. B. Stufenleitung.» (`aria-describedby`). Der Bildschirmleser nennt Gruppe, Hilfetext, Option («Weiblich», «Männlich», «Keine Angabe oder andere») und Zustand (ausgewählt).
+- [ ] **92.2** Die Auswahl ist mit Tab erreichbar, die Pfeiltasten wechseln die Option, der Fokusring ist sichtbar; jede Option ist mindestens 44 Pixel hoch. Der gewählte Zustand zeigt einen Haken, nie nur Farbe.
+- [ ] **92.3** Die Wahl gilt erst mit «Speichern»; ohne Wahl bleibt «Keine Angabe oder andere» (neutrale Form). Beim Erfassen ist die Angabe leer.
+- [ ] **92.4** Wo eine Person mit Rolle steht, stimmt die Form: Chips im Blatt und in der Personenliste, Untertitel des Blatts, Chips der Gruppe einer Stufe («Mitglieder»), «Was darf wer?» (Personenliste), Anwesenheit (Leitende), Kopf und «Mein Konto». Die Gruppierung «Funktion» bleibt neutral («Stufenleitung», «Leitung»), damit eine Gruppe nicht in Männer und Frauen zerfällt.
+- [ ] **92.5** Die Suche findet beide Formen: «Stufenleitung» findet auch eine Stufenleiterin (Befehlspalette, «Was darf wer?», Mitglieder einer Gruppe).
+- [ ] **92.6** In «Mein Konto» ist das Feld «Geschlecht» gesperrt (`readonly`), hat Beschriftung und Hilfetext und zeigt «Weiblich», «Männlich», «Andere» oder «Keine Angabe».
+- [ ] **92.7** Bei 390 und 1280 Pixel, hell und dunkel: kein waagrechtes Scrollen, die Auswahl bricht um, statt abgeschnitten zu werden; Kontrast von Text und gewählter Option mindestens 4,5 zu 1.
+
+### Stand der Prüfung (#817)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server, frische Datenbank mit erfundenen Personen, Konto des Entwicklers mit zweitem Faktor) bei 1280 x 900 dunkel und 390 x 844:
+
+- **92.1, 92.3:** Radiogruppe «Geschlecht (optional)» mit Hilfetext (`aria-describedby`) im Blatt; Optionen «Weiblich», «Männlich», «Keine Angabe oder andere»; die Vorwahl entspricht dem gespeicherten Wert; Speichern ändert die Form («Stufenleiterin» wird «Stufenleiter»).
+- **92.2:** Pfeil nach rechts wählt die nächste Option; alle drei Zielgrössen 44 Pixel hoch; Haken an der gewählten Option.
+- **92.4:** Personenliste («Gruppenleiterin · Artemis», «Stufenleiter · Artemis», «Gruppenleitung · Artemis» ohne Angabe), Untertitel und Profilkarte des Blatts, Mitglieder der Gruppe der Stufe (Gruppierung «Funktion» bleibt «Stufenleitung» und «Leitung»).
+- **92.6:** «Mein Konto» zeigt das Feld «Geschlecht» mit Hilfetext (Text gelesen).
+- **92.7:** bei 390 Pixel kein waagrechtes Scrollen (`scrollWidth` gleich `clientWidth`).
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (nur Ansicht), 92.4 bei Anwesenheit (Leitende), «Was darf wer?» und Kopf im Browser (nur Test), 92.5 im Browser (nur Test).
+
+## 93. Eine Anmeldeseite für Website und Verwaltung (#818)
+
+Die Anmeldeseite der Website (`/anmelden`, erzeugt aus `rendereAnmeldung` in `apps/api/src/website/rendern.ts`, Skript `website/anmelden.js`, Stil `.anmelde-mitte` und `.anmelde-karte` in `website/website.css`) ist die einzige Anmeldung. `/admin` ohne Sitzung leitet mit `?weiter=%2Fadmin%23<Bereich>` dorthin und die Anmeldung führt zurück. Der Abschnitt ersetzt die Prüfpunkte der früheren Anmeldung der Verwaltung (Abschnitt 17.8 und 90.6 verweisen hierher); die allgemeinen Punkte der Anmeldeseite stehen weiter bei 11.13.
+
+### Prüfpunkte
+
+- [ ] **93.1** Alle Schritte stehen in einer Karte, waagrecht in der Mitte: Anmelden, Zweiter Faktor, Ersatzcode, Hinweise («Du bist abgemeldet.») und Fehler. Der Abstand links ist gleich dem Abstand rechts (höchstens 1 Pixel Unterschied, gemessen an `.anmelde-karte` gegen die Breite ohne Bildlaufleiste) bei 320, 390, 768, 1280 und 2560 Pixel. Die Karte ist höchstens 28 rem breit, nie schmaler als das Fenster minus Rand; nichts scrollt waagrecht, kein Feld ragt aus der Karte.
+- [ ] **93.2** Senkrecht steht die Karte in einem Bereich von mindestens 60 % der Fensterhöhe (`min-height: max(24rem, 60svh)`) in dessen Mitte; die Seite wird nie höher, als der Inhalt verlangt, es gibt keine Höhe aus «Fenster minus geschätzter Kopf». Oben und unten steht der Abstand der übrigen Seiten (`padding-block: var(--abstand)`), die Karte reicht nie bis an den Fuss. Ein Fehlerband oder die Fehlerzusammenfassung verschiebt die Karte nur nach unten, nie zur Seite.
+- [ ] **93.3** Rücksprung: Von `/admin#bereich` aus führt die Anmeldung zu `/admin#bereich` zurück, von einer Seite der Website zu ihr. Jede andere Adresse in `weiter` (Host, `//`, `\`, `javascript:`, `/admin/x`, Leerzeichen) führt auf `/`. Es gibt keine automatische Weiterleitung ausser nach einer erfolgreichen Anmeldung und von `/admin` ohne Sitzung (ohne Eintrag im Verlauf, «Zurück» führt nicht in eine Schleife).
+- [ ] **93.4** Hinweise von der Verwaltung (`grund`: `abgemeldet`, `alle`, `sitzung`, `code`) stehen als ruhiges Band mit Symbol und Text über dem Formular, `role="status"` (kein `alert`), nicht als Fehler gefärbt; der Fokus bleibt am Anfang der Seite. Das Band verschwindet beim ersten Absenden. Ein unbekannter `grund` zeigt nichts.
+- [ ] **93.5** Fehler wie bei 11.13: Falsche Angaben als Band oben mit `role="alert"` und `aria-invalid` am Feld, «Zu viele Versuche» und «Keine Verbindung» als Toast, immer derselbe Text für falsches Konto und falsches Passwort («Benutzername oder Passwort stimmen nicht.»). Fehlende Angaben als Liste mit Links auf die Felder, der Fokus liegt auf der Liste.
+- [ ] **93.6** Zweiter Faktor: Nach dem Passwort wechselt die Karte ohne Sprung zum Feld «Code aus deiner App» (Fokus im Feld, `one-time-code`, `inputmode="numeric"`, Einfügen geht, «Sechs Ziffern»); «Ersatzcode verwenden» wechselt Beschriftung, Hilfe und Tastatur und wieder zurück; «Abbrechen» führt zum Passwort, der Fokus liegt im Benutzernamen. Ein abgelaufener Zwischenstand sagt «Die Anmeldung ist abgelaufen.» und führt zum Passwort.
+- [ ] **93.7** Startpasswort: Nach der Anmeldung führt die Seite immer zu «Mein Konto» (`/konto`), egal wohin `weiter` zeigt; `/admin` mit einem Konto, das sein Startpasswort noch nicht gewechselt hat, führt ebenfalls dorthin.
+- [ ] **93.8** Hell und Dunkel, «Bewegung reduzieren», «Erzwungene Farben»: Text und Ränder lesbar (Kontrast der Seite wie 11.x), Fokusring sichtbar, Zielgrösse mindestens 44 Pixel (Knöpfe `.btn.gross`).
+- [ ] **93.9** Informationssperre: Die Anmeldeseite bleibt mit ihren Skripten und Stilvorlagen erreichbar; der Link «Für Berechtigte: Anmelden» auf der Hinweisseite (Abschnitt 90) führt zu `/anmelden?weiter=%2Fadmin%23system%2Fplattform`. Alle übrigen Seiten zeigen weiter die Hinweisseite.
+
+### Stand der Prüfung (#818)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Proxy wie der Edge-Caddy, Kopie einer Vorschau-Datenbank, drei Wegwerf-Konten: Abteilungsleitung mit zweitem Faktor, Konto mit Startpasswort, Abteilungsleitung ohne zweiten Faktor):
+
+- **93.1:** Gemessen (Abstand links gleich rechts, Unterschied 0 Pixel, kein waagrechtes Scrollen) bei 320 und 390 Pixel für alle vier Schritte («Anmelden», «Angaben fehlen» mit Fehlerzusammenfassung, «Zweiter Faktor», «Ersatzcode»), bei 768 für «Zweiter Faktor» mit Ersatzcode und «Anmelden», bei 1280 für «Anmelden», «Zweiter Faktor» und das Hinweisband, bei 2560 für «Anmelden» und «Zweiter Faktor». Die Karte «Zweiten Faktor einrichten» der Verwaltung (1070 Pixel) steht ebenfalls mittig (304 Pixel links, 304 rechts). Die gemeldete Karte «Schritt 2 von 2» mit 115 und 285 Pixel Rand liess sich im neuen Stand nicht mehr herstellen; die Verwaltung hat diese Karte nicht mehr.
+- **93.2:** Abstand von der Karte bis zum Fuss: 48 Pixel bei 390, 84.8 bei 768 (59 Pixel aus dem Abstand, der Rest aus der Mindesthöhe des Bereichs), 76.8 bei 1280 Pixel Breite, hell und dunkel; oben und unten gleich, die Karte steht in der Mitte des Bereichs.
+- **93.3 bis 93.7:** `/admin#personen` ohne Sitzung leitet zu `/anmelden?weiter=%2Fadmin%23personen`; falsches Passwort zeigt den Text von 93.5; richtiges Passwort, Code aus einem nachgerechneten TOTP, dann `/admin#personen`; «Abmelden» in der Verwaltung führt mit «Du bist abgemeldet.» zurück; `weiter=//evil.example` und `grund=constructor` bleiben ohne Wirkung; ein Konto mit Startpasswort landet bei `/konto`, auch bei einem Aufruf von `/admin`.
+- **93.8:** Hell und Dunkel bei 1280 und 390 Pixel angeschaut (Ansicht, kein Messwert).
+- Die Regeln für `weiter` (kein offener Redirect), die Hinweise der Verwaltung, die Sperre und die CSS-Regeln der Karte prüft `apps/api/test/website-anmeldung-einheitlich.test.ts`; die Messung im Browser ist kein Test im Repo (es gibt dort kein Browser-Gerüst).
+
+**Nicht geprüft:** Informationssperre und Wartung im Browser (nur im Test), Ersatzcode mit echten Codes, «Alle Geräte abmelden» und Sitzungsablauf im Browser, Bildschirmleser (NVDA, VoiceOver, TalkBack), Safari und Firefox, Zoom 200 %, Kontrastwerte mit einem Messwerkzeug, 93.8 «Erzwungene Farben».
+
+## 94. Verwaltung: Rufname statt vollem Namen (#815)
+
+Die Verwaltung nennt eine Person wie die Website: mit dem Cevi-Namen, sonst mit dem Vornamen (bei Konten das erste Wort des Namens, bei Kindern der Vorname), sonst mit dem vollen Namen. Leere Werte und Leerzeichen zählen als nicht vorhanden. Der volle Name bleibt sichtbar, damit Personen eindeutig bleiben: als zweite Zeile unter dem Rufnamen, ausser beide sind gleich. Die Regel steht an einer Stelle (`rufname` und `vollerNameZusatz` in `dom.js`) und gilt für Karte und Zeile der Personen, Kinder, Stufenleitung und Gruppenmitglieder (`mitgliedKopf`), den Titel des Blatts der Person und seine Profilkarte, das Kontomenü im Kopf, die Suche (Strg K), die Personenwahl bei Rollen, Eltern eines Kindes und im Lager. Bewusst unverändert, weil sie den vollen Namen brauchen: die Felder «Name», «Vorname» und «Nachname» in den Formularen, Exporte und Import, die Datenschutz-Auskunft, die Teilnehmerlisten der Lager, das Protokoll, Beschriftungen von Knöpfen («Entfernen: Anna Muster») und die Suche selbst (sie findet über Cevi-Name, Name und Benutzername). Leitplanke: `test/admin-rufname.test.ts`.
+
+### Prüfpunkte
+
+- [ ] **94.1** Der Titel der Karte, der Zeile und des Blatts ist der Rufname, die zweite Zeile der volle Name; ohne Unterschied steht nur eine Zeile. Der Bildschirmleser liest zuerst den Rufnamen, danach den vollen Namen (Reihenfolge im Quelltext, kein `aria-label`, das den Namen ersetzt).
+- [ ] **94.2** Die Initialen im Kreis stammen aus dem Rufnamen (der Kreis bleibt `aria-hidden`); beim «(du)» steht der Zusatz hinter dem Rufnamen im Titel.
+- [ ] **94.3** Kontomenü: Im Kopf steht der Rufname, im offenen Menü darunter der volle Name und die Rolle; der Name der Schaltfläche beginnt mit «Konto: » und dem Rufnamen.
+- [ ] **94.4** Befehlspalette: Rufname als Titel, voller Name als Zusatz; wer nach dem Nachnamen, dem Cevi-Namen oder dem Benutzernamen sucht, findet die Person weiter, die Treffer im Zusatz sind markiert.
+- [ ] **94.5** Personenwahl (Rollen zuordnen, Eltern eines Kindes, Lager): Rufname vorne, voller Name im Nebentext; gleiche Rufnamen sind am vollen Namen unterscheidbar. Namen von Knöpfen («Entfernen: …», «Hinzufügen: …») behalten den vollen Namen.
+- [ ] **94.6** Der Titel im Formular bleibt: «Name» zeigt den vollen Namen, das Feld «Cevi-Name» den Cevi-Namen; die Vorschau rechts folgt beiden Feldern beim Tippen.
+- [ ] **94.7** Bei 390 und 1280 Pixel, hell und dunkel: lange Namen umbrechen, kein waagrechtes Scrollen, Kontrast der zweiten Zeile wie bisher (`--on-surface-variant`).
+
+### Stand der Prüfung (#815)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server, Kopie der Demo-Datenbank, Konto der Abteilungsleitung mit zweitem Faktor), 1280 x 900 hell und 390 x 844 dunkel:
+
+- **94.1:** Personenliste: «Linn» mit «Linn Demo», «Stufenleitung» mit «Stufenleitung Demo»; Blatt: Titel «Linn», darunter «Linn Demo · Stufenleitung», Profilkarte «Linn» / «Linn Demo».
+- **94.2, 94.3:** Das eigene Konto ohne Cevi-Namen steht als «Demo (du)» mit «Demo Admin» darunter; Kontomenü zeigt «Demo», «Demo Admin», «Abteilungsleitung».
+- **94.4:** Suche «demo»: Titel «Linn», Zusatz «Linn Demo» und so weiter.
+- **94.7:** kein waagrechtes Scrollen bei beiden Grössen (`scrollWidth` gleich `clientWidth`), Ansichten von Liste, Blatt und Kontomenü angeschaut.
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (Tokens unverändert), 94.5 (Personenwahl) und 94.6 (Vorschau beim Tippen) nicht im Browser, Tabellenansicht der Personen nur über denselben Baustein.
+
+## 95. Website und Verwaltung: Baustein «Formular» (#819)
+
+Ein Formular auf einer Seite der Website (Umfrage, Rückmeldung, Bedarfsabfrage) und die Antworten in der Verwaltung. Das Formular ist für alle gedacht, auch ohne Anmeldung; darum gilt hier der Massstab WCAG 2.2 AA ohne Abstriche. Es nutzt `formular.js` und `formular.css` (Website) und `website-formulare.js` (Verwaltung).
+
+### Prüfpunkte
+
+- [ ] **95.1** Jedes Feld hat ein sichtbares Label über dem Feld (`label for`), nie nur einen Platzhalter. Gruppen (Optionsfelder, Mehrfachwahl, Ja oder Nein) sind `fieldset` mit `legend`. Freiwillige Felder tragen «(optional)», Pflichtfelder nichts.
+- [ ] **95.2** Hilfetexte hängen per `aria-describedby` am Feld; Fehlertexte kommen beim Fehler dazu und fallen beim Beheben weg. Der Bildschirmleser liest Label, Hilfe und Fehler.
+- [ ] **95.3** `autocomplete` nur, wo es stimmt: E-Mail `email`, Telefon `tel`; freie Felder `off`. Passende Tastatur am Handy (`inputmode`, `type="email"`, `type="tel"`), Einfügen ist nie blockiert.
+- [ ] **95.4** Absenden mit Fehlern: Der Fokus geht auf die Zusammenfassung oben (`role="alert"`, `tabindex="-1"`) mit einem Link je Fehler; der Link führt in das Feld. Jedes fehlerhafte Feld trägt Text mit Symbol und `aria-invalid`, nicht nur Farbe oder Rand.
+- [ ] **95.5** Geprüft wird beim Absenden und beim Verlassen eines Feldes (blur), nie beim ersten Tippen; nach einem Fehler gilt die Prüfung live, und die Meldung verschwindet, sobald es stimmt.
+- [ ] **95.6** Die Eingaben bleiben bei jedem Fehler stehen (Prüffehler, Netz, 422, 429, 409). Der Absende-Knopf bleibt aktiv, zeigt «Sende …» (`aria-busy`) und nimmt keinen zweiten Klick an.
+- [ ] **95.7** Nach dem Senden ersetzt eine Statusregion («Gesendet» mit dem Text der Redaktion) das Formular und bekommt den Fokus; der Bildschirmleser sagt sie an. Es gibt keine Meldung, die von selbst verschwindet; Netzfehler und «zu viele Versuche» sind ein Toast (Statusregion, Schliessen-Knopf).
+- [ ] **95.8** Tastatur: Tab-Reihenfolge wie die Lesereihenfolge, Pfeiltasten in Optionsfeldern, Leertaste in Kästchen, Enter sendet. Die Falle gegen Skripte (`homepage`) ist nie fokussierbar (`tabindex="-1"`, `aria-hidden`, ausserhalb des Bildes) und wird nicht vorgelesen.
+- [ ] **95.9** Zielgrösse: Zeilen von Optionsfeldern, Kästchen und Zustimmung sind mindestens 44 px hoch, die ganze Zeile ist anklickbar; Eingabefelder 52 px, Knopf 48 px. Fokus sichtbar (3 px, Kontrast mindestens 3 : 1) in Hell und Dunkel.
+- [ ] **95.10** Kontrast des Datenschutzhinweises, der Hilfen, der Fehlertexte und der Platzhalter in Hell und Dunkel mindestens 4,5 : 1; Fehler nie nur über Farbe.
+- [ ] **95.11** 390, 1280 und 2560 Pixel, Zoom 200 % und 400 % bei 320 px: kein waagrechtes Scrollen, der Knopf füllt am Handy die Breite, die Felder brechen nicht aus der Spalte.
+- [ ] **95.12** Ohne Skript steht «Zum Ausfüllen braucht diese Seite JavaScript.» statt eines Formulars, das nicht senden kann; die Seite bleibt lesbar. Das Formular sendet nie selbst (CSP `form-action 'none'`).
+- [ ] **95.13** Geschlossenes Formular: «Dieses Formular ist geschlossen.» als Band, das Formular fehlt; ein Formular nur für Angemeldete zeigt ohne Anmeldung «Nur angemeldet sichtbar» mit Link, nach der Anmeldung das Formular, und alles oben gilt auch für das nachgeladene.
+- [ ] **95.14** «Bewegung reduzieren»: keine Bewegung ausser dem Fokus; die Formularseite ist hell und dunkel gleich bedienbar.
+- [ ] **95.15** Verwaltung, Editor des Bausteins: Felder lassen sich mit Tastatur und Griff ordnen (Sortierliste mit «Nach oben» und «Nach unten», Ansage der Position); die Art des Feldes ist ein natives Auswahlfeld; Fehler stehen am Feld, Fehlendes (Datenschutzhinweis, Beschriftung, zu wenige Antworten, Gesundheitswort) wird mit Text gemeldet.
+- [ ] **95.16** Verwaltung, Seite «Formulare»: Liste mit Zuständen leer, lädt, Fehler; je Antwort ein aufklappbarer Eintrag (`details`) mit Zeit, Person (oder «Anonym») und den Antworten als Definitionsliste; «Weitere Antworten laden» mit Ansage. Löschen fragt mit einem Dialog («Alle Antworten löschen» nennt das Formular und die Zahl), der Fokus springt danach auf den nächsten Eintrag, die Zahl ändert sich in einer Statusregion.
+- [ ] **95.17** Verwaltung: Der Text der Antworten wird nur als Text gezeigt (kein HTML); lange Wörter brechen um (`overflow-wrap`), der Mensch bleibt in der Spalte.
+
+### Stand der Prüfung (#819)
+
+Im Browser (Chromium, Playwright, eigener Dev-Server auf der Testdatenbank mit erfundenen Daten, öffentliche Seite mit einem Formular aus allen Feldarten; 1280 Pixel hell und 390 Pixel dunkel):
+
+- **95.1, 95.2:** Labels über den Feldern, «(optional)» bei freiwilligen, Gruppen mit Legende, Hilfetext sichtbar zwischen Label und Feld (Ansicht und Markup, Test `test/website-formular.test.ts`).
+- **95.4:** Absenden mit leeren Pflichtfeldern: Zusammenfassung «6 Angaben prüfen» mit Link je Feld, sie trägt den Fokus (`role="alert"`), sechs Fehlertexte am Feld und sechs `aria-invalid`.
+- **95.5, 95.6:** Eine Zahl ausserhalb der Grenze (12 bei 1 bis 9) meldet «Die Zahl muss zwischen 1 und 9 liegen.» und lässt alle Eingaben stehen. Absenden nach weniger als 2 Sekunden: Band «Das ging sehr schnell …», Formular und Eingaben bleiben.
+- **95.7:** Nach dem Senden verschwindet das Formular, «Gesendet» mit dem Text der Redaktion steht in der Statusregion und hat den Fokus; die Antwort steht in der Datenbank (Test).
+- **95.9:** Zeilen der Optionsfelder und Kästchen 44 Pixel hoch, Felder 52, Knopf 48 (gemessen).
+- **95.11:** 390 Pixel: kein waagrechtes Scrollen, der Knopf füllt die Breite (344 Pixel); die Zusammenfassung bricht lange Sätze um.
+- **95.12:** Das Skript setzt nie `innerHTML` (Test); ohne Skript steht der Hinweis (Markup).
+- **Beim Prüfen gefunden und behoben:** Nach dem Senden fehlte ein Symbol, das Skript brach ab und liess das Formular ohne Meldung verschwinden. Jetzt entsteht die Meldung vor dem Ausblenden, und ein Test prüft, dass jedes gezeichnete Symbol existiert.
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 % und 400 %, Kontrast 95.10 nicht gemessen (Werte aus den Tokens), 95.8 Pfeiltasten und Tab-Reihenfolge nur im Markup, 95.13 geschütztes Formular (Nachladen) nur im Test (`knoten.js` kennt alle Elemente), 95.14 Bewegung reduziert, 95.15 bis 95.17 die Verwaltung (Editor des Bausteins und Seite «Formulare») nur über die Schnittstelle getestet, nicht im Browser, weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlte.

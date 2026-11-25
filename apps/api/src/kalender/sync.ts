@@ -114,7 +114,7 @@ async function lauf(db: Db, jetzt: Date) {
             .onConflictDoUpdate({
               target: [programm.abteilungId, programm.googleEventId],
               // Jede Kalenderspalte aus excluded, auch NULL: Der Wechsel ganztägig ↔ mit Zeit leert das andere Paar.
-              // Tags und Sichtbarkeit bleiben unberührt
+              // Die Tags bleiben unberührt
               set: {
                 googleSerie: roh`excluded.google_serie`,
                 titel: roh`excluded.titel`,

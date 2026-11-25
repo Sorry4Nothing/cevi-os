@@ -12,6 +12,8 @@ import {
   knopf,
   neueId,
   seitenwahl,
+  rufname,
+  vollerNameZusatz,
 } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import { oeffneFluss } from "./fluss.js";
@@ -128,9 +130,9 @@ function oeffneKind({ kind, daten, ctx, neu }) {
         beschriftung: "Person suchen",
         kandidaten: daten.personen.map((p) => ({
           id: p.id,
-          name: p.name,
+          name: rufname(p),
           zusatz:
-            [p.ceviName, p.deaktiviert && "deaktiviert"]
+            [vollerNameZusatz(p), p.deaktiviert && "deaktiviert"]
               .filter(Boolean)
               .join(" · ") || undefined,
           bildUrl: p.bildUrl,
@@ -407,6 +409,7 @@ function zeichne(bereich, ctx, daten, neu) {
       kopf: mitgliedKopf({
         name: e.name,
         ceviName: e.kind.ceviName,
+        vorname: e.kind.vorname,
         gross: true,
         ton: "stufe",
         zusatz: zugang(e.kind),
@@ -425,6 +428,7 @@ function zeichne(bereich, ctx, daten, neu) {
         mitgliedKopf({
           name: e.name,
           ceviName: e.kind.ceviName,
+          vorname: e.kind.vorname,
           ton: "stufe",
         }),
       ),

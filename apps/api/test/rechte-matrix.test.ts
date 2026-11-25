@@ -108,6 +108,10 @@ interface Zeile {
   bild?: true;
   // Die Collection lässt die Zeile aus: Sie braucht den Medienspeicher, den die lokale API der Collection nicht hat
   ohnePostman?: true;
+  // Zusätzliche Kopfzeilen je Persona (zum Beispiel eine eigene Adresse, damit die Zähler je Adresse nicht über die Personas laufen)
+  kopf?: (persona: Persona) => Record<string, string>;
+  // Das Objekt ist öffentlich: Eine Person aus der Demo-Abteilung ist dort ein Besucher wie jeder andere und sieht es (Bedrohung 9 gilt nur für geschützte Objekte)
+  oeffentlich?: true;
   // Für Zeilen, die die Sitzungen der geteilten Personas beenden würden
   frischePersonas?: true;
   // Pflicht für jede Route mit Pfad-Parameter: ein Objekt der Testabteilung
@@ -180,6 +184,7 @@ const MATRIX: Record<string, Zeile> = {
   "GET /admin/personen-blatt.js": { erwartet: alle(200) },
   "GET /admin/personen-wahl.js": { erwartet: alle(200) },
   "GET /admin/telefon.js": { erwartet: alle(200) },
+  "GET /admin/rollenname.js": { erwartet: alle(200) },
   "GET /admin/tags-anlass.js": { erwartet: alle(200) },
   "GET /admin/tags-raeume.js": { erwartet: alle(200) },
   "GET /admin/tags-detail.js": { erwartet: alle(200) },
@@ -2574,7 +2579,7 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
-  // Men� f�r Angemeldete (#795): jede Person mit Sitzung bekommt die Seiten, die sie sehen darf (leere Liste ohne Seiten); ohne Sitzung 401; die Wirkung steht in test/website-navigation.test.ts
+  // Men� f�r Angemeldete (#795): jede Person mit Sitzung bekommt die Seiten, die sie sehen darf (leere Liste ohne Seiten); ohne Sitzung 401; die Wirkung steht in test/website-navigation.test.ts
   "GET /api/v1/website/navigation": {
     erwartet: {
       ...alle(200),
@@ -2656,6 +2661,99 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Statische Dateien der Formulare (#819)
+  "GET /admin/website-felder-formular.js": { erwartet: alle(200) },
+  "GET /admin/website-formulare.js": { erwartet: alle(200) },
+  "GET /admin/website-formulare.css": { erwartet: alle(200) },
+  // Formulare der Website (#819). Die öffentliche Route nimmt jede Person an, auch ohne Anmeldung und aus einer anderen Abteilung (dann anonym); nur das Konto mit Pflichtwechsel des Passworts bekommt das 403 der Sitzung. Jede Persona sendet von einer eigenen Adresse (die Zähler je Adresse); die Collection lässt die Zeile aus, denn ihre Läufe kämen von derselben Adresse. Grenzen, Sichtbarkeit und Spamschutz prüft test/formular-route.test.ts
+  "POST /api/v1/formulare/:id/antworten": {
+    url: () => `/api/v1/formulare/${formularId}/antworten`,
+    body: () => ({
+      antworten: { [formularFeldId]: "Antwort" },
+      homepage: "",
+      dauerMs: 8000,
+    }),
+    kopf: (persona) => ({
+      "x-forwarded-for": `198.51.100.${PERSONAS.indexOf(persona) + 1}`,
+    }),
+    ohnePostman: true,
+    oeffentlich: true,
+    erwartet: { ...alle(201), mussPasswortAendern: 403 },
+  },
+  // Antworten in der Verwaltung (#819): eigene Rechte, die nur die Abteilungsleitung und der Entwickler tragen; die Redaktion nicht
+  "GET /api/v1/admin/formulare": {
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 200,
+      demoEltern: 403,
+    },
+  },
+  "GET /api/v1/admin/formulare/:id": {
+    url: () => `/api/v1/admin/formulare/${formularId}`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/formulare/:id/antworten": {
+    url: () => `/api/v1/admin/formulare/${formularId}/antworten`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "GET /api/v1/admin/formulare/:id/antworten.csv": {
+    url: () => `/api/v1/admin/formulare/${formularId}/antworten.csv`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/formulare/:id/antworten/:antwortId": {
+    // Jede Anfrage löscht ihr Ziel
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/formulare/${formularId}/antworten/${await wegwerfFormularAntwortId()}`,
+    erwartet: {
+      ...alle(403),
+      admin: 204,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
+  "DELETE /api/v1/admin/formulare/:id/antworten": {
+    url: () => `/api/v1/admin/formulare/${formularId}/antworten`,
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
 };
 
 let welt: Welt;
@@ -2688,6 +2786,11 @@ let seiteId: string;
 let weiterleitungId: string;
 let ortId: string;
 let ladenArtikelId: string;
+// Formular der Testabteilung auf einer öffentlichen Seite (#819)
+let formularId: string;
+let formularFeldId: string;
+let formularSeiteId: string;
+let formularVersionId: string;
 let ladenArtikelDemoId: string;
 let ladenBestellungId: string;
 let plattformRolleId: string;
@@ -2738,6 +2841,21 @@ async function wegwerfMediumId() {
 }
 
 // Wegwerf-Artikel des Lädelis (Einheitsgrösse), auf Wunsch in der Demo-Abteilung
+async function wegwerfFormularAntwortId() {
+  const [zeile] = await welt.db
+    .insert(schema.formularAntwort)
+    .values({
+      abteilungId: welt.testabteilungId,
+      seiteId: formularSeiteId,
+      formularId,
+      versionId: formularVersionId,
+      antworten: { [formularFeldId]: "Wegwerf" },
+      loeschenAm: new Date(Date.now() + 86_400_000),
+    })
+    .returning({ id: schema.formularAntwort.id });
+  return zeile.id;
+}
+
 async function wegwerfLadenArtikelId(abteilungId = welt.testabteilungId) {
   const [zeile] = await welt.db
     .insert(schema.ladenArtikel)
@@ -2934,7 +3052,6 @@ beforeAll(async () => {
   // Ein Programm der Testabteilung für die Objekt-Routen, sichtbar bis zu den Eltern der Stufe A
   const programm = await legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
-    sichtbarkeit: "eltern",
     stufen: [welt.stufeAId],
   });
   programmId = programm.id;
@@ -2942,7 +3059,6 @@ beforeAll(async () => {
   anwesenheitProgrammId = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       beginn: new Date(Date.now() - 86_400_000),
     })
@@ -2950,7 +3066,6 @@ beforeAll(async () => {
   leitungProgrammId = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       beginn: new Date(Date.now() + 365 * 86_400_000),
     })
@@ -3036,6 +3151,52 @@ beforeAll(async () => {
   weiterleitungId = await wegwerfWeiterleitungId();
   ortId = await wegwerfOrtId();
   ladenArtikelId = await wegwerfLadenArtikelId();
+  // Eine veröffentlichte Seite mit einem Formular (#819)
+  formularId = randomUUID();
+  formularFeldId = randomUUID();
+  const [formularSeite] = await db
+    .insert(schema.seite)
+    .values({
+      abteilungId: welt.testabteilungId,
+      adresse: `formular-${randomUUID().slice(0, 8)}`,
+      titel: "Formular",
+      sichtbarkeit: "oeffentlich",
+    })
+    .returning();
+  formularSeiteId = formularSeite!.id;
+  const [formularVersion] = await db
+    .insert(schema.seiteVersion)
+    .values({
+      seiteId: formularSeiteId,
+      nr: 1,
+      inhalt: {
+        v: 1,
+        titel: "Formular",
+        bausteine: [
+          {
+            id: formularId,
+            typ: "formular",
+            daten: {
+              felder: [
+                {
+                  id: formularFeldId,
+                  typ: "text",
+                  beschriftung: "Name",
+                  pflicht: true,
+                },
+              ],
+              datenschutz: "Die Leitung sieht die Antworten.",
+            },
+          },
+        ],
+      },
+    })
+    .returning();
+  formularVersionId = formularVersion!.id;
+  await db
+    .update(schema.seite)
+    .set({ veroeffentlichteVersionId: formularVersionId })
+    .where(eq(schema.seite.id, formularSeiteId));
   ladenArtikelDemoId = await wegwerfLadenArtikelId(welt.demoAbteilungId);
   // Eine offene Bestellung einer Wegwerf-Person der Testabteilung
   [{ id: ladenBestellungId }] = await db
@@ -3122,6 +3283,7 @@ describe("Vollständigkeit", () => {
     for (const [schluessel, zeile] of Object.entries(MATRIX)) {
       if (!schluessel.includes(":")) continue;
       expect(zeile.url ?? zeile.urlJeAnfrage, schluessel).toBeDefined();
+      if (zeile.oeffentlich) continue;
       expect(zeile.erwartet.demoAdmin, schluessel).toBe(404);
       expect(zeile.erwartet.demoEltern, schluessel).toBe(404);
     }
@@ -3169,9 +3331,12 @@ describe("Matrix: jede Route mal jede Persona", () => {
       const url = zeile.urlJeAnfrage ? await zeile.urlJeAnfrage() : festeUrl;
       const antwort = await app.request(url, {
         method: methode,
-        headers: zeile.body
-          ? { ...konto.headers, "content-type": "application/json" }
-          : konto.headers,
+        headers: {
+          ...(zeile.body
+            ? { ...konto.headers, "content-type": "application/json" }
+            : konto.headers),
+          ...zeile.kopf?.(persona),
+        },
         body: zeile.bild
           ? new Uint8Array(testBild)
           : zeile.body && JSON.stringify(zeile.body(konto)),

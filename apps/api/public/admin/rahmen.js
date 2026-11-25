@@ -194,7 +194,13 @@ function erstelleKontoMenue({ konto, beiAbmelden }) {
         "div",
         { class: "konto-kopf" },
         avatar(konto.name, { bildUrl: konto.bildUrl }),
-        el("p", {}, el("strong", {}, konto.name), el("span", {}, konto.rolle)),
+        el(
+          "p",
+          {},
+          el("strong", {}, konto.name),
+          konto.vollerName && el("span", {}, konto.vollerName),
+          el("span", {}, konto.rolle),
+        ),
       ),
       el(
         "ul",
@@ -258,7 +264,7 @@ function erstelleKontoMenue({ konto, beiAbmelden }) {
 }
 
 // Logozeile: Marke (führt zur Website), «Verwaltung» (Übersicht), Suche, Konto-Menü mit Rolle und ganz rechts der Umschalter (wie auf der Website)
-// konto: { name, rolle, bildUrl } (rolle: Text unter dem Namen; bildUrl: Profilbild oder null)
+// konto: { name, vollerName?, rolle, bildUrl } (name: Rufname; vollerName: erscheint im offenen Menü, wenn er vom Rufnamen abweicht; rolle: Text unter dem Namen; bildUrl: Profilbild oder null)
 export function logozeile({ konto, beiAbmelden, sichtbar = true, suche }) {
   return el(
     "div",

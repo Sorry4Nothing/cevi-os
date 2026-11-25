@@ -917,6 +917,8 @@ const NICHT_ERFASST = {
     "PUT /api/v1/anlaesse/:p/anmeldung",
     "DELETE /api/v1/anlaesse/:p/anmeldung",
     "POST /api/v1/laden/bestellungen",
+    // Antwort auf ein Formular der Website (#819): auch ohne Anmeldung, nie mit einer Person im Protokoll
+    "POST /api/v1/formulare/:p/antworten",
     "DELETE /api/v1/laden/bestellungen/:p",
     "POST /api/v1/termin-vorschlaege",
     "DELETE /api/v1/termin-vorschlaege/:p",

@@ -188,11 +188,9 @@ const FAELLE: Fall[] = [
   ["al", "import.ausfuehren", undefined, true],
   ["al", "gruppen.mitglieder", "gruppeOk", true],
   ["al", "programm.alle_sehen", undefined, true],
-  ["al", "programm.intern_sehen", undefined, true],
   ["entwickler", "kinder.sehen", undefined, true],
   ["entwickler", "kinder.verwalten", "stufeObjB", true],
   ["entwickler", "personen.sehen", undefined, true],
-  ["entwickler", "programm.intern_sehen", undefined, true],
   // Die Stufenleitung führt die Anwesenheit ihrer Stufe und sieht jedes Programm, aber nie die Verwaltung der Kinder
   ["slA", "anwesenheit.fuehren", "stufeObjA", true],
   ["slA", "anwesenheit.fuehren", "stufeObjB", false],
@@ -200,7 +198,6 @@ const FAELLE: Fall[] = [
   ["slA", "stufe.einblick", "stufeObjA", true],
   ["slA", "stufe.einblick", "stufeObjB", false],
   ["slA", "programm.alle_sehen", undefined, true],
-  ["slA", "programm.intern_sehen", undefined, false],
   ["slA", "kinder.sehen", "stufeObjA", false],
   ["slA", "kinder.verwalten", "stufeObjA", false],
   ["slA", "personen.sehen", undefined, false],
@@ -231,7 +228,6 @@ const FAELLE: Fall[] = [
   // Die Plattformrolle gilt abteilungsweit
   ["plattform", "personen.sehen", undefined, true],
   ["plattform", "personen.verwalten", undefined, false],
-  ["plattform", "programm.intern_sehen", undefined, true],
   ["plattform", "kinder.sehen", "stufeObjA", false],
   // Ohne alles: nur, was strukturell ist
   ["ohneAlles", "termine.mein_kalender", undefined, true],

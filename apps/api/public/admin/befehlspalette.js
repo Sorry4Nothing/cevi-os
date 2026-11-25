@@ -4,7 +4,15 @@
 // Last: keine Abfrage je Tastendruck. Beim Öffnen eine Abfrage je Quelle, nur mit Recht; danach liegt das Ergebnis fünf Minuten im Speicher und die Suche filtert im Browser. Hat die Seite «Personen» ihre Liste schon geladen, übergibt sie sie (`meldePersonen`).
 // Es ist die einzige Überlagerung der Verwaltung: Ein Suchfeld mit Tastaturbedienung braucht den Fokus in einer Schicht, die Escape schliesst und den Fokus zurückgibt (nativer `dialog`).
 import { anfrage } from "./api.js";
-import { avatar, chip, el, icon, neueId } from "./dom.js";
+import {
+  avatar,
+  chip,
+  el,
+  icon,
+  neueId,
+  rufname,
+  vollerNameZusatz,
+} from "./dom.js";
 import { adresseVon } from "./navigation.js";
 
 /* ---------- Gruppen ---------- */
@@ -225,8 +233,8 @@ export function kandidaten({ bereiche, daten = {} }) {
       liste.push({
         gruppe: "personen",
         id: `person-${p.id}`,
-        titel: p.name,
-        zusatz: p.ceviName,
+        titel: rufname(p),
+        zusatz: vollerNameZusatz(p),
         personId: p.id,
         bildUrl: p.bildUrl,
         rollen: p.rollen,
@@ -236,7 +244,7 @@ export function kandidaten({ bereiche, daten = {} }) {
           [p.name, 4],
           [p.ceviName, 4],
           [p.benutzername, 1],
-          [p.rollen.join(" "), 2],
+          [[...p.rollen, ...(p.rollenNeutral ?? [])].join(" "), 2],
           [p.tags.map((t) => t.name).join(" "), 2],
         ],
         adresse: "#personen/personen",
@@ -451,6 +459,8 @@ export function normalisierePerson(p, tags, h) {
     benutzername: p.benutzername ?? "",
     bildUrl: p.bildUrl ?? null,
     rollen: h.systemRollen(p),
+    // Die Suche findet auch «Stufenleitung», wenn die Person «Stufenleiterin» heisst (#817)
+    rollenNeutral: h.systemRollen({ ...p, geschlecht: null }),
     tags: tags.map((e) => ({ name: e.tag.name, typ: e.tag.typ })),
     konto: {
       deaktiviert: p.deaktiviert,

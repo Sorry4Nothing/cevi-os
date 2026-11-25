@@ -141,8 +141,10 @@ paths:
       security: []
       description: |
         Statische Hülle der Web-Verwaltung, ohne Anmeldung und ausserhalb der Versionsprüfung. Sie enthält keine Daten:
-        Die Seite meldet sich über `/api/auth/*` an und ruft danach `/api/v1/admin/*` auf, mit dem Session-Cookie
-        und dem zweiten Faktor wie in der App. Alle Personen (auch nicht angemeldete) erhalten 200.
+        Die Seite hat keine eigene Anmeldung (#818): Ohne Sitzung leitet sie im Browser auf die Anmeldeseite der
+        Website (`/anmelden?weiter=%2Fadmin%23<Bereich>`) weiter, die sich über `/api/auth/*` anmeldet und danach
+        zurückführt. Die Verwaltung ruft dann `/api/v1/admin/*` auf, mit dem Session-Cookie und dem zweiten Faktor
+        wie in der App. Alle Personen (auch nicht angemeldete) erhalten 200.
 
         Die Antwort trägt eine strenge `Content-Security-Policy` (`script-src 'self'`, `style-src 'self'`,
         `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,
@@ -3040,6 +3042,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/rollenname.js:
+    get:
+      operationId: getAdminRollennameSkript
+      summary: Skript der Verwaltung – Rollenname nach Geschlecht
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-anlass.js:
     get:
       operationId: getAdminTagsAnlassSkript
@@ -4437,7 +4454,7 @@ paths:
         pro Programm. Der Server rechnet die Zahlen; die App rechnet nichts nach.
 
         **Anlässe.** `anlaesse` ist nach Beginn aufsteigend sortiert: zuerst die vergangenen, der kommende zuletzt
-        (`vergangen: false`). Es zählen nur aktive Programme der Stufe mit Sichtbarkeit `leitende` oder `eltern`.
+        (`vergangen: false`). Es zählen nur aktive Programme der Stufe.
         `erfassbar` ist `true`, solange das Programm begonnen hat und der Beginn höchstens 14 Tage zurückliegt;
         nur dann nimmt `PUT` einen Stand an.
 
@@ -4779,10 +4796,10 @@ paths:
 
         Wer aufrufen darf: jede angemeldete Person. Sichtbar ist ein Programm so:
         - Abteilungsleitung sowie Stufenleitungen (SL) sehen jedes Programm der Abteilung,
-          auch ohne Stufen-Tag (Recht `programm.alle_sehen`, das es auch als Rolle gibt); «intern» (für niemanden sichtbar) nur mit `alle=1` und nur mit dem Recht `programm.intern_sehen` (Standard: Abteilungsleitung).
-        - Leitende sehen Programme mit Sichtbarkeit «leitende» oder «eltern», die den Stufen-Tag einer ihrer Stufen tragen.
-        - Eltern sehen Programme mit Sichtbarkeit «eltern», die den Stufen-Tag einer Stufe tragen, in der ein aktives
-          eigenes Kind ist.
+          auch ohne Stufen-Tag (Recht `programm.alle_sehen`, das es auch als Rolle gibt).
+        - Leitende sehen Programme, die den Stufen-Tag einer ihrer Stufen tragen.
+        - Eltern sehen Programme, die den Stufen-Tag einer Stufe tragen, in der ein aktives eigenes Kind ist.
+        - Eine Sichtbarkeit je Programm (`intern`, `leitende`, `eltern`) gibt es seit #807 nicht mehr; es zählen allein die Tags. Das Feld `sichtbarkeit` fehlt in der Antwort.
         - Wer beides ist, sieht die Vereinigung.
 
         Statuscodes: 200 Erfolg; 400 `von` oder `bis` fehlt, ist kein gültiges Datum `JJJJ-MM-TT`, beginnt mit Jahr
@@ -4810,7 +4827,7 @@ paths:
         - name: alle
           in: query
           required: false
-          description: Mit `1` liefert die Liste auch ausgeblendete Programme (Sichtbarkeit «intern»). Wirkt nur für Abteilungsleitung.
+          description: Ohne Wirkung seit #807 (es gibt keine ausgeblendeten Programme mehr); der Parameter bleibt erlaubt, damit ältere Aufrufer kein 400 bekommen.
           schema:
             type: string
             enum:
@@ -5228,7 +5245,7 @@ paths:
       description: |
         Schreibt eine Nachricht in den Chat. Erlaubt ist, wer Mitglied des Chats ist (siehe «Eigene Chats auflisten»): Stufenleitungen der Stufe und Eltern mit aktivem Kind in der Stufe.
 
-        Optional verweist die Nachricht auf ein Programm (`programmId`). Erlaubt sind nur Programme der eigenen Abteilung mit Sichtbarkeit «eltern», die der Stufe des Chats zugeordnet sind; sonst kommt 400 (so landet kein interner Titel im Chat).
+        Optional verweist die Nachricht auf ein Programm (`programmId`). Erlaubt sind nur Programme der eigenen Abteilung, die der Stufe des Chats zugeordnet sind (Stufen-Tag); sonst kommt 400 (so landet kein fremder Titel im Chat).
 
         Begrenzung: höchstens 20 Nachrichten pro Person und Minute, gezählt über alle Chats der Person. Die 21. Nachricht innerhalb einer Minute ergibt 429.
 
@@ -22887,7 +22904,7 @@ paths:
         Recht `termine.warnliste` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Zeigt, welche kommenden Termine der eigenen Abteilung keinen Tag haben (keiner Gruppe zugewiesen, nicht in «Mein Kalender»), und welche Kategorien aus Outlook noch keinem Tag entsprechen.
 
         Ein Termin steht auf der Liste, wenn er keinen Tag hat (keine Zeile in `programm_tag`, siehe Abgleich mit Outlook) und noch bevorsteht oder läuft (Ende, bei Ganztägigen das Ende des letzten Tages in Schweizer Zeit, liegt in der Zukunft).
-        Abgesagte Termine und solche mit Sichtbarkeit «intern» fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
+        Abgesagte Termine fehlen. Der `grund` ist `keine_kategorie`, wenn Outlook keine Kategorie liefert, sonst `unbekannte_kategorie`; `kategorien` sind die rohen Namen aus Outlook.
         Ein Termin mit bekannter und unbekannter Kategorie hat einen Tag und fehlt darum in `termine`.
 
         `unbekannteKategorien` fasst alle Kategorienamen der kommenden Termine zusammen, die weder über `kategorie_zuordnung` noch über einen Tag gleichen Namens (getrimmt, ohne Gross-/Kleinschreibung) einem Tag entsprechen, auch bei Terminen, die über eine andere Kategorie sichtbar sind. `anzahl` zählt die Termine. Sortiert nach `anzahl` absteigend, dann nach Name; höchstens 200 Einträge. Die Zusammenfassung steht in jeder Antwort, unabhängig von der Seite.
@@ -23055,7 +23072,7 @@ paths:
         - Tags der Person sind ihre eigenen Tags (auch die Stufenrolle der Leitung) und, für Eltern, die Stufe jedes ihrer aktiven Kinder.
         - Ein Termin ohne Tag ist keiner Gruppe zugewiesen und steht hier nie, auch nicht für die Abteilungsleitung (er erscheint nur in `GET /api/v1/termine/alle`). Wer keinen Tag hat, bekommt eine leere Liste.
         - Mit mehreren passenden Tags erscheint der Termin trotzdem einmal.
-        - Die Sichtbarkeit «intern» blendet den Termin für alle aus; «leitende» sehen nur Personen mit eigenem Tag, nicht Eltern über ihre Kinder.
+        - Allein die Tags entscheiden: der eigene Tag der Person, bei Eltern der Stufen-Tag der Stufe eines aktiven Kindes. Eine Sichtbarkeit je Termin gibt es seit #807 nicht mehr.
         - Abgesagte Termine bleiben sichtbar (`status` «abgesagt»).
 
         Der Zeitraum zählt in Schweizer Kalendertagen, beidseitig inklusive, und umfasst höchstens 400 Tage; ein mehrtägiger Termin erscheint an jedem seiner Tage.
@@ -23220,7 +23237,7 @@ paths:
         Ein Termin erscheint je Person einmal.
 
         Was die Person sieht:
-        - Abteilungsleitung: jeden Termin der eigenen Abteilung, auch einen ohne Tag (`meine` falsch, `tags` leer), mit allen seinen Tags. Die Sichtbarkeit «intern» blendet den Termin auch hier aus.
+        - Abteilungsleitung: jeden Termin der eigenen Abteilung, auch einen ohne Tag (`meine` falsch, `tags` leer), mit allen seinen Tags.
         - Alle anderen: die Termine aus «Mein Kalender» (`meine` ist wahr), mit den eigenen Tags. Dazu kommen die Termine von Anlässen mit Sichtbarkeit «angemeldet» oder «oeffentlich» (`meine` falsch, wenn kein eigener Tag passt); `anlass` trägt dann den Verweis auf die Anmeldung wie in «Mein Kalender».
         - Ein Termin ohne Tag nur für die Abteilungsleitung, für alle anderen nie. Fremde Abteilungen nie.
 
@@ -26719,8 +26736,560 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /api/v1/formulare/{id}/antworten:
+    post:
+      operationId: sendeFormularAntwort
+      summary: Antwort auf ein Formular der Website senden
+      description: |
+        Die einzige Route unter `/api/v1`, die ohne Anmeldung schreibt (#819). Eine vorhandene Sitzung liest sie mit: Wer angemeldet ist, sendet mit dem eigenen Konto, alle anderen anonym (ohne Person, ohne IP-Adresse). Nur POST mit JSON; eine fremde `Origin` ist 403.
+
+        `id` ist die ID des Bausteins «Formular» im Dokument einer veröffentlichten Seite. Der Server prüft jede Antwort gegen die veröffentlichte Definition aus der Datenbank, nie gegen etwas aus der Anfrage; jede unbekannte Feld-ID ist ein Fehler. Wer ausfüllen darf, bestimmt die Sichtbarkeit der Seite und des Bausteins (öffentlich, angemeldet, bestimmte Gruppen). Ein Formular, das es nicht gibt, nicht veröffentlicht ist oder das die Person nicht sehen darf, antwortet gleich: 404 `NICHT_GEFUNDEN`.
+
+        Schutz vor Missbrauch ohne Dienst von Dritten: `homepage` ist eine Falle und muss leer sein (gefüllt antwortet der Server 201, speichert aber nichts); `dauerMs` ist die Zeit seit dem Laden der Seite, unter 2000 ms ist 422 `ZU_SCHNELL`; Zähler im Arbeitsspeicher (30 Versuche je Adresse in 10 Minuten, 10 je Adresse und Formular, 10 je Person und Formular, 300 anonyme je Formular, danach 429 `ZU_OFT`); je Formular eine Obergrenze der Antworten (409 `FORMULAR_VOLL`). Mit `eineProPerson` ist die zweite Antwort einer angemeldeten Person 409 `BEREITS_BEANTWORTET`. Nach dem letzten Tag (`schliesstAm`, Zürcher Zeit) ist 410 `FORMULAR_GESCHLOSSEN`. Die Sperre der Website ist 423, die Wartung 503. Höchstens 64 KB Body (413).
+
+        Fehler in den Antworten (422 `ANTWORTEN_UNGUELTIG`) nennen nur die Feld-ID und einen Code (`UNBEKANNT`, `PFLICHT`, `TYP`, `FORMAT`, `ZU_LANG`, `ZU_KURZ`, `BEREICH`, `OPTION`, `ANZAHL`, `STEUERZEICHEN`), nie den Wert.
+
+        Statuscodes: 201 gespeichert (`{ ok: true }`, ohne ID). 400, 403, 404, 409, 410, 413, 422, 423, 429, 503.
+
+        Datenbanklast: eine Abfrage für die veröffentlichte Definition, bei Sitzung die Abfragen der Person, eine Transaktion mit Sperre je Formular (Zählen, Einfügen).
+      tags:
+        - Website
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FormularAntwortEingabe"
+      responses:
+        "201":
+          description: Gespeichert.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - ok
+                properties:
+                  ok:
+                    type: boolean
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: Das Formular ist voll (`FORMULAR_VOLL`) oder die Person hat es schon beantwortet (`BEREITS_BEANTWORTET`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "410":
+          description: Das Formular nimmt keine Antworten mehr an (`FORMULAR_GESCHLOSSEN`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "413":
+          description: Der Body ist grösser als 64 KB.
+        "422":
+          description: Die Antworten passen nicht (`ANTWORTEN_UNGUELTIG` mit `fehler`) oder das Formular wurde zu schnell gesendet (`ZU_SCHNELL`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularAntwortFehler"
+        "423":
+          description: Die Website ist gesperrt (`GESPERRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+        "503":
+          description: Die Website ist in Wartung (`IN_WARTUNG`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+  /api/v1/admin/formulare:
+    get:
+      operationId: listeAdminFormulare
+      summary: Formulare der Website mit der Zahl ihrer Antworten
+      description: |
+        Nur mit dem Recht `formular.antworten_sehen` (Abteilungsleitung und Entwickler, dazu vergebbar an Rollen; die Redaktion hat es nicht automatisch, denn Antworten enthalten Personendaten). Alle Formulare der veröffentlichten Seiten der Abteilung und alle mit Antworten, auch wenn der Baustein inzwischen fehlt (`veroeffentlicht` falsch).
+
+        Statuscodes: 200. 401, 403 (auch `ZWEITER_FAKTOR_FEHLT`).
+
+        Datenbanklast: zwei Abfragen, bei Formularen ohne Baustein eine dritte.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Formulare.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - formulare
+                properties:
+                  formulare:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FormularZeile"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/admin/formulare/{id}:
+    get:
+      operationId: getAdminFormular
+      summary: Ein Formular mit seinen Feldern und den Rechten der Person
+      description: |
+        Nur mit dem Recht `formular.antworten_sehen`. Ein Formular einer anderen Abteilung oder ein unbekanntes ist 404 (erst das Objekt, dann das Recht). `rechte` sagt, ob die Person die Antworten auch exportieren und löschen darf; die Oberfläche blendet Knöpfe ohne das Recht aus.
+
+        Statuscodes: 200. 400, 401, 403, 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Formular.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularAnsicht"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/admin/formulare/{id}/antworten:
+    get:
+      operationId: listeAdminFormularAntworten
+      summary: Antworten eines Formulars, neueste zuerst
+      description: |
+        Nur mit dem Recht `formular.antworten_sehen`. Je Antwort die Beschriftungen der Version der Seite, mit der sie entstand (spätere Änderungen am Formular machen sie nicht kaputt), und die Person (Cevi-Name, sonst Vorname) oder `null` für eine anonyme Antwort. Seitenweise: `limit` (1 bis 100, vorgegeben 25) und `nach` (ID der letzten Antwort der Vorseite).
+
+        Statuscodes: 200. 400, 401, 403, 404.
+
+        Datenbanklast: eine Abfrage für die Liste der Formulare, eine für die Antworten, eine für die Versionen.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 25
+        - name: nach
+          in: query
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Eine Seite Antworten.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularAntwortenSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+    delete:
+      operationId: loescheAdminFormularAntworten
+      summary: Alle Antworten eines Formulars löschen
+      description: |
+        Nur mit dem Recht `formular.antworten_loeschen`. Löscht endgültig alle Antworten des Formulars; das Formular bleibt auf der Seite. Es bleibt eine Zeile im Audit-Protokoll mit der Zahl, nie mit Inhalten.
+
+        Statuscodes: 200 mit der Zahl. 400, 401, 403, 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Gelöscht.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - geloescht
+                properties:
+                  geloescht:
+                    type: integer
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/admin/formulare/{id}/antworten.csv:
+    get:
+      operationId: exportiereAdminFormularAntworten
+      summary: Antworten eines Formulars als CSV
+      description: |
+        Nur mit dem Recht `formular.antworten_exportieren`. UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF, in Blöcken zu 500 Zeilen. Die Spalten sind «Eingang», «Person» und die Felder (die aktuelle Definition zuerst, dann Felder älterer Versionen). Jede Zelle, die mit `=`, `+`, `-`, `@`, Tabulator oder Zeilenumbruch beginnt, bekommt ein führendes Hochkomma (Schutz vor Formeln in Tabellenprogrammen). Je Person höchstens 10 Exporte in 10 Minuten (429). Im Audit-Protokoll steht eine Zeile mit der Zahl.
+
+        Statuscodes: 200. 400, 401, 403, 404, 429.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Die Datei (`text/csv; charset=utf-8`, `Content-Disposition: attachment`)."
+          content:
+            text/csv:
+              schema:
+                type: string
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/formulare/{id}/antworten/{antwortId}:
+    delete:
+      operationId: loescheAdminFormularAntwort
+      summary: Antwort eines Formulars löschen
+      description: |
+        Nur mit dem Recht `formular.antworten_loeschen`. Löscht eine Antwort endgültig. Eine unbekannte Antwort oder die eines fremden Formulars ist 404.
+
+        Statuscodes: 204. 400, 401, 403, 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+        - name: antwortId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "204":
+          description: Gelöscht.
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /admin/website-formulare.js:
+    get:
+      operationId: getAdminWebsiteFormulareSkript
+      summary: Skript der Verwaltung – Bereich Website, Formulare
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
+  /admin/website-formulare.css:
+    get:
+      operationId: getAdminWebsiteFormulareStilvorlage
+      summary: Stilvorlage der Verwaltung – Bereich Website, Formulare
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/css; charset=UTF-8`).
+          content:
+            text/css:
+              schema:
+                type: string
+  /admin/website-felder-formular.js:
+    get:
+      operationId: getAdminWebsiteFelderFormularSkript
+      summary: Skript der Verwaltung – Bereich Website, Felder des Bausteins «Formular»
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
 components:
   schemas:
+    FormularAntwortEingabe:
+      type: object
+      additionalProperties: false
+      required:
+        - antworten
+        - homepage
+        - dauerMs
+      properties:
+        antworten:
+          type: object
+          description: Feld-ID (UUID) zu Wert. Text, Zahl, Datum (`JJJJ-MM-TT`), Auswahl als Text, Mehrfachwahl als Liste von Texten, Ja oder Nein und Zustimmung als Wahrheitswert. Freiwillige Felder ohne Antwort fehlen. Höchstens 30 Schlüssel, die Antwort als JSON höchstens 16000 Zeichen.
+          additionalProperties: true
+        homepage:
+          type: string
+          maxLength: 200
+          description: Die Falle gegen Skripte, bleibt leer. Menschen sehen das Feld nie.
+        dauerMs:
+          type: integer
+          minimum: 0
+          description: Millisekunden seit dem Laden der Seite, vom Skript gemessen (unter 2000 ist 422 `ZU_SCHNELL`).
+    FormularAntwortFehler:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          enum:
+            - ANTWORTEN_UNGUELTIG
+            - ZU_SCHNELL
+        message:
+          type: string
+        fehler:
+          type: array
+          description: Nur Feld-ID und Code, nie der Wert.
+          items:
+            type: object
+            required:
+              - feld
+              - code
+            properties:
+              feld:
+                type: string
+              code:
+                type: string
+                enum:
+                  - UNBEKANNT
+                  - PFLICHT
+                  - TYP
+                  - FORMAT
+                  - ZU_LANG
+                  - ZU_KURZ
+                  - BEREICH
+                  - OPTION
+                  - ANZAHL
+                  - STEUERZEICHEN
+    FormularZeile:
+      type: object
+      required:
+        - formularId
+        - seiteId
+        - seitenTitel
+        - titel
+        - veroeffentlicht
+        - schliesstAm
+        - aufbewahrenTage
+        - anzahl
+        - letzteAm
+      properties:
+        formularId:
+          type: string
+          format: uuid
+        seiteId:
+          type: string
+          format: uuid
+        seitenTitel:
+          type: string
+        titel:
+          type: string
+          nullable: true
+        veroeffentlicht:
+          type: boolean
+          description: Steht der Baustein in der veröffentlichten Version der Seite? Sonst nimmt das Formular nichts mehr an.
+        schliesstAm:
+          type: string
+          nullable: true
+          description: Letzter Tag für Antworten (`JJJJ-MM-TT`, Zürcher Zeit).
+        aufbewahrenTage:
+          type: integer
+        anzahl:
+          type: integer
+        letzteAm:
+          type: string
+          format: date-time
+          nullable: true
+    FormularAnsicht:
+      type: object
+      required:
+        - formular
+        - rechte
+        - felder
+      properties:
+        formular:
+          $ref: "#/components/schemas/FormularZeile"
+        rechte:
+          type: object
+          required:
+            - exportieren
+            - loeschen
+          properties:
+            exportieren:
+              type: boolean
+            loeschen:
+              type: boolean
+        felder:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - beschriftung
+              - typ
+            properties:
+              id:
+                type: string
+                format: uuid
+              beschriftung:
+                type: string
+              typ:
+                type: string
+    FormularAntwortenSeite:
+      type: object
+      required:
+        - antworten
+        - weitere
+        - naechste
+      properties:
+        antworten:
+          type: array
+          items:
+            type: object
+            required:
+              - id
+              - erstelltAm
+              - person
+              - eintraege
+            properties:
+              id:
+                type: string
+                format: uuid
+              erstelltAm:
+                type: string
+                format: date-time
+              person:
+                type: string
+                nullable: true
+                description: Cevi-Name, sonst Vorname; `null` bei einer anonymen Antwort oder gelöschtem Konto.
+              eintraege:
+                type: array
+                items:
+                  type: object
+                  required:
+                    - feldId
+                    - beschriftung
+                    - typ
+                    - wert
+                  properties:
+                    feldId:
+                      type: string
+                      format: uuid
+                    beschriftung:
+                      type: string
+                    typ:
+                      type: string
+                    wert:
+                      type: string
+        weitere:
+          type: boolean
+        naechste:
+          type: string
+          format: uuid
+          nullable: true
     Fehler:
       type: object
       required:
@@ -27154,6 +27723,7 @@ components:
         - id
         - name
         - ceviName
+        - geschlecht
         - benutzername
         - mussPasswortAendern
         - datenschutzGelesenAm
@@ -27181,6 +27751,16 @@ components:
             - string
             - "null"
           description: Cevi-Name (Spitzname), `null` ohne Angabe.
+        geschlecht:
+          type:
+            - string
+            - "null"
+          enum:
+            - w
+            - m
+            - d
+            - null
+          description: Eigene Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die eigene Rolle nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung). Ändern lässt sie sich nur in der Verwaltung unter Personen (#817).
         benutzername:
           type:
             - string
@@ -27509,6 +28089,7 @@ components:
             - id
             - name
             - ceviName
+            - geschlecht
             - rolle
           properties:
             id:
@@ -27521,6 +28102,16 @@ components:
                 - string
                 - "null"
               description: Cevi-Name (Spitzname), `null` ohne Angabe.
+            geschlecht:
+              type:
+                - string
+                - "null"
+              enum:
+                - w
+                - m
+                - d
+                - null
+              description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
             rolle:
               type: string
               enum:
@@ -27728,7 +28319,6 @@ components:
         - id
         - titel
         - status
-        - sichtbarkeit
         - ganztaegig
         - beginn
         - ende
@@ -27749,13 +28339,6 @@ components:
             - abgesagt
             - pruefen
           description: Zustand des Programms. Teilnahmen lassen sich nur bei «aktiv» und vor dem Beginn ändern.
-        sichtbarkeit:
-          type: string
-          enum:
-            - intern
-            - leitende
-            - eltern
-          description: Wer das Programm sieht. «intern» niemand in der App (die Abteilungsleitung holen es mit `alle=1`), «leitende» Abteilungsleitung, SL und die Leitenden der zugeordneten Stufen, «eltern» zusätzlich deren Eltern. Ohne Stufe gilt das Programm für alle Stufen.
         ganztaegig:
           type: boolean
         beginn:
@@ -28067,7 +28650,7 @@ components:
         programmId:
           type: string
           format: uuid
-          description: Optionaler Bezug auf ein Programm der eigenen Abteilung mit Sichtbarkeit «eltern», das der Stufe des Chats zugeordnet ist.
+          description: Optionaler Bezug auf ein Programm der eigenen Abteilung, das der Stufe des Chats zugeordnet ist.
       example:
         text: Wir bringen die Zelte am Samstag mit.
     ChatProgrammBezug:
@@ -28229,6 +28812,7 @@ components:
         - id
         - name
         - ceviName
+        - geschlecht
         - bildUrl
         - telefon
         - benutzername
@@ -28253,6 +28837,16 @@ components:
             - string
             - "null"
           description: Cevi-Name (Spitzname), `null` ohne Angabe.
+        geschlecht:
+          type:
+            - string
+            - "null"
+          enum:
+            - w
+            - m
+            - d
+            - null
+          description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
         bildUrl:
           type:
             - string
@@ -28392,6 +28986,13 @@ components:
           type: string
           maxLength: 50
           description: Freiwillig. Leerraum am Rand wird entfernt; leer heisst nicht gesetzt.
+        geschlecht:
+          type: string
+          enum:
+            - w
+            - m
+            - d
+          description: Freiwillig (#817). `w` weiblich, `m` männlich, `d` andere; ohne Angabe nennt die Verwaltung die Rolle neutral. Ein anderer Wert ergibt 400.
         telefon:
           type: string
           description: Freiwillig, nur mit einer Rolle `stufenleitung` (sonst 400). Ziffern mit `+`, Leerzeichen, `()`, `/`, `.` und `-`, 6 bis 30 Zeichen; leer heisst nicht gesetzt.
@@ -28464,6 +29065,16 @@ components:
             - "null"
           maxLength: 50
           description: Leerraum am Rand wird entfernt; leer oder `null` löscht den Cevi-Namen.
+        geschlecht:
+          type:
+            - string
+            - "null"
+          enum:
+            - w
+            - m
+            - d
+            - null
+          description: Freiwillige Angabe (#817). `w` weiblich, `m` männlich, `d` andere; `null` entfernt sie. Ein anderer Wert ergibt 400. Es schreibt keinen Audit-Eintrag, wie `ceviName`.
         telefon:
           type:
             - string
@@ -29909,7 +30520,7 @@ components:
               properties:
                 kommend:
                   type: integer
-                  description: Kommende Termine der Abteilung (ohne abgesagte und interne).
+                  description: Kommende Termine der Abteilung (ohne abgesagte).
         anlaesse:
           type: array
           description: Kommende Anlässe (höchstens sechs) und Anlässe, deren Anmeldefrist im letzten Jahr lag (höchstens acht); nur Titel, Zeiten und Zahlen.

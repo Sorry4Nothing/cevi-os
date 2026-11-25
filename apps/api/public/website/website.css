@@ -754,6 +754,48 @@ a.btn.s {
   margin-bottom: 0;
 }
 
+/* Geschützte Seiten (#816): Mit Skript (html.ladebild) weiss die Seite erst nach der Antwort der Schnittstelle, ob eine Sitzung besteht. Bis dahin steht ein Skelett und nie der Hinweis «Nur angemeldet sichtbar»: Eine angemeldete Person sähe ihn sonst kurz und dann die Seite neu aufgebaut.
+   geschuetzt.js setzt data-skript, sobald es entscheidet (bei «nicht angemeldet» zeigt es den Hinweis wieder). Ohne Skript und wenn es acht Sekunden nicht kommt (theme.js: data-skript-spaet) gilt der Hinweis aus dem HTML. Bei einem geschützten Baustein auf einer öffentlichen Seite bleibt sein Platz frei, bis das Skript entscheidet.
+   Das Skelett der Hülle reicht über die Höhe des Fensters: Der Fuss steht dann nie im Bild und springt nicht, wenn der Inhalt kommt. Unten hat die Hülle den Abstand der übrigen Seiten (Abschnitte haben ihn als Innenabstand, die Hülle hat keinen Abschnitt). */
+.huelle-laden {
+  display: none;
+}
+
+html.ladebild main[data-huelle] .huelle-laden {
+  display: block;
+}
+
+.huelle-laden:has(> .skelett) {
+  min-height: 100svh;
+}
+
+html.ladebild main[data-huelle]:not([data-skript]) .schutzblock {
+  display: none;
+}
+
+html.ladebild main:not([data-skript]) [data-geschuetzt] > .schutzblock {
+  visibility: hidden;
+}
+
+html[data-skript-spaet] main[data-huelle]:not([data-skript]) .huelle-laden {
+  display: none;
+}
+
+html[data-skript-spaet] main[data-huelle]:not([data-skript]) .schutzblock {
+  display: flex;
+}
+
+html[data-skript-spaet]
+  main:not([data-skript])
+  [data-geschuetzt]
+  > .schutzblock {
+  visibility: visible;
+}
+
+main.huelle > .wrap {
+  padding-bottom: var(--abstand);
+}
+
 /* Termin-Liste (die Seiten der Termine nutzen sie) */
 .termine {
   display: flex;
@@ -1052,6 +1094,29 @@ a.termin:hover {
 #meldung:not(:empty) {
   max-width: 28rem;
   margin-bottom: 1.5rem;
+}
+
+/* Die Anmeldeseite (#818): eine Spalte in der Mitte, links so viel Rand wie rechts, bei jeder Breite. Die Höhe sucht sich die Mitte des Fensters, ohne dass die Seite höher wird als ihr Inhalt verlangt */
+.anmelde-mitte {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: max(24rem, 60svh);
+  padding-block: var(--abstand);
+}
+
+.anmelde-karte {
+  width: min(100%, 28rem);
+  min-width: 0;
+}
+
+.anmelde-karte .seitenkopf {
+  padding: 0 0 1.5rem;
+}
+
+.anmelde-karte .formular,
+.anmelde-karte #meldung:not(:empty) {
+  max-width: none;
 }
 
 .feld {

@@ -106,7 +106,6 @@ interface TerminSpez {
   titel: string;
   tags: string[];
   abteilungId?: string;
-  sichtbarkeit?: "intern" | "leitende" | "eltern";
   status?: "aktiv" | "abgesagt" | "pruefen";
   beginn?: Date;
   tagVon?: string;
@@ -115,7 +114,6 @@ interface TerminSpez {
 async function termin(spez: TerminSpez) {
   const t = await legeProgrammAn(db, {
     abteilungId: spez.abteilungId ?? welt.testabteilungId,
-    sichtbarkeit: spez.sichtbarkeit ?? "eltern",
     titel: spez.titel,
     beginn: spez.beginn,
     tagVon: spez.tagVon,
@@ -148,17 +146,8 @@ describe("Mein Kalender: wer welche Termine sieht", () => {
       ["AB", { tags: [a, b] }],
       ["ohne Tag", { tags: [] }],
       ["A abgesagt", { tags: [a], status: "abgesagt" }],
-      ["A intern", { tags: [a], sichtbarkeit: "intern" }],
-      ["A leitende", { tags: [a], sichtbarkeit: "leitende" }],
       ["Team", { tags: [funktionTagId] }],
-      [
-        "Demo",
-        {
-          tags: [d],
-          abteilungId: welt.demoAbteilungId,
-          sichtbarkeit: "eltern",
-        },
-      ],
+      ["Demo", { tags: [d], abteilungId: welt.demoAbteilungId }],
     ];
     ids = {};
     for (const [i, [name, spez]] of spezen.entries()) {
@@ -175,18 +164,18 @@ describe("Mein Kalender: wer welche Termine sieht", () => {
     });
   });
 
-  // Sichtbar ist, was einen Tag der Person trägt; «intern» nie, «leitende» nur über eigene Tags, ohne Tag niemand (auch nicht die Abteilungsleitung)
+  // Sichtbar ist, was einen Tag der Person trägt; ohne Tag niemand (auch nicht die Abteilungsleitung)
   const SICHT: Record<
     Exclude<TerminePersona, "passwortPflicht" | "deaktiviert" | "ohneLogin">,
     string[]
   > = {
     abteilungsleitung: [],
     adminOhneFaktor: [],
-    stufenleitungA: ["A", "AB", "A abgesagt", "A leitende"],
+    stufenleitungA: ["A", "AB", "A abgesagt"],
     stufenleitungB: ["B", "AB"],
-    leitungA: ["A", "AB", "A abgesagt", "A leitende"],
+    leitungA: ["A", "AB", "A abgesagt"],
     leitungB: ["B", "AB", "Team"],
-    leitungAElternB: ["A", "B", "AB", "A abgesagt", "A leitende"],
+    leitungAElternB: ["A", "B", "AB", "A abgesagt"],
     elternA: ["A", "AB", "A abgesagt"],
     elternB: ["B", "AB"],
     fremdeAbteilungsleitung: [],
@@ -345,14 +334,11 @@ describe("Mein Kalender: wer welche Termine sieht", () => {
       expect(t).toMatchObject({ status: "abgesagt", teilnahmeOffen: false });
     });
 
-    test("Unsichtbares ist 404: ohne Tag, fremde Stufe, intern, Abteilungsleitung ohne Tag, fremde Abteilung, unbekannt", async () => {
+    test("Unsichtbares ist 404: ohne Tag, fremde Stufe, Abteilungsleitung ohne Tag, fremde Abteilung, unbekannt", async () => {
       for (const [persona, name] of [
         ["elternA", "ohne Tag"],
         ["elternA", "B"],
-        ["elternA", "A intern"],
-        ["elternA", "A leitende"],
         ["elternA", "Team"],
-        ["leitungA", "A intern"],
         ["abteilungsleitung", "A"],
         ["fremdeEltern", "A"],
         ["fremdeAbteilungsleitung", "A"],

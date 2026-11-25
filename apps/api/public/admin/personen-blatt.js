@@ -12,6 +12,8 @@ import {
   knopf,
   neueId,
   zeit,
+  rufname,
+  vollerNameZusatz,
 } from "./dom.js";
 import { oeffneFluss } from "./fluss.js";
 import { formularRaster } from "./formularraster.js";
@@ -23,6 +25,7 @@ import { rechteFehlerText } from "./rechte-modell.js";
 import { istEntwickler, siehtAlles } from "./sicht.js";
 import { zweistufig } from "./rueckgaengig.js";
 import { typName } from "./tags-detail.js";
+import { rollenName } from "./rollenname.js";
 import { BEISPIEL, normalisiereTelefon } from "./telefon.js";
 
 // Person (A6, A7): «Person erfassen» und «Person bearbeiten» sind eine Seite im Fluss (#594): Felder links in Abschnitten, rechts das Profil mit dem Bild der Person (Muster «edit-profile-form»). Die Seite hat «Zurück», fragt bei ungespeicherten Eingaben und lässt den Rest der Verwaltung unberührt.
@@ -43,8 +46,8 @@ export function systemRollen(person) {
     person.abteilungsleitung && "Abteilungsleitung",
     person.entwickler && "Entwickler",
     person.rollen.some((r) => r.typ === "stufenleitung")
-      ? "Stufenleitung"
-      : person.rollen.length > 0 && "Leitung",
+      ? rollenName("stufenleitung", person.geschlecht)
+      : person.rollen.length > 0 && rollenName("leitung", person.geschlecht),
     person.elternteilVon.length > 0 && "Eltern",
   ].filter(Boolean);
 }
@@ -516,6 +519,61 @@ export function funktionenFelder(person, funktionen, ich) {
   };
 }
 
+// Geschlecht (#817): freiwillig, bestimmt nur, wie die Rolle dieser Person heisst. Eine Wahl «Weiblich | Männlich | Keine Angabe oder andere», die Wahl gilt mit «Speichern»
+// wert() ist, was die API erwartet: «w», «m», «d» (bleibt, wenn es schon so steht) oder null (keine Angabe, neutrale Form)
+export const GESCHLECHT_WAHL = [
+  ["w", "Weiblich"],
+  ["m", "Männlich"],
+  ["", "Keine Angabe oder andere"],
+];
+export function geschlechtFeld(gewaehlt) {
+  const name = neueId("geschlecht");
+  const legendeId = neueId("geschlecht-legende");
+  const hilfeId = neueId("geschlecht-hilfe");
+  // Eine «d»-Angabe (andere) steht bei «Keine Angabe oder andere»: Beide heissen in der Verwaltung gleich, neutral
+  const aktuell = gewaehlt === "w" || gewaehlt === "m" ? gewaehlt : "";
+  const optionen = GESCHLECHT_WAHL.map(([wert, text]) => {
+    const id = neueId("geschlecht-option");
+    return [
+      el("input", {
+        type: "radio",
+        id,
+        name,
+        value: wert,
+        checked: wert === aktuell,
+      }),
+      el("label", { for: id }, icon("haken"), text),
+    ];
+  });
+  const wurzel = el(
+    "div",
+    { class: "feld" },
+    el("span", { class: "legende", id: legendeId }, "Geschlecht (optional)"),
+    el(
+      "div",
+      {
+        class: "seg",
+        role: "radiogroup",
+        "aria-labelledby": legendeId,
+        "aria-describedby": hilfeId,
+      },
+      optionen.flat(),
+    ),
+    el(
+      "p",
+      { class: "hilfe", id: hilfeId },
+      "Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin. Ohne Angabe heisst sie neutral, z. B. Stufenleitung.",
+    ),
+  );
+  return {
+    wurzel,
+    // Wer «d» hat und nichts ändert, behält «d»; beide Werte heissen neutral
+    wert: () =>
+      wurzel.querySelector("input:checked").value ||
+      (gewaehlt === "d" ? "d" : null),
+  };
+}
+
 // Telefon (Muster «phone-input»): tolerant beim Tippen, beim Verlassen des Felds die einheitliche Schreibweise; darunter steht, was gespeichert wird
 function telefonFeld(wert) {
   const f = feld({
@@ -713,7 +771,7 @@ function karte(titel, text, ...inhalt) {
 // Tags der Person (Funktion, Team, Lager): Änderungen sammeln sich und gelten mit «Speichern»
 // Stufen setzt man nicht hier: Sie entstehen über «Stufen und Rollen» (die Stufenrolle ist die Zuordnung zur Stufe). Hier stehen sie nur als Hinweis
 // ursprung: [{ tag, rolle }]; aenderungen: Map tagId -> { art: "neu" | "weg", rolle? }
-function tagAbschnitt({ ursprung: alle, alleTags: tags }) {
+function tagAbschnitt({ ursprung: alle, alleTags: tags, geschlecht }) {
   const ursprung = alle.filter(({ tag }) => tag.typ !== "stufe");
   const alleTags = tags.filter((t) => t.typ !== "stufe");
   const stufen = alle.filter(({ tag }) => tag.typ === "stufe");
@@ -845,7 +903,7 @@ function tagAbschnitt({ ursprung: alle, alleTags: tags }) {
           "li",
           {},
           ROLLEN.some(([wert]) => wert && wert === rolle)
-            ? `Stufe ${tag.name}: über «Rechte und Rollen» (${rolleName(rolle)}).`
+            ? `Stufe ${tag.name}: über «Rechte und Rollen» (${rollenName(rolle, geschlecht)}).`
             : `Stufe ${tag.name}: Zuordnung ohne Rolle. Entfernen kannst du sie unter «Gruppen und Tags».`,
         ),
       ),
@@ -863,14 +921,15 @@ function profilKarte(person, { nameVon, ctx, neu }) {
   const zusatz = el("p", { class: "leise" });
   const zeichneBild = () => {
     const n = nameVon();
+    const ruf = rufname(n) || "Neue Person";
     bild.replaceChildren(
-      avatar(n.name || "Neue Person", {
+      avatar(ruf, {
         hell: true,
         bildUrl: person?.bildUrl,
       }),
     );
-    name.textContent = n.name || "Neue Person";
-    zusatz.textContent = n.ceviName;
+    name.textContent = ruf;
+    zusatz.textContent = vollerNameZusatz(n);
   };
   // Entfernen dürfen Abteilungsleitung und Entwickler (der Server prüft beides). Eine Stelle für die Anzeige
   const kannBildEntfernen = () => siehtAlles(ctx?.ich) && !!person?.bildUrl;
@@ -982,6 +1041,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         required: true,
       });
   const telefon = telefonFeld(person?.telefon);
+  const geschlecht = geschlechtFeld(person?.geschlecht);
   const abteilungsleitung = abteilungFeld({
     gewaehlt: person?.abteilungsleitung ?? false,
     personName: person?.name ?? "neue Person",
@@ -1002,6 +1062,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
     ? tagAbschnitt({
         ursprung: daten.tagsJePerson.get(person.id) ?? [],
         alleTags: daten.tags,
+        geschlecht: person.geschlecht,
       })
     : null;
   const nameVon = () => ({
@@ -1064,6 +1125,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           )
         : benutzername.wurzel,
       telefon.wurzel,
+      geschlecht.wurzel,
     ),
     karte(
       "Rechte und Rollen",
@@ -1100,9 +1162,11 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
 
   const { kopf } = flussKopf({
     titelId,
-    titel: person ? person.name : "Person erfassen",
+    titel: person ? rufname(person) : "Person erfassen",
     untertitel: person
-      ? [person.ceviName, ...systemRollen(person)].filter(Boolean).join(" · ")
+      ? [vollerNameZusatz(person), ...systemRollen(person)]
+          .filter(Boolean)
+          .join(" · ")
       : undefined,
     beschreibung: person
       ? undefined
@@ -1183,6 +1247,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           vorname: vorname.eingabe.value.trim(),
           nachname: nachname.eingabe.value.trim(),
           ceviName: ceviName.eingabe.value,
+          geschlecht: geschlecht.wert() ?? undefined,
           telefon: tel,
           benutzername: benutzername.eingabe.value.trim(),
           abteilungsleitung: abteilungsleitung.wert(),
@@ -1200,6 +1265,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
       await anfrage("PATCH", `/api/v1/admin/personen/${person.id}`, {
         name: name.eingabe.value.trim(),
         ceviName: ceviName.eingabe.value,
+        geschlecht: geschlecht.wert(),
         telefon: tel,
         abteilungsleitung: abteilungsleitung.wert(),
         rollen: rollen.wert(),
