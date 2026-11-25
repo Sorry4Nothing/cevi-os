@@ -118,8 +118,10 @@ if [[ -n $probleme ]]; then
 fi
 
 umask 077
-tmp=$(mktemp)
-trap 'rm -f "$tmp"' EXIT
+# Der Dump trägt Kinderdaten unverschlüsselt und liegt, bis restic fertig ist, auf dem Host: im Arbeitsspeicher (/dev/shm, tmpfs), sonst im Standard-TMPDIR (mktemp -d); in jedem Fall in einem eigenen Verzeichnis (Modus 700) mit einer Datei (600), das der trap am Ende löscht (SR-42, #775)
+tmpdir=$(mktemp -d -p /dev/shm cevi-os-backup.XXXXXX 2>/dev/null || mktemp -d -t cevi-os-backup.XXXXXX)
+trap 'rm -rf "$tmpdir"' EXIT
+tmp=$tmpdir/cevi_os.dump
 
 echo "Backup der Datenbank mit restic" >&2
 dump_args=()

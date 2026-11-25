@@ -6690,7 +6690,7 @@ paths:
       operationId: loescheAdminKind
       summary: Kind löschen
       description: |
-        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen. Hat das Kind ein eigenes Konto, geht das Konto mit seinen Sitzungen und Nachrichten mit.
+        Wer `kinder.verwalten` in der Stufe des Kindes hat, nur Kinder der eigenen Abteilung. Löscht das Kind samt Verknüpfungen zu Elternteilen. Hat das Kind ein eigenes Konto, geht das Konto mit seinen Sitzungen und Nachrichten mit. Nicht mit: Namenskopien in den Teilnehmenden von Lagern. Sie hängen nicht am Kind und müssen im Lager getrennt gelöscht werden (sie gehen sonst sechs Monate nach Lagerende).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn das Kind unbekannt ist oder zu einer anderen Abteilung gehört.
       tags:

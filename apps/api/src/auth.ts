@@ -20,6 +20,7 @@ import {
   BENUTZERNAME_MUSTER,
 } from "./benutzername.js";
 import type { AktivitaetVariablen } from "./aktivitaet-middleware.js";
+import { clientIp } from "./client-ip.js";
 import { normalisiereStartpasswort } from "./startpasswort.js";
 
 const ac = createAccessControl(defaultStatements);
@@ -540,6 +541,15 @@ function mitExpoOrigin(anfrage: Request) {
   return new Request(anfrage, { headers: kopfzeilen });
 }
 
+// better-auth nimmt aus X-Forwarded-For den ersten Eintrag, den der Client selbst mitschickt; das Rate-Limit je IP liesse sich so umgehen. Hier bleibt nur die Adresse, die der Edge-Caddy gesetzt hat (#775)
+function mitClientIp(anfrage: Request) {
+  const ip = clientIp(anfrage.headers.get("x-forwarded-for"));
+  if (!ip) return anfrage;
+  const kopfzeilen = new Headers(anfrage.headers);
+  kopfzeilen.set("x-forwarded-for", ip);
+  return new Request(anfrage, { headers: kopfzeilen });
+}
+
 // istKinderkonto: ob die Kennung das eigene Konto eines Kindes ist (kind.user_id, #644); ohne Angabe gibt es keine Kinderkonten
 export function erstelleAuthRouten(
   auth: ReturnType<typeof erstelleAuth>,
@@ -572,7 +582,7 @@ export function erstelleAuthRouten(
           .catch(() => null);
         if (sitzung) c.set("nutzerId", sitzung.user.id);
       }
-      const anfrage = mitExpoOrigin(c.req.raw);
+      const anfrage = mitClientIp(mitExpoOrigin(c.req.raw));
       const antwort = await auth.handler(anfrage);
       const wer = aktivitaetNutzer.get(anfrage);
       if (wer) c.set("nutzerId", wer);

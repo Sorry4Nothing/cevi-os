@@ -721,6 +721,20 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   });
 });
 
+describe("Client-IP für das Rate-Limit", () => {
+  test("zählt wird die Adresse, die der Edge-Caddy gesetzt hat (letzter Eintrag), nicht die vom Client mitgeschickte", async () => {
+    const eingang = anfrage("sign-in/username", {
+      body: { username: "gibt-es-nicht", password: PASSWORT },
+    });
+    // Dokumentationsadressen aus RFC 5737: erst die erfundene des Clients, zuletzt die des Edge-Caddys
+    eingang.headers.set("x-forwarded-for", "198.51.100.1, 203.0.113.9");
+    await app.request(eingang);
+    const schluessel = db.rateLimit.map((z) => String(z.key));
+    expect(schluessel.some((k) => k.startsWith("203.0.113.9|"))).toBe(true);
+    expect(schluessel.some((k) => k.startsWith("198.51.100.1|"))).toBe(false);
+  });
+});
+
 describe("Sitzungen ohne IP-Adresse und User-Agent, ohne session.cookieCache", () => {
   test("die gespeicherte Sitzung hat weder IP-Adresse noch User-Agent, obwohl beide mitkommen", async () => {
     const { id, benutzername } = await legeAn();
