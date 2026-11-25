@@ -189,7 +189,6 @@ describe("Pflichtwechsel über change-password", () => {
         email: `${randomUUID()}@example.org`,
         password: normalisiereStartpasswort(startpasswort),
         name: "Abteilungsleitung mit offenem Startpasswort",
-        role: "admin",
         data: {
           username: benutzername,
           abteilungId: welt.testabteilungId,

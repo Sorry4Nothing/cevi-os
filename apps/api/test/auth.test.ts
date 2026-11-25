@@ -4,6 +4,13 @@ import { symmetricDecrypt } from "better-auth/crypto";
 import { beforeEach, describe, expect, test, vi } from "vitest";
 import { erstelleAuth, erstelleAuthRouten, offenePfade } from "../src/auth.js";
 import {
+  beendeSitzungen,
+  entferneKonto,
+  entsperreKonto,
+  setzePasswort,
+  sperreKonto,
+} from "../src/konto-verwaltung.js";
+import {
   erzeugeStartpasswort,
   normalisiereStartpasswort,
 } from "../src/startpasswort.js";
@@ -74,7 +81,6 @@ function anfrage(
 
 let laufnummer = 0;
 async function legeAn(
-  rolle: "admin" | "user" = "user",
   daten: Record<string, unknown> = {},
   passwort = PASSWORT,
 ) {
@@ -84,7 +90,6 @@ async function legeAn(
       email: `${randomUUID()}@example.org`,
       password: passwort,
       name: "Testperson",
-      role: rolle,
       // Sonst gilt der Standardwert true, und ohne künftiges Ablaufdatum scheitert jede Anmeldung
       data: { username: benutzername, mussPasswortAendern: false, ...daten },
     },
@@ -146,7 +151,7 @@ async function adminMitTotp(
   daten: Record<string, unknown> = {},
   passwort = PASSWORT,
 ) {
-  const admin = await legeAn("admin", daten, passwort);
+  const admin = await legeAn(daten, passwort);
   const cookie = await anmelden(admin.benutzername, passwort);
   return {
     ...admin,
@@ -187,7 +192,7 @@ describe("Positivliste: Hono reicht nur acht Pfade an auth.handler weiter", () =
 
   test("POST two-factor/enable erreicht auth.handler mit jeder Sitzung, ohne Sitzung gibt es 404", async () => {
     const normal = await anmelden((await legeAn()).benutzername);
-    const admin = await anmelden((await legeAn("admin")).benutzername);
+    const admin = await anmelden((await legeAn()).benutzername);
     const weitergereicht = vi.spyOn(auth, "handler");
     const body = { password: PASSWORT };
 
@@ -286,7 +291,7 @@ describe("Zusatzfelder mit input: false", () => {
   };
 
   test("auth.api.createUser setzt sie auf dem Server", async () => {
-    const { id } = await legeAn("user", gesetzt);
+    const { id } = await legeAn(gesetzt);
     expect(person(id)).toMatchObject(gesetzt);
   });
 
@@ -308,7 +313,7 @@ describe("Zusatzfelder mit input: false", () => {
   ])(
     "update-user mit %s liefert 400 FIELD_NOT_ALLOWED, direkt über auth.handler und über auth.api.updateUser",
     async (feld, wert) => {
-      const { id, benutzername } = await legeAn("user", {
+      const { id, benutzername } = await legeAn({
         ...gesetzt,
         mussPasswortAendern: false,
       });
@@ -333,7 +338,7 @@ describe("Zusatzfelder mit input: false", () => {
   );
 
   test("update-user verwirft false und null stillschweigend; die gespeicherten Werte bleiben", async () => {
-    const { id, benutzername } = await legeAn("user", gesetzt, STARTPASSWORT);
+    const { id, benutzername } = await legeAn(gesetzt, STARTPASSWORT);
     const cookie = await anmelden(benutzername, STARTPASSWORT);
     // Die erfolgreiche Anmeldung setzt nur die Bremse zurück
     const bleibt = { ...gesetzt, fehlversuche: 0, naechsterVersuchAb: null };
@@ -367,7 +372,7 @@ describe("Zusatzfelder mit input: false", () => {
   });
 });
 
-describe("Funktionen der Abteilungsleitung über auth.api mit eigenen Zugriffsrollen ohne impersonate", () => {
+describe("admin-Plugin: keine Rolle im Konto gibt ein Recht (#784), die Aktionen am Konto gehen über konto-verwaltung", () => {
   const aufrufe = {
     createUser: (headers: Headers | undefined) =>
       auth.api.createUser({
@@ -376,7 +381,6 @@ describe("Funktionen der Abteilungsleitung über auth.api mit eigenen Zugriffsro
           email: `${randomUUID()}@example.org`,
           password: PASSWORT,
           name: "Neue Person",
-          role: "admin",
           data: { username: `neu${++laufnummer}` },
         },
       }),
@@ -395,12 +399,12 @@ describe("Funktionen der Abteilungsleitung über auth.api mit eigenen Zugriffsro
   };
 
   test.each(Object.keys(aufrufe) as (keyof typeof aufrufe)[])(
-    "%s mit den Headern einer normalen Person liefert 403",
+    "%s mit den Headern einer angemeldeten Person liefert 403",
     async (name) => {
-      const normal = await legeAn();
+      const angemeldet = await legeAn();
       const ziel = await legeAn();
       const headers = new Headers({
-        cookie: await anmelden(normal.benutzername),
+        cookie: await anmelden(angemeldet.benutzername),
       });
       await expect(aufrufe[name](headers, ziel.id)).rejects.toMatchObject({
         statusCode: 403,
@@ -408,22 +412,10 @@ describe("Funktionen der Abteilungsleitung über auth.api mit eigenen Zugriffsro
     },
   );
 
-  test("impersonateUser liefert auch mit den Headern der Abteilungsleitung 403", async () => {
-    const admin = await legeAn("admin");
-    const ziel = await legeAn();
-    const headers = new Headers({ cookie: await anmelden(admin.benutzername) });
-    await expect(
-      aufrufe.impersonateUser(headers, ziel.id),
-    ).rejects.toMatchObject({
-      statusCode: 403,
-      body: { code: "YOU_ARE_NOT_ALLOWED_TO_IMPERSONATE_USERS" },
-    });
-  });
-
-  test("ohne Header übergeht createUser die Rechteprüfung, die übrigen liefern 401", async () => {
+  test("ohne Header übergeht createUser die Rechteprüfung und vergibt die Rolle «user», die übrigen liefern 401", async () => {
     const ziel = await legeAn();
     const { user } = await aufrufe.createUser(undefined);
-    expect(person(user.id)).toBeDefined();
+    expect(person(user.id)).toMatchObject({ role: "user" });
     for (const name of [
       "setUserPassword",
       "revokeUserSessions",
@@ -437,24 +429,35 @@ describe("Funktionen der Abteilungsleitung über auth.api mit eigenen Zugriffsro
     }
   });
 
-  test("mit den Headern der Abteilungsleitung: createUser, setUserPassword gefolgt von revokeUserSessions, banUser, unbanUser, removeUser", async () => {
-    const admin = await legeAn("admin");
-    const ziel = await legeAn();
-    const headers = new Headers({ cookie: await anmelden(admin.benutzername) });
+  test("role kommt in keiner Antwort vor: weder in get-session noch im Anmeldeergebnis", async () => {
+    const { benutzername } = await legeAn();
+    const cookie = await anmelden(benutzername);
+    const antwort = await auth.handler(
+      anfrage("get-session", { methode: "GET", cookie }),
+    );
+    const koerper = (await antwort.json()) as { user: Record<string, unknown> };
+    expect(koerper.user.username).toBe(benutzername);
+    expect(koerper.user).not.toHaveProperty("role");
+    const anmeldung = await auth.handler(
+      anfrage("sign-in/username", {
+        body: { username: benutzername, password: PASSWORT },
+      }),
+    );
+    expect(JSON.stringify(await anmeldung.json())).not.toContain('"role"');
+  });
 
-    // Mit role prüft createUser zusätzlich das Recht set-role
-    const { user } = await aufrufe.createUser(headers);
-    expect(person(user.id)).toMatchObject({ role: "admin" });
+  test("konto-verwaltung: Passwort setzen, Sitzungen beenden, sperren, entsperren, entfernen", async () => {
+    const ziel = await legeAn();
 
     const vorher = await anmelden(ziel.benutzername);
-    await aufrufe.setUserPassword(headers, ziel.id);
+    await setzePasswort(auth, ziel.id, NEU);
     expect(await sitzungZu(vorher)).not.toBeNull();
-    await aufrufe.revokeUserSessions(headers, ziel.id);
+    await beendeSitzungen(auth, ziel.id);
     expect(await sitzungZu(vorher)).toBeNull();
     expect(sitzungenVon(ziel.id)).toEqual([]);
 
     const neu = await anmelden(ziel.benutzername, NEU);
-    await aufrufe.banUser(headers, ziel.id);
+    await sperreKonto(auth, ziel.id);
     expect(await sitzungZu(neu)).toBeNull();
     // Über auth.handler: Die Route macht aus dem 403 die eine 401-Meldung
     const gesperrt = await auth.handler(
@@ -465,10 +468,10 @@ describe("Funktionen der Abteilungsleitung über auth.api mit eigenen Zugriffsro
     expect(gesperrt.status).toBe(403);
     expect((await gesperrt.json()).code).toBe("BANNED_USER");
 
-    await aufrufe.unbanUser(headers, ziel.id);
+    await entsperreKonto(auth, ziel.id);
     await anmelden(ziel.benutzername, NEU);
 
-    await aufrufe.removeUser(headers, ziel.id);
+    await entferneKonto(auth, ziel.id);
     expect(person(ziel.id)).toBeUndefined();
     expect(sitzungenVon(ziel.id)).toEqual([]);
   });
@@ -480,7 +483,6 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   // Direkt über auth.handler: Die Route macht aus jedem 4xx der Anmeldung die eine 401-Meldung, hier zählen die inneren Codes
   test("abgelaufenes Startpasswort: falsches Passwort liefert das übliche 401, erst das richtige 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung", async () => {
     const { id, benutzername } = await legeAn(
-      "user",
       {
         mussPasswortAendern: true,
         startpasswortGueltigBis: new Date(Date.now() - 1000),
@@ -522,7 +524,6 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
     "mussPasswortAendern mit Ablaufdatum %s: Anmeldung liefert 403 STARTPASSWORT_ABGELAUFEN, ohne Sitzung",
     async (_, ablauf) => {
       const { id, benutzername } = await legeAn(
-        "user",
         { mussPasswortAendern: true },
         STARTPASSWORT,
       );
@@ -540,7 +541,6 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
 
   test("mussPasswortAendern mit künftigem Ablaufdatum als ISO-Text im Speicher: Anmeldung geht", async () => {
     const { id, benutzername } = await legeAn(
-      "user",
       { mussPasswortAendern: true },
       STARTPASSWORT,
     );
@@ -553,7 +553,6 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
   test("das Sitzungs-Cookie einer anderen Person hebt die Prüfung bei der Anmeldung nicht auf", async () => {
     const andere = await anmelden((await legeAn()).benutzername);
     const { id, benutzername } = await legeAn(
-      "user",
       {
         mussPasswortAendern: true,
         startpasswortGueltigBis: new Date(Date.now() - 1000),
@@ -609,7 +608,6 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
 
   test("läuft das Startpasswort während einer Sitzung der Abteilungsleitung ab, schaltet verify-totp in dieser Sitzung den zweiten Faktor trotzdem ein", async () => {
     const admin = await legeAn(
-      "admin",
       {
         mussPasswortAendern: true,
         startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
@@ -635,7 +633,6 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
 
   test("läuft das Startpasswort während der Sitzung ab, geht change-password trotzdem; danach ist mussPasswortAendern gelöscht", async () => {
     const { id, benutzername } = await legeAn(
-      "user",
       {
         mussPasswortAendern: true,
         startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
@@ -661,7 +658,6 @@ describe("databaseHooks.session.create.before und die Hooks auf change-password"
 
   test("ein fehlgeschlagener Wechsel lässt mussPasswortAendern stehen", async () => {
     const { id, benutzername } = await legeAn(
-      "user",
       {
         mussPasswortAendern: true,
         startpasswortGueltigBis: new Date(Date.now() + 7 * TAG),
@@ -1039,7 +1035,7 @@ describe("Grundeinstellungen", () => {
   });
 
   test("createUser prüft die Mindestlänge nicht: ein Startpasswort mit 11 Zeichen geht und meldet an", async () => {
-    const { benutzername } = await legeAn("user", {}, "elf-zeichen");
+    const { benutzername } = await legeAn({}, "elf-zeichen");
     await anmelden(benutzername, "elf-zeichen");
   });
 

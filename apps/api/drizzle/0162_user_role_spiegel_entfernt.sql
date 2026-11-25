@@ -1,0 +1,5 @@
+-- Der Spiegel user.role entfällt (#784, Teil 10 von Epic #714): Die Abteilungsleitung steht allein in abteilungsleitung_person, der Entwickler in plattform_entwickler. Die Spalte bleibt, weil das admin-Plugin von better-auth sie in seinem Schema nennt; sie hält nur noch «user» (oder bleibt leer), und die Datenbank lehnt jeden anderen Wert ab.
+-- Der Code dieses Release schreibt und liest role nicht mehr. Auf dem Server gilt: erst diese Migration (deploy.sh migriert vor dem Neustart der API), dann der neue Code. Bis zum Neustart schreibt der alte Code bei «Person ändern» mit Abteilungsleitung noch «admin» und scheitert an der Prüfung; die Aktionen am Konto eines Kindes (Passwort, Sperre, Löschen) prüfen im alten Code noch role = 'admin' und lehnen ab. Das dauert Sekunden und betrifft nur diese Aufrufe; nichts geht verloren.
+-- Rückweg: drizzle/rueckweg/0162_user_role_spiegel_entfernt.sql
+UPDATE "user" SET "role" = 'user' WHERE "role" IS NOT NULL AND "role" <> 'user';--> statement-breakpoint
+ALTER TABLE "user" ADD CONSTRAINT "user_role_nur_user" CHECK ("user"."role" is null or "user"."role" = 'user');

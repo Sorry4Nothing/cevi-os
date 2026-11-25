@@ -141,9 +141,9 @@ test("die CLI legt Abteilung und Abteilungsleitung an, und die Anmeldung mit dem
   abteilungA = { name: abteilungsname, id: abteilung.id };
 
   const [benutzer] = await benutzerMitNamen(benutzername);
-  // Quelle ist die Tabelle, role der Spiegel (#720)
+  // Quelle ist die Tabelle; role bleibt «user» (#784)
   expect(await istInTabelle(benutzer.id)).toBe(true);
-  expect(benutzer.role).toBe("admin");
+  expect(benutzer.role).toBe("user");
   expect(benutzer.ceviName).toBe("Wolke");
   expect(benutzer.abteilungId).toBe(abteilung.id);
   expect(benutzer.mussPasswortAendern).toBe(true);
@@ -195,7 +195,7 @@ test("die CLI legt in einer bestehenden Abteilung einen weiteren Abteilungsleitu
   const startpasswort = startpasswortAus(ergebnis.stdout);
   const [benutzer] = await benutzerMitNamen(benutzername);
   expect(await istInTabelle(benutzer.id)).toBe(true);
-  expect(benutzer.role).toBe("admin");
+  expect(benutzer.role).toBe("user");
   expect(benutzer.abteilungId).toBe(abteilungA.id);
   expect(await meldeAn(benutzername, startpasswort)).toBe(benutzer.id);
 });
@@ -506,7 +506,7 @@ test("«admin:anlegen» ist ein Alias: Warnung auf stderr, legt die Abteilungsle
   startpasswortAus(ergebnis.stdout);
   const [benutzer] = await benutzerMitNamen(benutzername);
   expect(await istInTabelle(benutzer.id)).toBe(true);
-  expect(benutzer.role).toBe("admin");
+  expect(benutzer.role).toBe("user");
 });
 
 test("die Skripte in package.json starten die Dateien der CLI", () => {

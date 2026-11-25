@@ -15,8 +15,6 @@ import {
   twoFactor,
   username,
 } from "better-auth/plugins";
-import { createAccessControl } from "better-auth/plugins/access";
-import { defaultStatements } from "better-auth/plugins/admin/access";
 import { Hono } from "hono";
 import {
   BENUTZERNAME_MAX,
@@ -29,16 +27,16 @@ import { clientIp } from "./client-ip.js";
 import { log } from "./log.js";
 import { normalisiereStartpasswort } from "./startpasswort.js";
 
-const ac = createAccessControl(defaultStatements);
-
-// Genau die Rechte, die createUser, setUserPassword, revokeUserSessions, banUser, unbanUser und removeUser prüfen; kein impersonate. Die Rolle «admin» ist better-auths Name: Sie ist nur der Spiegel der Abteilungsleitung bis Teil 10 (Epic #714), kein Recht der Plattform
-const rollen = {
-  admin: ac.newRole({
-    user: ["create", "set-role", "set-password", "ban", "delete"],
-    session: ["revoke"],
-  }),
-  user: ac.newRole({ user: [], session: [] }),
-};
+// Das admin-Plugin bleibt für das Sperren von Konten bei der Anmeldung und für createUser (die Kommandozeile und die Personenverwaltung rufen es ohne Header, es prüft dann nichts). Seine Rollen und Rechte gelten nirgends: Wer was darf, prüft jede Route selbst, die Aktionen am Konto stehen in konto-verwaltung.ts. Sein Schema nennt die Spalte user.role; sie ist immer «user» und kommt in keiner Antwort vor (#784)
+function adminPlugin() {
+  const plugin = admin();
+  const rolle = plugin.schema?.user?.fields?.role as
+    { returned?: boolean } | undefined;
+  if (!rolle)
+    throw new Error("admin: Aufbau des Schemas hat sich geändert (#784)");
+  rolle.returned = false;
+  return plugin;
+}
 
 // Das Schema der App (Android, später iOS) in der Kopfzeile Origin; das Muster ohne Authority deckt auch cevi-os://<host:port> eines Dev-Builds
 const APP_ORIGIN = "cevi-os://";
@@ -640,7 +638,7 @@ export function erstelleAuth(
         minUsernameLength: BENUTZERNAME_MIN,
         maxUsernameLength: BENUTZERNAME_MAX,
       }),
-      admin({ ac, roles: rollen }),
+      adminPlugin(),
       // Name wie in app.json; sonst die Standards: 6 Stellen, 30 s, zehn Ersatzcodes
       zweiterFaktorPlugin(),
       haveIBeenPwned(),

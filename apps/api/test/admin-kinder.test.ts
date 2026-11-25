@@ -569,6 +569,109 @@ describe("DELETE /api/v1/admin/kinder/:id", () => {
     ).toHaveLength(0);
   });
 
+  test("löscht die Teilnehmenden des Kindes in allen Lagern mit Abzählen und Feed, andere bleiben (#779)", async () => {
+    const lager = async () =>
+      (
+        await db
+          .insert(schema.lager)
+          .values({
+            abteilungId: welt.testabteilungId,
+            titel: "Kind-Löschen",
+            von: "2027-07-10",
+            bis: "2027-07-24",
+          })
+          .returning({ id: schema.lager.id })
+      )[0]!.id;
+    const [l1, l2] = [await lager(), await lager()];
+    const kindId = await legeKindAn(admin, {
+      vorname: "Mia",
+      nachname: "Löschtest",
+    });
+    // Zwei Kinder gleichen Namens: Der Name allein sagt nicht, welches gemeint ist
+    await legeKindAn(admin, { vorname: "Zwilling", nachname: "Löschtest" });
+    await legeKindAn(admin, { vorname: "zwilling", nachname: "löschtest" });
+    const neu = async (lagerId: string, werte: Record<string, unknown>) => {
+      const a = await anfrage(
+        admin,
+        "POST",
+        `/api/v1/lager/${lagerId}/teilnehmer`,
+        { stufe: "Wolf", ...werte },
+      );
+      expect(a.status).toBe(201);
+      return ((await a.json()) as { id: string }).id;
+    };
+    // Gross-/Kleinschreibung ändert die Zuordnung nicht
+    const mia1 = await neu(l1, { vorname: "mia", nachname: "LÖSCHTEST" });
+    const mia2 = await neu(l2, { vorname: "Mia", nachname: "Löschtest" });
+    const fremd = await neu(l1, { vorname: "Mia", nachname: "Andere" });
+    const zwilling = await neu(l1, {
+      vorname: "Zwilling",
+      nachname: "Löschtest",
+    });
+    const verknuepft = async (id: string) =>
+      (
+        await db
+          .select({ kindId: schema.teilnehmer.kindId })
+          .from(schema.teilnehmer)
+          .where(eq(schema.teilnehmer.id, id))
+      )[0]?.kindId;
+    expect(await verknuepft(mia1)).toBe(kindId);
+    expect(await verknuepft(mia2)).toBe(kindId);
+    expect(await verknuepft(fremd)).toBeNull();
+    expect(await verknuepft(zwilling)).toBeNull();
+    await db.insert(schema.abzaehlen).values({
+      lagerId: l1,
+      teilnehmerId: mia1,
+      geprueft: false,
+      lagerSeq: 1,
+    });
+
+    // Fremde Abteilung: 404, nichts geht weg
+    const demoAdmin = await legePersonaAn(welt, "demoAdmin");
+    expect(
+      (await anfrage(demoAdmin, "DELETE", `${BASIS}/${kindId}`)).status,
+    ).toBe(404);
+    expect(await verknuepft(mia1)).toBe(kindId);
+
+    expect((await anfrage(admin, "DELETE", `${BASIS}/${kindId}`)).status).toBe(
+      204,
+    );
+    expect(await verknuepft(mia1)).toBeUndefined();
+    expect(await verknuepft(mia2)).toBeUndefined();
+    expect(await verknuepft(fremd)).toBeNull();
+    expect(await verknuepft(zwilling)).toBeNull();
+    expect(
+      await db
+        .select()
+        .from(schema.abzaehlen)
+        .where(eq(schema.abzaehlen.teilnehmerId, mia1)),
+    ).toHaveLength(0);
+    // Der Feed meldet das Löschen, damit Apps die Zeile entfernen
+    const geloescht = await db
+      .select({ zeileId: schema.lagerAenderung.zeileId })
+      .from(schema.lagerAenderung)
+      .where(
+        and(
+          eq(schema.lagerAenderung.tabelle, "teilnehmer"),
+          eq(schema.lagerAenderung.art, "geloescht"),
+        ),
+      );
+    expect(geloescht.map((z) => z.zeileId)).toEqual(
+      expect.arrayContaining([mia1, mia2]),
+    );
+    // Protokoll: nur Zahlen, keine Namen
+    const [eintrag] = await db
+      .select()
+      .from(schema.auditLog)
+      .where(
+        and(
+          eq(schema.auditLog.zielId, kindId),
+          eq(schema.auditLog.aktion, "kind_teilnehmende_geloescht"),
+        ),
+      );
+    expect(eintrag?.details).toEqual({ lager: 2, teilnehmende: 2 });
+  });
+
   test("unbekannt oder fremd 404, keine Abteilungsleitung 403; das Kind bleibt", async () => {
     const sl = await legePersonaAn(welt, "slA");
     const demoAdmin = await legePersonaAn(welt, "demoAdmin");
