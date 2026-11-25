@@ -57,7 +57,12 @@ export async function gleicheKategorienAb(
       if (neu) {
         await db
           .insert(outlookKategorie)
-          .values({ abteilungId, nameKlein: s, name: t.name, outlookId: neu.id })
+          .values({
+            abteilungId,
+            nameKlein: s,
+            name: t.name,
+            outlookId: neu.id,
+          })
           .onConflictDoUpdate({
             target: [outlookKategorie.abteilungId, outlookKategorie.nameKlein],
             set: { name: t.name, outlookId: neu.id },

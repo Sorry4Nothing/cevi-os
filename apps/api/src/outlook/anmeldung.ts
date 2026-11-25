@@ -61,7 +61,10 @@ export async function starteGeraetecode(
           if (!t.success) throw new OutlookFehler(FEHLER.ANTWORT_UNGUELTIG);
           // Ohne diese Rechte könnte Cevi OS später nichts schreiben: lieber jetzt scheitern
           const gewaehrt = new Set(t.data.scope.toLowerCase().split(" "));
-          for (const s of ["calendars.readwrite", "mailboxsettings.readwrite"]) {
+          for (const s of [
+            "calendars.readwrite",
+            "mailboxsettings.readwrite",
+          ]) {
             if (!gewaehrt.has(s)) throw new OutlookFehler(FEHLER.ABGELEHNT);
           }
           return t.data.refresh_token;

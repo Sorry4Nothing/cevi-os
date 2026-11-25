@@ -49,7 +49,9 @@ export interface OutlookKalender {
   // null: Die Kategorie gab es schon (idempotent)
   legeKategorieAn(name: string, farbe: string): Promise<{ id: string } | null>;
   loescheKategorie(id: string): Promise<void>;
-  findeTermin(ref: TerminRef): Promise<{ id: string; kategorien: string[] } | null>;
+  findeTermin(
+    ref: TerminRef,
+  ): Promise<{ id: string; kategorien: string[] } | null>;
   // Schreibt nur das Feld categories, nie ein anderes
   setzeTerminKategorien(id: string, kategorien: string[]): Promise<void>;
   legeTerminAn(termin: NeuerTermin): Promise<{ id: string }>;
@@ -91,7 +93,8 @@ async function lies(antwort: Response): Promise<string> {
     throw new OutlookFehler(FEHLER.ANTWORT_UNGUELTIG);
   }
   const text = await antwort.text();
-  if (text.length > MAX_BYTES) throw new OutlookFehler(FEHLER.ANTWORT_UNGUELTIG);
+  if (text.length > MAX_BYTES)
+    throw new OutlookFehler(FEHLER.ANTWORT_UNGUELTIG);
   return text;
 }
 
@@ -144,7 +147,10 @@ export function erstelleHttp(o: GraphOptionen) {
         continue;
       }
       if (status === 429 || status === 503) {
-        const warten = retryAfterMs(antwort.headers.get("retry-after"), jetzt());
+        const warten = retryAfterMs(
+          antwort.headers.get("retry-after"),
+          jetzt(),
+        );
         if (warten !== null && warten > MAX_WARTEN_MS) {
           const fehler = new OutlookFehler(FEHLER.ZU_VIELE_ANFRAGEN);
           fehler.wartenSek = Math.ceil(warten / 1000);
@@ -310,8 +316,10 @@ export function erstelleGraphClients(
   };
 }
 
-export const erstelleGraphClient = (o: GraphOptionen, speicher: TokenSpeicher) =>
-  erstelleGraphClients(o, speicher).normal;
+export const erstelleGraphClient = (
+  o: GraphOptionen,
+  speicher: TokenSpeicher,
+) => erstelleGraphClients(o, speicher).normal;
 
 function baueClient(
   http: Http,
@@ -425,9 +433,14 @@ function baueClient(
 
     async loescheKategorie(id) {
       // 404: war schon weg
-      await g("DELETE", `/me/outlook/masterCategories/${pfadTeil(id)}`, undefined, {
-        durchlassen: [404],
-      });
+      await g(
+        "DELETE",
+        `/me/outlook/masterCategories/${pfadTeil(id)}`,
+        undefined,
+        {
+          durchlassen: [404],
+        },
+      );
     },
 
     async findeTermin(ref) {
@@ -439,7 +452,8 @@ function baueClient(
       const treffer = pruefe(termineAntwort, body).value;
       if (!ref.serie) {
         if (treffer.length === 0) return null;
-        if (treffer.length > 1) throw new OutlookFehler(FEHLER.TERMIN_MEHRDEUTIG);
+        if (treffer.length > 1)
+          throw new OutlookFehler(FEHLER.TERMIN_MEHRDEUTIG);
         return { id: treffer[0].id, kategorien: treffer[0].categories ?? [] };
       }
       // Termin einer Serie: erst die Serie, dann die Instanz am selben Beginn
@@ -474,7 +488,9 @@ function baueClient(
     async setzeTerminKategorien(id, kategorien) {
       pruefeNamen(kategorien);
       // Nur categories: Titel, Zeit, Ort, Beschreibung und Teilnehmende bleiben, wie sie sind
-      await g("PATCH", `/me/events/${pfadTeil(id)}`, { categories: kategorien });
+      await g("PATCH", `/me/events/${pfadTeil(id)}`, {
+        categories: kategorien,
+      });
     },
 
     async legeTerminAn(t) {

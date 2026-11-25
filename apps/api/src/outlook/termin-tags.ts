@@ -62,7 +62,9 @@ export async function setzeTerminTags(
     if (markiert.length > 0) {
       await tx
         .insert(outlookAenderung)
-        .values(markiert.map((programmId) => ({ programmId, abteilungId, akteurId })))
+        .values(
+          markiert.map((programmId) => ({ programmId, abteilungId, akteurId })),
+        )
         .onConflictDoUpdate({
           target: outlookAenderung.programmId,
           set: {

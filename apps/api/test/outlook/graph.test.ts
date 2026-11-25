@@ -1,6 +1,13 @@
 import { createServer, type IncomingMessage, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "vitest";
 import { starteGeraetecode } from "../../src/outlook/anmeldung.js";
 import { FEHLER, OutlookFehler } from "../../src/outlook/fehler.js";
 import {
@@ -16,7 +23,11 @@ type Anfrage = {
   kopf: IncomingMessage["headers"];
   body: string;
 };
-type Antwort = { status: number; body?: unknown; kopf?: Record<string, string> };
+type Antwort = {
+  status: number;
+  body?: unknown;
+  kopf?: Record<string, string>;
+};
 
 let server: Server;
 let basis: string;
@@ -99,8 +110,7 @@ const client = (versuche = 4) =>
     },
     speicher,
   );
-const graphAnfragen = () =>
-  anfragen.filter((a) => a.pfad.startsWith("/v1.0"));
+const graphAnfragen = () => anfragen.filter((a) => a.pfad.startsWith("/v1.0"));
 
 beforeEach(() => {
   anfragen = [];
@@ -271,7 +281,10 @@ describe("Anmeldung und Fehlerverhalten", () => {
 
   test("keine Weiterleitung, Netzfehler: erst Wiederholung, dann NICHT_ERREICHBAR", async () => {
     for (let i = 0; i < 2; i++) {
-      skript.push(() => ({ status: 302, kopf: { location: "http://intern/" } }));
+      skript.push(() => ({
+        status: 302,
+        kopf: { location: "http://intern/" },
+      }));
     }
     await expect(client(2).listeKategorien()).rejects.toMatchObject({
       code: FEHLER.NICHT_ERREICHBAR,
@@ -381,7 +394,11 @@ describe("Termine", () => {
         titel: "x",
         kategorien: ["A,B"],
         transaktionsId: "t-2",
-        zeit: { ganztaegig: true, vonTag: "2027-09-04", bisTagExklusiv: "2027-09-05" },
+        zeit: {
+          ganztaegig: true,
+          vonTag: "2027-09-04",
+          bisTagExklusiv: "2027-09-05",
+        },
       }),
     ).rejects.toMatchObject({ code: FEHLER.ABGELEHNT });
   });

@@ -184,9 +184,9 @@ describe("Token verschlüsseln", () => {
 });
 
 test("Wartezeit: 1, 2, 4 Minuten, höchstens 6 Stunden, nie weniger als Retry-After", () => {
-  expect(
-    [1, 2, 3, 4].map((n) => wartezeitMs(n) / 60_000),
-  ).toEqual([1, 2, 4, 8]);
+  expect([1, 2, 3, 4].map((n) => wartezeitMs(n) / 60_000)).toEqual([
+    1, 2, 4, 8,
+  ]);
   expect(wartezeitMs(20) / 60_000).toBe(360);
   expect(wartezeitMs(1, 600) / 60_000).toBe(10);
 });

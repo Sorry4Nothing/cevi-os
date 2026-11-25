@@ -1,18 +1,25 @@
 import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import postgres from "postgres";
-import { afterAll, beforeAll, beforeEach, describe, expect, test } from "vitest";
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  test,
+} from "vitest";
 import { erstelleDb } from "../../src/db/client.js";
 import * as schema from "../../src/db/schema.js";
 import { ordneTagsZu } from "../../src/kalender/tags-zuordnen.js";
-import { speichereVerbindung, type OutlookDienst } from "../../src/outlook/dienst.js";
+import {
+  speichereVerbindung,
+  type OutlookDienst,
+} from "../../src/outlook/dienst.js";
 import { FEHLER } from "../../src/outlook/fehler.js";
 import { gleicheKategorienAb } from "../../src/outlook/kategorien-abgleich.js";
 import { verarbeiteOutlook } from "../../src/outlook/lauf.js";
-import {
-  setzeTerminTags,
-  TerminFehlt,
-} from "../../src/outlook/termin-tags.js";
+import { setzeTerminTags, TerminFehlt } from "../../src/outlook/termin-tags.js";
 import { API_URL } from "../hilfen/datenbank.js";
 import { Attrappe, ausfall } from "./attrappe.js";
 
@@ -113,7 +120,10 @@ describe("Kategorienliste des Postfachs", () => {
     const kueche = await tagAnlegen("Küche", "team");
     outlook.kategorien.push({ id: "f1", name: "Küche", farbe: "preset0" });
     await gleicheKategorienAb(db, outlook, abteilungId, "cli");
-    await db.update(schema.tag).set({ name: "Wiesel" }).where(eq(schema.tag.id, biber));
+    await db
+      .update(schema.tag)
+      .set({ name: "Wiesel" })
+      .where(eq(schema.tag.id, biber));
     await db.delete(schema.tag).where(eq(schema.tag.id, kueche));
     const e = await gleicheKategorienAb(db, outlook, abteilungId, "cli");
     expect(e).toMatchObject({ angelegt: 1, entfernt: 1 });
@@ -194,7 +204,10 @@ describe("Tags eines Termins", () => {
       tagIds: [wolf],
     });
     expect(stand.get(p)).toBe("geschrieben");
-    expect(outlook.termine.get("uid-1")!.kategorien).toEqual(["Fremd", "Wölfe"]);
+    expect(outlook.termine.get("uid-1")!.kategorien).toEqual([
+      "Fremd",
+      "Wölfe",
+    ]);
     expect(await tagsVon(p)).toEqual(["Wölfe"]);
     expect((await zeile(p))!.geschriebenAm).not.toBeNull();
     // Nochmals dasselbe: Es gibt nichts zu schreiben
@@ -241,7 +254,10 @@ describe("Tags eines Termins", () => {
     expect(outlook.termine.get("uid-1")!.kategorien).toEqual(["Fremd"]);
     // Nach der Wartezeit
     await verarbeiteOutlook(db, dienst(), new Date(Date.now() + 5 * 60_000));
-    expect(outlook.termine.get("uid-1")!.kategorien).toEqual(["Fremd", "Wölfe"]);
+    expect(outlook.termine.get("uid-1")!.kategorien).toEqual([
+      "Fremd",
+      "Wölfe",
+    ]);
     expect((await zeile(p))!.geschriebenAm).not.toBeNull();
   });
 
@@ -288,7 +304,9 @@ describe("Tags eines Termins", () => {
       terminIds: [p],
       tagIds: [wolf],
     });
-    expect(outlook.termine.get(`serie|${beginn}`)!.kategorien).toEqual(["Wölfe"]);
+    expect(outlook.termine.get(`serie|${beginn}`)!.kategorien).toEqual([
+      "Wölfe",
+    ]);
   });
 
   test("Sammelaktion: lokal für alle, Outlook beim Lauf; ein fremder Termin lässt alles unberührt", async () => {
@@ -307,7 +325,11 @@ describe("Tags eines Termins", () => {
       terminIds: ids,
       tagIds: [wolf],
     });
-    expect([...stand.values()]).toEqual(["ausstehend", "ausstehend", "ausstehend"]);
+    expect([...stand.values()]).toEqual([
+      "ausstehend",
+      "ausstehend",
+      "ausstehend",
+    ]);
     await speichereVerbindung(db, abteilungId, "refresh");
     await db
       .update(schema.outlookVerbindung)

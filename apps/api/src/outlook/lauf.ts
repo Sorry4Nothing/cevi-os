@@ -5,7 +5,11 @@ import { log } from "../log.js";
 import type { OutlookDienst } from "./dienst.js";
 import { ausfallVon, fehlerCodeVon, OutlookFehler } from "./fehler.js";
 import { gleicheKategorienAb } from "./kategorien-abgleich.js";
-import { SCHUTZ_STUNDEN, versucheSchreiben, wartezeitMs } from "./termin-tags.js";
+import {
+  SCHUTZ_STUNDEN,
+  versucheSchreiben,
+  wartezeitMs,
+} from "./termin-tags.js";
 
 // Der Lauf im Hintergrund (#835): holt nach, was nicht gleich nach Outlook ging (Kategorienliste, Kategorien einzelner Termine), mit Backoff je Eintrag. Ein Ausfall des Zugangs bricht den Lauf ab, statt jeden Eintrag einzeln gegen die Wand laufen zu lassen. Ohne verbundene Abteilung tut er nichts.
 const JE_LAUF = 50;
@@ -49,7 +53,9 @@ export async function verarbeiteOutlook(
               jetzt.getTime() +
                 wartezeitMs(
                   versuche,
-                  fehler instanceof OutlookFehler ? fehler.wartenSek : undefined,
+                  fehler instanceof OutlookFehler
+                    ? fehler.wartenSek
+                    : undefined,
                 ),
             ),
           })
