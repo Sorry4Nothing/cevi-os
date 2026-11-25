@@ -197,7 +197,6 @@ beforeAll(async () => {
   programmA = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       titel: "Programm A",
     })
@@ -205,7 +204,6 @@ beforeAll(async () => {
   programmB = (
     await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeBId],
       titel: "Programm B",
     })

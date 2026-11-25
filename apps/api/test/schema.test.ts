@@ -137,7 +137,7 @@ test("Löschen eines Programms entfernt seine Tag-Zuordnung", async () => {
   });
 });
 
-test("programm lehnt fremden Status, fremde Sichtbarkeit, unpassende Zeiten und doppelte Google-IDs ab", async () => {
+test("programm lehnt fremden Status, unpassende Zeiten und doppelte Google-IDs ab", async () => {
   await zurueckgerollt(sql, async (tx) => {
     const { abteilung } = await grunddaten(tx);
     await scheitert(
@@ -146,13 +146,6 @@ test("programm lehnt fremden Status, fremde Sichtbarkeit, unpassende Zeiten und 
       (sp) => sp`
         insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, status)
         values (${abteilung}, 'event00000000002', 'Test', true, '2027-07-30', '2027-08-02', 'geplant')`,
-    );
-    await scheitert(
-      tx,
-      { code: "23514", constraint_name: "programm_sichtbarkeit_check" },
-      (sp) => sp`
-        insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis, sichtbarkeit)
-        values (${abteilung}, 'event00000000002', 'Test', true, '2027-07-30', '2027-08-02', 'alle')`,
     );
     const zeiten = {
       code: "23514",

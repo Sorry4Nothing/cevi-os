@@ -67,12 +67,7 @@ describe("Rechtekatalog", () => {
         // Alles, was ändert oder Personendaten zeigt, ist erweitert; normal ist nur Alltag
         if (e.risiko === "normal") {
           expect(
-            [
-              "vorschlag.einreichen",
-              "raum.belegung",
-              "programm.alle_sehen",
-              "programm.intern_sehen",
-            ],
+            ["vorschlag.einreichen", "raum.belegung", "programm.alle_sehen"],
             id,
           ).toContain(id);
         }

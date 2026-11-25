@@ -173,10 +173,7 @@ beforeAll(async () => {
   await plattformRolle(P.gruppenVerwalter, ["gruppen.verwalten"]);
   await plattformRolle(P.importeur, ["import.ausfuehren"]);
   await plattformRolle(P.mitteilerAlle, ["mitteilung.senden"]);
-  await plattformRolle(P.programme, [
-    "programm.alle_sehen",
-    "programm.intern_sehen",
-  ]);
+  await plattformRolle(P.programme, ["programm.alle_sehen"]);
   await plattformRolle(zielMitRolle, ["medien.verwalten"]);
   await gruppenRolle(P.kinderStufeA, welt.stufeAId, [
     { recht: "kinder.sehen", geltung: "eigene" },
@@ -749,7 +746,6 @@ describe("Anwesenheit, Teilnahmen und Programme", () => {
   test("Teilnahmen der Kinder und Kontakte der Stufe: «Teilnahmen und Kontakte der Stufe sehen» je Stufe", async () => {
     const p = await legeProgrammAn(db, {
       abteilungId: abt,
-      sichtbarkeit: "leitende",
       stufen: [welt.stufeAId],
       beginn: new Date("2027-06-05T13:00:00Z"),
     });
@@ -760,7 +756,6 @@ describe("Anwesenheit, Teilnahmen und Programme", () => {
     expect(await status(P.programme, "GET", liste)).toBe(200);
     const andere = await legeProgrammAn(db, {
       abteilungId: abt,
-      sichtbarkeit: "leitende",
       stufen: [welt.stufeBId],
       beginn: new Date("2027-06-05T13:00:00Z"),
     });
@@ -789,17 +784,11 @@ describe("Anwesenheit, Teilnahmen und Programme", () => {
     ).toBe(404);
   });
 
-  test("Alle Programme sehen und interne Programme sehen: Rollen mit dem Recht, sonst die eigene Stufe", async () => {
+  test("Alle Programme sehen: Rollen mit dem Recht, sonst die eigene Stufe", async () => {
     const fremd = await legeProgrammAn(db, {
       abteilungId: abt,
-      sichtbarkeit: "leitende",
       stufen: [welt.stufeBId],
       beginn: new Date("2027-06-12T13:00:00Z"),
-    });
-    const intern = await legeProgrammAn(db, {
-      abteilungId: abt,
-      sichtbarkeit: "intern",
-      beginn: new Date("2027-06-19T13:00:00Z"),
     });
     const fenster = "von=2027-06-01&bis=2027-06-30";
     const sieht = async (konto: PersonaKonto, extra = "") => {
@@ -817,11 +806,6 @@ describe("Anwesenheit, Teilnahmen und Programme", () => {
     expect(await sieht(leitung)).not.toContain(fremd.id);
     expect(await sieht(P.programme)).toContain(fremd.id);
     expect(await sieht(sl)).toContain(fremd.id);
-    // Interne Programme: nur mit alle=1 und dem Recht
-    expect(await sieht(P.programme)).not.toContain(intern.id);
-    expect(await sieht(P.programme, "&alle=1")).toContain(intern.id);
-    expect(await sieht(sl, "&alle=1")).not.toContain(intern.id);
-    expect(await sieht(admin, "&alle=1")).toContain(intern.id);
     expect(
       await status(P.programme, "GET", `/api/v1/programme/${fremd.id}`),
     ).toBe(200);

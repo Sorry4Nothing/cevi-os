@@ -65,7 +65,6 @@ async function termin(spez: {
   titel: string;
   tags: string[];
   abteilungId?: string;
-  sichtbarkeit?: "intern" | "leitende" | "eltern";
   status?: "aktiv" | "abgesagt" | "pruefen";
   beginn?: Date;
   tagVon?: string;
@@ -74,7 +73,6 @@ async function termin(spez: {
 }) {
   const t = await legeProgrammAn(db, {
     abteilungId: spez.abteilungId ?? welt.testabteilungId,
-    sichtbarkeit: spez.sichtbarkeit ?? "eltern",
     titel: spez.titel,
     beginn: spez.beginn,
     tagVon: spez.tagVon,
@@ -122,18 +120,6 @@ beforeAll(async () => {
     tags: [a],
     beginn: inTagen(13),
     status: "abgesagt",
-  });
-  await termin({
-    titel: "A intern",
-    tags: [a],
-    beginn: inTagen(14),
-    sichtbarkeit: "intern",
-  });
-  await termin({
-    titel: "A leitende",
-    tags: [a],
-    beginn: inTagen(15),
-    sichtbarkeit: "leitende",
   });
   await termin({ titel: "ohne Tag", tags: [], beginn: inTagen(16) });
   await termin({ titel: "A vergangen", tags: [a], beginn: inTagen(-5) });
@@ -200,20 +186,10 @@ describe("Feed: genau die Termine von «Mein Kalender»", () => {
   test("Inhalt eines Eltern-Feeds: sichtbar, was die Sicht liefert, sonst nichts", async () => {
     const titel = summaries(await (await feed(tokens.elternA)).text());
     expect(titel).toEqual(["A", "A abgesagt", "Lager", LANGER_TITEL].sort());
-    // Weder «intern», «leitende», ohne Tag, vergangen, zu fern noch die Demo-Abteilung
-    for (const nie of [
-      "A intern",
-      "A leitende",
-      "ohne Tag",
-      "A vergangen",
-      "A zu fern",
-      "Demo",
-    ]) {
+    // Weder ohne Tag, vergangen, zu fern noch die Demo-Abteilung
+    for (const nie of ["ohne Tag", "A vergangen", "A zu fern", "Demo"]) {
       expect(titel).not.toContain(nie);
     }
-    expect(summaries(await (await feed(tokens.leitendeA)).text())).toContain(
-      "A leitende",
-    );
   });
 
   test("Ereignisse: Zeiten in UTC, ganztägig als DATE mit exklusivem Ende, Ort, Absage, lange Zeilen gefaltet", async () => {
