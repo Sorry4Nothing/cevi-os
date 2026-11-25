@@ -1544,6 +1544,12 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "gesetzt",
     gruppe: "geaendert",
   },
+  "PUT /api/v1/admin/fotos/alben/sichtbarkeit": {
+    titel: "Sichtbarkeit mehrerer Fotoalben ändern",
+    objekt: "Sichtbarkeit mehrerer Fotoalben",
+    aktion: "geändert",
+    gruppe: "geaendert",
+  },
   "PUT /api/v1/admin/fotos/einstellung": {
     titel: "Fotoeinstellungen speichern",
     objekt: "Fotoeinstellungen",

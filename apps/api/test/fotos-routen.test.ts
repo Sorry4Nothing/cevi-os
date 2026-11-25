@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { Hono } from "hono";
 import postgres from "postgres";
 import {
@@ -772,6 +772,117 @@ describe("Verwaltung", () => {
           sichtbar: true,
           version: 2,
         })
+      ).status,
+    ).toBe(403);
+  });
+
+  test("Mehrere Alben zeigen und ausblenden: alles oder nichts, neue ans Ende der sichtbaren (#794)", async () => {
+    await richteEin({ sichtbar: [ALBUM_A] });
+    // Das Album B hat noch keine Zeile
+    await db
+      .delete(schema.fotoAlbum)
+      .where(eq(schema.fotoAlbum.flickrAlbumId, ALBUM_B));
+    const put = (body: unknown, wer = admin) =>
+      aufruf(wer, "PUT", "/admin/fotos/alben/sichtbarkeit", body);
+    const website = async () =>
+      (await json(await aufruf(eltern, "GET", "/fotos/alben"))).alben.map(
+        (a: { id: string }) => a.id,
+      );
+    const version = async (id: string) =>
+      (
+        await db
+          .select({ v: schema.fotoAlbum.version })
+          .from(schema.fotoAlbum)
+          .where(
+            and(
+              eq(schema.fotoAlbum.abteilungId, welt.testabteilungId),
+              eq(schema.fotoAlbum.flickrAlbumId, id),
+            ),
+          )
+      )[0]?.v;
+    expect(await website()).toEqual([ALBUM_A]);
+    const vC = (await version(ALBUM_C))!;
+    // Eine Version passt nicht: nichts ändert sich, auch nicht für das Album mit der richtigen Version
+    const konflikt = await put({
+      sichtbar: true,
+      alben: [
+        { id: ALBUM_C, version: vC },
+        { id: ALBUM_B, version: 7 },
+      ],
+    });
+    expect(konflikt.status).toBe(409);
+    expect((await json(konflikt)).code).toBe("VERSION_KONFLIKT");
+    expect(await website()).toEqual([ALBUM_A]);
+    expect(await version(ALBUM_C)).toBe(vC);
+    // Beide zeigen, B und C in der genannten Reihenfolge am Ende; B bekommt eine Zeile
+    const an = await put({
+      sichtbar: true,
+      alben: [
+        { id: ALBUM_B, version: 0 },
+        { id: ALBUM_C, version: vC },
+      ],
+    });
+    expect(an.status).toBe(200);
+    expect((await json(an)).alben).toEqual([
+      { id: ALBUM_B, version: 1 },
+      { id: ALBUM_C, version: vC + 1 },
+    ]);
+    expect(await website()).toEqual([ALBUM_A, ALBUM_B, ALBUM_C]);
+    // Ausblenden mit den neuen Versionen
+    expect(
+      (
+        await put({
+          sichtbar: false,
+          alben: [
+            { id: ALBUM_A, version: (await version(ALBUM_A))! },
+            { id: ALBUM_B, version: 1 },
+          ],
+        })
+      ).status,
+    ).toBe(200);
+    expect(await website()).toEqual([ALBUM_C]);
+    // Ein einzelnes Album, das wieder erscheint, steht ebenfalls am Ende
+    expect(
+      (
+        await aufruf(admin, "PUT", `/admin/fotos/alben/${ALBUM_A}`, {
+          sichtbar: true,
+          version: (await version(ALBUM_A))!,
+        })
+      ).status,
+    ).toBe(200);
+    expect(await website()).toEqual([ALBUM_C, ALBUM_A]);
+    // Eingaben, Objekt und Recht
+    for (const body of [
+      { sichtbar: true, alben: [] },
+      { sichtbar: true },
+      { alben: [{ id: ALBUM_A, version: 0 }] },
+      {
+        sichtbar: true,
+        alben: [
+          { id: ALBUM_A, version: 0 },
+          { id: ALBUM_A, version: 0 },
+        ],
+      },
+      { sichtbar: true, alben: [{ id: "abc", version: 0 }] },
+      { sichtbar: true, alben: [{ id: ALBUM_A }] },
+      { sichtbar: true, alben: [{ id: ALBUM_A, version: 0 }], mehr: 1 },
+    ]) {
+      expect((await put(body)).status, JSON.stringify(body)).toBe(400);
+    }
+    expect(
+      (
+        await put({
+          sichtbar: true,
+          alben: [{ id: "72157000000009999", version: 0 }],
+        })
+      ).status,
+    ).toBe(404);
+    expect(
+      (
+        await put(
+          { sichtbar: true, alben: [{ id: ALBUM_A, version: 0 }] },
+          eltern,
+        )
       ).status,
     ).toBe(403);
   });

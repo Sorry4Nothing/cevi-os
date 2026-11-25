@@ -113,6 +113,21 @@ export const albumSchema = z
   })
   .refine((a) => a.sichtbar !== undefined || a.titel !== undefined);
 
+// Mehrere Alben zeigen oder ausblenden (#794): je Album die Version aus dem Stand, die Reihenfolge der Liste ist die der neuen Plätze
+export const sichtbarkeitSchema = z.strictObject({
+  sichtbar: z.boolean(),
+  alben: z
+    .array(
+      z.strictObject({
+        id: kennung,
+        version: z.number().int().min(0).max(1_000_000),
+      }),
+    )
+    .min(1)
+    .max(MAX_ALBEN)
+    .refine((a) => new Set(a.map((x) => x.id)).size === a.length),
+});
+
 export const reihenfolgeSchema = z.strictObject({
   ids: z
     .array(kennung)

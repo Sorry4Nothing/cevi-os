@@ -138,6 +138,7 @@ const ERLAUBT: Record<string, [number, number, number, number, string]> = {
     "dauerhaft+zustand+absenden+entscheidung+ansage",
   ],
   "website-einstellungen.js": [1, 0, 0, 0, "dauerhaft"],
+  "website-fotos-alben.js": [2, 0, 0, 0, "zustand+ansage"],
   "website-felder-dynamisch.js": [2, 2, 0, 0, "zustand"],
   "website-felder.js": [3, 2, 0, 0, "zustand+dauerhaft"],
   "website-medien.js": [3, 0, 0, 0, "zustand+dauerhaft"],

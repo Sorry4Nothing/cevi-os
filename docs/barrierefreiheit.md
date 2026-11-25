@@ -14,6 +14,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Ein Punkt ohne Angabe des Systems gilt für iOS und Android. Punkte, die auf einen Bildschirm nicht zutreffen, entfallen.
 - Zweiten Faktor einrichten (Verwaltung, Pflichtseite und Mein Konto): Abschnitt 73; Rollen «Abteilungsleitung» und «Entwickler» in der Verwaltung: Abschnitt 74; beide im Browser geprüft.
 - Rückmeldungen nach einer Aktion auf der öffentlichen Website (Toasts): Abschnitt 83, im Browser geprüft.
+- Fotos in der Verwaltung (Albumliste mit Suche, Filter und Sammelaktionen): Abschnitt 87, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1164,9 +1165,9 @@ Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, 
 - [ ] **66.11** «Verbindung testen» zeigt das Ergebnis als Meldung (`role="status"`, Fehler `role="alert"`) ohne Geheimnisse; der Knopf zeigt `aria-busy`. Die Verbindung steht als Wort im Band («Die Verbindung zu Flickr steht.» oder der Grund), nie nur als Farbe.
 - [ ] **66.12** Ohne Zugangsdaten steht eine Anleitung Schritt für Schritt (geordnete Liste), ohne Werte.
 - [ ] **66.13** Die Kennung des Kontos hat ein sichtbares Label, Hilfetext, Prüfung beim Speichern mit Meldung beim Feld und Fokus darauf; die Wahl «Link zu Flickr» ist ein Kästchen mit Erklärung.
-- [ ] **66.14** Jedes Album: Schalter «Auf der Website zeigen» (`role="switch"`, `aria-checked`, Name nennt das Album) mit dem Zustand als Wort («Sichtbar», «Nicht sichtbar»); Änderungen gelten sofort, die Meldung bietet «Rückgängig» an. «Titel ändern» öffnet ein Feld in der Zeile (`aria-expanded`), Fokus ins Feld und beim Schliessen zurück auf den Knopf.
+- [ ] **66.14** (Seit #794 gilt für die Liste Abschnitt 87; die Zeile hat dort kein Zustandswort mehr, der Bereich sagt es.) Jedes Album: Schalter «Auf der Website zeigen» (`role="switch"`, `aria-checked`, Name nennt das Album) mit dem Zustand als Wort («Sichtbar», «Nicht sichtbar»); Änderungen gelten sofort, die Meldung bietet «Rückgängig» an. «Titel ändern» öffnet ein Feld in der Zeile (`aria-expanded`), Fokus ins Feld und beim Schliessen zurück auf den Knopf.
 - [ ] **66.15** Die Reihenfolge lässt sich per Ziehen, mit Tastatur (Leertaste, Pfeile) und mit Knöpfen «Nach oben» und «Nach unten» ändern (2.5.7); die Änderung wird angesagt und lässt sich in der Frist zurücknehmen.
-- [ ] **66.16** Zustände der Liste: lädt (Skeleton), leer (Bei Flickr gibt es noch keine Alben), Fehler mit «Nochmals versuchen»; Zielgrössen 44 Pixel, Hell und Dunkel, 390 bis 1440 Pixel.
+- [ ] **66.16** (Seit #794 siehe 87.) Zustände der Liste: lädt (Skeleton), leer (Bei Flickr gibt es noch keine Alben), Fehler mit «Nochmals versuchen»; Zielgrössen 44 Pixel, Hell und Dunkel, 390 bis 1440 Pixel.
 
 ### Stand der Prüfung (#690)
 
@@ -1605,3 +1606,38 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frisch migrierte 
 - Server über HTTP mit einer Rolle «Datenschutz» (nur `konto.loeschen`, zweiter Faktor): Konto ohne Rechte 204; Entwickler 403 `KONTO_GESCHUETZT`; Abteilungsleitung 403 `KONTO_GESCHUETZT`; eigenes Konto 409 `EIGENES_KONTO`; Personenliste 403 (das Recht gibt keine Liste).
 
 **Nicht geprüft:** 86.4 und 86.5 im Browser (86.5: nur die Katalogantwort mit Klartext und Erklärung gelesen, die Seite des Rechte-Editors nicht bedient), Bildschirmleser, Safari und Firefox, Zoom 200 %. Offen: Die Seite «Personen» der Verwaltung öffnet sich nur für Abteilungsleitung und Entwickler (`navigation.js`, Standard `abteilungsleitung`). Eine Rolle mit `konto.loeschen` kann die Route über die API nutzen, bekommt in der Verwaltung aber noch keinen Weg zum Blatt der Person.
+
+## 87. Verwaltung: Fotos, Albumliste für viele Alben (#794)
+
+Die Seite «Website, Fotos» (`public/admin/website-fotos.js`, `website-fotos-alben.js`, `website-fotos-logik.js`, `website-fotos.css`) zeigt die Alben in zwei Bereichen: «Auf der Website» (nur sichtbare, in ihrer Reihenfolge, nur hier lässt sie sich ordnen) und «Weitere Alben bei Flickr» (nach Jahr gruppiert, schrittweise gebaut). Darüber stehen die Verbindung in einer Zeile, das Konto als aufklappbarer Abschnitt und eine Werkzeugleiste mit Suche, Sicht, Jahr und Sortierung. Zeigen und Ausblenden laufen immer über `PUT /api/v1/admin/fotos/alben/sichtbarkeit` (ein Album oder viele, alles oder nichts). Massstab WCAG 2.2 AA; die Abschnitte 66 (Fotos), 14 und 84 (Toasts) und 15 (Auswahlfelder) gelten weiter.
+
+### Prüfpunkte
+
+- [ ] **87.1** Verbindung und «Verbindung testen» stehen in einer Zeile (Band mit Symbol und Wort, nie nur Farbe; `role="status"`, bei Fehlern `role="alert"`). Das Konto ist ein `details` mit Namen «Flickr-Konto» und der Kennung als Text; es ist zu, solange ein Konto gesetzt ist und die Verbindung Alben liefert, sonst offen. Bei fehlendem Konto, fehlender Verbindung oder leerer Albumliste nennt ein Satz die Betreiber-Einstellung `FLICKR_KONTO` (`deploy/.env`).
+- [ ] **87.2** Die Werkzeugleiste ist eine Region mit Namen (`role="search"`). Das Suchfeld hat ein Label (nur für Screenreader sichtbar) und den Kurzbefehl `/` (`aria-keyshortcuts`), der nur ausserhalb von Eingaben fokussiert. Die Sicht (Alle, Sichtbar, Nicht sichtbar) ist eine Gruppe mit `aria-pressed` und den Zahlen im Namen; Jahr und Sortierung haben je einen Namen (Label per `aria-labelledby`).
+- [ ] **87.3** Die Trefferzahl («23 von 87 Alben», ohne Filter «87 Alben») ist eine Statusregion (höflich) und ändert sich beim Tippen. «Filter zurücksetzen» erscheint nur, wenn etwas gesetzt ist, und setzt Suche, Sicht und Jahr zurück (der Fokus geht ins Suchfeld).
+- [ ] **87.4** Ab 48 em haftet die Werkzeugleiste unter der Navigation (`top: var(--leiste-hoehe)`, keine feste Höhe in `vh`); darunter scrollt sie mit (am Handy nähme sie zu viel Platz). Der Fokus bleibt sichtbar und wird weder von der Leiste oben noch von der Auswahlleiste unten verdeckt (`scroll-margin`, WCAG 2.4.11).
+- [ ] **87.5** Jede Zeile ist ein Listeneintrag mit Kästchen («Auswählen: <Album>»), Titel (Titel bei Flickr, bei eigenem Titel dazu «Bei Flickr: «…»»), «393 Fotos · Okt. 2026», Schalter (`role="switch"`, `aria-checked`, Name «Auf der Website zeigen: <Album>») und «Mehr» mit «Titel ändern». Zielgrössen mindestens 44 Pixel; der Titel bricht um, nichts läuft über.
+- [ ] **87.6** Nach dem Zeigen oder Ausblenden verschwindet die Zeile aus ihrem Bereich. Der Fokus geht auf den Schalter der Nachbarzeile derselben Liste, sonst auf die Überschrift des Bereichs; nichts springt. Der Toast sagt «<Album> ist jetzt auf der Website zu sehen.» und bleibt mit «Rückgängig» bis zum Schliessen.
+- [ ] **87.7** Die Reihenfolge lässt sich nur im Bereich «Auf der Website» ändern: Ziehen, Tastatur (Leertaste nimmt auf, Pfeile bewegen, Leertaste legt ab, Esc bricht ab) und die Knöpfe «Nach oben» und «Nach unten» (2.5.7); die neue Stelle wird angesagt, die Änderung lässt sich in der Frist zurücknehmen. Bei Suche oder Jahr steht der Hinweis «Zum Ordnen setze Suche und Jahr zurück.» und die Liste ist ohne Griffe.
+- [ ] **87.8** «Weitere Alben» sind nach Jahr gruppiert, wenn nach Datum sortiert wird; jede Gruppe ist eine Überschrift mit Knopf (`aria-expanded`, `aria-controls`), zuerst ist das neueste Jahr offen (bei Suche oder Jahr alle). Bei Titel oder Grösse gibt es eine flache Liste. Höchstens 40 Zeilen werden gebaut; «Weitere 40 anzeigen» setzt den Fokus auf das erste neue Album. Der Fokus bleibt beim Auf- und Zuklappen auf dem Knopf der Gruppe.
+- [ ] **87.9** Auswahl: «Alle n auswählen» je Bereich wählt alle gefilterten Alben (auch die nicht gebauten; teilweise gewählt ist `indeterminate`). Die Auswahlleiste (Region «Auswahl», haftet unten) sagt «n ausgewählt» als Statusregion und bietet nur die passenden Aktionen: «Auf der Website zeigen (k)», «Ausblenden (m)», «Auswahl aufheben». Eine Aktion, die nichts ändern würde, fehlt.
+- [ ] **87.10** Mehr als 5 Alben auf einmal zu zeigen verlangt eine Bestätigung in der Leiste (kein Browserdialog, kein Fenster): Satz mit Hinweis auf Kinderfotos und Einwilligung, «<n> Alben zeigen» (Fokus darauf) und «Abbrechen». Bis 5 Alben läuft die Aktion sofort mit «Rückgängig».
+- [ ] **87.11** Sammelaktionen sind atomar: Bei einem Fehler oder Konflikt (409 `VERSION_KONFLIKT`) steht alles wie vorher, die Auswahl bleibt, und der Toast sagt es («Es wurde nichts geändert.» beziehungsweise «Jemand anders hat das gerade geändert. Die Seite lädt neu.»).
+- [ ] **87.12** Zustände: lädt (Skeleton), Fehler mit «Nochmals versuchen», leer («Keine Alben gefunden. Prüfe das Konto und die Verbindung.»), kein Treffer («Kein Album passt zu «…».» mit «Suche zurücksetzen», bei Filtern «Filter zurücksetzen»), leerer Bereich («Noch kein Album auf der Website.», «Alle Alben sind auf der Website.»).
+- [ ] **87.13** Hell und Dunkel, 320, 390, 1280 und 2560 Pixel: kein waagrechtes Scrollen, keine leere Fläche unter dem Inhalt. Ab 90 em stehen die beiden Bereiche nebeneinander, darunter untereinander; auf dem Handy bekommt die geordnete Liste ein gemeinsames Raster aus Griff, Kästchen, Titel, Schalter, «Mehr» und Pfeilen.
+- [ ] **87.14** Bewegung: Der Pfeil der Jahresgruppen dreht sich nur unter «Bewegung nicht reduzieren»; Zeilen blenden nicht ein.
+
+### Stand der Prüfung (#794)
+
+Im Browser (Chromium headless, Playwright) gegen einen eigenen Dev-Server mit Wegwerf-Kopie der Demo-Datenbank und einer Attrappe von Flickr (erfundene Alben, keine Verbindung zu Flickr), mit 5, 90 und 300 Alben:
+
+- **87.1:** Band, Konto zu mit Kennung und Verbindung; ohne Kennung offen mit dem Satz zu `FLICKR_KONTO`.
+- **87.2, 87.3:** `/` fokussiert die Suche; «wald» findet 15 von 90; «zzzzzz» zeigt die Karte «Kein Album passt zu «zzzzzz».» mit «Suche zurücksetzen» (Fokus danach im Suchfeld). Namen und Rollen der Leiste (Region, Suchfeld, Gruppe «Anzeigen», Jahr, Sortierung, Statusregion) aus dem Zugänglichkeitsbaum gelesen.
+- **87.4:** Bei 1280 und 2560 Pixel haftet die Leiste unmittelbar unter der Navigation (Abstand 0); Tab durch Leiste und Zeilen: Reihenfolge logisch, überall Fokusring 3 Pixel, nichts von der Leiste verdeckt.
+- **87.5 bis 87.7:** Drei Alben auswählen und zeigen (eine Anfrage), einzeln mit Enter schalten (Fokus auf der Nachbarzeile), Reihenfolge per Tastatur (Leertaste, Pfeil, Leertaste: eine Anfrage nach der Frist) und per Maus (Ziehen), «Titel ändern» mit Enter (Fokus danach auf «Mehr»).
+- **87.8:** Bei 300 Alben baut die Seite beim Öffnen 34 Zeilen; Jahr öffnen per Enter (Fokus bleibt), Sortierung «Titel A–Z» (40 Zeilen, «Weitere 40 anzeigen», Fokus auf der ersten neuen Zeile), Jahr 2022 (33 von 300).
+- **87.9 bis 87.11:** Alle 300 auswählen, Bestätigung, Zeigen: eine Anfrage, 300 Zeilen im Bereich «Auf der Website»; Konflikt (Version in der Datenbank geändert): Toast, Ansicht wie vorher, Seite lädt neu.
+- **87.13:** 320, 390, 1280, 2560 Pixel, hell und dunkel angeschaut; Dokumentbreite gleich Fensterbreite (kein waagrechtes Scrollen).
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA: Namen und Rollen nur im Zugänglichkeitsbaum gelesen, nicht gehört), Safari und Firefox, Zoom 200 % und 400 % am echten Gerät, erzwungene Farben, Touch am echten Gerät, Kontrastmessung mit Werkzeug (die Farben sind Tokens der Verwaltung), «Bewegung reduzieren» im Browser. Offen: Der Bereich «Auf der Website» baut alle sichtbaren Alben auf einmal (300 sichtbare Alben: rund 17 000 Pixel Seitenhöhe); die Sortierliste hat keine schrittweise Anzeige, weil sie die ganze Reihenfolge hält.
