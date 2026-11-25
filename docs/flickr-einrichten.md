@@ -52,7 +52,7 @@ FLICKR_KONTO=
 1. Öffne die Verwaltung, **Website, Fotos** (das Recht «Fotoalben verwalten» haben die Abteilungsleitung und die Vorgabe «Webmaster»).
 2. Trage die **Kennung des Flickr-Kontos** ein (aus Schritt 2) und speichere.
 3. **Verbindung testen** zeigt, ob der Zugang funktioniert (ohne Geheimnisse im Ergebnis).
-4. Schalte bei jedem Album **Auf der Website zeigen** ein, das erscheinen soll. Ordne die Alben per Ziehen oder mit den Pfeilen. Du kannst jedem Album einen eigenen Titel geben.
+4. Schalte bei jedem Album **Auf der Website zeigen** ein, das erscheinen soll. Bei vielen Alben hilft die Werkzeugleiste: Suche (Taste «/»), Sicht, Jahr und Sortierung; mit dem Kästchen vor einem Album wählst du mehrere und zeigst sie zusammen (bei mehr als 5 fragt die Seite zuerst nach, weil die Fotos oft Kinder zeigen). Die Alben, die auf der Website erscheinen, stehen im Bereich «Auf der Website» und lassen sich dort per Ziehen oder mit den Pfeilen ordnen; neu gezeigte Alben stehen am Ende. Du kannst jedem Album einen eigenen Titel geben («Mehr», «Titel ändern»).
 5. «Album auf Flickr öffnen» ist standardmässig **aus**: Der Link führt aus der Website hinaus zu Flickr, wo andere Regeln gelten. Schalte ihn nur ein, wenn du das willst.
 
 ## Schritt 5: Seite auf der Website anlegen
