@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -234,14 +235,6 @@ const ROUTEN: Route[] = [
     erfolg: 200,
   },
   {
-    name: "Wartung: Schalter lesen",
-    methode: "GET",
-    pfad: () => "/api/v1/plattform/schalter",
-    recht: "wartung.bereiche",
-    stattdessen: "laden.ansehen",
-    erfolg: 200,
-  },
-  {
     name: "Weiterleitungen: Liste",
     methode: "GET",
     pfad: () => "/api/v1/redaktion/weiterleitungen",
@@ -372,38 +365,89 @@ describe("feste Punkte bleiben bei der Abteilungsleitung", () => {
   });
 });
 
-describe("Wartung eines Bereichs über das Recht «wartung.bereiche»", () => {
-  test("setzen und aufheben, ausser «website» (eigenes Recht) und «alles»", async () => {
-    const rolle = await mitPlattformrolle(["wartung.bereiche"]);
-    const setze = (konto: PersonaKonto, bereich: string) =>
+// Wartung: nur der Entwickler (#802). Zeilen der alten Rechte in Rollen bleiben in der Datenbank liegen (keine Migration) und geben nichts
+async function pruefeWartungNurEntwickler() {
+  const setze = (konto: PersonaKonto, bereich: string) =>
+    anfrage(konto, "PUT", "/api/v1/plattform/schalter", {
+      art: "wartung",
+      bereich,
+      hinweis: "Kurz weg",
+    });
+  const hebe = (konto: PersonaKonto, bereich: string) =>
+    anfrage(
+      konto,
+      "DELETE",
+      `/api/v1/plattform/schalter?art=wartung&bereich=${bereich}`,
+    );
+  const bereiche = [
+    "alles",
+    "website",
+    "lager",
+    "chat",
+    "programme",
+    "verwaltung",
+  ];
+  const plattform = await mitPlattformrolle([
+    "wartung.bereiche",
+    "wartungsmodus.website",
+  ]);
+  const gruppe = (
+    await mitGruppenrolle([
+      ...alle("wartung.bereiche"),
+      ...alle("wartungsmodus.website"),
+    ])
+  ).konto;
+  const entwickler = await legePersonaMitFaktorAn(welt, "elternA");
+  await db
+    .insert(schema.plattformEntwickler)
+    .values({ userId: entwickler.id! });
+  try {
+    for (const bereich of bereiche) {
+      for (const konto of [admin, plattform, gruppe]) {
+        expect((await setze(konto, bereich)).status, bereich).toBe(403);
+      }
+      expect((await setze(entwickler, bereich)).status, bereich).toBe(200);
+      for (const konto of [admin, plattform, gruppe]) {
+        expect((await hebe(konto, bereich)).status, bereich).toBe(403);
+      }
+      expect((await hebe(entwickler, bereich)).status, bereich).toBe(204);
+    }
+    // Die Rolle mit dem alten Recht sieht nicht einmal den Stand; die Abteilungsleitung liest ihn
+    expect(
+      (await anfrage(plattform, "GET", "/api/v1/plattform/schalter")).status,
+    ).toBe(403);
+    expect(
+      (await anfrage(admin, "GET", "/api/v1/plattform/schalter")).status,
+    ).toBe(200);
+    // Die Informationssperre bleibt bei der Abteilungsleitung
+    const sperre = (konto: PersonaKonto) =>
       anfrage(konto, "PUT", "/api/v1/plattform/schalter", {
-        art: "wartung",
-        bereich,
-        hinweis: "Kurz weg",
+        art: "sperre",
+        bereich: "chat",
       });
-    const res = await setze(rolle, "lager");
-    expect(res.status).toBe(200);
+    expect((await sperre(plattform)).status).toBe(403);
+    expect((await sperre(admin)).status).toBe(200);
     expect(
       (
         await anfrage(
-          rolle,
+          admin,
           "DELETE",
-          "/api/v1/plattform/schalter?art=wartung&bereich=lager",
+          "/api/v1/plattform/schalter?art=sperre&bereich=chat",
         )
       ).status,
     ).toBe(204);
-    // Die Website hat ein eigenes Recht
-    expect((await setze(rolle, "website")).status).toBe(403);
-    const web = await mitPlattformrolle(["wartungsmodus.website"]);
-    expect((await setze(web, "lager")).status).toBe(403);
-    const ok = await setze(web, "website");
-    expect(ok.status).toBe(200);
-    await anfrage(
-      web,
-      "DELETE",
-      "/api/v1/plattform/schalter?art=wartung&bereich=website",
-    );
-  });
+  } finally {
+    await db
+      .delete(schema.plattformEntwickler)
+      .where(eq(schema.plattformEntwickler.userId, entwickler.id!));
+  }
+}
+
+describe("Wartung nur für den Entwickler (#802)", () => {
+  test(
+    "Abteilungsleitung, Plattformrolle und Gruppenrolle mit den alten Rechten: 403 in jedem Bereich, Entwickler darf",
+    pruefeWartungNurEntwickler,
+  );
 });
 
 describe("Website: Gruppenrollen und Plattformrollen", () => {
@@ -578,22 +622,8 @@ describe("Modus «neu»: dieselben Antworten", () => {
     );
   });
 
-  test("Wartung: «wartung.bereiche» schaltet einen Bereich, die Sperre bleibt fest", async () => {
-    const rolle = await mitPlattformrolle(["wartung.bereiche"]);
-    const res = await anfrage(rolle, "PUT", "/api/v1/plattform/schalter", {
-      art: "wartung",
-      bereich: "chat",
-    });
-    expect(res.status).toBe(200);
-    await anfrage(
-      rolle,
-      "DELETE",
-      "/api/v1/plattform/schalter?art=wartung&bereich=chat",
-    );
-    const sperre = await anfrage(rolle, "PUT", "/api/v1/plattform/schalter", {
-      art: "sperre",
-      bereich: "chat",
-    });
-    expect(sperre.status).toBe(403);
-  });
+  test(
+    "Wartung: nur der Entwickler, die Sperre bleibt bei der Abteilungsleitung",
+    pruefeWartungNurEntwickler,
+  );
 });

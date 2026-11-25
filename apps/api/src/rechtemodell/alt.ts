@@ -58,7 +58,6 @@ export const ALTWEG: Partial<Record<RechtId, Altweg>> = {
   "medien.verwalten": plattform("medien.verwalten"),
   "weiterleitungen.verwalten": plattform("weiterleitungen.verwalten"),
   "vorlagen.nutzen": plattform("vorlagen.nutzen"),
-  "wartungsmodus.website": plattform("wartungsmodus.website"),
   // darfVorschlagen und darfBelegungSehen verlangen ein Db mit mehr als select (sie sind so typisiert); die Abfragen dort sind select
   "vorschlag.einreichen": (db, person) => darfVorschlagen(db as Db, person),
   "raum.belegung": (db, person) => darfBelegungSehen(db as Db, person),
@@ -80,9 +79,9 @@ export const ALTWEG: Partial<Record<RechtId, Altweg>> = {
   "stufe.einblick": abteilungsleitungOderLeitung,
   "plattform.sperren": async (db, person) =>
     person.abteilungsleitung || (await istEntwickler(db, person)),
-  // Wartung eines Bereichs (#648): wie die Sperre bisher, Abteilungsleitung und Entwickler; neu zusätzlich über Rollen
-  "wartung.bereiche": async (db, person) =>
-    person.abteilungsleitung || (await istEntwickler(db, person)),
+  // Wartung (#802): nur der Entwickler, nie die Abteilungsleitung, nie eine Rolle
+  "wartungsmodus.website": (db, person) => istEntwickler(db, person),
+  "wartung.bereiche": (db, person) => istEntwickler(db, person),
   "protokoll.lesen": (db, person) => istEntwickler(db, person),
   // Rechte der Abteilungsleitung ändern (#663): nur der Entwickler
   "rechte.abteilungsleitung": (db, person) => istEntwickler(db, person),

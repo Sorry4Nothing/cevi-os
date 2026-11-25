@@ -104,7 +104,7 @@ export function gruppiereNachBereich(katalog, nur = () => true) {
     .filter((b) => b.rechte.length > 0);
 }
 
-// Welche Rechte lässt eine Rolle dieser Art in der Matrix zu? Gruppenrolle: «gruppenrolle» des Katalogs; globale Rolle: alles Vergebbare (mit Wartung der Website)
+// Welche Rechte lässt eine Rolle dieser Art in der Matrix zu? Gruppenrolle: «gruppenrolle» des Katalogs; globale Rolle: alles Vergebbare (nie der Wartungsmodus: fest, nur Entwickler, #802)
 export const rechteFuer = (katalog, art) =>
   katalog.rechte.filter((r) =>
     art === "global" ? r.art === "vergebbar" : r.gruppenrolle === true,

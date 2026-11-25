@@ -30,6 +30,8 @@ const SYMBOLE = {
     ["circle", { cx: 9, cy: 10.5, r: 1.75 }],
     ["path", { d: "M3.5 17l5.5-5 4 3.5 3-2.5 4.5 4" }],
   ],
+  // Dreieck der Untermenüs im Kopf (Navigation)
+  dreieck: [["path", { class: "f", d: "M6.5 9.5h11L12 16z" }]],
   nochmals: [
     ["path", { d: "M19.5 13.5A7.5 7.5 0 1 1 16 7" }],
     ["path", { class: "f", d: "M14 3.5h7v7z" }],

@@ -21,9 +21,9 @@ type Eintrag = {
   bedeutung: string;
   // Jedes Recht des Katalogs trägt das Merkmal «erweitert»: Wer es hat, braucht den zweiten Faktor (403 ZWEITER_FAKTOR_FEHLT). «Einfach» ist nur die Arbeit der Stufenleitung an der eigenen Stufenseite, sie steht nicht im Katalog (Entscheid vom 22.11.2026)
   erweitert: boolean;
-  // Hat die Vorgabe «Webmaster» das Recht? Alles ausser dem Wartungsmodus
+  // Hat die Vorgabe «Webmaster» das Recht?
   webmaster: boolean;
-  // Öffnet das Recht den Bereich «Website» der Verwaltung (/api/v1/redaktion)? Der Wartungsmodus nicht
+  // Öffnet das Recht den Bereich «Website» der Verwaltung (/api/v1/redaktion)?
   bereich: boolean;
 };
 const e = (bedeutung: string, webmaster = true, bereich = true): Eintrag => ({
@@ -41,11 +41,7 @@ export const PLATTFORM_RECHTE = katalog({
   "medien.verwalten": e("Medien verwalten"),
   "weiterleitungen.verwalten": e("Weiterleitungen verwalten"),
   "vorlagen.nutzen": e("Vorlagen nutzen"),
-  "wartungsmodus.website": e(
-    "Wartungsmodus der Website schalten",
-    false,
-    false,
-  ),
+  // Der Wartungsmodus steht nicht mehr hier: Ihn schaltet nur der Entwickler (#802, Katalog rechtemodell/katalog.ts), keine Rolle
 });
 export type PlattformRecht = keyof typeof PLATTFORM_RECHTE;
 export const PLATTFORM_RECHT_NAMEN = Object.keys(

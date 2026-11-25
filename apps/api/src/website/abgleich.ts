@@ -54,6 +54,7 @@ import {
   type FehlerBild,
 } from "./fehlerseiten.js";
 import { baueWeiterleitungen, CADDY_DATEI } from "./weiterleitungen.js";
+import { HINWEIS_DATEIEN, HINWEIS_STIL_DATEI } from "./sperre.js";
 import {
   ZEICHEN_DATEIEN,
   ZEICHEN_ICO,
@@ -93,8 +94,8 @@ const SERVERFEHLER = "500.html";
 const WARTUNG = "wartung.html";
 const STYLESHEET = "website/website.css";
 // Seiten des Baums, auf die der Fuss verweist (Adresse auf der obersten Ebene); «datenschutz» selbst gehört der Plattform
-const IMPRESSUM_ADRESSE = "impressum";
-const DATENSCHUTZ_ADRESSE = "datenschutz-website";
+export const IMPRESSUM_ADRESSE = "impressum";
+export const DATENSCHUTZ_ADRESSE = "datenschutz-website";
 // Die Anmeldeseite (#354) liegt unter der reservierten Adresse «anmelden»
 const ANMELDUNG = "anmelden/index.html";
 // Nur diese Dateien löscht der Abgleich selbst, wenn sie nicht mehr gebraucht werden: die Seiten (und die Rückfallseiten der Weiterleitungen, die ebenso heissen) und weiterleitungen.caddy. Alles andere im Verzeichnis bleibt unangetastet
@@ -376,7 +377,7 @@ export async function ladeDaten(
 }
 
 // Pfad im Netz und Datei: die Seite «start» der obersten Ebene ist «/»; null, wenn die Adresse nie ausgeliefert wird
-function ziel(knoten: Knoten, id: string) {
+export function ziel(knoten: Knoten, id: string) {
   const adressen = adressenVon(knoten, id);
   if (
     adressen.length === 0 ||
@@ -627,6 +628,10 @@ export async function erzeugeWebsite(
   });
 
   const vorhanden = new Set(await ausgabe.liste());
+  // Die Hinweisseite der Sperre (#803): Der Abgleich läuft nur ohne Sperre. Liegt ihr Stil trotzdem noch da, wurde die Sperre ohne Verwaltung aufgehoben (Notausgang in der Datenbank): Die Hinweisseiten gelten dann als fehlend, der Hash allein schützt sie nicht
+  const hinweisReste = vorhanden.has(HINWEIS_STIL_DATEI);
+  const liegt = (datei: string) =>
+    vorhanden.has(datei) && !(hinweisReste && HINWEIS_DATEIEN.includes(datei));
   const soll = new Set<string>([
     ...behalten,
     SITEMAP,
@@ -648,10 +653,7 @@ export async function erzeugeWebsite(
   const schreibeSeite = async (id: string, datei: string, html: string) => {
     soll.add(datei);
     const hash = sha256(html);
-    if (
-      zeilen.find((z) => z.id === id)!.ausgabeHash === hash &&
-      vorhanden.has(datei)
-    ) {
+    if (zeilen.find((z) => z.id === id)!.ausgabeHash === hash && liegt(datei)) {
       return;
     }
     try {
@@ -729,7 +731,7 @@ export async function erzeugeWebsite(
   ];
   for (const [datei, inhalt] of gesamt) {
     const hash = sha256(inhalt);
-    if (merker.get(datei) === hash && vorhanden.has(datei)) continue;
+    if (merker.get(datei) === hash && liegt(datei)) continue;
     try {
       await ausgabe.schreibe(datei, inhalt);
       merker.set(datei, hash);
@@ -754,6 +756,15 @@ export async function erzeugeWebsite(
     }
     try {
       await ausgabe.loesche(datei);
+      ergebnis.geloescht++;
+    } catch (fehler) {
+      meldeFehler("loeschen", fehler);
+      ergebnis.fehler++;
+    }
+  }
+  if (hinweisReste) {
+    try {
+      await ausgabe.loesche(HINWEIS_STIL_DATEI);
       ergebnis.geloescht++;
     } catch (fehler) {
       meldeFehler("loeschen", fehler);

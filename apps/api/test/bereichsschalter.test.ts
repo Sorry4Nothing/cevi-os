@@ -216,7 +216,7 @@ describe("Wartungsmodus: Wirkung", () => {
 
   test("Lesen geht, Schreiben antwortet 503 mit Hinweis und Ende, andere Bereiche laufen", async () => {
     const ende = "2026-11-23T20:00:00.000Z";
-    const antwort = await schalte(admin, "lager", {
+    const antwort = await schalte(entwickler, "lager", {
       hinweis: "Das Lager ist bis 21 Uhr in Wartung.",
       ende,
     });
@@ -226,7 +226,7 @@ describe("Wartungsmodus: Wirkung", () => {
       bereich: "lager",
       hinweis: "Das Lager ist bis 21 Uhr in Wartung.",
       ende,
-      ausgeloestVon: admin.id,
+      ausgeloestVon: entwickler.id,
     });
 
     const lesen = await anfrage(eltern, "GET", "/api/v1/lager");
@@ -262,7 +262,7 @@ describe("Wartungsmodus: Wirkung", () => {
   test.each(["lager", "chat", "programme", "verwaltung"])(
     "%s: Schreiben 503 für Personen ohne feste Rolle, Lesen frei",
     async (bereich) => {
-      expect((await schalte(admin, bereich)).status).toBe(200);
+      expect((await schalte(entwickler, bereich)).status).toBe(200);
       expect((await schreibe(slA, bereich)).status).toBe(503);
       // Hinweis und Ende fehlen: null
       expect(await (await schreibe(slA, bereich)).json()).toMatchObject({
@@ -283,7 +283,7 @@ describe("Wartungsmodus: Wirkung", () => {
   );
 
   test("Website: auch die Bearbeitungsansichten sind gesperrt, das Panel (ich) bleibt lesbar", async () => {
-    expect((await schalte(admin, "website")).status).toBe(200);
+    expect((await schalte(entwickler, "website")).status).toBe(200);
     expect(
       (await anfrage(webmaster, "GET", "/api/v1/redaktion/seiten")).status,
     ).toBe(503);
@@ -298,7 +298,7 @@ describe("Wartungsmodus: Wirkung", () => {
   });
 
   test("alles: jede schreibende Anfrage im API, Lesen und die Anmeldung gehen", async () => {
-    expect((await schalte(admin, "alles")).status).toBe(200);
+    expect((await schalte(entwickler, "alles")).status).toBe(200);
     for (const bereich of Object.keys(SCHREIBEN)) {
       expect((await schreibe(eltern, bereich)).status, bereich).toBe(503);
     }
@@ -324,7 +324,7 @@ describe("Wartungsmodus: Wirkung", () => {
   });
 
   test("Abteilungsleitung und Entwickler kommen durch, auch zur Verwaltung", async () => {
-    expect((await schalte(admin, "alles")).status).toBe(200);
+    expect((await schalte(entwickler, "alles")).status).toBe(200);
     for (const bereich of Object.keys(SCHREIBEN)) {
       for (const konto of [admin, entwickler]) {
         expect(
@@ -340,23 +340,23 @@ describe("Wartungsmodus: Wirkung", () => {
   });
 
   test("Webmaster kommt in der Wartung der Website nicht durch", async () => {
-    expect((await schalte(admin, "website")).status).toBe(200);
+    expect((await schalte(entwickler, "website")).status).toBe(200);
     expect((await schreibe(webmasterMitRecht, "website")).status).toBe(503);
   });
 
   test("Aufheben wirkt sofort", async () => {
-    await schalte(admin, "chat", { hinweis: "Kurz" });
+    await schalte(entwickler, "chat", { hinweis: "Kurz" });
     expect((await schreibe(eltern, "chat")).status).toBe(503);
-    const aufgehoben = await hebeAuf(admin, "chat");
+    const aufgehoben = await hebeAuf(entwickler, "chat");
     expect(aufgehoben.status).toBe(204);
     expect((await schreibe(eltern, "chat")).status).not.toBe(503);
     // Was nicht gesetzt ist, lässt sich nicht aufheben
-    expect((await hebeAuf(admin, "chat")).status).toBe(404);
+    expect((await hebeAuf(entwickler, "chat")).status).toBe(404);
   });
 
   test("Setzen ersetzt Hinweis und Ende; es bleibt ein Eintrag", async () => {
-    await schalte(admin, "chat", { hinweis: "Eins" });
-    await schalte(admin, "chat", { hinweis: "Zwei", ende: null });
+    await schalte(entwickler, "chat", { hinweis: "Eins" });
+    await schalte(entwickler, "chat", { hinweis: "Zwei", ende: null });
     const antwort = await anfrage(admin, "GET", "/api/v1/plattform/schalter");
     const { schalter } = (await antwort.json()) as {
       schalter: { bereich: string; hinweis: string }[];
@@ -406,27 +406,76 @@ describe("Wartungsmodus: wer schalten darf", () => {
     expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
   });
 
-  test("Webmaster mit dem Recht darf die Wartung der Website, aber keinen anderen Bereich", async () => {
-    expect((await schalte(webmasterMitRecht, "lager")).status).toBe(403);
-    expect((await schalte(webmasterMitRecht, "alles")).status).toBe(403);
-    const ok = await schalte(webmasterMitRecht, "website", {
-      hinweis: "Seiten werden umgebaut.",
-    });
-    expect(ok.status).toBe(200);
-    expect((await schreibe(slA, "website")).status).toBe(503);
-    expect((await hebeAuf(webmasterMitRecht, "website")).status).toBe(204);
-    expect((await schreibe(slA, "website")).status).not.toBe(503);
+  test("nur der Entwickler schaltet die Wartung (#802): Abteilungsleitung und eine Rolle mit dem alten Recht bekommen 403, in jedem Bereich", async () => {
+    // webmasterMitRecht trägt noch die Zeile «wartungsmodus.website» in der Rolle: Der Server ignoriert sie (keine Migration)
+    for (const konto of [admin, webmasterMitRecht]) {
+      for (const bereich of Object.keys(SCHREIBEN)) {
+        const antwort = await schalte(konto, bereich, { hinweis: "Nein" });
+        expect(antwort.status, bereich).toBe(403);
+        expect(await antwort.json()).toMatchObject({
+          code: "KEINE_BERECHTIGUNG",
+        });
+      }
+    }
+    expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
+    // Auch das Aufheben: Der Entwickler setzt, die Abteilungsleitung hebt nicht auf
+    expect((await schalte(entwickler, "chat")).status).toBe(200);
+    for (const konto of [admin, webmasterMitRecht]) {
+      expect((await hebeAuf(konto, "chat")).status).toBe(403);
+    }
+    expect(zustand.vonAbteilung(welt.testabteilungId)).toHaveLength(1);
+    expect((await schreibe(slA, "chat")).status).toBe(503);
+    expect((await hebeAuf(entwickler, "chat")).status).toBe(204);
   });
 
-  test("das Panel nennt «plattform» nur Personen mit dem Recht; «website» öffnen die Rechte der Website (Rolle Webmaster, Entwickler)", async () => {
+  test("die Abteilungsleitung liest den Stand der Wartung, schalten darf sie sie nicht (darfWartung); den Entwickler fragt das nicht", async () => {
+    await schalte(entwickler, "lager", { hinweis: "Update" });
+    const lies = async (konto: PersonaKonto) =>
+      (await (
+        await anfrage(konto, "GET", "/api/v1/plattform/schalter")
+      ).json()) as {
+        schalter: { art: string; bereich: string }[];
+        bereiche: string[];
+        darfSperre: boolean;
+        darfWartung: boolean;
+      };
+    const al = await lies(admin);
+    expect(al).toMatchObject({ darfSperre: true, darfWartung: false });
+    expect(al.schalter).toMatchObject([{ art: "wartung", bereich: "lager" }]);
+    // Die Zeilen der Seite bleiben, damit die Sperre bedienbar ist
+    expect(al.bereiche).toHaveLength(6);
+    expect(await lies(entwickler)).toMatchObject({
+      darfSperre: true,
+      darfWartung: true,
+    });
+    // Die Informationssperre schaltet die Abteilungsleitung weiter
+    const sperre = await anfrage(admin, "PUT", "/api/v1/plattform/schalter", {
+      art: "sperre",
+      bereich: "chat",
+    });
+    expect(sperre.status).toBe(200);
+    expect(
+      (
+        await anfrage(
+          admin,
+          "DELETE",
+          "/api/v1/plattform/schalter?art=sperre&bereich=chat",
+        )
+      ).status,
+    ).toBe(204);
+  });
+
+  test("das Panel nennt «plattform» nur Entwickler und Abteilungsleitung; «website» öffnen die Rechte der Website (Rolle Webmaster, Entwickler)", async () => {
     const bereiche = async (konto: PersonaKonto) =>
       (
         (await (
           await anfrage(konto, "GET", "/api/v1/redaktion/ich")
         ).json()) as { bereiche: string[] }
       ).bereiche;
-    // Die Vorgabe «Webmaster» hat auch «fotos.verwalten» (#690): ein eigener Eintrag für die Seite «Fotos»
-    expect(await bereiche(webmasterMitRecht)).toEqual(["website", "plattform"]);
+    // Die Rolle trägt noch die alte Zeile «wartungsmodus.website»: sie öffnet nichts mehr (#802)
+    expect(await bereiche(webmasterMitRecht)).toEqual(["website"]);
+    // Die Abteilungsleitung sieht den Stand der Wartung und schaltet die Sperre: «plattform» bleibt
+    expect(await bereiche(admin)).toContain("plattform");
     // Der Entwickler hat jedes Recht (#722): auch Lädeli, Lager, Betriebszahlen und Fotos
     expect(await bereiche(entwickler)).toEqual([
       "website",
@@ -447,10 +496,16 @@ describe("Wartungsmodus: wer schalten darf", () => {
     }
   });
 
-  test("Zustand lesen: Abteilungsleitung und Entwickler alles der eigenen Abteilung, Webmaster mit Recht nur die Website", async () => {
-    await schalte(admin, "lager");
-    await schalte(admin, "website");
-    await schalte(demoAdmin, "chat");
+  test("Zustand lesen: Abteilungsleitung und Entwickler alles der eigenen Abteilung, eine Rolle mit dem alten Recht nichts", async () => {
+    await schalte(entwickler, "lager");
+    await schalte(entwickler, "website");
+    await db.insert(schema.bereichsschalter).values({
+      abteilungId: welt.demoAbteilungId,
+      bereich: "chat",
+      art: "wartung",
+      ausgeloestVon: demoAdmin.id!,
+    });
+    await zustand.lade(db);
     const lies = async (konto: PersonaKonto) =>
       (
         (await (
@@ -461,12 +516,15 @@ describe("Wartungsmodus: wer schalten darf", () => {
         .sort();
     expect(await lies(admin)).toEqual(["lager", "website"]);
     expect(await lies(entwickler)).toEqual(["lager", "website"]);
-    expect(await lies(webmasterMitRecht)).toEqual(["website"]);
+    expect(
+      (await anfrage(webmasterMitRecht, "GET", "/api/v1/plattform/schalter"))
+        .status,
+    ).toBe(403);
     expect(await lies(demoAdmin)).toEqual(["chat"]);
   });
 
   test("Eingabe: unbekannter Bereich, unbekannte Art, leerer Hinweis, falsches Ende, fremdes Feld", async () => {
-    expect((await schalte(admin, "keller")).status).toBe(400);
+    expect((await schalte(entwickler, "keller")).status).toBe(400);
     expect(
       (
         await anfrage(admin, "PUT", "/api/v1/plattform/schalter", {
@@ -475,19 +533,23 @@ describe("Wartungsmodus: wer schalten darf", () => {
         })
       ).status,
     ).toBe(400);
-    expect((await schalte(admin, "lager", { hinweis: "" })).status).toBe(400);
-    expect(
-      (await schalte(admin, "lager", { hinweis: "x".repeat(501) })).status,
-    ).toBe(400);
-    expect((await schalte(admin, "lager", { ende: "morgen" })).status).toBe(
+    expect((await schalte(entwickler, "lager", { hinweis: "" })).status).toBe(
       400,
     );
-    expect((await schalte(admin, "lager", { sperre: true })).status).toBe(400);
+    expect(
+      (await schalte(entwickler, "lager", { hinweis: "x".repeat(501) })).status,
+    ).toBe(400);
+    expect(
+      (await schalte(entwickler, "lager", { ende: "morgen" })).status,
+    ).toBe(400);
+    expect((await schalte(entwickler, "lager", { sperre: true })).status).toBe(
+      400,
+    );
     expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
   });
 
   test("jede Schaltung steht im Audit-Log, ohne den Hinweistext", async () => {
-    await schalte(admin, "chat", { hinweis: "Geheimer Text" });
+    await schalte(entwickler, "chat", { hinweis: "Geheimer Text" });
     // Die Zeile (und ihre ID) gibt es nur bis zum Aufheben; das Log zeigt auf sie
     const [schalter] = await db
       .select({ id: schema.bereichsschalter.id })
@@ -498,14 +560,14 @@ describe("Wartungsmodus: wer schalten darf", () => {
           eq(schema.bereichsschalter.bereich, "chat"),
         ),
       );
-    await schalte(admin, "chat", { hinweis: "Anderer Text" });
-    await hebeAuf(admin, "chat");
+    await schalte(entwickler, "chat", { hinweis: "Anderer Text" });
+    await hebeAuf(entwickler, "chat");
     const zeilen = await db
       .select()
       .from(schema.auditLog)
       .where(
         and(
-          eq(schema.auditLog.akteurId, admin.id!),
+          eq(schema.auditLog.akteurId, entwickler.id!),
           eq(schema.auditLog.zielTyp, "bereichsschalter"),
           eq(schema.auditLog.zielId, schalter.id),
         ),
@@ -526,7 +588,7 @@ describe("Wartungsmodus: wer schalten darf", () => {
 
 describe("Wartungsmodus: Zustand im Speicher", () => {
   test("er überlebt einen Neustart: Laden aus der Datenbank", async () => {
-    await schalte(admin, "chat", { hinweis: "Nach dem Neustart noch da" });
+    await schalte(entwickler, "chat", { hinweis: "Nach dem Neustart noch da" });
     const neu = erstelleSchalterZustand();
     expect(neu.leer()).toBe(true);
     await neu.lade(db);
@@ -552,7 +614,7 @@ describe("Wartungsmodus: Zustand im Speicher", () => {
     };
     await lesen();
     const ohne = await lesen();
-    await schalte(admin, "chat");
+    await schalte(entwickler, "chat");
     expect(await lesen()).toBe(ohne);
     // Auch eine gesperrte Schreibanfrage einer Person ohne feste Rolle: nur die Prüfung auf den Entwickler kommt dazu
     abfragen.length = 0;
