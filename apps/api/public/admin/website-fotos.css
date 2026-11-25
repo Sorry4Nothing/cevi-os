@@ -1,9 +1,62 @@
-/* Fotos aus Flickr (#690): Seite «Website, Fotos». Klassen mit dem Vorsatz «foto-». Nur Tokens, Masse in rem */
+/* Fotos aus Flickr (#690, #794): Seite «Website, Fotos». Klassen mit dem Vorsatz «foto-». Nur Tokens, Masse in rem */
 .foto-seite {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
-  max-width: 56rem;
+  gap: 1rem;
+}
+
+/* Verbindung und «Verbindung testen» in einer Zeile */
+.foto-verbindung {
+  flex-wrap: wrap;
+  padding-block: 0.5rem;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+}
+
+.foto-verbindung > span {
+  flex: 1 1 16rem;
+}
+
+/* Konto: aufklappbarer Abschnitt, zu, solange es gesetzt ist und die Verbindung steht */
+.foto-konto-block {
+  gap: 0.75rem;
+  padding-block: 0.375rem;
+}
+
+.foto-konto-kopf {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  min-height: 2.75rem;
+  list-style: none;
+  cursor: pointer;
+}
+
+.foto-konto-kopf::-webkit-details-marker {
+  display: none;
+}
+
+.foto-konto-kopf::after {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: -0.25rem 0 0 auto;
+  border: solid currentcolor;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.foto-konto-block[open] > .foto-konto-kopf::after {
+  margin-top: 0.25rem;
+  transform: rotate(-135deg);
+}
+
+.foto-konto-titel {
+  color: var(--titel);
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.5rem;
 }
 
 .foto-konto {
@@ -18,6 +71,11 @@
   width: 100%;
 }
 
+.foto-betreiber {
+  max-width: 36rem;
+  margin-bottom: 0.5rem;
+}
+
 .foto-schritte {
   display: flex;
   flex-direction: column;
@@ -30,63 +88,355 @@
   padding-left: 0.25rem;
 }
 
-.foto-zeile {
+/* ---------- Albumliste ---------- */
+.foto-alben {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* Werkzeugleiste: bei der Liste fest unter der Navigation (ab 48 em; am Handy nähme sie zu viel vom Bildschirm) */
+.foto-werkzeuge {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+  background: var(--surface);
+  border-bottom: 1px solid var(--rand-leise);
+}
+
+@media (min-width: 48em) {
+  .foto-werkzeuge {
+    position: sticky;
+    top: var(--leiste-hoehe);
+    z-index: 10;
+  }
+}
+
+.foto-werkzeuge-zeile {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+}
+
+.foto-suche {
+  flex: 1 1 12rem;
+  max-width: 18rem;
+}
+
+.foto-feld--jahr {
+  flex: 0 1 12rem;
+  min-width: 10rem;
+}
+
+.foto-feld--sort {
+  flex: 0 1 17rem;
+  min-width: 13rem;
+}
+
+.foto-feld .feld {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.foto-feld .feld > label {
+  flex: none;
+  color: var(--leise);
+  font-size: 0.875rem;
+}
+
+.foto-feld .feld > :not(label) {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.foto-werkzeuge-fuss {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+  min-height: 1.75rem;
+}
+
+.foto-treffer {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Zwei Bereiche nebeneinander ab 90 em (sonst bliebe für den Titel zu wenig Platz neben Griff, Schalter und Pfeilen), darunter untereinander */
+.foto-bereiche {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+
+@media (min-width: 90em) {
+  .foto-bereiche:not(.foto-bereiche--eins) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Zeigt der Filter nur einen Bereich, bleibt er auf grossen Bildschirmen in lesbarer Breite */
+@media (min-width: 90em) {
+  .foto-bereiche--eins {
+    max-width: 64rem;
+  }
+}
+
+.foto-bereiche[hidden],
+.foto-bereich[hidden],
+.foto-kein-treffer[hidden],
+.foto-titelform[hidden],
+.foto-werkzeuge [hidden] {
+  display: none;
+}
+
+.foto-bereich {
+  gap: 0.5rem;
+  padding: 1rem 1.25rem 1.25rem;
+}
+
+.foto-bereich-kopf {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
-  gap: 0.75rem 1.5rem;
-  padding: 0.5rem 0;
+  gap: 0 1rem;
+  min-height: 2.75rem;
+}
+
+.foto-bereich-kopf h2 {
+  font-size: 1.125rem;
+  line-height: 1.5rem;
+}
+
+.foto-zahl {
+  color: var(--leise);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.foto-alle {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.foto-hilfe {
+  max-width: 44rem;
+}
+
+.foto-leer {
+  padding: 0.75rem 0;
+  color: var(--leise);
+}
+
+.foto-inhalt {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+/* Zeilen: eine Zeile je Album, durch feine Linien getrennt statt Karten in der Karte */
+.foto-liste {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.foto-liste > li {
+  border-top: 1px solid var(--rand-leise);
+}
+
+.foto-bereich .sortierliste {
+  gap: 0;
+}
+
+.foto-bereich .sortier-eintrag:not(.ist-aufgenommen, .wird-gezogen) {
+  min-height: 3rem;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-top: 1px solid var(--rand-leise);
+  border-radius: 0;
+}
+
+.foto-zeile {
+  display: grid;
+  grid-template-columns: 2.75rem minmax(0, 1fr) auto;
+  grid-template-areas:
+    "wahl info akt"
+    "form form form";
+  align-items: center;
+  column-gap: 0.5rem;
+  min-height: 3rem;
+}
+
+.foto-wahl {
+  grid-area: wahl;
+  display: grid;
+  place-items: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  cursor: pointer;
 }
 
 .foto-info {
+  grid-area: info;
   display: flex;
-  flex: 1 1 14rem;
   flex-direction: column;
   gap: 0.125rem;
   min-width: 0;
+  padding: 0.25rem 0;
 }
 
 .foto-titel {
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.foto-info .meta {
+  font-variant-numeric: tabular-nums;
 }
 
 .foto-aktionen {
+  grid-area: akt;
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  gap: 0.5rem 1.25rem;
+  gap: 0.5rem;
 }
 
-.foto-schalter {
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.25rem 0.75rem;
-  padding: 0;
+.foto-zeile .menue {
+  position: relative;
 }
 
-/* Der Text bricht nach Wörtern um, nie Zeichen für Zeichen; auf schmalen Zeilen steht er allein über dem Schalter */
-.foto-schalter-text {
-  flex: 0 1 auto;
-  min-width: 0;
-  overflow-wrap: break-word;
+.foto-zeile .menue-liste {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  z-index: 8;
+  box-shadow: var(--schatten);
 }
 
 @media (max-width: 40em) {
-  .foto-schalter-text {
-    flex-basis: 100%;
+  .foto-bereich {
+    padding: 0.75rem 0.75rem 1rem;
   }
 }
 
-.foto-zustand-feld {
-  min-width: 6.5rem;
-  font-weight: 600;
+/* Schmal: zwei Zeilen, Titel oben, Schalter und «Mehr» darunter */
+@media (max-width: 40em) {
+  .foto-zeile {
+    grid-template-columns: 2.75rem minmax(0, 1fr);
+    grid-template-areas:
+      "wahl info"
+      "wahl akt"
+      "form form";
+  }
+
+  .foto-aktionen {
+    justify-content: space-between;
+    padding-bottom: 0.25rem;
+  }
+}
+
+/* Schmal, geordnete Liste: Griff, Kästchen, Titel, Schalter, «Mehr» und Pfeile teilen sich ein Raster, damit der Titel Platz hat */
+@media (max-width: 40em) {
+  .foto-bereich .sortier-eintrag {
+    grid-template-columns: 2.75rem 2.75rem minmax(0, 1fr) auto;
+    grid-template-areas:
+      "griff wahl info knoepfe"
+      "griff wahl akt akt"
+      "form form form form";
+    row-gap: 0;
+    column-gap: 0.25rem;
+  }
+
+  .foto-bereich .sortier-knoepfe {
+    align-self: start;
+  }
+
+  .foto-bereich .sortier-griff {
+    grid-area: griff;
+  }
+
+  .foto-bereich .sortier-knoepfe {
+    grid-area: knoepfe;
+  }
+
+  .foto-bereich .sortier-inhalt,
+  .foto-bereich .sortier-inhalt > .foto-zeile {
+    display: contents;
+  }
+
+  .foto-bereich .sortier-eintrag .foto-titelform {
+    padding-left: 0;
+  }
+}
+
+/* Jahre: ein Knopf je Gruppe */
+.foto-gruppe + .foto-gruppe .foto-gruppenkopf {
+  border-top: 1px solid var(--rand-leise);
+}
+
+.foto-gruppenkopf {
+  font-size: 1rem;
+}
+
+.foto-gruppenkopf button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0 0.25rem;
+  color: var(--text);
+  background: transparent;
+  border: 0;
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+
+.foto-gruppenkopf button:hover {
+  background: var(--leiste);
+}
+
+.foto-gruppenkopf .i {
+  flex: none;
+  width: 1rem;
+  height: 1rem;
+}
+
+.foto-gruppenkopf button[aria-expanded="true"] .i {
+  transform: rotate(90deg);
+}
+
+.foto-gruppenname {
+  font-variant-numeric: tabular-nums;
+}
+
+.foto-mehr {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  padding-top: 0.75rem;
 }
 
 .foto-titelform {
-  flex-basis: 100%;
+  grid-area: form;
   max-width: 32rem;
+  padding: 0.25rem 0.5rem 1rem 2.75rem;
 }
 
 .foto-titelknoepfe {
@@ -94,4 +444,25 @@
   flex-wrap: wrap;
   gap: 0.5rem;
   margin-top: 0.75rem;
+}
+
+/* Fokus bleibt sichtbar: weder die Werkzeugleiste oben noch die Auswahlleiste unten verdeckt ihn (WCAG 2.4.11) */
+.foto-zeile :is(input, button, summary),
+.foto-gruppenkopf button,
+.foto-alle input {
+  scroll-margin-top: calc(var(--leiste-hoehe) + 9rem);
+  scroll-margin-bottom: 8rem;
+}
+
+.foto-auswahl {
+  position: sticky;
+  bottom: 1rem;
+  z-index: 12;
+  box-shadow: var(--schatten);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .foto-gruppenkopf .i {
+    transition: transform var(--dauer) var(--kurve);
+  }
 }

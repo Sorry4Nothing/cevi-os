@@ -6,7 +6,14 @@ import * as nav from "../public/admin/navigation.js";
 // Verwaltung «Website, Fotos» (#690): Anmeldung im Gerüst, Zugang nur mit dem Recht, keine Popups und kein innerHTML
 const lies = (datei: string) =>
   readFileSync(new URL(`../public/admin/${datei}`, import.meta.url), "utf8");
-const js = lies("website-fotos.js");
+// Die Seite besteht aus der Hülle (Verbindung, Konto), der Albumliste und ihrer Logik (#794)
+const js = [
+  "website-fotos.js",
+  "website-fotos-alben.js",
+  "website-fotos-logik.js",
+]
+  .map(lies)
+  .join("\n");
 
 describe("Verwaltung der Fotos", () => {
   test("steht in der Navigation unter «Website», sichtbar nur mit dem Recht", () => {
@@ -44,6 +51,7 @@ describe("Verwaltung der Fotos", () => {
       expect(js, verboten).not.toContain(verboten);
     }
     expect(js).toContain('const API = "/api/v1/admin/fotos"');
+    expect(js).toContain("/alben/sichtbarkeit");
     expect(js).not.toMatch(/["'`]https?:\/\//);
   });
 
@@ -57,6 +65,10 @@ describe("Verwaltung der Fotos", () => {
       "FLICKR_API_KEY",
       "Nicht sichtbar",
       "VERSION_KONFLIKT",
+      "FLICKR_KONTO",
+      "Keine Alben gefunden. Prüfe das Konto und die Verbindung.",
+      "Suche zurücksetzen",
+      "aria-expanded",
     ]) {
       expect(js, text).toContain(text);
     }
