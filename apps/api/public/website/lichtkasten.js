@@ -52,6 +52,7 @@
   var folge = [];
   var stelle = 0;
   var zuTimer = null;
+  var vorlader = new window.Image();
 
   function melde(name) {
     document.dispatchEvent(
@@ -129,7 +130,8 @@
     var quelle = link.querySelector("img");
     var figur = link.closest("figure");
     var unterschrift = figur && figur.querySelector("figcaption");
-    var alt = quelle ? quelle.alt : "";
+    // Ein dekoratives Bild im Link (alt="") bekommt den Namen des Links, damit das grosse Bild einen hat («Foto 3 von 393»)
+    var alt = (quelle && quelle.alt) || link.getAttribute("aria-label") || "";
     if (bild.getAttribute("src") !== link.getAttribute("href")) {
       bild.setAttribute("data-laedt", "");
       bild.alt = alt;
@@ -151,6 +153,10 @@
       ? "Bild " + (stelle + 1) + " von " + folge.length
       : "";
     zurueck.parentNode.hidden = !mehrere;
+    // Das nächste Bild schon holen, damit das Blättern nicht wartet
+    if (mehrere) {
+      vorlader.src = folge[(stelle + 1) % folge.length].getAttribute("href");
+    }
   }
 
   function oeffne(link) {
@@ -159,7 +165,13 @@
     dialog.removeAttribute("data-zu");
     // Die Folge: alle Bilder desselben Karussells oder derselben Galerie, sonst das Bild allein
     var gruppe = link.closest(
-      ".karussell, .galerie, .bildraster, .bildstreifen",
+      ".karussell, .galerie, .bildraster, .bildstreifen, .fotos-raster",
+    );
+    // Hat die Gruppe einen Namen (aria-label), trägt ihn der Dialog: «Fotos im Album Herbstlager: Grossansicht»
+    var name = gruppe && gruppe.getAttribute("aria-label");
+    dialog.setAttribute(
+      "aria-label",
+      name ? name + ": Grossansicht" : "Bild gross",
     );
     folge = gruppe
       ? Array.prototype.slice.call(gruppe.querySelectorAll("a.bildgross"))
