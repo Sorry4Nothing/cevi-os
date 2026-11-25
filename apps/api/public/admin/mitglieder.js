@@ -2,7 +2,15 @@
 // Karten oder Liste (Umschalter, die Wahl bleibt im Browser), nach Rolle oder Stufe in Abschnitte gegliedert, dazu die ruhigen Marken für Konto und Zugang.
 // Vorlagen (nur Aufbau, Abstände, Zustände; eigenes HTML und CSS): «team-members» (Abschnittskopf mit Zahl, Kopfzeile der Liste, Zeile mit Bild, Name und Rolle), «profile-card» (Bild gross, Name, Kennzahlen unter einer Linie) und «view-toggle-toolbar» (Umschalter mit gleitendem Schieber).
 // Die Seiten bauen den Inhalt von Karte und Zeile selbst; hier steht, was sie teilen. Keine Abfragen: alles kommt aus den schon geladenen Daten.
-import { avatar, el, icon, neueId, tabelle } from "./dom.js";
+import {
+  avatar,
+  el,
+  icon,
+  neueId,
+  tabelle,
+  rufname,
+  vollerNameZusatz,
+} from "./dom.js";
 import { sk } from "./lader.js";
 
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -186,23 +194,26 @@ export function chipListe(chips, { max = 3, klasse = "" } = {}) {
   return el("ul", { class: `chips ${klasse}`.trim() }, sichtbar, mehr);
 }
 
-// Bild oder Initialen mit Name und Cevi-Name; «gross» ist das Bild der Karte, sonst das der Zeile
+// Bild oder Initialen mit Rufname (Cevi-Name, sonst Vorname) und darunter dem vollen Namen (#815); «gross» ist das Bild der Karte, sonst das der Zeile
 export function mitgliedKopf({
   name,
   ceviName,
+  vorname,
   bildUrl,
   du,
   gross = false,
   ton = "hell",
   zusatz,
 }) {
+  const ruf = rufname({ name, ceviName, vorname });
+  const voll = vollerNameZusatz({ name, ceviName, vorname });
   return el(
     "div",
     { class: gross ? "mg-wer mg-wer--gross" : "mg-wer" },
     el(
       "span",
       { class: `mg-bild mg-bild--${ton}` },
-      avatar(name, { hell: true, bildUrl }),
+      avatar(ruf, { hell: true, bildUrl }),
     ),
     el(
       "div",
@@ -210,10 +221,10 @@ export function mitgliedKopf({
       el(
         "span",
         { class: "mg-titel" },
-        name,
+        ruf,
         du && el("span", { class: "mg-du" }, " (du)"),
       ),
-      ceviName && el("span", { class: "mg-zweit" }, ceviName),
+      voll && el("span", { class: "mg-zweit" }, voll),
       zusatz && el("div", { class: "mg-zustand" }, zusatz),
     ),
   );
