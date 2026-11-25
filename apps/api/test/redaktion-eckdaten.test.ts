@@ -383,7 +383,6 @@ describe("Programm aus den gepflegten Feldern (#361)", () => {
         ende: schema.programm.ende,
         ganztaegig: schema.programm.ganztaegig,
         tagVon: schema.programm.tagVon,
-        sichtbarkeit: schema.programm.sichtbarkeit,
         googleEventId: schema.programm.googleEventId,
       })
       .from(schema.programm)
@@ -393,7 +392,7 @@ describe("Programm aus den gepflegten Feldern (#361)", () => {
       )
       .where(eq(schema.programmTag.tagId, stufeId));
 
-  test("ohne Kalender entsteht das Programm beim Speichern: Zeiten in Zürich, für Eltern sichtbar, der Stufe zugeordnet; ein zweites Speichern legt kein zweites an", async () => {
+  test("ohne Kalender entsteht das Programm beim Speichern: Zeiten in Zürich, der Stufe zugeordnet; ein zweites Speichern legt kein zweites an", async () => {
     const s = await neueStufe("Programm");
     // 10. April 2027: Sommerzeit, 14:00 und 17:00 Uhr in Zürich sind 12:00 und 15:00 UTC
     const tag = "2027-04-10";
@@ -406,7 +405,6 @@ describe("Programm aus den gepflegten Feldern (#361)", () => {
       ende: new Date("2027-04-10T15:00:00Z"),
       ganztaegig: false,
       tagVon: null,
-      sichtbarkeit: "eltern",
       googleEventId: `web:${s.stufeId}:${tag}`,
     };
     expect(await programmeVon(s.stufeId)).toEqual([erwartet]);
@@ -482,7 +480,6 @@ describe("App-Vertrag bleibt", () => {
     const tag = tagIn(14);
     const p = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       tagVon: tag,
     });

@@ -8,7 +8,7 @@ import { TERMIN_BEGINN } from "../termine/sicht.js";
 // Was die öffentliche Seite zeigt:
 // - ohne Gruppe: die kommenden Termine von Anlässen mit Sichtbarkeit «öffentlich»
 // - mit Gruppe: die kommenden Termine, die an der Gruppe hängen (dieselben Daten zeigt die Stufenseite schon über die Samstagsangaben der Stufen)
-// Beides nur für Termine mit Sichtbarkeit «eltern» und Status «aktiv»; «intern» und «leitende» erscheinen nie. Ein Termin steht in der Datei, bis der Abgleich das nächste Mal läuft (beim Veröffentlichen, bei Ereignissen, alle 10 Minuten).
+// Beides nur für Termine mit Status «aktiv». Ein Termin steht in der Datei, bis der Abgleich das nächste Mal läuft (beim Veröffentlichen, bei Ereignissen, alle 10 Minuten).
 
 type Zeile = {
   id: string;
@@ -65,7 +65,7 @@ export function planFenster(jetzt = new Date()) {
   };
 }
 
-// Was ohne Anmeldung im Netz steht: aktive Termine mit Sichtbarkeit «eltern»; ein Termin eines Anlasses nur, wenn der Anlass «öffentlich» ist. Nie «intern», «leitende», Abgesagtes, «prüfen» oder eine andere Abteilung.
+// Was ohne Anmeldung im Netz steht: aktive Termine; ein Termin eines Anlasses nur, wenn der Anlass «öffentlich» ist. Nie Abgesagtes, «prüfen» oder eine andere Abteilung.
 // Eine Abfrage je Lauf des Abgleichs, nie je Besuch. Die Felder sind dieselben wie in der Termin-Liste: Titel, Tage, Zeiten, Ort, Namen der Stufen; keine Personen, keine Anmeldezahlen, keine Notizen
 export async function ladeDatenplan(
   db: Db,
@@ -77,7 +77,7 @@ export async function ladeDatenplan(
     select ${FELDER}, null::uuid as pool
     from programm
     left join anlass on anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id
-    where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv' and programm.sichtbarkeit = 'eltern'
+    where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv'
       and (anlass.id is null or anlass.sichtbarkeit = 'oeffentlich')
       and case when programm.ganztaegig
         then programm.tag_bis >= ${von}::date and programm.tag_von <= ${bis}::date
@@ -116,7 +116,7 @@ export const ladeTerminlisten: Datenquelle = async (
       select ${FELDER}, null::uuid as pool
       from programm
       join anlass on anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id
-      where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv' and programm.sichtbarkeit = 'eltern'
+      where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv'
         and anlass.sichtbarkeit = 'oeffentlich' and ${KOMMEND}
       order by ${TERMIN_BEGINN}, programm.id
       limit ${mehr}`);
@@ -139,7 +139,7 @@ export const ladeTerminlisten: Datenquelle = async (
         from programm
         join programm_tag on programm_tag.programm_id = programm.id and programm_tag.tag_id in (${ids})
         left join anlass on anlass.programm_id = programm.id and anlass.abteilung_id = programm.abteilung_id
-        where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv' and programm.sichtbarkeit = 'eltern'
+        where programm.abteilung_id = ${abteilungId} and programm.status = 'aktiv'
           and ${KOMMEND}
       ) t where rn <= ${mehr}
       order by pool, rn`);
