@@ -439,7 +439,6 @@ describe("GET /api/v1/personen/:id/bild: wer es sieht", () => {
     expect((await holen(fremdeSl, sl.id)).status).toBe(404);
     const programm = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
     });
     const anmelden = (status: "ja" | "nein") =>
@@ -491,7 +490,6 @@ describe("GET /api/v1/personen/:id/bild: wer es sieht", () => {
     }
     const programm = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "leitende",
       stufen: [welt.stufeAId],
     });
     const bildUrlVon = async (betrachter: PersonaKonto) => {

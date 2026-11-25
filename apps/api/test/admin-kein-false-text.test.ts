@@ -384,7 +384,9 @@ describe("Seite einer globalen Rolle", () => {
   test("enthält weder «false» noch «null» noch «undefined»", async () => {
     for (const art of ["global", "gruppe"] as const) {
       const text = texteVon(await zeichne(art));
-      expect(text, art).toContain("Personen zuordnen");
+      // Funktionen (globale Rollen) vergibt man im Blatt der Person (#801): Die Rollenseite zeigt nur die Liste
+      if (art === "gruppe") expect(text, art).toContain("Personen zuordnen");
+      else expect(text, art).not.toContain("Personen zuordnen");
       expect(text, art).not.toMatch(/\b(?:false|null|undefined)\b/);
     }
   });

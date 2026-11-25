@@ -381,7 +381,6 @@ describe("Bezug auf ein Programm", () => {
     const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
     const programm = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
       stufen: [welt.stufeAId],
       titel: "Waldtag",
     });
@@ -400,11 +399,10 @@ describe("Bezug auf ein Programm", () => {
       ).toEqual({ id: programm.id, titel: "Waldtag" });
     }
 
-    // Wird das Programm später intern, verschwindet sein Titel aus dem Chat
+    // Verliert das Programm den Stufen-Tag, verschwindet sein Titel aus dem Chat
     await db
-      .update(schema.programm)
-      .set({ sichtbarkeit: "intern" })
-      .where(eq(schema.programm.id, programm.id));
+      .delete(schema.programmTag)
+      .where(eq(schema.programmTag.programmId, programm.id));
     const { nachrichten } = (await (
       await lies(eltern, welt.gruppenchatAId)
     ).json()) as { nachrichten: Nachricht[] };
@@ -413,27 +411,15 @@ describe("Bezug auf ein Programm", () => {
     ).toBeNull();
   });
 
-  test("interne und Leitenden-Programme, Programme anderer Stufen und Abteilungen und unbekannte IDs sind 400", async () => {
+  test("Programme anderer Stufen und Abteilungen und unbekannte IDs sind 400", async () => {
     const eltern = await person("elternA");
     const programme = {
-      intern: await legeProgrammAn(db, {
-        abteilungId: welt.testabteilungId,
-        sichtbarkeit: "intern",
-        stufen: [welt.stufeAId],
-      }),
-      leitende: await legeProgrammAn(db, {
-        abteilungId: welt.testabteilungId,
-        sichtbarkeit: "leitende",
-        stufen: [welt.stufeAId],
-      }),
       andereStufe: await legeProgrammAn(db, {
         abteilungId: welt.testabteilungId,
-        sichtbarkeit: "eltern",
         stufen: [welt.stufeBId],
       }),
       fremdeAbteilung: await legeProgrammAn(db, {
         abteilungId: welt.demoAbteilungId,
-        sichtbarkeit: "eltern",
         stufen: [welt.demoStufeId],
       }),
     };
@@ -456,7 +442,6 @@ describe("Bezug auf ein Programm", () => {
     const eltern = await person("elternA");
     const p = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "eltern",
     });
     const antwort = await sende(eltern, welt.gruppenchatAId, {
       text: "Hallo",
@@ -892,8 +877,7 @@ describe("Einzelchat", () => {
     const id = await idVon(await direkt(eltern, { stufeId: welt.stufeAId }));
     const programm = await legeProgrammAn(db, {
       abteilungId: welt.testabteilungId,
-      sichtbarkeit: "intern",
-      stufen: [welt.stufeAId],
+      stufen: [welt.stufeBId],
     });
     expect(
       (await sende(eltern, id, { text: "Hallo", programmId: programm.id }))

@@ -99,7 +99,6 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
           eq(programm.id, programmId),
           eq(programm.abteilungId, person.abteilungId),
           eq(programm.status, "aktiv"),
-          inArray(programm.sichtbarkeit, ["leitende", "eltern"]),
         ),
       );
     if (!zeile) throw new HTTPException(404);
@@ -159,7 +158,6 @@ export function erstelleStufenRouten({ db }: { db: Db }) {
               and(
                 eq(programm.abteilungId, person.abteilungId),
                 eq(programm.status, "aktiv"),
-                inArray(programm.sichtbarkeit, ["leitende", "eltern"]),
                 vergangen
                   ? sql`${programmBeginn} <= now()`
                   : sql`${programmBeginn} > now()`,
