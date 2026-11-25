@@ -141,12 +141,12 @@ describe("POST /api/v1/admin/personen", () => {
     expect(angelegt.startpasswort).toMatch(STARTPASSWORT_FORM);
 
     const person = await userZeile(angelegt.id);
-    // Quelle ist die Tabelle, role der Spiegel für den Übergang (#720)
+    // Quelle ist die Tabelle; role bleibt «user» (#784)
     expect(await istInTabelle(angelegt.id)).toBe(true);
     expect(person).toMatchObject({
       name: "Vreni Muster",
       username: roh.toLowerCase(),
-      role: "admin",
+      role: "user",
       abteilungId: welt.testabteilungId,
       mussPasswortAendern: true,
       fehlversuche: 0,
@@ -496,7 +496,7 @@ describe("PATCH /api/v1/admin/personen/:id", () => {
     expect(antwort.status).toBe(204);
     expect(await userZeile(angelegt.id)).toMatchObject({
       name: "Neues Name",
-      role: "admin",
+      role: "user",
     });
     expect(await istInTabelle(angelegt.id)).toBe(true);
     expect(
@@ -746,7 +746,7 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
     expect(await antwort.json()).toMatchObject({
       code: "LETZTE_ABTEILUNGSLEITUNG",
     });
-    expect((await userZeile(ersterAdmin.id!)).role).toBe("admin");
+    expect((await userZeile(ersterAdmin.id!)).role).toBe("user");
     expect(await istInTabelle(ersterAdmin.id!)).toBe(true);
   });
 

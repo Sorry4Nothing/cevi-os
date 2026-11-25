@@ -21,6 +21,8 @@ import {
   type AktivitaetVariablen,
 } from "./aktivitaet-middleware.js";
 import { erstelleAuthRouten, type erstelleAuth } from "./auth.js";
+import type { AppNachweisDienst } from "./app-nachweis/dienst.js";
+import { erstelleAppNachweisRouten } from "./routes/app-nachweis.js";
 import type { CeviDbDienst } from "./cevi-db/dienst.js";
 import { erstelleCeviDbRouten } from "./routes/cevi-db.js";
 import { erstelleAdminCeviDbRouten } from "./routes/admin/cevi-db.js";
@@ -145,6 +147,7 @@ export function erstelleApp({
   websiteKontakt,
   aktivitaet,
   fotos,
+  appNachweis,
 }: {
   appMinVersion: string;
   sql: Sql;
@@ -181,6 +184,8 @@ export function erstelleApp({
   aktivitaet?: AktivitaetSenke;
   // Quelle der Fotos (#690), heute Flickr (fotos/flickr.ts); ohne sie antworten die Foto-Routen mit «nicht eingerichtet». Die Tests spritzen eine Attrappe ein
   fotos?: FotoQuelle;
+  // App-Nachweis (#785): ohne Angabe (APP_NACHWEIS=aus) gibt es die Routen unter /api/v1/app/nachweis nicht (404); die Anmeldung bekommt denselben Dienst in erstelleAuth
+  appNachweis?: AppNachweisDienst;
   // Adresse, Telefon und E-Mail der Abteilung für die Vorschau im Editor (#570); der Abgleich bekommt dieselben Werte in server.ts
   websiteKontakt?: { adresse?: string; telefon?: string; email?: string };
   // Ausgeschrieben statt aus seiten.ts importiert: Schon ein Typ-Import zöge node:fs in dieses Programm
@@ -326,6 +331,11 @@ export function erstelleApp({
       .route(
         "/",
         erstelleOeffentlicheMedienRoute({ db, speicher: medienspeicher }),
+      )
+      // App-Nachweis (#785): ohne Sitzung, denn mit ihm holt die App den Beleg für ihre Anmeldung
+      .route(
+        "/api/v1/app/nachweis",
+        erstelleAppNachweisRouten({ dienst: appNachweis }),
       )
       // Unbekannte Pfade unter /api/v1 antworten ohne Sitzung 401, mit Sitzung 404
       .use("/api/v1/*", personAusSitzung(auth, db))

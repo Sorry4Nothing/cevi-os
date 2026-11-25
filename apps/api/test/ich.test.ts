@@ -87,6 +87,8 @@ describe("GET /api/v1/ich", () => {
       abteilungsleitung: false,
       entwickler: false,
       zweiterFaktor: false,
+      // Anmeldung der Tests ohne Origin der App (#785)
+      clientArt: "web",
       mussPasswortAendern: false,
       datenschutzGelesenAm: null,
       telefon: null,

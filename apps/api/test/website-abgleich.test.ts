@@ -358,7 +358,8 @@ describe("Was ausgeliefert wird", () => {
     expect(await lies("index.html")).toContain(
       `href="/website/zeichen-32.png?v=${zeichenVersion(new TextEncoder().encode("favicon.ico:test"))}"`,
     );
-  });
+    // Hunderte Dateizugriffe nacheinander: unter Last (parallele Testdateien, CI) reichen die 5 s der Vorgabe nicht
+  }, 30_000);
 
   test("Favicon (#558): Dateien an der Wurzel und unter website/, Einträge auf jeder Seite; nur ein öffentliches Bild der Abteilung ist Quelle", async () => {
     await seite({ adresse: "start", inhalt: dok("Start", text("Hallo")) });

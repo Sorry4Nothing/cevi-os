@@ -45,6 +45,7 @@ test("liest die Werte samt festen Vorgaben und übergeht andere Variablen", () =
     VERANTWORTLICHE_STELLE: "Abteilungsleitung Cevi Stäfa-Hombi",
     VERANTWORTLICHE_ADRESSE: "Oetwilerstrasse 35, 8634 Hombrechtikon",
     KONTAKT_EMAIL: "cevi-al@cevi-staefa-hombi.ch",
+    APP_NACHWEIS: "aus",
   });
 });
 
@@ -374,5 +375,101 @@ describe("Flickr", () => {
     });
     expect(produktion).toContain("FLICKR_API_BASIS");
     expect(produktion).toContain("FLICKR_BILD_BASIS");
+  });
+});
+
+describe("APP_NACHWEIS (#785)", () => {
+  const ANDROID = {
+    ANDROID_PAKETNAME: "ch.example.cevios",
+    ANDROID_ZERTIFIKAT_SHA256: `${"AB:".repeat(31)}AB, ${"cd".repeat(32)}`,
+    ANDROID_NACHWEIS_DIENSTKONTO_DATEI: "/run/secrets/play-integrity.json",
+  };
+  const IOS = {
+    IOS_TEAM_ID: "ABCDE12345",
+    IOS_BUNDLE_ID: "ch.example.cevios",
+    IOS_NACHWEIS_UMGEBUNG: "production",
+  };
+
+  test("ohne Angabe ist der Nachweis aus und braucht nichts; leere Zeilen aus deploy/.env zählen als nicht gesetzt", () => {
+    expect(ladeKonfiguration(GUELTIG).APP_NACHWEIS).toBe("aus");
+    expect(
+      ladeKonfiguration({
+        ...GUELTIG,
+        APP_NACHWEIS: "",
+        ANDROID_PAKETNAME: "",
+        IOS_TEAM_ID: "",
+      }).APP_NACHWEIS,
+    ).toBe("aus");
+  });
+
+  test("pruefen und pflicht verlangen beide Plattformen vollständig", () => {
+    for (const modus of ["pruefen", "pflicht"]) {
+      const k = ladeKonfiguration({
+        ...GUELTIG,
+        APP_NACHWEIS: modus,
+        ...ANDROID,
+        ...IOS,
+      });
+      expect(k.APP_NACHWEIS).toBe(modus);
+      // Fingerabdrücke mit und ohne Doppelpunkte, klein, als Liste
+      expect(k.ANDROID_ZERTIFIKAT_SHA256).toEqual([
+        "ab".repeat(32),
+        "cd".repeat(32),
+      ]);
+      expect(k.IOS_NACHWEIS_UMGEBUNG).toBe("production");
+      const ohneIos = meldung({ ...GUELTIG, APP_NACHWEIS: modus, ...ANDROID });
+      expect(ohneIos).toContain("IOS_TEAM_ID");
+      expect(ohneIos).toContain("IOS_BUNDLE_ID");
+      expect(ohneIos).toContain("IOS_NACHWEIS_UMGEBUNG");
+      expect(ohneIos).not.toContain("ANDROID_");
+      const ohneAndroid = meldung({ ...GUELTIG, APP_NACHWEIS: modus, ...IOS });
+      expect(ohneAndroid).toContain("ANDROID_PAKETNAME");
+      expect(ohneAndroid).toContain("ANDROID_NACHWEIS_DIENSTKONTO_DATEI");
+    }
+  });
+
+  test("auch bei «aus» gehören die Angaben einer Plattform zusammen", () => {
+    const m = meldung({
+      ...GUELTIG,
+      ANDROID_PAKETNAME: ANDROID.ANDROID_PAKETNAME,
+    });
+    expect(m).toContain("ANDROID_ZERTIFIKAT_SHA256");
+    expect(m).toContain("ANDROID_NACHWEIS_DIENSTKONTO_DATEI");
+    expect(
+      ladeKonfiguration({ ...GUELTIG, ...ANDROID, ...IOS }).APP_NACHWEIS,
+    ).toBe("aus");
+  });
+
+  test("ungültige Werte werden mit Namen genannt, nie mit Wert", () => {
+    for (const [name, wert] of [
+      ["APP_NACHWEIS", "geheim-ein"],
+      ["ANDROID_PAKETNAME", "geheim paket"],
+      ["ANDROID_ZERTIFIKAT_SHA256", "geheim-zu-kurz"],
+      ["ANDROID_NACHWEIS_MIN_GERAETE", "geheim-siegel"],
+      ["IOS_TEAM_ID", "geheim"],
+      ["IOS_NACHWEIS_UMGEBUNG", "geheim-test"],
+    ] as const) {
+      const m = meldung({
+        ...GUELTIG,
+        APP_NACHWEIS: "pruefen",
+        ...ANDROID,
+        ...IOS,
+        [name]: wert,
+      });
+      expect(m, name).toContain(name);
+      expect(m, name).not.toContain("geheim");
+    }
+  });
+
+  test("das geforderte Gerätesiegel ist wählbar", () => {
+    expect(
+      ladeKonfiguration({
+        ...GUELTIG,
+        APP_NACHWEIS: "pflicht",
+        ...ANDROID,
+        ...IOS,
+        ANDROID_NACHWEIS_MIN_GERAETE: "MEETS_STRONG_INTEGRITY",
+      }).ANDROID_NACHWEIS_MIN_GERAETE,
+    ).toBe("MEETS_STRONG_INTEGRITY");
   });
 });

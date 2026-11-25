@@ -1042,6 +1042,19 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "angelegt",
     gruppe: "angelegt",
   },
+  "POST /api/v1/app/nachweis": {
+    titel: "Nachweis der App prüfen",
+    objekt: "Nachweis der App",
+    aktion: "geprüft",
+    gruppe: "status",
+  },
+  "POST /api/v1/app/nachweis/challenge": {
+    titel: "Herausforderung für den Nachweis der App holen",
+    objekt: "Herausforderung für den Nachweis der App",
+    aktion: "ausgegeben",
+    gruppe: "status",
+    nicht: "sitzung",
+  },
   "POST /api/v1/chats/:p/nachrichten": {
     titel: "Nachricht in einen Chat senden",
     objekt: "Chat-Nachricht",

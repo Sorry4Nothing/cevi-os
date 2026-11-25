@@ -107,6 +107,12 @@ const AUSNAHMEN = {
   ],
   "POST /api/auth/sign-in/username": ["Anmeldung", "durchgeführt", "status"],
   "POST /api/auth/sign-out": ["Abmeldung", "durchgeführt", "status"],
+  "POST /api/v1/app/nachweis/challenge": [
+    "Herausforderung für den Nachweis der App",
+    "ausgegeben",
+    "status",
+  ],
+  "POST /api/v1/app/nachweis": ["Nachweis der App", "geprüft", "status"],
   "POST /api/auth/two-factor/verify-totp": [
     "Zweiter Faktor",
     "geprüft",
@@ -877,6 +883,7 @@ const NICHT_ERFASST = {
   sitzung: [
     "POST /api/auth/sign-in/username",
     "POST /api/auth/sign-out",
+    "POST /api/v1/app/nachweis/challenge",
     "POST /api/auth/two-factor/verify-totp",
     "POST /api/auth/two-factor/verify-backup-code",
   ],

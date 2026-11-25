@@ -565,7 +565,6 @@ export function erstellePersonenRouten({
               name: string;
               ceviName: string | null;
               telefon: string | null;
-              role: string;
             }> = {};
             // Nur geänderte Schlüssel; ein No-op des Rollen-Editors schreibt keinen Eintrag
             const details: Record<string, unknown> = {};
@@ -588,8 +587,6 @@ export function erstellePersonenRouten({
               }
             }
             if (aenderung.abteilungsleitung !== undefined) {
-              // Die Tabelle ist die Quelle, user.role der Spiegel bis Teil 10 (#720, Epic #714)
-              felder.role = aenderung.abteilungsleitung ? "admin" : "user";
               const bisherAbteilungsleitung = await istAbteilungsleitung(
                 tx,
                 id,

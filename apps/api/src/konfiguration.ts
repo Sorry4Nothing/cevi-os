@@ -36,13 +36,42 @@ const FLICKR_TOKEN = [
   "FLICKR_OAUTH_TOKEN_SECRET",
   "FLICKR_KONTO",
 ] as const;
+// App-Nachweis (#785): Je Plattform gehören alle Angaben zusammen, und ausser im Modus «aus» braucht es beide Plattformen (die App gibt es für Android und iOS). Das Dienstkonto steht nur als Datei, nie in der Umgebung
+const ANDROID_NACHWEIS = [
+  "ANDROID_PAKETNAME",
+  "ANDROID_ZERTIFIKAT_SHA256",
+  "ANDROID_NACHWEIS_DIENSTKONTO_DATEI",
+] as const;
+const IOS_NACHWEIS = [
+  "IOS_TEAM_ID",
+  "IOS_BUNDLE_ID",
+  "IOS_NACHWEIS_UMGEBUNG",
+] as const;
 const GRUPPEN: readonly (readonly (keyof z.infer<typeof schema>)[])[] = [
   MEDIEN_PFLICHT,
   WEBSITE_PFLICHT,
   FLICKR_SCHLUESSEL,
   FLICKR_TOKEN,
   CEVI_DB_PFLICHT,
+  ANDROID_NACHWEIS,
+  IOS_NACHWEIS,
 ];
+
+// Fingerabdrücke SHA-256 des App-Zertifikats, wie die Play Console sie zeigt (AB:CD:…) oder ohne Doppelpunkte; getrennt durch Komma oder Leerraum. Gespeichert wird kleingeschrieben, ohne Doppelpunkte
+const fingerabdruecke = z
+  .string()
+  .transform((t) =>
+    t
+      .split(/[\s,;]+/)
+      .filter(Boolean)
+      .map((f) => f.replaceAll(":", "").toLowerCase()),
+  )
+  .pipe(
+    z
+      .array(z.string().regex(/^[0-9a-f]{64}$/))
+      .min(1)
+      .max(10),
+  );
 // Nur die Herkunft, ohne Pfad und Schrägstrich am Ende: Daraus entstehen canonical und Sitemap
 const basisUrl = (protokoll: RegExp) =>
   freiwillig(
@@ -119,6 +148,36 @@ const schema = z.object({
   ),
   // Kennung des Kontos, dem das Token gehört (das Skript flickr-token.mjs nennt sie), zum Beispiel 12345678@N00
   FLICKR_KONTO: freiwillig(z.string().regex(/^[0-9]{1,20}@N[0-9]{2}$/)),
+  // App-Nachweis (#785): «aus» (Vorgabe) erkennt die App wie bisher am Header Origin; «pruefen» prüft den Nachweis des Betriebssystems und meldet das Ergebnis im Log, ohne etwas abzulehnen; «pflicht» lässt die Anmeldung der App nur mit gültigem Nachweis zu. Ausser bei «aus» sind beide Plattformen Pflicht (Anleitung: docs/betrieb.md)
+  APP_NACHWEIS: z.preprocess(
+    (wert) => (wert === "" ? undefined : wert),
+    z.enum(["aus", "pruefen", "pflicht"]).default("aus"),
+  ),
+  // Android (Google Play Integrity): Paketname der App, erlaubte SHA-256-Fingerabdrücke des App-Zertifikats (Liste) und die Schlüsseldatei des Google-Cloud-Dienstkontos, das Tokens dekodieren darf (nur als Datei, nie im Repo). ANDROID_NACHWEIS_MIN_GERAETE: das geforderte Gerätesiegel, Vorgabe MEETS_DEVICE_INTEGRITY
+  ANDROID_PAKETNAME: freiwillig(
+    z
+      .string()
+      .regex(/^[A-Za-z][A-Za-z0-9_]*(\.[A-Za-z][A-Za-z0-9_]*)+$/)
+      .max(150),
+  ),
+  ANDROID_ZERTIFIKAT_SHA256: freiwillig(fingerabdruecke),
+  ANDROID_NACHWEIS_DIENSTKONTO_DATEI: freiwillig(z.string().min(1)),
+  ANDROID_NACHWEIS_MIN_GERAETE: freiwillig(
+    z.enum([
+      "MEETS_BASIC_INTEGRITY",
+      "MEETS_DEVICE_INTEGRITY",
+      "MEETS_STRONG_INTEGRITY",
+    ]),
+  ),
+  // iOS (Apple App Attest): Team-ID und Bundle-ID der App und die Umgebung des Schlüssels (production für den App Store und TestFlight, development für Debug-Builds)
+  IOS_TEAM_ID: freiwillig(z.string().regex(/^[A-Z0-9]{10}$/)),
+  IOS_BUNDLE_ID: freiwillig(
+    z
+      .string()
+      .regex(/^[A-Za-z0-9-]+(\.[A-Za-z0-9-]+)+$/)
+      .max(155),
+  ),
+  IOS_NACHWEIS_UMGEBUNG: freiwillig(z.enum(["production", "development"])),
   // Nur für Tests und lokale Läufe mit einer Attrappe von Flickr; in Produktion verboten (unten): Dort sind die Adressen von Flickr fest im Code
   FLICKR_API_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
   FLICKR_BILD_BASIS: freiwillig(z.url({ protocol: /^https?$/ })),
@@ -156,6 +215,12 @@ export function ladeKonfiguration(env: Record<string, string | undefined>) {
         for (const n of gruppe) {
           if (ergebnis.data[n] === undefined) namen.add(n);
         }
+      }
+    }
+    // Ausser im Modus «aus» braucht der Nachweis beide Plattformen
+    if (ergebnis.data.APP_NACHWEIS !== "aus") {
+      for (const n of [...ANDROID_NACHWEIS, ...IOS_NACHWEIS]) {
+        if (ergebnis.data[n] === undefined) namen.add(n);
       }
     }
     // Ein Token ohne Schlüssel und Secret der App kann nichts signieren

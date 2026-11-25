@@ -27,6 +27,10 @@ export function erstellePushTokenRouten({ db }: { db: Db }) {
       const sitzungId = c.get("sitzungId");
       const { token, plattform } = c.req.valid("json");
       await db.transaction(async (tx) => {
+        // Token und Sitzung sind beide eindeutig, der Upsert fängt nur die Sitzung: Ohne Sperre verletzten zwei gleichzeitige Registrierungen desselben Tokens die andere Eindeutigkeit mit 23505 (500)
+        await tx.execute(
+          sql`select pg_advisory_xact_lock(hashtextextended(${`push-token ${token}`}, 0))`,
+        );
         // Geteiltes Handy: Dasselbe Token einer anderen Sitzung zieht zur aktuellen um
         await tx
           .delete(pushToken)

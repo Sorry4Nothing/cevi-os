@@ -116,6 +116,7 @@ export const BEREICHE = {
   import: "Import",
   system: "System",
   anmeldung: "Anmeldung",
+  app: "App-Nachweis",
   ich: "Mein Konto",
   admin: "Verwaltung",
   sonstiges: "Sonstiges",

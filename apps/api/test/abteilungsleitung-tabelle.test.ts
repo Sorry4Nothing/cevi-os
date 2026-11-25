@@ -26,7 +26,7 @@ import {
   type Welt,
 } from "./hilfen/personas.js";
 
-// Die Abteilungsleitung steht in abteilungsleitung_person; user.role ist nur noch der Spiegel (#720)
+// Die Abteilungsleitung steht in abteilungsleitung_person; user.role ist seit #784 immer «user» und gilt nirgends (#720)
 bereiteAuthTestsVor();
 
 const sql = postgres(API_URL);
@@ -63,28 +63,36 @@ const tabelle = (id: string) =>
     .select()
     .from(schema.abteilungsleitungPerson)
     .where(eq(schema.abteilungsleitungPerson.userId, id));
-const setzeRole = (id: string, role: string) =>
-  db.update(schema.user).set({ role }).where(eq(schema.user.id, id));
+const rolleVon = async (id: string) =>
+  (
+    await db
+      .select({ role: schema.user.role })
+      .from(schema.user)
+      .where(eq(schema.user.id, id))
+  )[0].role;
 
 const aktiveIds = async (abteilungId: string) =>
   (await aktiveVerwalter(db, abteilungId)).map((v) => v.id);
 
 describe("Quelle der Abteilungsleitung", () => {
-  test("die Fabrik legt Tabellenzeile und Spiegel an; die Zeile genügt, role ist ohne Wirkung", async () => {
+  test("die Fabrik legt die Tabellenzeile an; sie genügt, role bleibt «user»", async () => {
     const al = await legePersonaAn(welt, "admin");
     expect(await tabelle(al.id!)).toHaveLength(1);
     expect(await ichAdmin(al)).toBe(true);
-    // Ohne Spiegel bleibt sie Abteilungsleitung
-    await setzeRole(al.id!, "user");
-    expect(await ichAdmin(al)).toBe(true);
+    expect(await rolleVon(al.id!)).toBe("user");
     expect(
       (await ladePerson(db, welt.testabteilungId, al.id!))?.abteilungsleitung,
     ).toBe(true);
   });
 
-  test("role = 'admin' ohne Zeile in der Tabelle macht nicht zur Abteilungsleitung", async () => {
+  test("die Datenbank lehnt role = 'admin' ab (CHECK user_role_nur_user), ohne Zeile in der Tabelle gibt es keine Abteilungsleitung", async () => {
     const konto = await legePersonaAn(welt, "slA");
-    await setzeRole(konto.id!, "admin");
+    await expect(
+      db
+        .update(schema.user)
+        .set({ role: "admin" })
+        .where(eq(schema.user.id, konto.id!)),
+    ).rejects.toHaveProperty("cause.constraint_name", "user_role_nur_user");
     expect(await ichAdmin(konto)).toBe(false);
     expect(
       (await ladePerson(db, welt.testabteilungId, konto.id!))
@@ -110,7 +118,7 @@ describe("Quelle der Abteilungsleitung", () => {
   });
 });
 
-describe("PATCH /api/v1/admin/personen/:id schreibt Tabelle und Spiegel", () => {
+describe("PATCH /api/v1/admin/personen/:id schreibt die Tabelle, role bleibt «user»", () => {
   test("Abteilungsleitung vergeben und nehmen", async () => {
     // Eigene Welt: In einer Abteilung mit einer zweiten Abteilungsleitung ist das Zurückstufen erlaubt
     const eigene = await erstelleWelt(db, auth);
@@ -125,19 +133,11 @@ describe("PATCH /api/v1/admin/personen/:id schreibt Tabelle und Spiegel", () => 
 
     expect((await patch(true)).status).toBe(204);
     expect(await tabelle(ziel.id!)).toHaveLength(1);
-    expect(
-      (
-        await db.select().from(schema.user).where(eq(schema.user.id, ziel.id!))
-      )[0].role,
-    ).toBe("admin");
+    expect(await rolleVon(ziel.id!)).toBe("user");
 
     expect((await patch(false)).status).toBe(204);
     expect(await tabelle(ziel.id!)).toEqual([]);
-    expect(
-      (
-        await db.select().from(schema.user).where(eq(schema.user.id, ziel.id!))
-      )[0].role,
-    ).toBe("user");
+    expect(await rolleVon(ziel.id!)).toBe("user");
 
     // Wieder vergeben: eine zweite Zeile derselben Person gäbe es nicht
     expect((await patch(true)).status).toBe(204);
@@ -145,12 +145,11 @@ describe("PATCH /api/v1/admin/personen/:id schreibt Tabelle und Spiegel", () => 
     expect(await tabelle(ziel.id!)).toHaveLength(1);
   });
 
-  test("die Sperre des letzten Mitglieds zählt die Tabelle, nicht role", async () => {
+  test("die Sperre des letzten Mitglieds zählt die Tabelle", async () => {
     const eigene = await erstelleWelt(db, auth);
     const einzige = await legePersonaAn(eigene, "admin");
-    // Ein Konto mit role = 'admin' ohne Zeile ist keine zweite Abteilungsleitung
-    const schein = await legePersonaAn(eigene, "slA");
-    await setzeRole(schein.id!, "admin");
+    // Ein Konto ohne Zeile ist keine zweite Abteilungsleitung
+    await legePersonaAn(eigene, "slA");
     const antwort = await app.request(`/api/v1/admin/personen/${einzige.id}`, {
       method: "PATCH",
       headers: { ...einzige.headers, "content-type": "application/json" },

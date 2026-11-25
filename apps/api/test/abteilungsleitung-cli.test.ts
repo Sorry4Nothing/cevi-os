@@ -37,7 +37,7 @@ async function neueAbteilung() {
   return zeile.id;
 }
 
-// Rolle «user» ohne Zeile in der Tabelle; die Tests setzen die Rolle selbst
+// Ohne Zeile in der Tabelle; die Tests vergeben die Abteilungsleitung selbst
 async function neuesKonto(abteilungId: string) {
   const benutzername = `alcli.${randomUUID().slice(0, 8)}`;
   const { user } = await auth.api.createUser({
@@ -45,7 +45,6 @@ async function neuesKonto(abteilungId: string) {
       email: `${randomUUID()}@example.org`,
       password: "Ein-sehr-langes-Testpasswort-1",
       name: "Testperson ALCLI",
-      role: "user",
       data: { username: benutzername, abteilungId, mussPasswortAendern: false },
     },
   });
@@ -74,17 +73,13 @@ const auditVon = (userId: string, aktion: string) =>
         eq(schema.auditLog.aktion, aktion),
       ),
     );
-// Die Kommandozeile hat dasselbe Ergebnis wie die Verwaltung: Tabelle und Spiegel
+// Die Kommandozeile hat dasselbe Ergebnis wie die Verwaltung: eine Zeile in der Tabelle
 const macheAl = async (konto: { id: string }) => {
   await db.insert(schema.abteilungsleitungPerson).values({ userId: konto.id });
-  await db
-    .update(schema.user)
-    .set({ role: "admin" })
-    .where(eq(schema.user.id, konto.id));
 };
 
 describe("Kommandozeile: Abteilungsleitung vergeben und entziehen", () => {
-  test("vergeben schreibt Tabelle, Spiegel und Audit, beendet Sitzungen ohne zweiten Faktor, doppelt scheitert", async () => {
+  test("vergeben schreibt Tabelle und Audit (role bleibt «user»), beendet Sitzungen ohne zweiten Faktor, doppelt scheitert", async () => {
     const konto = await neuesKonto(await neueAbteilung());
     await db.insert(schema.session).values({
       id: randomUUID(),
@@ -103,7 +98,7 @@ describe("Kommandozeile: Abteilungsleitung vergeben und entziehen", () => {
     expect(ergebnis.stdout).toContain("gehört jetzt zur Abteilungsleitung");
     expect(ergebnis.stdout).toContain("ZWEITER_FAKTOR_FEHLT");
     expect(await alZeile(konto.id)).toHaveLength(1);
-    expect(await rolleVon(konto.id)).toBe("admin");
+    expect(await rolleVon(konto.id)).toBe("user");
     const audit = await auditVon(konto.id, "abteilungsleitung_vergeben");
     expect(audit).toHaveLength(1);
     expect(audit[0].akteurId).toBe("cli");
@@ -153,7 +148,7 @@ describe("Kommandozeile: Abteilungsleitung vergeben und entziehen", () => {
       "weder Abteilungsleitung noch Entwickler",
     );
     expect(await alZeile(konto.id)).toHaveLength(1);
-    expect(await rolleVon(konto.id)).toBe("admin");
+    expect(await rolleVon(konto.id)).toBe("user");
     expect(await auditVon(konto.id, "abteilungsleitung_entzogen")).toHaveLength(
       0,
     );

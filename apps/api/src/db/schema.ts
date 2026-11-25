@@ -66,43 +66,58 @@ export const abteilung = pgTable("abteilung", {
 });
 
 // Tabellen von better-auth: Der Adapter findet sie über den Export-Namen und ihre Spalten über die Eigenschaft, darum genau seine Namen
-export const user = pgTable("user", {
-  id: id(),
-  name: text("name").notNull(),
-  email: text("email").notNull().unique(),
-  emailVerified: boolean("email_verified").notNull().default(false),
-  // Bleibt leer; better-auth verlangt die Spalte
-  image: text("image"),
-  createdAt: zeitpunkt("created_at").notNull().defaultNow(),
-  updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
-  username: text("username").unique(),
-  displayUsername: text("display_username"),
-  // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
-  ceviName: text("cevi_name"),
-  // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
-  ceviDbId: text("cevi_db_id"),
-  role: text("role"),
-  banned: boolean("banned").default(false),
-  banReason: text("ban_reason"),
-  banExpires: zeitpunkt("ban_expires"),
-  twoFactorEnabled: boolean("two_factor_enabled").default(false),
-  abteilungId: uuid("abteilung_id")
-    .notNull()
-    .references(() => abteilung.id, { onDelete: "restrict" }),
-  // Im Zweifel muss die Person das Passwort wechseln
-  mussPasswortAendern: boolean("muss_passwort_aendern").notNull().default(true),
-  startpasswortGueltigBis: zeitpunkt("startpasswort_gueltig_bis"),
-  // AES-GCM-verschlüsselt, nur solange das Startpasswort offen ist; die Verwaltung zeigt es an
-  startpasswortVerschluesselt: text("startpasswort_verschluesselt"),
-  fehlversuche: integer("fehlversuche").notNull().default(0),
-  naechsterVersuchAb: zeitpunkt("naechster_versuch_ab"),
-  deaktiviertAm: zeitpunkt("deaktiviert_am"),
-  telefon: text("telefon"),
-  pushChat: boolean("push_chat").notNull().default(true),
-  pushProgramme: boolean("push_programme").notNull().default(true),
-  pushAnmeldungen: boolean("push_anmeldungen").notNull().default(true),
-  datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
-});
+export const user = pgTable(
+  "user",
+  {
+    id: id(),
+    name: text("name").notNull(),
+    email: text("email").notNull().unique(),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    // Bleibt leer; better-auth verlangt die Spalte
+    image: text("image"),
+    createdAt: zeitpunkt("created_at").notNull().defaultNow(),
+    updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
+    username: text("username").unique(),
+    displayUsername: text("display_username"),
+    // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
+    ceviName: text("cevi_name"),
+    // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
+    ceviDbId: text("cevi_db_id"),
+    // Nur noch die Spalte, die das admin-Plugin von better-auth in seinem Schema verlangt: immer «user» (CHECK), nirgends gelesen. Die Rollen stehen in abteilungsleitung_person und plattform_entwickler (#784)
+    role: text("role"),
+    banned: boolean("banned").default(false),
+    banReason: text("ban_reason"),
+    banExpires: zeitpunkt("ban_expires"),
+    twoFactorEnabled: boolean("two_factor_enabled").default(false),
+    abteilungId: uuid("abteilung_id")
+      .notNull()
+      .references(() => abteilung.id, { onDelete: "restrict" }),
+    // Im Zweifel muss die Person das Passwort wechseln
+    mussPasswortAendern: boolean("muss_passwort_aendern")
+      .notNull()
+      .default(true),
+    startpasswortGueltigBis: zeitpunkt("startpasswort_gueltig_bis"),
+    // AES-GCM-verschlüsselt, nur solange das Startpasswort offen ist; die Verwaltung zeigt es an
+    startpasswortVerschluesselt: text("startpasswort_verschluesselt"),
+    fehlversuche: integer("fehlversuche").notNull().default(0),
+    naechsterVersuchAb: zeitpunkt("naechster_versuch_ab"),
+    deaktiviertAm: zeitpunkt("deaktiviert_am"),
+    telefon: text("telefon"),
+    pushChat: boolean("push_chat").notNull().default(true),
+    pushProgramme: boolean("push_programme").notNull().default(true),
+    pushAnmeldungen: boolean("push_anmeldungen").notNull().default(true),
+    datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
+  },
+  (t) => [
+    check("user_role_nur_user", sql`${t.role} is null or ${t.role} = 'user'`),
+  ],
+);
+
+export const CLIENT_ARTEN = [
+  "web",
+  "app_nachgewiesen",
+  "app_ungeprueft",
+] as const;
 
 export const session = pgTable(
   "session",
@@ -123,9 +138,17 @@ export const session = pgTable(
     zweiterFaktorGeprueft: boolean("zweiter_faktor_geprueft")
       .notNull()
       .default(false),
+    // Woher die Sitzung kommt (#785): «web», «app_nachgewiesen» (die Anmeldung trug einen gültigen Nachweis des Betriebssystems, Play Integrity oder App Attest) oder «app_ungeprueft» (Origin der App ohne Nachweis, nur in den Modi «aus» und «pruefen»). Gesetzt nur im Hook in auth.ts, nie aus einer Anfrage
+    clientArt: text("client_art", { enum: CLIENT_ARTEN })
+      .notNull()
+      .default("web"),
   },
   (t) => [
     index("session_user_id_idx").on(t.userId),
+    check(
+      "session_client_art_check",
+      sql`${t.clientArt} in ('web', 'app_nachgewiesen', 'app_ungeprueft')`,
+    ),
     // better-auth verlangt beide Spalten; der Hook in auth.ts leert sie, und die Datenbank lehnt jeden Wert ab
     check(
       "session_ohne_ip_und_user_agent",
@@ -167,6 +190,51 @@ export const verification = pgTable(
     updatedAt: zeitpunkt("updated_at").notNull().defaultNow(),
   },
   (t) => [index("verification_identifier_idx").on(t.identifier)],
+);
+
+// Herausforderung für den App-Nachweis (#785): Die Nonce steht nur als Hash hier. Einmal verwendbar (eingeloest_am), 5 Minuten gültig; nach geprüftem Nachweis trägt dieselbe Zeile das Ticket für die Anmeldung (nur als Hash, 2 Minuten, einmal)
+export const appNachweisChallenge = pgTable(
+  "app_nachweis_challenge",
+  {
+    id: id(),
+    nonceHash: text("nonce_hash").notNull().unique(),
+    plattform: text("plattform", { enum: ["android", "ios"] }).notNull(),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+    laeuftAbAm: zeitpunkt("laeuft_ab_am").notNull(),
+    eingeloestAm: zeitpunkt("eingeloest_am"),
+    benutzername: text("benutzername"),
+    ticketHash: text("ticket_hash").unique(),
+    ticketLaeuftAbAm: zeitpunkt("ticket_laeuft_ab_am"),
+    // Nur iOS: der Schlüssel des Geräts, dem der Nachweis gehört
+    schluesselId: text("schluessel_id"),
+    verbrauchtAm: zeitpunkt("verbraucht_am"),
+  },
+  (t) => [
+    check(
+      "app_nachweis_challenge_plattform_check",
+      sql`${t.plattform} in ('android', 'ios')`,
+    ),
+    index("app_nachweis_challenge_laeuft_ab_idx").on(t.laeuftAbAm),
+  ],
+);
+
+// Schlüssel der Geräte mit Apple App Attest (#785): öffentlicher Schlüssel und Zähler der Assertions. Das Konto trägt die erste Anmeldung, die den Schlüssel nutzte; es bindet nichts (ein Gerät kann mehrere Konten haben)
+export const appNachweisGeraet = pgTable(
+  "app_nachweis_geraet",
+  {
+    schluesselId: text("schluessel_id").primaryKey(),
+    oeffentlicherSchluessel: text("oeffentlicher_schluessel").notNull(),
+    zaehler: bigint("zaehler", { mode: "number" }).notNull().default(0),
+    userId: uuid("user_id").references(() => user.id, { onDelete: "cascade" }),
+    erstelltAm: zeitpunkt("erstellt_am").notNull().defaultNow(),
+  },
+  (t) => [
+    check(
+      "app_nachweis_geraet_zaehler_check",
+      sql`${t.zaehler} between 0 and 4294967295`,
+    ),
+    index("app_nachweis_geraet_user_id_idx").on(t.userId),
+  ],
 );
 
 export const rateLimit = pgTable("rate_limit", {

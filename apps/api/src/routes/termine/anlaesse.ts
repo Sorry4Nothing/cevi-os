@@ -325,6 +325,10 @@ export function erstelleAnlaesseRouten({
               body: { ...ANTWORTEN_UNGUELTIG, fehler: geprueft.fehler },
             };
           }
+          // Zwei Eindeutigkeiten (Anlass+Kind, Anlass+Person+Kind) und ein Arbiter: Ohne Sperre verletzt der zweite gleichzeitige Insert die andere mit 23505 (500 statt 200). Der Schlüssel ist das Kind oder die Person, damit auch beide Eltern desselben Kindes sich nicht überholen
+          await tx.execute(
+            sql`select pg_advisory_xact_lock(hashtextextended(${`anmeldung ${id} ${kindId ?? person.id}`}, 0))`,
+          );
           // Ein Kind hat eine Anmeldung je Anlass (auch wenn beide Eltern anmelden), eine Person ebenso
           const werte = {
             anlassId: id,
