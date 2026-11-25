@@ -1,7 +1,7 @@
 // Formular der Website (#819, Baustein «formular»): prüft die Eingaben beim Absenden und schickt sie als JSON an POST /api/v1/formulare/<Baustein>/antworten. Das Markup steht schon in der Seite (formular.ts); dieses Skript macht es bedienbar.
 // Der Server prüft alles noch einmal gegen die veröffentlichte Definition: Was hier geprüft wird, ist nur die Hilfe für die Person. Eingaben bleiben bei jedem Fehler stehen.
 // Barrierefreiheit: Fehler stehen am Feld (Text mit Symbol) und oben in einer Zusammenfassung mit Links, die beim Absenden den Fokus bekommt; der Knopf bleibt aktiv und sagt «Sende …» (aria-busy); nach dem Senden bekommt die Meldung «gesendet» (Statusregion) den Fokus.
-// Formulare, die später dazukommen (geschützte Bausteine, die geschuetzt.js nachlädt), rüstet ein MutationObserver aus. Kein innerHTML: Text kommt nur als Textknoten.
+// Formulare, die später dazukommen (geschützte Bausteine, die geschuetzt.js nachlädt), rüstet ein MutationObserver aus. Text kommt nur als Textknoten ins Dokument, nie als HTML.
 import { band, el, holeMitFrist, symbol } from "./ui.js";
 import { toast } from "./toast.js";
 
@@ -32,6 +32,19 @@ const PFLICHT_TEXT = {
   zustimmung: "Stimme zu, um die Antwort zu senden.",
 };
 
+// «31.12.2026» (auch «1.2.2026» und «2026-12-31») als «2026-12-31»; null, wenn es den Tag nicht gibt
+const datumVon = (text) => {
+  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(text);
+  const iso = m
+    ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`
+    : text;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
+  const d = new Date(`${iso}T12:00:00Z`);
+  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso
+    ? null
+    : iso;
+};
+
 const zahlVon = (text) => {
   const t = text.replace(/['’\s]/g, "").replace(",", ".");
   return /^-?\d+(\.\d+)?$/.test(t) ? Number(t) : null;
@@ -47,8 +60,6 @@ function startFormular(wurzel) {
   const formularId = wurzel.dataset.formular;
   const beginn = window.performance.now();
   let beschaeftigt = false;
-  let veraendert = false;
-  let gesendet = false;
 
   // Jedes Feld: Element mit data-typ (Eingabe, Auswahl, Gruppe, Kästchen) und seine Hülle
   const felder = [...form.querySelectorAll("[data-typ]")].map((e) => {
@@ -153,12 +164,17 @@ function startFormular(wurzel) {
           };
         }
         if (f.typ === "datum") {
-          if (!/^\d{4}-\d{2}-\d{2}$/.test(t)) {
+          const d = datumVon(t);
+          if (d === null) {
             return { fehler: "Gib ein Datum wie 31.12.2026 ein." };
           }
-          if ((e.min && t < e.min) || (e.max && t > e.max)) {
+          if (
+            (e.dataset.min && d < e.dataset.min) ||
+            (e.dataset.max && d > e.dataset.max)
+          ) {
             return { fehler: "Dieses Datum ist nicht möglich." };
           }
+          return { wert: d };
         }
         if (e.minLength > 0 && t.length < e.minLength) {
           return { fehler: `Schreibe mindestens ${e.minLength} Zeichen.` };
@@ -265,7 +281,6 @@ function startFormular(wurzel) {
   // Nach einem Fehler gilt die Prüfung live: Die Meldung verschwindet, sobald es stimmt
   for (const f of felder) {
     const pruefeLive = () => {
-      veraendert = true;
       if (f.huelle.classList.contains("fehler")) {
         const { fehler } = pruefe(f);
         if (!fehler) loescheFehler(f);
@@ -282,9 +297,6 @@ function startFormular(wurzel) {
       if (fehler && f.el.value.trim() !== "") zeigeFehler(f, fehler);
     });
   }
-  window.addEventListener("beforeunload", (ev) => {
-    if (veraendert && !gesendet) ev.preventDefault();
-  });
 
   form.addEventListener("submit", async (ev) => {
     ev.preventDefault();
@@ -335,7 +347,6 @@ function startFormular(wurzel) {
     }
     laeuft(false);
     if (antwort.status === 201) {
-      gesendet = true;
       // Erst die Meldung bauen, dann das Formular ausblenden: Schlägt der Bau fehl, bleibt das Formular stehen
       danke.replaceChildren(
         el(

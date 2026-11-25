@@ -112,6 +112,13 @@ export function erstelleFormularOeffentlichRoute({
   return new Hono<Env>().post(
     "/:id/antworten",
     optionalePerson,
+    // Gilt irgendwo eine Sperre der Website, sperrt schon diese Prüfung vor jeder anderen (wie die öffentlichen Medien); die Abteilung des Formulars prüft die Route danach genauer
+    async (c, next) => {
+      if (schalter.gesperrtIrgendwo(["website", "alles"])) {
+        return c.json(GESPERRT, 423);
+      }
+      await next();
+    },
     eingabe("param", pfadSchema),
     eingabe("json", koerperSchema),
     async (c) => {

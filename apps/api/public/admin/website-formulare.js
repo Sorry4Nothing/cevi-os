@@ -1,12 +1,12 @@
 import { anfrage, fehlertext } from "./api.js";
 import { el, knopf } from "./dom.js";
-import { band, beschaeftigt, fenster } from "./website-dialoge.js";
+import { beschaeftigt, fenster } from "./website-dialoge.js";
 import { skeletonListe } from "./lader.js";
 import { leerKarte } from "./zustaende.js";
 
 // Formulare (#819): die Antworten auf die Formulare der Website ansehen, als CSV exportieren und löschen. Adresse: #website/formulare, ein Formular: #website/formulare/<Kennung>.
 // Datenbanklast: eine Anfrage für die Liste, je geöffnetes Formular eine für Kopf und eine für 25 Antworten, «Weitere laden» holt die nächsten 25. Kein Polling.
-// Text aus Antworten kommt nur als Textknoten in die Seite (nie innerHTML). Wer das Recht nicht hat, bekommt den Knopf nicht (die Route sagt es in «rechte»); jede Route prüft selbst.
+// Text aus Antworten kommt nur als Textknoten in die Seite (nie als HTML). Wer das Recht nicht hat, bekommt den Knopf nicht (die Route sagt es in «rechte»); jede Route prüft selbst.
 const BASIS = "/api/v1/admin/formulare";
 const SEITE = 25;
 const DATUM = new Intl.DateTimeFormat("de-CH", { dateStyle: "medium" });
@@ -278,7 +278,7 @@ function zeichneFormular(bereich, ctx, id, kopf) {
   );
   if (anzahl > 0) {
     ladeSeite(null).catch((fehler) => {
-      bereich.append(band("fehler", fehlertext(fehler)));
+      ctx.melde(fehlertext(fehler), "fehler");
     });
   }
 }

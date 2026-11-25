@@ -20,6 +20,18 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "entzogen",
     gruppe: "entzogen",
   },
+  "DELETE /api/v1/admin/formulare/:p/antworten": {
+    titel: "Alle Antworten eines Formulars löschen",
+    objekt: "Alle Antworten eines Formulars",
+    aktion: "gelöscht",
+    gruppe: "geloescht",
+  },
+  "DELETE /api/v1/admin/formulare/:p/antworten/:p": {
+    titel: "Antwort eines Formulars löschen",
+    objekt: "Antwort eines Formulars",
+    aktion: "gelöscht",
+    gruppe: "geloescht",
+  },
   "DELETE /api/v1/admin/kategorie-zuordnungen/:p": {
     titel: "Zuordnung entfernen",
     objekt: "Kategorie-Zuordnung",
@@ -1067,6 +1079,13 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     objekt: "Einzelchat",
     aktion: "geöffnet",
     gruppe: "angelegt",
+    nicht: "alltag",
+  },
+  "POST /api/v1/formulare/:p/antworten": {
+    titel: "Antwort auf ein Formular der Website senden",
+    objekt: "Antwort auf ein Formular der Website",
+    aktion: "gesendet",
+    gruppe: "gesendet",
     nicht: "alltag",
   },
   "POST /api/v1/ich/datenschutz": {

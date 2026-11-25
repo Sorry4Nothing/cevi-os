@@ -27025,7 +27025,7 @@ paths:
   /api/v1/admin/formulare/{id}/antworten/{antwortId}:
     delete:
       operationId: loescheAdminFormularAntwort
-      summary: Eine Antwort löschen
+      summary: Antwort eines Formulars löschen
       description: |
         Nur mit dem Recht `formular.antworten_loeschen`. Löscht eine Antwort endgültig. Eine unbekannte Antwort oder die eines fremden Formulars ist 404.
 

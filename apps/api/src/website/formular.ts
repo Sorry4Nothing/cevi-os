@@ -119,15 +119,26 @@ function feldKnoten(bausteinId: string, f: Feld): HtmlKnoten {
           ...(f.max !== undefined && { "data-max": String(f.max) }),
         }),
       );
-    case "datum":
-      return feld(
+    case "datum": {
+      // Ein Textfeld mit sichtbarem Format (keine nativen Wähler, Handbuch 2.7); das Skript liest «31.12.2026» und sendet «2026-12-31»
+      const hinweis = `${f.hilfe ? `${f.hilfe} ` : ""}Format: TT.MM.JJJJ, zum Beispiel 31.12.2026.`;
+      return el(
+        "div",
+        { class: "feld" },
+        el("label", { for: id }, ...beschriftung(f)),
+        el("p", { class: "hilfe", id: `${id}-h` }, hinweis),
         el("input", {
           ...gemeinsam,
-          type: "date",
-          ...(f.von && { min: f.von }),
-          ...(f.bis && { max: f.bis }),
+          type: "text",
+          inputmode: "numeric",
+          autocomplete: "off",
+          maxlength: "10",
+          "aria-describedby": `${id}-h`,
+          ...(f.von && { "data-min": f.von }),
+          ...(f.bis && { "data-max": f.bis }),
         }),
       );
+    }
     case "email":
       return feld(
         el("input", {

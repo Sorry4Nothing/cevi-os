@@ -1,4 +1,5 @@
 import { ankreuzen, el, feld, neueId } from "./dom.js";
+import { datumsfeld } from "./datumsfeld.js";
 import {
   anmelden,
   eingabe,
@@ -107,13 +108,9 @@ function zahlFeld(k, b, reg, ziel, schluessel, label, pfad, optionen = {}) {
 }
 
 function datumFeld(k, b, reg, ziel, schluessel, label, pfad, h) {
-  const f = feld({
-    label,
-    typ: "date",
-    wert: ziel[schluessel] ?? "",
-    hilfe: h,
-  });
-  f.eingabe.addEventListener("input", () => {
+  // Eigenes Datumsfeld (Tippen und Kalender, TT.MM.JJJJ); der Wert ist JJJJ-MM-TT oder leer
+  const f = datumsfeld({ label, wert: ziel[schluessel] ?? "", hilfe: h });
+  f.eingabe.addEventListener("change", () => {
     if (f.eingabe.value === "") delete ziel[schluessel];
     else ziel[schluessel] = f.eingabe.value;
     k.aendere(b);
