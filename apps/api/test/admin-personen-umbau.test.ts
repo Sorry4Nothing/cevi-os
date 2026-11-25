@@ -128,7 +128,8 @@ describe("Panel der Abteilungsleitung: Personen, Gruppen, Kinder, Stufen, Import
     // Gleiche Bausteine und Klassen wie die Stufenzeilen, gleiche Überschriftenform
     expect(blatt).toContain('"Abteilung"');
     expect(blatt).toContain('"Stufen und Rollen"');
-    expect(blatt.match(/class: "pe-teiltitel"/g)).toHaveLength(2);
+    // Abteilung, Stufen und Rollen, Funktionen (#801)
+    expect(blatt.match(/class: "pe-teiltitel"/g)).toHaveLength(3);
     expect(blatt).toContain('chip("Abteilungsleitung", "stufe", "schild")');
     // Der Wert geht wie bisher als abteilungsleitung an die API
     expect(
