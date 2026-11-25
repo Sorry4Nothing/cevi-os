@@ -14,6 +14,10 @@ import { sucheBeiGeoAdmin } from "./ortssuche/geoadmin.js";
 import { erstelleOrtssuche } from "./ortssuche/index.js";
 import { erstelleAuth } from "./auth.js";
 import {
+  baueAppNachweis,
+  beendeUngepruefteAppSitzungen,
+} from "./app-nachweis/index.js";
+import {
   erstelleAnmeldungGesperrt,
   erstelleSchalterZustand,
 } from "./bereichsschalter.js";
@@ -132,10 +136,23 @@ const ceviDb =
 // Wartungsmodus und Sperre (#424, #425): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet
 const schalter = erstelleSchalterZustand();
 await schalter.lade(db);
+// App-Nachweis (#785): ohne APP_NACHWEIS (Vorgabe «aus») erkennt die Anmeldung die App wie bisher am Origin. Im Modus «pflicht» enden die Sitzungen der App ohne Nachweis, bevor die API Anfragen annimmt
+const appNachweis = baueAppNachweis(db, konfiguration);
+log(undefined, {
+  ereignis: "app_nachweis",
+  schritt: "start",
+  modus: konfiguration.APP_NACHWEIS,
+  ...(konfiguration.APP_NACHWEIS === "pflicht" && {
+    beendet: await beendeUngepruefteAppSitzungen(db),
+  }),
+});
 const auth = erstelleAuth(
   drizzleAdapter(db, { provider: "pg", schema, transaction: true }),
   // Unter einer Sperre von «alles» meldet sich nur die Abteilungsleitung oder der Entwickler an (#425)
-  { anmeldungGesperrt: erstelleAnmeldungGesperrt({ db, zustand: schalter }) },
+  {
+    anmeldungGesperrt: erstelleAnmeldungGesperrt({ db, zustand: schalter }),
+    appNachweis,
+  },
 );
 // Die öffentliche Website (#351): ohne die drei Variablen (die Konfiguration prüft, dass alle oder keine gesetzt sind) läuft sie nicht. Die Ausgabe gehört auch der Informationssperre (#425): Sie nimmt die Website vom Netz
 const websiteAusgabe =
@@ -184,6 +201,7 @@ const app = erstelleApp({
   kodiereMedienbild,
   medienspeicher,
   fotos,
+  appNachweis,
   seiten,
   schalter,
   website: websiteSperre,
@@ -200,6 +218,13 @@ const app = erstelleApp({
 serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+// Abgelaufene Herausforderungen und Tickets des App-Nachweises (#785)
+if (appNachweis) {
+  starteSitzungenAufraeumen(
+    () => appNachweis.raeumeAuf(),
+    "app_nachweis_aufraeumen",
+  );
+}
 // Aktivitätsprotokoll (#637): nach der Frist (Vorgabe 90 Tage) und über der Obergrenze löschen
 starteSitzungenAufraeumen(
   () =>

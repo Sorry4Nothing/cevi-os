@@ -363,6 +363,20 @@ const MATRIX: Record<string, Zeile> = {
     }),
     erwartet: { ...alle(200), deaktiviert: 401, ohneLogin: 401 },
   },
+  // App-Nachweis (#785): Ohne APP_NACHWEIS (hier aus) gibt es die Routen nicht, fuer alle Personen 404, auch ohne Anmeldung; die Modi pruefen und pflicht stehen in test/app-nachweis.test.ts
+  "POST /api/v1/app/nachweis/challenge": {
+    body: () => ({ plattform: "android" }),
+    erwartet: alle(404),
+  },
+  "POST /api/v1/app/nachweis": {
+    body: () => ({
+      plattform: "android",
+      nonce: "A".repeat(43),
+      benutzername: "gibt.es.nicht",
+      integrityToken: "x",
+    }),
+    erwartet: alle(404),
+  },
   "POST /api/auth/sign-out": {
     // Auch ohne oder mit abgelaufener Sitzung 200: better-auth räumt nur das Cookie weg
     frischePersonas: true,

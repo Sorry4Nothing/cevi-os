@@ -43,6 +43,8 @@ export type Person = {
   zweiterFaktor: boolean;
   // Das Konto hat den zweiten Faktor eingerichtet, unabhängig von der Sitzung: für die Anzeige (/api/v1/ich) und den Code der Antwort (ZWEITER_FAKTOR_SITZUNG statt ZWEITER_FAKTOR_FEHLT). Fehlt das Feld, gilt zweiterFaktor
   zweiterFaktorKonto?: boolean;
+  // Woher die Sitzung kommt (#785): web, app_nachgewiesen oder app_ungeprueft. Nur zur Anzeige und fürs Protokoll; kein Recht hängt daran. Fehlt das Feld, gilt «web»
+  clientArt?: "web" | "app_nachgewiesen" | "app_ungeprueft";
   rollen: { stufeId: string; typ: "leitung" | "stufenleitung" }[];
   // Gesetzt, wenn das Konto das eigene Konto eines Kindes ist (#644): die ID dieses Kindes. Solche Konten haben nie eine Rolle und nie die Abteilungsleitung
   kindId?: string;
@@ -151,6 +153,7 @@ export function personAusSitzung(
         (sitzung.session as { zweiterFaktorGeprueft?: boolean })
           .zweiterFaktorGeprueft === true,
       zweiterFaktorKonto: sitzung.user.twoFactorEnabled === true,
+      clientArt: clientArtVon(sitzung.session),
       rollen,
       ...(eigenesKind && { kindId: eigenesKind }),
     });
@@ -158,6 +161,12 @@ export function personAusSitzung(
     c.set("sitzungId", sitzung.session.id);
     await next();
   });
+}
+
+// Die Art der Sitzung (#785); ein unbekannter Wert gilt als «web». Der Wert steuert kein Recht
+function clientArtVon(sitzung: object): NonNullable<Person["clientArt"]> {
+  const art = (sitzung as { clientArt?: unknown }).clientArt;
+  return art === "app_nachgewiesen" || art === "app_ungeprueft" ? art : "web";
 }
 
 // Verwaltungsrouten erst mit zweitem Faktor für die Abteilungsleitung und den Entwickler (Entscheid vom 24.11.2026), geprüft in der Sitzung (person.zweiterFaktor, #721): Eine App-Sitzung ohne Code kommt nicht hinein, auch bei einem Konto mit Faktor (403 ZWEITER_FAKTOR_SITZUNG). Eigener Code, damit die App zur Einrichtung führt. Alle anderen passen vorbei und behalten das 403/404 der Route

@@ -49,6 +49,15 @@ services:
       FLICKR_OAUTH_TOKEN:
       FLICKR_OAUTH_TOKEN_SECRET:
       FLICKR_KONTO:
+      # App-Nachweis (#785, docs/betrieb.md, docs/app-nachweis.md): leer = aus. Ausser bei «aus» braucht es beide Plattformen vollständig. Die Schlüsseldatei des Google-Dienstkontos liegt unter deploy/secrets/play-integrity-service-account.json und wird nie in die Umgebung geschrieben
+      APP_NACHWEIS:
+      ANDROID_PAKETNAME:
+      ANDROID_ZERTIFIKAT_SHA256:
+      ANDROID_NACHWEIS_DIENSTKONTO_DATEI: ${ANDROID_PAKETNAME:+/run/secrets/play-integrity-service-account.json}
+      ANDROID_NACHWEIS_MIN_GERAETE:
+      IOS_TEAM_ID:
+      IOS_BUNDLE_ID:
+      IOS_NACHWEIS_UMGEBUNG:
       # Website (#705): Die API schreibt die fertigen Seiten in das Volume «website», der Edge-Caddy liefert sie aus (docs/website-auslieferung.md); ohne diese drei erzeugt sie nichts
       # Nur mit gesetzter ID: Die API verlangt alle drei oder keine
       WEBSITE_AUSGABE_PFAD: ${WEBSITE_ABTEILUNG_ID:+/srv/website}
@@ -63,11 +72,11 @@ services:
     volumes:
       # Beschreibbar nur für die API; der Edge-Caddy bindet es lesend ein (docs/betrieb.md, «Edge-Caddy»)
       - website:/srv/website
+      # Der Ordner mit den Schlüsseln der Dienstkonten (fcm-service-account.json und, mit App-Nachweis, play-integrity-service-account.json), nicht einzelne Dateien: Eine Datei, die es nur mit eingeschaltetem Nachweis gibt, hielte sonst jeden Start auf. Der Ordner muss existieren (create_host_path: false)
       - type: bind
-        source: ./secrets/fcm-service-account.json
-        target: /run/secrets/fcm-service-account.json
+        source: ./secrets
+        target: /run/secrets
         read_only: true
-        # Sonst legt Docker für eine fehlende Datei ein leeres Verzeichnis an
         bind:
           create_host_path: false
     # intern zur Datenbank; edge für den Edge-Caddy; default für den Weg nach aussen (Pwned Passwords, Google und FCM)

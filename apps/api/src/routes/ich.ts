@@ -146,6 +146,8 @@ export function erstelleIchRouten({ db }: { db: Db }) {
           entwickler: person.entwickler,
           // Das Konto hat ihn eingerichtet; ob diese Sitzung den Code geprüft hat, steht nicht hier (App-Sitzungen nie, #721)
           zweiterFaktor: person.zweiterFaktorKonto ?? person.zweiterFaktor,
+          // Woher diese Sitzung kommt (#785): web, app_nachgewiesen oder app_ungeprueft; kein Recht hängt daran
+          clientArt: person.clientArt ?? ("web" as const),
           rollen: person.rollen,
           rechte,
           stufen,

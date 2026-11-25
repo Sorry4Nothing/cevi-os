@@ -24,7 +24,9 @@ import {
   BENUTZERNAME_MUSTER,
 } from "./benutzername.js";
 import type { AktivitaetVariablen } from "./aktivitaet-middleware.js";
+import type { AppNachweisDienst } from "./app-nachweis/dienst.js";
 import { clientIp } from "./client-ip.js";
+import { log } from "./log.js";
 import { normalisiereStartpasswort } from "./startpasswort.js";
 
 const ac = createAccessControl(defaultStatements);
@@ -45,6 +47,62 @@ const APP_ORIGIN = "cevi-os://";
 function istAppAnmeldung(kontext: { request?: Request; headers?: Headers }) {
   const herkunft = (kontext.request?.headers ?? kontext.headers)?.get("origin");
   return herkunft?.startsWith(APP_ORIGIN) === true;
+}
+
+// Die Antworten, wenn die Anmeldung der App im Modus «pflicht» keinen gültigen Nachweis trägt (#785). Sie nennen keinen Grund über «fehlt» und «ungültig» hinaus; der Server prüft den Nachweis vor dem Passwort, darum verrät auch ein unbekannter Benutzername nichts
+export const APP_NACHWEIS_FEHLER = {
+  APP_NACHWEIS_FEHLT: "Die Anmeldung der App braucht den Nachweis des Geräts.",
+  APP_NACHWEIS_UNGUELTIG: "Der Nachweis der App ist ungültig oder abgelaufen.",
+} as const;
+
+// Was die Prüfung des Nachweises zur Anmeldung ergab; der Schlüssel ist die Anfrage, nichts bleibt nach ihr stehen. Ohne Eintrag (APP_NACHWEIS=aus) entscheidet allein der Origin
+type NachweisInfo = {
+  art: "app_nachgewiesen" | "app_ungeprueft";
+  schluesselId?: string;
+};
+const nachweisInfo = new WeakMap<Request, NachweisInfo>();
+
+// Prüft das Ticket der Anmeldung der App (Header X-Cevi-Nachweis, #785), bevor das Passwort geprüft wird. Gültig ist es nur für diesen Benutzernamen und einmal. «pflicht» lehnt ab, «pruefen» lässt die Sitzung als «app_ungeprueft» zu; beides steht im Log, ohne Ticket und Benutzername
+async function pruefeAppNachweis(
+  dienst: AppNachweisDienst,
+  kontext: { request?: Request; headers?: Headers },
+  benutzername: unknown,
+) {
+  const ticket = (kontext.request?.headers ?? kontext.headers)?.get(
+    "x-cevi-nachweis",
+  );
+  const ergebnis =
+    ticket && typeof benutzername === "string"
+      ? await dienst.loeseTicketEin(ticket, benutzername)
+      : ({ ok: false } as const);
+  const ausgang = ergebnis.ok ? "ok" : ticket ? "ungueltig" : "fehlt";
+  log(undefined, {
+    ereignis: "app_nachweis",
+    schritt: "anmeldung",
+    modus: dienst.modus,
+    ergebnis: ausgang,
+    ...(ergebnis.ok && { plattform: ergebnis.plattform }),
+  });
+  if (ergebnis.ok) {
+    if (kontext.request) {
+      nachweisInfo.set(kontext.request, {
+        art: "app_nachgewiesen",
+        schluesselId: ergebnis.schluesselId,
+      });
+    }
+    return;
+  }
+  if (dienst.modus === "pflicht") {
+    const code =
+      ausgang === "fehlt" ? "APP_NACHWEIS_FEHLT" : "APP_NACHWEIS_UNGUELTIG";
+    throw new APIError("UNAUTHORIZED", {
+      code,
+      message: APP_NACHWEIS_FEHLER[code],
+    });
+  }
+  if (kontext.request) {
+    nachweisInfo.set(kontext.request, { art: "app_ungeprueft" });
+  }
 }
 
 // Das Plugin legt für Konten mit zweitem Faktor bei jeder Anmeldung eine Umleitung auf den Code statt einer Sitzung. Für die App nicht (der zweite Faktor gilt nur in der Verwaltung): Der Haken nach der Anmeldung greift bei ihr nicht, die Sitzung bleibt. Kein Patch an better-auth, nur der matcher des öffentlichen Hooks ist enger; ändert sich dessen Form, scheitert der Start laut statt still offen
@@ -162,15 +220,18 @@ function pruefeWartezeit(person: Bremsfelder | undefined) {
 }
 
 // anmeldungGesperrt (#425): Gilt unter einer Sperre von «alles» für die Person der Abteilung; nur der Server (server.ts) übergibt sie, Kommandozeilen und Tests brauchen sie nicht
+// appNachweis (#785): Ohne ihn (APP_NACHWEIS=aus) erkennt die Anmeldung die App wie bisher am Origin und markiert die Sitzung «app_ungeprueft»
 export function erstelleAuth(
   database: BetterAuthOptions["database"],
   {
     anmeldungGesperrt,
+    appNachweis,
   }: {
     anmeldungGesperrt?: (nutzer: {
       id: string;
       abteilungId: string;
     }) => Promise<boolean>;
+    appNachweis?: AppNachweisDienst;
   } = {},
 ) {
   return betterAuth({
@@ -224,6 +285,8 @@ export function erstelleAuth(
           input: false,
           defaultValue: false,
         },
+        // Wie die Spalte in src/db/schema.ts (#785): web, app_nachgewiesen oder app_ungeprueft
+        clientArt: { type: "string", input: false, defaultValue: "web" },
       },
     },
     // Das App-Schema ist eine Baukonstante, darum im Code statt in der Umgebung: Fehlte die Variable, bekäme jeder Cookie-POST der App 403. Das Muster ohne Authority deckt auch cevi-os://<host:port> eines Dev-Builds; better-auth ergänzt BETTER_AUTH_TRUSTED_ORIGINS obendrauf (Tests)
@@ -318,11 +381,29 @@ export function erstelleAuth(
                     zweiterFaktorGeprueft?: boolean;
                   }
                 ).zweiterFaktorGeprueft === true);
+            // Woher die Sitzung kommt (#785): Die Anmeldung entscheidet nach dem Nachweis (oder, ohne ihn, nach dem Origin), jede andere Sitzung erbt es von der laufenden, die sie ersetzt, sonst gilt «web»
+            const laufendeArt =
+              ctx?.context.session?.user.id === sitzung.userId
+                ? (
+                    ctx.context.session.session as {
+                      clientArt?: string;
+                    }
+                  ).clientArt
+                : undefined;
+            const clientArt =
+              ctx?.path === "/sign-in/username"
+                ? (ctx.request && nachweisInfo.get(ctx.request)?.art) ||
+                  (istAppAnmeldung(ctx) ? "app_ungeprueft" : "web")
+                : laufendeArt === "app_nachgewiesen" ||
+                    laufendeArt === "app_ungeprueft"
+                  ? laufendeArt
+                  : "web";
             return {
               data: {
                 ipAddress: null,
                 userAgent: null,
                 zweiterFaktorGeprueft: geprueft,
+                clientArt,
               },
             };
           },
@@ -333,6 +414,10 @@ export function erstelleAuth(
       // Vor der Validierung: body kann alles sein, darum die typeof-Prüfungen
       before: createAuthMiddleware(async (ctx) => {
         if (ctx.path === "/sign-in/username") {
+          // Vor allem anderen, auch vor dem Passwort: Der Nachweis gehört zur App, nicht zum Konto (#785)
+          if (appNachweis && istAppAnmeldung(ctx)) {
+            await pruefeAppNachweis(appNachweis, ctx, ctx.body?.username);
+          }
           if (typeof ctx.body?.username !== "string") return;
           const person = await ctx.context.adapter.findOne<Bremsfelder>({
             model: "user",
@@ -444,6 +529,14 @@ export function erstelleAuth(
                 where: [{ field: "id", value: person.id }],
                 update: { fehlversuche: 0, naechsterVersuchAb: null },
               });
+            }
+            // Der Schlüssel des iOS-Geräts merkt sich das Konto der ersten Anmeldung
+            const schluesselId =
+              ctx.request && nachweisInfo.get(ctx.request)?.schluesselId;
+            if (appNachweis && schluesselId) {
+              await appNachweis
+                .verknuepfeGeraet(schluesselId, person.id)
+                .catch(() => undefined);
             }
             return;
           }
@@ -622,8 +715,9 @@ export function erstelleAuthRouten(
       const wer = aktivitaetNutzer.get(anfrage);
       if (wer) c.set("nutzerId", wer);
       // Der Grund eines Fehlschlags (Wartezeit, falsches Passwort, Sperre) bleibt im Protokoll, auch wenn der Client nur das einheitliche 401 sieht
+      let grund: string | undefined;
       if (anmeldung && antwort.status >= 400 && antwort.status !== 429) {
-        const grund = await antwort
+        grund = await antwort
           .clone()
           .json()
           .then((b: { code?: unknown }) =>
@@ -637,6 +731,17 @@ export function erstelleAuthRouten(
         return c.json(ZU_VIELE_ANFRAGEN, 429, {
           "X-Retry-After": antwort.headers.get("X-Retry-After") ?? "",
         });
+      }
+      // Die einzige Ausnahme: der fehlende oder ungültige Nachweis der App (#785) hat einen eigenen Code, damit die App neu nachweist, statt das Passwort zu beklagen
+      if (anmeldung && grund && Object.hasOwn(APP_NACHWEIS_FEHLER, grund)) {
+        return c.json(
+          {
+            code: grund,
+            message:
+              APP_NACHWEIS_FEHLER[grund as keyof typeof APP_NACHWEIS_FEHLER],
+          },
+          401,
+        );
       }
       // Jeder Fehler bei der Anmeldung zeigt dieselbe Meldung: falsches Passwort, Wartezeit, abgelaufenes Startpasswort, deaktiviert, ungültiger Name
       if (anmeldung && antwort.status >= 400 && antwort.status < 500) {
