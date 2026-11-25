@@ -720,25 +720,28 @@ function zeichne(bereich, ctx, stufen, neu) {
             ),
         summe.neu > 0 && importKnopf(summe),
       ),
-      pruefen > 0 &&
-        el(
-          "div",
-          { class: "hinweis hinweis--warn im-pruefen" },
-          el(
-            "span",
-            {},
-            `Zu prüfen: ${prueftext}. Diese Zeilen werden nicht angelegt.`,
-          ),
-          knopf("Nur diese Zeilen zeigen", {
-            klein: true,
-            onclick: () => {
-              filter.setze("pruefen");
-              seiten.anfang();
-              aktualisiere();
-              wurzel.focus();
-            },
-          }),
-        ),
+      ...(pruefen > 0
+        ? [
+            el(
+              "div",
+              { class: "hinweis hinweis--warn im-pruefen" },
+              el(
+                "span",
+                {},
+                `Zu prüfen: ${prueftext}. Diese Zeilen werden nicht angelegt.`,
+              ),
+              knopf("Nur diese Zeilen zeigen", {
+                klein: true,
+                onclick: () => {
+                  filter.setze("pruefen");
+                  seiten.anfang();
+                  aktualisiere();
+                  wurzel.focus();
+                },
+              }),
+            ),
+          ]
+        : []),
       el("div", { class: "werkzeuge" }, filter.wurzel),
       zaehler,
       wurzel,
