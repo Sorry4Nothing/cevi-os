@@ -859,7 +859,8 @@ function wochenAnsicht({ sichtbar, je, montag, heute, detail, wechsle }) {
         zelle.append(etikett);
         zelle.children[i].classList.add("bl-block--einzeln");
       });
-      if (tag === heute) zelle.append(jetztMarke("waagrecht", achse));
+      const jetzt = tag === heute ? jetztMarke("waagrecht", achse) : null;
+      if (jetzt) zelle.append(jetzt);
       zeile.append(zelle);
     }
     huelle.append(zeile);

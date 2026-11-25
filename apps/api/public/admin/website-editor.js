@@ -218,7 +218,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
   if (h1) {
     const zeileEl = el("div", { class: "ws-titelzeile" });
     h1.replaceWith(zeileEl);
-    zeileEl.append(h1, titelChip, verwalten ? umbenennen : null);
+    zeileEl.append(h1, titelChip, ...(verwalten ? [umbenennen] : []));
     zeileEl.parentElement.prepend(
       el(
         "p",
