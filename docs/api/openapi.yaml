@@ -141,8 +141,10 @@ paths:
       security: []
       description: |
         Statische Hülle der Web-Verwaltung, ohne Anmeldung und ausserhalb der Versionsprüfung. Sie enthält keine Daten:
-        Die Seite meldet sich über `/api/auth/*` an und ruft danach `/api/v1/admin/*` auf, mit dem Session-Cookie
-        und dem zweiten Faktor wie in der App. Alle Personen (auch nicht angemeldete) erhalten 200.
+        Die Seite hat keine eigene Anmeldung (#818): Ohne Sitzung leitet sie im Browser auf die Anmeldeseite der
+        Website (`/anmelden?weiter=%2Fadmin%23<Bereich>`) weiter, die sich über `/api/auth/*` anmeldet und danach
+        zurückführt. Die Verwaltung ruft dann `/api/v1/admin/*` auf, mit dem Session-Cookie und dem zweiten Faktor
+        wie in der App. Alle Personen (auch nicht angemeldete) erhalten 200.
 
         Die Antwort trägt eine strenge `Content-Security-Policy` (`script-src 'self'`, `style-src 'self'`,
         `frame-ancestors 'none'`), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`,

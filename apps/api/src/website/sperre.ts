@@ -15,13 +15,20 @@ import {
 export const HINWEIS_DATEIEN = ["index.html", "404.html"];
 // Der Stil der Hinweisseite als eigene Datei: Die CSP des Hosts erlaubt nur style-src 'self', ein Inline-Stil bliebe wirkungslos
 export const HINWEIS_STIL_DATEI = "gesperrt.css";
+// Die Anmeldeseite (#354) liegt unter der reservierten Adresse «anmelden»
+export const ANMELDUNG_DATEI = "anmelden/index.html";
 // Die Schrift und ihre Lizenz bleiben liegen: Sie sind kein Inhalt, und die Hinweisseite setzt ihren Titel damit. Ebenso das Favicon (#581): das öffentliche Zeichen der Abteilung, das auch die Hinweisseite trägt
+// Die Anmeldeseite bleibt mit ihren Skripten und Stilvorlagen (#818): Sie ist die einzige Anmeldung, auch für die Verwaltung, und wer die Sperre aufhebt, muss sich anmelden können
 const BLEIBT = new Set([
   CADDY_DATEI,
   ...ZEICHEN_DATEIEN,
+  ANMELDUNG_DATEI,
   "website/archivo-latin.woff2",
   "website/archivo-ofl.txt",
 ]);
+// Skripte und Stile der Website sind Code, kein Inhalt. Nie dazu gehören Bilder der Personen (website/person-*.jpg) und alle Seiten
+const CODE_DATEI = /^website\/[a-z0-9-]+\.(?:js|css)$/;
+const bleibt = (datei: string) => BLEIBT.has(datei) || CODE_DATEI.test(datei);
 
 // Die Hinweisseite steht allein, ohne die Stilvorlage der Website (sie ist dann gelöscht): dieselbe Handschrift wie die Fehlerseiten (#567, links die Aussage, rechts das blaue Feld mit Pfosten und Schild), die Farben des Designs «Cevi Web» in Tag und Nacht
 export const HINWEIS_STIL = `@font-face {
@@ -188,8 +195,8 @@ a.anmelden {
 }
 `;
 
-// Wer die Sperre aufheben darf, meldet sich in der Verwaltung an und landet gleich bei «Wartung und Sperre» (#803). Der Link steht für alle da und sagt nichts über den Anlass; die Anmeldung weist alle ausser Abteilungsleitung und Entwickler wie immer ab
-export const ANMELDE_ADRESSE = "/admin#system/plattform";
+// Wer die Sperre aufheben darf, meldet sich auf der gemeinsamen Anmeldeseite an und landet danach gleich bei «Wartung und Sperre» in der Verwaltung (#803, #818). Der Link steht für alle da und sagt nichts über den Anlass; die Anmeldung weist alle ausser Abteilungsleitung und Entwickler wie immer ab
+export const ANMELDE_ADRESSE = `/anmelden?weiter=${encodeURIComponent("/admin#system/plattform")}`;
 
 // Neutral: kein Anlass, keine Namen, keine Zeitangabe. Eine kleine Seite ohne Skript und ohne Dateien von aussen; «Nochmals versuchen» ist ein Link auf dieselbe Adresse, «Anmelden» einer zur Verwaltung
 // «zeichen»: die Einträge des Favicons (zeichenLinks), leer ohne Zeichen
@@ -237,7 +244,7 @@ export function erstelleWebsiteSperre(
     async nimmVomNetz() {
       // Die Weiterleitungsdatei für Caddy bleibt: Sie ist nur eine Liste alter Adressen, die Ziele zeigen auf die Hinweisseite
       for (const datei of await ausgabe.liste()) {
-        if (!BLEIBT.has(datei) && !HINWEIS_DATEIEN.includes(datei)) {
+        if (!bleibt(datei) && !HINWEIS_DATEIEN.includes(datei)) {
           await ausgabe.loesche(datei);
         }
       }

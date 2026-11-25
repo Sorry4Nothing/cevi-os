@@ -25,3 +25,14 @@ export function sicheresZiel(wert) {
   }
   return RESERVIERT.has(wert.slice(1).split(/[/?]/)[0]) ? "/" : wert;
 }
+
+// Der Rücksprung der gemeinsamen Anmeldeseite (#818): zusätzlich zu den Seiten der Website die Verwaltung, mit ihrem Bereich nach dem «#» (zum Beispiel «/admin#system/plattform»).
+// Nur diese eine feste Adresse, nie eine andere unter «/admin»: Das Muster lässt vor dem «#» nichts zu, im Anker nur Zeichen aus Namen und Kennungen der Verwaltung (kein «\», Leerzeichen, «<»). Alles andere fällt auf die Regeln von sicheresZiel zurück, also auf «/».
+const VERWALTUNG = /^\/admin(?:#[A-Za-z0-9/_.\-?=&%]{1,300})?$/;
+
+export function sicheresRueckziel(wert) {
+  if (typeof wert === "string" && wert.length <= 400 && VERWALTUNG.test(wert)) {
+    return wert;
+  }
+  return sicheresZiel(wert);
+}

@@ -131,7 +131,7 @@ Vorbereitung: eine Seite im Editor aufbauen und veröffentlichen, dann die erzeu
 - [ ] **11.10** Touch-Ziele sind mindestens 44 × 44 Pixel gross (WCAG 2.2 verlangt 24 × 24; hier gilt dasselbe Mass wie in der App).
 - [ ] **11.11** Mit «Bewegung reduzieren» bewegt sich nichts. Es gibt keine automatische Bewegung, kein Karussell und kein Blinken.
 - [ ] **11.12** Geschützte Bausteine laden nach: Der Platzhalter meldet «Wird geladen» (`aria-busy`, Live-Region), der Fehlerzustand und der Zustand «nicht angemeldet» sind Text mit einem Link oder einer Schaltfläche (zum Beispiel «Nochmals versuchen»), und der Fokus springt nicht ohne Grund. Ohne JavaScript bleibt die Seite lesbar: Der Platzhalter sagt «Nur angemeldet sichtbar» und führt mit «Anmelden» zur Anmeldung, die Hülle nennt den Grund. Das Skelett erscheint erst nach 200 ms, steht bei «Bewegung reduzieren» still, und nach 4 Sekunden meldet die Live-Region «Das dauert länger als sonst.».
-- [ ] **11.13** `/anmelden`: Jedes Feld hat eine sichtbare Beschriftung (`label`), ein Fehler steht als Text oben und trägt den Fokus (bei fehlenden Angaben als Liste mit Links auf die Felder und je Feld ein Text, das Feld trägt `aria-invalid` und `aria-describedby`), Benutzername und Passwort tragen `autocomplete`, der Code des zweiten Faktors `one-time-code` und `inputmode="numeric"`, das Einfügen geht, und ein Passwort-Manager füllt aus.
+- [ ] **11.13** `/anmelden`: Jedes Feld hat eine sichtbare Beschriftung (`label`), ein Fehler steht als Text oben und trägt den Fokus (bei fehlenden Angaben als Liste mit Links auf die Felder und je Feld ein Text, das Feld trägt `aria-invalid` und `aria-describedby`), Benutzername und Passwort tragen `autocomplete`, der Code des zweiten Faktors `one-time-code` und `inputmode="numeric"`, das Einfügen geht, und ein Passwort-Manager füllt aus. Seit #818 steht die Anmeldung auch für die Verwaltung hier; weitere Prüfpunkte im Abschnitt 93.
 - [ ] **11.14** Es gibt kein Zeitlimit und keine automatische Weiterleitung: Die Hülle einer geschützten Seite nennt den Link «Anmelden», statt selbst zu wechseln.
 
 ### Termine und Anlässe (#530)
@@ -288,7 +288,7 @@ Im Browser (Chromium, headless, Playwright) gegen eine Kopie der Demo-Abteilung 
 
 ## 17. Verwaltung: Anmeldung, System, Plattform, Erinnerungen, Mitteilungen (#593)
 
-Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf), `system.js`, `plattform.js`, `hinweisband.js`, `zeitregeln.js`, `mitteilungen.js` und `system.css`. Die Abschnitte 1 bis 4, 6 und 9 gelten dafür sinngemäss.
+Dieser Abschnitt gilt für `admin.js` (Weiterleitung zur Anmeldung, Sitzungsablauf), `system.js`, `plattform.js`, `hinweisband.js`, `zeitregeln.js`, `mitteilungen.js` und `system.css`. Die Abschnitte 1 bis 4, 6 und 9 gelten dafür sinngemäss.
 
 - [ ] **17.1** Das Hinweisband ist ein Bereich mit Namen («Betriebshinweis»); Sperre und Wartung stehen als Wort («Informationssperre: …», «Wartung: … ist nur lesbar») mit Symbol, nie nur als Farbe. Text und Verweis erreichen 4.5:1, der Verweis «Zur Plattform» ist mit Tab erreichbar und mindestens 44 Pixel hoch.
 - [ ] **17.2** Die Plattform zeigt jeden Zustand als Chip mit Wort («Frei», «In Wartung», «Offen», «Gesperrt»); die Knöpfe tragen den Bereich im Namen («Aufheben: Website»). «Aufheben» fragt im Knopf («Wirklich aufheben?»), Esc nimmt die Frage zurück.
@@ -297,7 +297,7 @@ Dieser Abschnitt gilt für `admin.js` (Anmeldung, zweiter Faktor, Sitzungsablauf
 - [ ] **17.5** Die Vorschau der Mitteilung ist für Screenreader ausgeblendet (`aria-hidden`), die Angaben stehen in den Feldern selbst; «Geht an» und «Rollen» stehen als Liste mit Name und Wert. Der Knopf «Senden» fragt im Knopf, die Frage nennt Empfänger und Rollen. Seit #625 gilt dafür Abschnitt 35.
 - [ ] **17.6** Das Diagramm der Anfragen hat einen Satz mit allen Werten, eine Ablesung mit Pfeiltasten und eine Tabelle («Als Tabelle anzeigen»); der Fehleranteil hat Legende und Zahl, nicht nur Farbe.
 - [ ] **17.7** Die Seite System aktualisiert sich nie von selbst; «Aktualisieren» meldet «Zahlen aktualisiert.» in der Live-Region.
-- [ ] **17.8** Anmeldung: Fehler, «zu viele Versuche» (Chip mit Wort) und der zweite Faktor (Codefeld mit sechs Zellen, Einfügen, Autofill) sind Meldungen mit `role="alert"`; der Fokus liegt auf der Meldung oder dem Titel. Der Sitzungsablauf sagt ehrlich, was verloren geht, und führt nach dem Anmelden auf dieselbe Seite zurück.
+- [ ] **17.8** Anmeldung: Seit #818 steht sie nur noch auf der Anmeldeseite der Website; ihre Prüfpunkte stehen im Abschnitt 93 (Fehler, «zu viele Versuche», zweiter Faktor). Der Sitzungsablauf sagt ehrlich, was verloren geht, und führt nach dem Anmelden auf dieselbe Seite der Verwaltung zurück.
 - [ ] **17.9** Hell, Dunkel und «Bewegung reduzieren»: Das Band und die Termine der Vorschau gleiten nur bei erlaubter Bewegung ein.
 - [ ] **17.10** 320, 390, 720 und 1440 Pixel: nichts scrollt waagrecht, auch Personen und Gruppen nicht (die Beschriftung der Tabelle für Screenreader liegt im Rahmen).
 
@@ -1704,7 +1704,7 @@ Auf der Hinweisseite der Informationssperre (`index.html`, `404.html`, Code in `
 - [ ] **90.3** Der Link ist unterstrichen, nicht nur durch Farbe erkennbar. Kontrast der Schriftfarbe `--leise` zur Fläche: hell #4d4d4d auf #ffffff, dunkel #bebeb6 auf #1c1c1a (je über 4,5:1).
 - [ ] **90.4** Bei 390 und 1280 Pixel, hell und dunkel: der Link bleibt in der Textspalte, kein waagrechtes Scrollen. Im Modus «Erzwungene Farben» trägt er keinen Rahmen und bleibt als Linktext lesbar.
 - [ ] **90.5** Die Hinweisseite bleibt neutral: Kein Wort zu Anlass, Daten, Panne oder Sicherheit; der Link benennt keine Rollen und keine Sperre.
-- [ ] **90.6** Nach dem Link zeigt die Anmeldung der Verwaltung dieselben Prüfpunkte wie bisher (Abschnitt 9, Fokus auf der Überschrift, Fehler als `role="alert"`); nach dem Code liegt der Fokus auf der Überschrift «Wartung und Sperre», das Band «Informationssperre» steht als Bereich «Betriebshinweis» darüber.
+- [ ] **90.6** Nach dem Link zeigt die gemeinsame Anmeldeseite die Prüfpunkte des Abschnitts 93 (seit #818 statt der eigenen Anmeldung der Verwaltung); nach dem Code liegt der Fokus auf der Überschrift «Wartung und Sperre», das Band «Informationssperre» steht als Bereich «Betriebshinweis» darüber.
 
 ### Stand der Prüfung (#803)
 
@@ -1743,3 +1743,31 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vors
 - **Ablauf von Anfang bis Ende:** Sitzung, Seite «Fotos»: Hülle, danach Titel, Text und Baustein Fotoalben (ohne Alben: «Hier gibt es noch keine Fotos.»); Klick auf «Fotoarchiv» im Untermenü lädt die Seite und markiert den Punkt.
 
 **Nicht geprüft:** 91.5 (Bewegung reduzieren) und 91.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 91.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).
+
+## 93. Eine Anmeldeseite für Website und Verwaltung (#818)
+
+Die Anmeldeseite der Website (`/anmelden`, erzeugt aus `rendereAnmeldung` in `apps/api/src/website/rendern.ts`, Skript `website/anmelden.js`, Stil `.anmelde-mitte` und `.anmelde-karte` in `website/website.css`) ist die einzige Anmeldung. `/admin` ohne Sitzung leitet mit `?weiter=%2Fadmin%23<Bereich>` dorthin und die Anmeldung führt zurück. Der Abschnitt ersetzt die Prüfpunkte der früheren Anmeldung der Verwaltung (Abschnitt 17.8 und 90.6 verweisen hierher); die allgemeinen Punkte der Anmeldeseite stehen weiter bei 11.13.
+
+### Prüfpunkte
+
+- [ ] **93.1** Alle Schritte stehen in einer Karte, waagrecht in der Mitte: Anmelden, Zweiter Faktor, Ersatzcode, Hinweise («Du bist abgemeldet.») und Fehler. Der Abstand links ist gleich dem Abstand rechts (höchstens 1 Pixel Unterschied, gemessen an `.anmelde-karte` gegen die Breite ohne Bildlaufleiste) bei 320, 390, 768, 1280 und 2560 Pixel. Die Karte ist höchstens 28 rem breit, nie schmaler als das Fenster minus Rand; nichts scrollt waagrecht, kein Feld ragt aus der Karte.
+- [ ] **93.2** Senkrecht steht die Karte in einem Bereich von mindestens 60 % der Fensterhöhe (`min-height: max(24rem, 60svh)`) in dessen Mitte; die Seite wird nie höher, als der Inhalt verlangt, es gibt keine Höhe aus «Fenster minus geschätzter Kopf». Oben und unten steht der Abstand der übrigen Seiten (`padding-block: var(--abstand)`), die Karte reicht nie bis an den Fuss. Ein Fehlerband oder die Fehlerzusammenfassung verschiebt die Karte nur nach unten, nie zur Seite.
+- [ ] **93.3** Rücksprung: Von `/admin#bereich` aus führt die Anmeldung zu `/admin#bereich` zurück, von einer Seite der Website zu ihr. Jede andere Adresse in `weiter` (Host, `//`, `\`, `javascript:`, `/admin/x`, Leerzeichen) führt auf `/`. Es gibt keine automatische Weiterleitung ausser nach einer erfolgreichen Anmeldung und von `/admin` ohne Sitzung (ohne Eintrag im Verlauf, «Zurück» führt nicht in eine Schleife).
+- [ ] **93.4** Hinweise von der Verwaltung (`grund`: `abgemeldet`, `alle`, `sitzung`, `code`) stehen als ruhiges Band mit Symbol und Text über dem Formular, `role="status"` (kein `alert`), nicht als Fehler gefärbt; der Fokus bleibt am Anfang der Seite. Das Band verschwindet beim ersten Absenden. Ein unbekannter `grund` zeigt nichts.
+- [ ] **93.5** Fehler wie bei 11.13: Falsche Angaben als Band oben mit `role="alert"` und `aria-invalid` am Feld, «Zu viele Versuche» und «Keine Verbindung» als Toast, immer derselbe Text für falsches Konto und falsches Passwort («Benutzername oder Passwort stimmen nicht.»). Fehlende Angaben als Liste mit Links auf die Felder, der Fokus liegt auf der Liste.
+- [ ] **93.6** Zweiter Faktor: Nach dem Passwort wechselt die Karte ohne Sprung zum Feld «Code aus deiner App» (Fokus im Feld, `one-time-code`, `inputmode="numeric"`, Einfügen geht, «Sechs Ziffern»); «Ersatzcode verwenden» wechselt Beschriftung, Hilfe und Tastatur und wieder zurück; «Abbrechen» führt zum Passwort, der Fokus liegt im Benutzernamen. Ein abgelaufener Zwischenstand sagt «Die Anmeldung ist abgelaufen.» und führt zum Passwort.
+- [ ] **93.7** Startpasswort: Nach der Anmeldung führt die Seite immer zu «Mein Konto» (`/konto`), egal wohin `weiter` zeigt; `/admin` mit einem Konto, das sein Startpasswort noch nicht gewechselt hat, führt ebenfalls dorthin.
+- [ ] **93.8** Hell und Dunkel, «Bewegung reduzieren», «Erzwungene Farben»: Text und Ränder lesbar (Kontrast der Seite wie 11.x), Fokusring sichtbar, Zielgrösse mindestens 44 Pixel (Knöpfe `.btn.gross`).
+- [ ] **93.9** Informationssperre: Die Anmeldeseite bleibt mit ihren Skripten und Stilvorlagen erreichbar; der Link «Für Berechtigte: Anmelden» auf der Hinweisseite (Abschnitt 90) führt zu `/anmelden?weiter=%2Fadmin%23system%2Fplattform`. Alle übrigen Seiten zeigen weiter die Hinweisseite.
+
+### Stand der Prüfung (#818)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Proxy wie der Edge-Caddy, Kopie einer Vorschau-Datenbank, drei Wegwerf-Konten: Abteilungsleitung mit zweitem Faktor, Konto mit Startpasswort, Abteilungsleitung ohne zweiten Faktor):
+
+- **93.1:** Gemessen (Abstand links gleich rechts, Unterschied 0 Pixel, kein waagrechtes Scrollen) bei 320 und 390 Pixel für alle vier Schritte («Anmelden», «Angaben fehlen» mit Fehlerzusammenfassung, «Zweiter Faktor», «Ersatzcode»), bei 768 für «Zweiter Faktor» mit Ersatzcode und «Anmelden», bei 1280 für «Anmelden», «Zweiter Faktor» und das Hinweisband, bei 2560 für «Anmelden» und «Zweiter Faktor». Die Karte «Zweiten Faktor einrichten» der Verwaltung (1070 Pixel) steht ebenfalls mittig (304 Pixel links, 304 rechts). Die gemeldete Karte «Schritt 2 von 2» mit 115 und 285 Pixel Rand liess sich im neuen Stand nicht mehr herstellen; die Verwaltung hat diese Karte nicht mehr.
+- **93.2:** Abstand von der Karte bis zum Fuss: 48 Pixel bei 390, 84.8 bei 768 (59 Pixel aus dem Abstand, der Rest aus der Mindesthöhe des Bereichs), 76.8 bei 1280 Pixel Breite, hell und dunkel; oben und unten gleich, die Karte steht in der Mitte des Bereichs.
+- **93.3 bis 93.7:** `/admin#personen` ohne Sitzung leitet zu `/anmelden?weiter=%2Fadmin%23personen`; falsches Passwort zeigt den Text von 93.5; richtiges Passwort, Code aus einem nachgerechneten TOTP, dann `/admin#personen`; «Abmelden» in der Verwaltung führt mit «Du bist abgemeldet.» zurück; `weiter=//evil.example` und `grund=constructor` bleiben ohne Wirkung; ein Konto mit Startpasswort landet bei `/konto`, auch bei einem Aufruf von `/admin`.
+- **93.8:** Hell und Dunkel bei 1280 und 390 Pixel angeschaut (Ansicht, kein Messwert).
+- Die Regeln für `weiter` (kein offener Redirect), die Hinweise der Verwaltung, die Sperre und die CSS-Regeln der Karte prüft `apps/api/test/website-anmeldung-einheitlich.test.ts`; die Messung im Browser ist kein Test im Repo (es gibt dort kein Browser-Gerüst).
+
+**Nicht geprüft:** Informationssperre und Wartung im Browser (nur im Test), Ersatzcode mit echten Codes, «Alle Geräte abmelden» und Sitzungsablauf im Browser, Bildschirmleser (NVDA, VoiceOver, TalkBack), Safari und Firefox, Zoom 200 %, Kontrastwerte mit einem Messwerkzeug, 93.8 «Erzwungene Farben».

@@ -475,3 +475,11 @@ export const adresseVon = (bereich, unter) =>
   unter.schluessel === bereich.unter[0].schluessel && bereich.unter.length === 1
     ? `#${bereich.schluessel}`
     : `#${bereich.schluessel}/${unter.schluessel}`;
+
+// Die Anmeldeseite der Website (#818) mit Rücksprung in die Verwaltung an dieselbe Stelle («hash» wie location.hash, mit «#» oder leer). Die Seite prüft den Rücksprung selbst (website/weiter.js)
+// grund: Schlüssel eines festen Hinweises dort («abgemeldet», «alle», «sitzung», «code»)
+export function anmeldeAdresse(hash, grund) {
+  const anfrage = new URLSearchParams({ weiter: `/admin${hash}` });
+  if (grund) anfrage.set("grund", grund);
+  return `/anmelden?${anfrage}`;
+}

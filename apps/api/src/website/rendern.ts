@@ -1543,14 +1543,15 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
   });
 }
 
-// Anmeldeseite (#354, Design W9). Die Felder haben kein name-Attribut und das Formular sendet nichts selbst (form-action 'none'): Ein Passwort gelangt nie in eine Adresse. Das Skript sendet es als JSON an /api/auth
+// Anmeldeseite (#354, Design W9; seit #818 die einzige, auch für die Verwaltung). Die Felder haben kein name-Attribut und das Formular sendet nichts selbst (form-action 'none'): Ein Passwort gelangt nie in eine Adresse. Das Skript sendet es als JSON an /api/auth
 export function rendereAnmeldung(k: Kontext): string {
   return rahmen(k, {
     titel: "Anmelden",
     aktuell: null,
     robots: "noindex",
     skript: SKRIPT_ANMELDEN,
-    inhalt: `<div class="seitenkopf"><h1>Anmelden</h1></div>
+    inhalt: `<div class="anmelde-mitte"><div class="anmelde-karte">
+<div class="seitenkopf"><h1>Anmelden</h1></div>
 <noscript><div class="band wa">${serialisiere(symbol("warnung"))}<div class="text"><strong>Zum Anmelden braucht diese Seite JavaScript.</strong>Schalte es im Browser ein und lade die Seite neu.</div></div></noscript>
 <div id="meldung"></div>
 <form id="anmeldung" class="formular" method="post" action="#" novalidate>
@@ -1565,6 +1566,7 @@ export function rendereAnmeldung(k: Kontext): string {
 <div class="feld"><label for="code" id="code-label">Code aus deiner App</label><input class="eingabe code" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required aria-describedby="code-hilfe"><p class="hilfe" id="code-hilfe">Sechs Ziffern. Einfügen geht auch.</p></div>
 <button type="submit" class="btn p gross voll">Bestätigen</button>
 <div class="knopfreihe"><button type="button" id="ersatz" class="btn t">Ersatzcode verwenden</button><button type="button" id="abbrechen" class="btn t">Abbrechen</button></div>
-</form>`,
+</form>
+</div></div>`,
   });
 }

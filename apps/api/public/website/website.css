@@ -1054,6 +1054,29 @@ a.termin:hover {
   margin-bottom: 1.5rem;
 }
 
+/* Die Anmeldeseite (#818): eine Spalte in der Mitte, links so viel Rand wie rechts, bei jeder Breite. Die Höhe sucht sich die Mitte des Fensters, ohne dass die Seite höher wird als ihr Inhalt verlangt */
+.anmelde-mitte {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  min-height: max(24rem, 60svh);
+  padding-block: var(--abstand);
+}
+
+.anmelde-karte {
+  width: min(100%, 28rem);
+  min-width: 0;
+}
+
+.anmelde-karte .seitenkopf {
+  padding: 0 0 1.5rem;
+}
+
+.anmelde-karte .formular,
+.anmelde-karte #meldung:not(:empty) {
+  max-width: none;
+}
+
 .feld {
   display: flex;
   flex-direction: column;
