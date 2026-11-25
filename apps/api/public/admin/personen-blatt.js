@@ -1,7 +1,6 @@
 import { bestaetigungAmOrt } from "./aktionen.js";
 import { anfrage, fehlertext } from "./api.js";
 import {
-  ankreuzen,
   auswahl,
   avatar,
   chip,
@@ -263,6 +262,68 @@ export function rollenFelder(stufen, rollen) {
       stufen
         .filter((s) => zugewiesen.get(s.id)?.weg === false)
         .map((s) => ({ stufeId: s.id, typ: zugewiesen.get(s.id).typ })),
+  };
+}
+
+// Abteilungsleitung (#799): dieselbe Zeile wie eine Stufenrolle (Chip, Segmentwahl, gleicher Abstand), die Wahl «Nein | Ja» gilt mit «Speichern»
+// wert() ist der Wahrheitswert, den die API als abteilungsleitung erwartet; entwickler zeigt den Hinweis, dass die Rolle «Entwickler» nur zu sehen ist
+export function abteilungFeld({ gewaehlt, personName, entwickler }) {
+  const name = neueId("abteilungsleitung");
+  const optionen = [
+    [false, "Nein"],
+    [true, "Ja"],
+  ].map(([wert, text]) => {
+    const id = neueId("abteilungsleitung-option");
+    return [
+      el("input", {
+        type: "radio",
+        id,
+        name,
+        value: String(wert),
+        checked: wert === gewaehlt,
+      }),
+      el("label", { for: id }, icon("haken"), text),
+    ];
+  });
+  const wurzel = el(
+    "div",
+    { class: "pe-stufenzuweisung" },
+    el("h3", { class: "pe-teiltitel" }, "Abteilung"),
+    el(
+      "ul",
+      {
+        class: "liste-zeilen pe-stufenzeilen",
+        "aria-label": "Abteilung der Person",
+      },
+      el(
+        "li",
+        { class: "pe-stufenzeile" },
+        el(
+          "ul",
+          { class: "chips" },
+          chip("Abteilungsleitung", "stufe", "schild"),
+        ),
+        el(
+          "div",
+          {
+            class: "seg",
+            role: "radiogroup",
+            "aria-label": `Abteilungsleitung: ${personName}`,
+          },
+          optionen.flat(),
+        ),
+      ),
+    ),
+    entwickler &&
+      el(
+        "p",
+        { class: "hilfe" },
+        "Diese Person ist auch Entwickler. Die Rolle «Entwickler» lässt sich hier nur ansehen: Sie vergibt, wer Zugang zum Server hat, auf der Kommandozeile.",
+      ),
+  );
+  return {
+    wurzel,
+    wert: () => wurzel.querySelector("input:checked").value === "true",
   };
 }
 
@@ -921,9 +982,10 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         required: true,
       });
   const telefon = telefonFeld(person?.telefon);
-  const abteilungsleitung = ankreuzen({
-    label: "Abteilungsleitung",
+  const abteilungsleitung = abteilungFeld({
     gewaehlt: person?.abteilungsleitung ?? false,
+    personName: person?.name ?? "neue Person",
+    entwickler: person?.entwickler,
   });
   const rollen = rollenFelder(daten.stufen, person?.rollen ?? []);
   // Nur wer Rechte vergeben darf, bekommt die Funktionen geliefert (personen.js ladeDaten)
@@ -1007,12 +1069,6 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
       "Rechte und Rollen",
       "Die Abteilungsleitung braucht einen zweiten Faktor, bevor sie die Verwaltung öffnen kann. Die Rolle in einer Stufe bestimmt, was die Person in dieser Stufe sieht.",
       abteilungsleitung.wurzel,
-      person?.entwickler &&
-        el(
-          "p",
-          { class: "hilfe" },
-          "Diese Person ist auch Entwickler. Die Rolle «Entwickler» lässt sich hier nur ansehen: Sie vergibt, wer Zugang zum Server hat, auf der Kommandozeile.",
-        ),
       rollen.wurzel,
       funktionen?.wurzel,
       !person &&
@@ -1129,7 +1185,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           ceviName: ceviName.eingabe.value,
           telefon: tel,
           benutzername: benutzername.eingabe.value.trim(),
-          abteilungsleitung: abteilungsleitung.eingabe.checked,
+          abteilungsleitung: abteilungsleitung.wert(),
           rollen: rollen.wert(),
           elternteilVon: kinder.wert(),
         });
@@ -1145,7 +1201,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         name: name.eingabe.value.trim(),
         ceviName: ceviName.eingabe.value,
         telefon: tel,
-        abteilungsleitung: abteilungsleitung.eingabe.checked,
+        abteilungsleitung: abteilungsleitung.wert(),
         rollen: rollen.wert(),
         elternteilVon: kinder.wert(),
       });
