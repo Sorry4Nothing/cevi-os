@@ -605,6 +605,11 @@ describe("Gruppen, Tags und Stufen", () => {
       await status(leiter, "PUT", mit(teamA, ziel.id!), { rolle: "Kasse" }),
     ).toBe(403);
     expect(await status(leiter, "DELETE", mit(teamB, ziel.id!))).toBe(403);
+    // Auch entziehen darf nur, wer Rechte vergibt (#777): Die Rolle «verantwortlich» gibt der Gruppe Rechte
+    expect(await status(leiter, "DELETE", mit(teamA, ziel.id!))).toBe(403);
+    expect(await status(admin, "DELETE", mit(teamA, ziel.id!))).toBe(204);
+    // Ohne Rolle mit Rechten entzieht auch die Gruppenleitung
+    expect(await status(leiter, "PUT", mit(teamA, ziel.id!), {})).toBe(204);
     expect(await status(leiter, "DELETE", mit(teamA, ziel.id!))).toBe(204);
   });
 

@@ -140,7 +140,7 @@ Die Fotos der Abteilung liegen bei Flickr und erscheinen auf der Seite mit dem B
 
 - **Server holt, Browser lädt nur von uns:** Der Server ruft die Flickr-API ab und liefert die Bilder selbst aus (`/api/v1/fotos/alben/<id>/bilder/<bildId>?groesse=klein|mittel|gross`, nur feste Grössen, nur Bilder aus sichtbaren Alben). Die CSP der Seite bleibt `img-src 'self'`; die Website lädt nichts von Dritten. Die Edge muss `/api/*` an die API weitergeben wie für das Lädeli. Bilder tragen `Cache-Control: private, no-cache`: Der Edge darf sie nicht zwischenspeichern.
 - **Adresse eines Albums:** `/fotos?album=<Kennung>`. `weiter.js` lässt diese eine Anfrage («?album=» mit Ziffern) für den Rückweg nach der Anmeldung zu.
-- **Konfiguration und Einrichtung:** `docs/flickr-einrichten.md`. Die vier Werte `FLICKR_API_KEY`, `FLICKR_API_SECRET`, `FLICKR_OAUTH_TOKEN` und `FLICKR_OAUTH_TOKEN_SECRET` stehen nur in `deploy/.env`; Konto und Albenwahl stellt die Verwaltung ein (Tabellen `foto_einstellung`, `foto_album`).
+- **Konfiguration und Einrichtung:** `docs/flickr-einrichten.md`. Die Werte `FLICKR_API_KEY`, `FLICKR_API_SECRET`, `FLICKR_OAUTH_TOKEN`, `FLICKR_OAUTH_TOKEN_SECRET` und `FLICKR_KONTO` (das Konto des Tokens) stehen nur in `deploy/.env`; Konto und Albenwahl stellt die Verwaltung ein (Tabellen `foto_einstellung`, `foto_album`).
 - **Änderungen an der Auswahl** (Album zeigen, Reihenfolge, Titel) wirken sofort; sie erzeugen keine Dateien neu, weil nichts davon im HTML steht.
 
 ## Konfiguration

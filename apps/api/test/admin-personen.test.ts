@@ -865,10 +865,15 @@ describe("Sperre: mindestens eine Abteilungsleitung oder ein Entwickler bleibt",
   test("ein deaktivierter Entwickler zählt nicht: danach gilt die Abteilungsleitung allein", async () => {
     const { welt: eigene, ersterAdmin } = await eigeneWelt();
     const entwickler = await legeEntwicklerAn(eigene);
+    // Die Abteilungsleitung deaktiviert keinen Entwickler (403 KONTO_GESCHUETZT, #777): Die Spalte fällt von Hand
     expect(
       (await anfrage(ersterAdmin, "POST", `/${entwickler.id}/deaktivieren`))
         .status,
-    ).toBe(204);
+    ).toBe(403);
+    await db
+      .update(schema.user)
+      .set({ deaktiviertAm: new Date() })
+      .where(eq(schema.user.id, entwickler.id!));
     const antwort = await anfrage(ersterAdmin, "PATCH", `/${ersterAdmin.id}`, {
       abteilungsleitung: false,
     });

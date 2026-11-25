@@ -5225,7 +5225,7 @@ paths:
       operationId: aendereAdminPerson
       summary: Name, Recht der Abteilungsleitung, Stufenrollen und Kinder einer Person ändern
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst; `abteilungsleitung` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung (#650). Das Konto einer Abteilungsleitung ändert nur sie selbst, das Konto eines Entwicklers nur ein Entwickler (403 `KONTO_GESCHUETZT`, #777); `abteilungsleitung` und `rollen` ändert nur die Abteilungsleitung (ein unveränderter Wert ist kein Fehler), `elternteilVon` braucht `kinder.verwalten` in der Stufe der betroffenen Kinder. Alle Felder sind optional; ein leeres Objekt ist ein No-op und liefert 204. `rollen` und `elternteilVon` ersetzen die bisherige Liste vollständig (nicht angegeben bleibt unverändert).
 
         Reihenfolge der Prüfungen: Pfad und Body (400), dann Ziel in der eigenen Abteilung (404), dann Recht der Abteilungsleitung (403), dann Stufen- und Kind-IDs (400).
 
@@ -5306,7 +5306,7 @@ paths:
       operationId: setzeAdminStartpasswortNeu
       summary: Neues Startpasswort für eine Person erzeugen
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung. Konten mit Rechten (Abteilungsleitung, Entwickler, Plattformrolle, Rolle in einer Gruppe, Sonderrecht) setzt nur die Abteilungsleitung und der Entwickler zurück (403 sonst, #650, #722). Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung. Konten mit Rechten (Abteilungsleitung, Entwickler, Plattformrolle, Rolle in einer Gruppe, Sonderrecht) setzt nur die Abteilungsleitung und der Entwickler zurück (403 sonst, #650, #722); Konten von Entwicklern nur ein Entwickler (403 `KONTO_GESCHUETZT`, #777). Setzt ein neues Startpasswort, beendet alle Sitzungen der Person (Push-Tokens enden mit ihnen), verlangt beim nächsten Login einen Passwortwechsel, gilt 7 Tage und setzt die Bremse für Fehlversuche zurück. Kein Request-Body.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -5346,7 +5346,7 @@ paths:
       operationId: deaktiviereAdminPerson
       summary: Person deaktivieren
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung, Konten von Entwicklern nur ein Entwickler (403 sonst, bei Konten von Entwicklern und der Abteilungsleitung mit Code `KONTO_GESCHUETZT`, #650, #777). Sperrt das Konto und beendet alle Sitzungen der Person. Kein Request-Body.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENES_KONTO` für das eigene Konto oder `LETZTE_ABTEILUNGSLEITUNG`, wenn der Abteilung keine aktive Person mit Abteilungsleitung und kein aktiver Entwickler bliebe.
       tags:
@@ -5380,7 +5380,7 @@ paths:
       operationId: aktiviereAdminPerson
       summary: Deaktivierte Person wieder aktivieren
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Hebt die Sperre auf und setzt dabei ein neues Startpasswort: Das alte gilt nicht mehr. Wie bei `POST /api/v1/admin/personen/{id}/startpasswort` enden alle Sitzungen der Person, der nächste Login verlangt einen Passwortwechsel, das Passwort gilt 7 Tage und die Bremse für Fehlversuche beginnt von vorn. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt und setzt dann ebenfalls ein neues Startpasswort.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung, Konten von Entwicklern nur ein Entwickler (403 sonst, bei Konten von Entwicklern und der Abteilungsleitung mit Code `KONTO_GESCHUETZT`, #650, #777). Hebt die Sperre auf und setzt dabei ein neues Startpasswort: Das alte gilt nicht mehr. Wie bei `POST /api/v1/admin/personen/{id}/startpasswort` enden alle Sitzungen der Person, der nächste Login verlangt einen Passwortwechsel, das Passwort gilt 7 Tage und die Bremse für Fehlversuche beginnt von vorn. Kein Request-Body. Der Aufruf ist auch bei einer bereits aktiven Person erlaubt und setzt dann ebenfalls ein neues Startpasswort.
 
         Das Startpasswort steht nur in dieser 200-Antwort und lässt sich nicht erneut abrufen.
 
@@ -5420,7 +5420,7 @@ paths:
       operationId: setzeAdminZweitenFaktorZurueck
       summary: Zweiten Faktor einer Person zurücksetzen
       description: |
-        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung (403 sonst, #650). Entfernt den zweiten Faktor der Person. Kein Request-Body.
+        Wer `personen.verwalten` hat, nur Personen der eigenen Abteilung; Konten mit Rechten nur die Abteilungsleitung, Konten von Entwicklern nur ein Entwickler (403 sonst, bei Konten von Entwicklern und der Abteilungsleitung mit Code `KONTO_GESCHUETZT`, #650, #777). Entfernt den zweiten Faktor der Person und beendet alle ihre Sitzungen (#777). Kein Request-Body.
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört. 409 mit Code `EIGENER_ZWEITER_FAKTOR` für den eigenen Faktor (eine andere Person der Abteilungsleitung setzt ihn zurück) oder `KEIN_ZWEITER_FAKTOR`, wenn die Person keinen hat.
       tags:
@@ -5456,7 +5456,7 @@ paths:
       description: |
         Abteilungsleitung (mit zweitem Faktor) und Entwickler (mit zweitem Faktor), nur Personen der eigenen Abteilung. Die Person setzt ihr Bild selbst; das Entfernen löscht es und lässt die Website beim nächsten Abgleich das Bild vergessen. Hatte die Person ein Bild, steht der Eintrag `profilbild_entfernt` (Ziel: die Person, nie das Bild) im Protokoll. Ohne Bild ebenfalls 204, ohne Eintrag. Kein Request-Body.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle ausser Abteilungsleitung und Entwickler, ohne zweiten Faktor mit Code `ZWEITER_FAKTOR_FEHLT`. 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört (vor dem 403).
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle ausser Abteilungsleitung und Entwickler, ohne zweiten Faktor mit Code `ZWEITER_FAKTOR_FEHLT`; das Bild eines Entwicklers entfernt nur ein Entwickler (`KONTO_GESCHUETZT`, #777). 404, wenn die Person unbekannt ist oder zu einer anderen Abteilung gehört (vor dem 403).
       tags:
         - Verwaltung
       parameters:
@@ -7306,7 +7306,7 @@ paths:
       operationId: entzieheAdminTag
       summary: Tag einer Person entziehen
       description: |
-        Wer `gruppen.mitglieder` für diese Gruppe hat, nur Tags der eigenen Abteilung. Entfernt die Zuordnung; der Entzug steht im Audit-Log.
+        Wer `gruppen.mitglieder` für diese Gruppe hat, nur Tags der eigenen Abteilung. Entfernt die Zuordnung; der Entzug steht im Audit-Log. Hat die Person in der Gruppe eine Rolle mit Rechten (Gruppenrolle, Stufenleitung, «verantwortlich»), entzieht sie nur, wer auch Rechte vergeben darf (`rechte.verwalten`, 403 sonst, #777).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn der Tag unbekannt ist, zu einer anderen Abteilung gehört oder die Person ihn nicht trägt.
       tags:
@@ -8164,7 +8164,7 @@ paths:
       description: |
         Nur die Abteilungsleitung. Weist einer Person der eigenen Abteilung die Rolle zu; schon vergeben ist kein Fehler und schreibt keine zweite Audit-Zeile. Wer eine Rolle vergibt, muss ihre Rechte selbst haben. Das Zuweisen steht im Audit-Log (`plattform_rolle_vergeben`, Person und Rolle).
 
-        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403), eigene Rechte (403).
+        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403), Konto geschützt (403 `KONTO_GESCHUETZT`: Konten von Entwicklern ändert nur ein Entwickler, #777), eigene Rechte (403).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn Rolle oder Person unbekannt sind oder zu einer anderen Abteilung gehören.
       tags:
@@ -8194,7 +8194,7 @@ paths:
       description: |
         Nur die Abteilungsleitung. Der Entzug wirkt bei der nächsten Anfrage der Person und steht im Audit-Log (`plattform_rolle_entzogen`).
 
-        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403).
+        Reihenfolge der Prüfungen: Pfad (400), Rolle und Person in der eigenen Abteilung (404), Recht der Abteilungsleitung (403), Konto geschützt (403 `KONTO_GESCHUETZT`: Konten von Entwicklern ändert nur ein Entwickler, #777).
 
         Statuscodes: 204 bei Erfolg. 400 bei ungültiger ID. 403 für alle anderen. 404, wenn Rolle oder Person unbekannt sind, zu einer anderen Abteilung gehören oder die Person die Rolle nicht trägt.
       tags:
@@ -26068,7 +26068,7 @@ paths:
       description: |
         Nur mit dem Recht `fotos.verwalten`. Ein frischer Abruf der Albumliste bei Flickr (der Speicher wird übergangen und geleert). Mit `flickrKonto` prüft die Route ein Konto, das noch nicht gespeichert ist; sonst das gespeicherte. Antwortet immer 200: Das Ergebnis steht im Body (`ok`, bei Erfolg die Zahl der Alben, sonst `art`), und es enthält nie ein Geheimnis. Die Route ändert nichts und steht nicht im Änderungsprotokoll.
 
-        Statuscodes: 200. 400 bei ungültiger Eingabe. 401, 403.
+        Statuscodes: 200. 400 bei ungültiger Eingabe. 401, 403. 409 mit Code `FLICKR_KONTO_VERGEBEN`, wenn das Konto schon einer anderen Abteilung gehört (#777).
 
         Datenbanklast: eine Abfrage; ein Abruf bei Flickr.
       tags:
@@ -26094,6 +26094,12 @@ paths:
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
+        "409":
+          description: Das Konto gehört schon einer anderen Abteilung (`FLICKR_KONTO_VERGEBEN`, #777).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FotoKonflikt"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -26105,7 +26111,7 @@ paths:
       description: |
         Nur mit dem Recht `fotos.verwalten`. Ersetzt das Flickr-Konto (Kennung wie `12345678@N00`, `null` entfernt es) und den Schalter «Album auf Flickr öffnen» (Vorgabe aus). `version` ist die aus dem Stand (0 ohne Zeile); eine andere ist 409 `VERSION_KONFLIKT`. Die Entscheide zu Alben bleiben bei einem Kontowechsel bestehen, gelten aber nur für ihre Kennungen. Der Speicher des Servers wird geleert.
 
-        Statuscodes: 200 mit der neuen Version. 400, 401, 403, 409.
+        Statuscodes: 200 mit der neuen Version. 400, 401, 403, 409 (`VERSION_KONFLIKT`, oder `FLICKR_KONTO_VERGEBEN`, wenn das Konto schon einer anderen Abteilung gehört, #777).
 
         Datenbanklast: eine Transaktion mit Lesen und Upsert.
       tags:
@@ -26128,7 +26134,7 @@ paths:
         "400":
           $ref: "#/components/responses/UngueltigeEingabe400"
         "409":
-          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`).
+          description: Jemand anders hat es geändert (`VERSION_KONFLIKT`), oder das Konto gehört schon einer anderen Abteilung (`FLICKR_KONTO_VERGEBEN`, #777).
           content:
             application/json:
               schema:
@@ -42890,6 +42896,7 @@ components:
           type: string
           enum:
             - VERSION_KONFLIKT
+            - FLICKR_KONTO_VERGEBEN
         message:
           type: string
     FotoVersion:

@@ -1,4 +1,8 @@
-import { betterAuth, type BetterAuthOptions } from "better-auth";
+import {
+  betterAuth,
+  type BetterAuthOptions,
+  type DBAdapter,
+} from "better-auth";
 import {
   APIError,
   createAuthMiddleware,
@@ -110,6 +114,50 @@ export const ZU_VIELE_ANFRAGEN = {
 // shortcut: better-auth verlangt eine eindeutige E-Mail-Adresse; .invalid ist nie zustellbar (RFC 2606). Ersetzen, sobald better-auth Konten ohne E-Mail-Adresse erlaubt
 export function platzhalterEmail() {
   return `${crypto.randomUUID()}@benutzer.invalid`;
+}
+
+// Ein Fehlversuch beim Passwort zählt am Konto: ab dem 5. folgt die Wartezeit (wartezeitMinuten). Bei der Anmeldung wie bei enable und change-password in einer laufenden Sitzung (#777)
+async function zaehleFehlversuch(
+  adapter: DBAdapter,
+  person: Bremsfelder & { id: string },
+) {
+  const wo = [{ field: "id", value: person.id }];
+  if (
+    person.fehlversuche &&
+    fehlversucheVerfallen(person.fehlversuche, person.naechsterVersuchAb)
+  ) {
+    // Nur auf den gelesenen Stand: Von gleichzeitigen Fehlversuchen setzt einer zurück, die übrigen zählen weiter
+    await adapter.update({
+      model: "user",
+      where: [...wo, { field: "fehlversuche", value: person.fehlversuche }],
+      update: { fehlversuche: 0 },
+    });
+  }
+  const erhoeht = await adapter.incrementOne<{ fehlversuche: number }>({
+    model: "user",
+    where: wo,
+    increment: { fehlversuche: 1 },
+  });
+  const minuten = wartezeitMinuten(erhoeht?.fehlversuche ?? 0);
+  // Auch ohne Wartezeit: Daraus liest fehlversucheVerfallen den letzten Fehlversuch
+  await adapter.update({
+    model: "user",
+    where: wo,
+    update: { naechsterVersuchAb: new Date(Date.now() + minuten * 60_000) },
+  });
+}
+
+// Läuft die Wartezeit des Kontos, antwortet enable und change-password ohne Passwortprüfung (#777)
+function pruefeWartezeit(person: Bremsfelder | undefined) {
+  if (
+    person?.naechsterVersuchAb &&
+    new Date(person.naechsterVersuchAb) > new Date()
+  ) {
+    throw new APIError("TOO_MANY_REQUESTS", {
+      code: "WARTEZEIT",
+      message: "Bitte warten und später nochmals versuchen.",
+    });
+  }
 }
 
 // anmeldungGesperrt (#425): Gilt unter einer Sperre von «alles» für die Person der Abteilung; nur der Server (server.ts) übergibt sie, Kommandozeilen und Tests brauchen sie nicht
@@ -320,6 +368,7 @@ export function erstelleAuth(
         if (ctx.path === "/two-factor/enable") {
           // Eine Person der Abteilungsleitung mit offenem Startpasswort erreicht enable vor dem Wechsel; der Vergleich bleibt normalisiert
           const sitzung = await getSessionFromCtx(ctx);
+          pruefeWartezeit(sitzung?.user as Bremsfelder | undefined);
           if (
             (sitzung?.user as Bremsfelder | undefined)?.mussPasswortAendern &&
             typeof ctx.body?.password === "string"
@@ -357,6 +406,7 @@ export function erstelleAuth(
         }
         if (ctx.path !== "/change-password") return;
         const sitzung = await getSessionFromCtx(ctx);
+        pruefeWartezeit(sitzung?.user as Bremsfelder | undefined);
         const offen =
           (sitzung?.user as Bremsfelder | undefined)?.mussPasswortAendern ===
           true;
@@ -413,39 +463,24 @@ export function erstelleAuth(
           // Unbekannte Namen hinterlassen nichts
           if (!person) return;
           if (ctx.request) aktivitaetNutzer.set(ctx.request, person.id);
-          const wo = [{ field: "id", value: person.id }];
-          if (
-            person.fehlversuche &&
-            fehlversucheVerfallen(
-              person.fehlversuche,
-              person.naechsterVersuchAb,
-            )
-          ) {
-            // Nur auf den gelesenen Stand: Von gleichzeitigen Fehlversuchen setzt einer zurück, die übrigen zählen weiter
-            await adapter.update({
-              model: "user",
-              where: [
-                ...wo,
-                { field: "fehlversuche", value: person.fehlversuche },
-              ],
-              update: { fehlversuche: 0 },
-            });
-          }
-          const erhoeht = await adapter.incrementOne<{ fehlversuche: number }>({
-            model: "user",
-            where: wo,
-            increment: { fehlversuche: 1 },
-          });
-          const minuten = wartezeitMinuten(erhoeht?.fehlversuche ?? 0);
-          // Auch ohne Wartezeit: Daraus liest fehlversucheVerfallen den letzten Fehlversuch
-          await adapter.update({
-            model: "user",
-            where: wo,
-            update: {
-              naechsterVersuchAb: new Date(Date.now() + minuten * 60_000),
-            },
-          });
+          await zaehleFehlversuch(adapter, person);
           return;
+        }
+        // Ein falsches Passwort bei enable und change-password zählt auf dasselbe Konto wie bei der Anmeldung (#777): Wer eine Sitzung hat, rät das Passwort nicht unbegrenzt
+        if (
+          (ctx.path === "/two-factor/enable" ||
+            ctx.path === "/change-password") &&
+          isAPIError(ctx.context.returned) &&
+          ctx.context.returned.body?.code === "INVALID_PASSWORD" &&
+          ctx.context.session
+        ) {
+          const person = await ctx.context.adapter.findOne<
+            Bremsfelder & { id: string }
+          >({
+            model: "user",
+            where: [{ field: "id", value: ctx.context.session.user.id }],
+          });
+          if (person) await zaehleFehlversuch(ctx.context.adapter, person);
         }
         if (ctx.path === "/two-factor/enable") {
           const { returned, session } = ctx.context;

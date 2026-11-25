@@ -435,6 +435,21 @@ export function erstelleTagRouten({ db }: { db: Db }) {
         const person = c.get("person");
         const { id, userId } = c.req.valid("param");
         await ladeTag(person, id, MITGLIEDER);
+        // Wie beim Zuweisen: Wer nicht Rechte vergeben darf, entzieht keine Rolle, die Rechte gibt (Gruppenrolle, Stufenleitung, «verantwortlich», #777)
+        if (!(await darf(db, person, "rechte.verwalten"))) {
+          const [bisher] = await db
+            .select({ rolleId: personTag.rolleId, rolle: personTag.rolle })
+            .from(personTag)
+            .where(and(eq(personTag.tagId, id), eq(personTag.userId, userId)));
+          const text = bisher?.rolle?.toLowerCase();
+          if (
+            bisher?.rolleId ||
+            (text !== undefined &&
+              (STUFENROLLEN.includes(text) || text === TEAM_ROLLE))
+          ) {
+            throw new HTTPException(403);
+          }
+        }
         await db.transaction(async (tx) => {
           const entfernt = await tx
             .delete(personTag)

@@ -1,4 +1,4 @@
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { type AnyColumn, and, asc, eq, inArray, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/pg-core";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -396,6 +396,15 @@ export type NotfallKontakt = {
   reihenfolge: number | null;
 };
 
+// Die Nummer des Kontos nur, solange die Person im Lager ist und ihr Konto aktiv: Wer entfernt oder deaktiviert wurde, bleibt als Name stehen, die Nummer nie (#777, SR-41)
+const kontoTelefonImLager = (
+  p: { id: AnyColumn; telefon: AnyColumn; deaktiviertAm: AnyColumn },
+  lagerId: string,
+) =>
+  sql<
+    string | null
+  >`case when ${p.deaktiviertAm} is null and exists (select 1 from ${lagerMitglied} where ${lagerMitglied.lagerId} = ${lagerId} and ${lagerMitglied.personId} = ${p.id}) then ${p.telefon} end`;
+
 // Die erfassten Notfall-Kontakte mit Namen und Nummer (eine Abfrage). Eine eigene Nummer des Eintrags geht vor der Nummer des Kontos
 export async function ladeKontakte(
   db: Pick<Db, "select">,
@@ -408,7 +417,7 @@ export async function ladeKontakte(
       name: user.name,
       ceviName: user.ceviName,
       bildUrl: bildUrlImLager(sql`${user.id}`, lagerId),
-      kontoTelefon: user.telefon,
+      kontoTelefon: kontoTelefonImLager(user, lagerId),
     })
     .from(notfallKontakt)
     .leftJoin(user, eq(user.id, notfallKontakt.personId))
@@ -449,11 +458,11 @@ export async function ladeSicherheit(
       leitungName: leitung.name,
       leitungCevi: leitung.ceviName,
       leitungBild: bildUrlImLager(sql`${leitung.id}`, lagerId),
-      leitungTelefon: leitung.telefon,
+      leitungTelefon: kontoTelefonImLager(leitung, lagerId),
       stvName: stv.name,
       stvCevi: stv.ceviName,
       stvBild: bildUrlImLager(sql`${stv.id}`, lagerId),
-      stvTelefon: stv.telefon,
+      stvTelefon: kontoTelefonImLager(stv, lagerId),
     })
     .from(ressort)
     .leftJoin(leitung, eq(leitung.id, ressort.leitungPersonId))

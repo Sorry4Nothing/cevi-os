@@ -605,6 +605,42 @@ describe("Verwaltung", () => {
     ).toBe(403);
   });
 
+  test("ein Konto, das schon einer anderen Abteilung gehört, gibt 409 FLICKR_KONTO_VERGEBEN, beim Speichern und beim Testen (#777)", async () => {
+    await db.insert(schema.fotoEinstellung).values({
+      abteilungId: welt.demoAbteilungId,
+      flickrKonto: KONTO,
+      flickrLinkZeigen: false,
+    });
+    const put = await aufruf(admin, "PUT", "/admin/fotos/einstellung", {
+      flickrKonto: KONTO,
+      flickrLinkZeigen: false,
+      version: 0,
+    });
+    expect(put.status).toBe(409);
+    expect((await json(put)).code).toBe("FLICKR_KONTO_VERGEBEN");
+    const test = await aufruf(admin, "POST", "/admin/fotos/verbindung", {
+      flickrKonto: KONTO,
+    });
+    expect(test.status).toBe(409);
+    expect((await json(test)).code).toBe("FLICKR_KONTO_VERGEBEN");
+    // Nichts gespeichert; ein anderes Konto geht
+    expect(
+      await db
+        .select()
+        .from(schema.fotoEinstellung)
+        .where(eq(schema.fotoEinstellung.abteilungId, welt.testabteilungId)),
+    ).toEqual([]);
+    expect(
+      (
+        await aufruf(admin, "PUT", "/admin/fotos/einstellung", {
+          flickrKonto: "87654321@N00",
+          flickrLinkZeigen: false,
+          version: 0,
+        })
+      ).status,
+    ).toBe(200);
+  });
+
   test("Einstellung: Konto und Link speichern, Version prüfen, Konto-Format prüfen", async () => {
     const put = (body: unknown) =>
       aufruf(admin, "PUT", "/admin/fotos/einstellung", body);

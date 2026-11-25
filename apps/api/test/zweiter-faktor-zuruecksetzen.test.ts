@@ -56,8 +56,12 @@ const faktorZeilen = (id: string) =>
 const auditZeilen = (zielId: string) =>
   db.select().from(schema.auditLog).where(eq(schema.auditLog.zielId, zielId));
 
-test("mit Faktor: Exit 0, Zeilen weg, Flag aus, Audit-Zeile «cli»", async () => {
+const sitzungenVon = (id: string) =>
+  db.select().from(schema.session).where(eq(schema.session.userId, id));
+
+test("mit Faktor: Exit 0, Zeilen weg, Flag aus, Sitzungen beendet, Audit-Zeile «cli»", async () => {
   expect(await faktorZeilen(mitFaktor.id!)).toHaveLength(1);
+  expect((await sitzungenVon(mitFaktor.id!)).length).toBeGreaterThan(0);
   const ergebnis = starte([
     "--benutzername",
     // Gross geschrieben: Die CLI sucht kleingeschrieben, wie das Plugin speichert
@@ -69,6 +73,8 @@ test("mit Faktor: Exit 0, Zeilen weg, Flag aus, Audit-Zeile «cli»", async () =
     `Zweiter Faktor von «${mitFaktor.benutzername}» zurückgesetzt. Die Person meldet sich ohne Code an und richtet ihn in der App neu ein.\n`,
   );
   expect(await faktorZeilen(mitFaktor.id!)).toEqual([]);
+  // Alle Sitzungen des Kontos enden (#777): Nach einem Verdacht auf Übernahme bliebe sonst die des Angreifers
+  expect(await sitzungenVon(mitFaktor.id!)).toEqual([]);
   const [zeile] = await db
     .select({ an: schema.user.twoFactorEnabled })
     .from(schema.user)
