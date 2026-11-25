@@ -243,7 +243,11 @@ describe("Feed: genau die Termine von «Mein Kalender»", () => {
     ]) {
       expect(text).not.toContain(eigenschaft);
     }
-    const tags = await db.select({ name: schema.tag.name }).from(schema.tag);
+    // Nur Tags der eigenen Abteilung: Parallel laufende Tests legen in anderen Abteilungen Tags wie «A» an, die zufällig im Titel stehen
+    const tags = await db
+      .select({ name: schema.tag.name })
+      .from(schema.tag)
+      .where(eq(schema.tag.abteilungId, welt.testabteilungId));
     for (const { name } of tags) expect(text).not.toContain(`:${name}`);
   });
 });
