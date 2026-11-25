@@ -86,7 +86,12 @@ export function pruefePasswort({ aktuell, neu, pflicht = false }) {
     ];
   }
   if (neu === aktuell) {
-    return ["neu", "Das neue Passwort muss sich vom bisherigen unterscheiden."];
+    return [
+      "neu",
+      pflicht
+        ? "Im oberen Feld steht dein Startpasswort, im unteren muss ein neues, eigenes stehen. Beide Felder haben denselben Inhalt."
+        : "Das neue Passwort muss sich vom bisherigen unterscheiden.",
+    ];
   }
   return null;
 }
@@ -114,7 +119,9 @@ export function passwortAntwort(r, pflicht = false) {
       text:
         pflicht && feld === "aktuell"
           ? "Das Startpasswort stimmt nicht."
-          : text,
+          : pflicht && r.daten.code === "PASSWORT_UNVERAENDERT"
+            ? "Bei einem Startpasswort zählen Gross- und Kleinschreibung, Bindestriche und Leerzeichen nicht. Wähle ein Passwort, das sich deutlich unterscheidet."
+            : text,
     };
   }
   if (r.status === 429) {
@@ -746,6 +753,11 @@ function start(doc, wurzel) {
   async function speicherePasswort() {
     if (s.pw.senden) return;
     s.markiert = null;
+    // Maßgebend ist der Wert im Feld wie in der Verwaltung: Passwort-Manager füllen Felder mitunter ohne Eingabe-Ereignis
+    for (const name of ["aktuell", "neu"]) {
+      const feld = doc.getElementById(`kt-pw-${name}`);
+      if (feld) s.pw[name] = feld.value;
+    }
     const fehl = pruefePasswort({
       aktuell: s.pw.aktuell,
       neu: s.pw.neu,

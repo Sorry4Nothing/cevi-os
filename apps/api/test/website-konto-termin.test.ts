@@ -265,8 +265,32 @@ describe("Mein Konto (#671)", () => {
       })[1],
     ).toContain("unterscheiden");
     expect(
+      konto.pruefePasswort({
+        aktuell: "ABCD-EFGH-JKMN",
+        neu: "ABCD-EFGH-JKMN",
+        pflicht: true,
+      })[1],
+    ).toContain("Beide Felder haben denselben Inhalt");
+    expect(
       konto.pruefePasswort({ aktuell: "a", neu: "x".repeat(12) }),
     ).toBeNull();
+  });
+
+  test("Passwort: Beim Absenden zählt der Wert im Feld, nicht nur der Stand aus den Eingaben (#797)", async () => {
+    const { readFileSync } = await import("node:fs");
+    const quelle = readFileSync(
+      new URL("../public/website/konto.js", import.meta.url),
+      "utf8",
+    );
+    const absenden = quelle.slice(
+      quelle.indexOf("async function speicherePasswort"),
+    );
+    expect(absenden.indexOf("getElementById(`kt-pw-${name}`)")).toBeGreaterThan(
+      0,
+    );
+    expect(absenden.indexOf("getElementById(`kt-pw-${name}`)")).toBeLessThan(
+      absenden.indexOf("pruefePasswort({"),
+    );
   });
 
   test("Passwort: Antworten des Servers", () => {
@@ -295,6 +319,15 @@ describe("Mein Konto (#671)", () => {
         daten: { code: "PASSWORD_COMPROMISED" },
       })?.feld,
     ).toBe("neu");
+    // Das Startpasswort zählt ohne Gross-/Kleinschreibung, Bindestriche und Leerzeichen: Die Meldung sagt das
+    const gleich = { status: 400, daten: { code: "PASSWORT_UNVERAENDERT" } };
+    expect(konto.passwortAntwort(gleich, true)).toEqual({
+      feld: "neu",
+      text: "Bei einem Startpasswort zählen Gross- und Kleinschreibung, Bindestriche und Leerzeichen nicht. Wähle ein Passwort, das sich deutlich unterscheidet.",
+    });
+    expect(konto.passwortAntwort(gleich)?.text).toBe(
+      "Das neue Passwort muss sich vom bisherigen unterscheiden.",
+    );
     expect(konto.passwortAntwort({ status: 429 })?.band).toContain("Zu viele");
     expect(konto.passwortAntwort({ status: 500 })?.band).toContain(
       "nicht geklappt",
