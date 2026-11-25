@@ -1605,3 +1605,26 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frisch migrierte 
 - Server über HTTP mit einer Rolle «Datenschutz» (nur `konto.loeschen`, zweiter Faktor): Konto ohne Rechte 204; Entwickler 403 `KONTO_GESCHUETZT`; Abteilungsleitung 403 `KONTO_GESCHUETZT`; eigenes Konto 409 `EIGENES_KONTO`; Personenliste 403 (das Recht gibt keine Liste).
 
 **Nicht geprüft:** 86.4 und 86.5 im Browser (86.5: nur die Katalogantwort mit Klartext und Erklärung gelesen, die Seite des Rechte-Editors nicht bedient), Bildschirmleser, Safari und Firefox, Zoom 200 %. Offen: Die Seite «Personen» der Verwaltung öffnet sich nur für Abteilungsleitung und Entwickler (`navigation.js`, Standard `abteilungsleitung`). Eine Rolle mit `konto.loeschen` kann die Route über die API nutzen, bekommt in der Verwaltung aber noch keinen Weg zum Blatt der Person.
+
+## 87. Hinweisseite der Sperre: Anmelden für Berechtigte (#803)
+
+Auf der Hinweisseite der Informationssperre (`index.html`, `404.html`, Code in `apps/api/src/website/sperre.ts`) steht unter «Nochmals versuchen» der Link «Für Berechtigte: Anmelden» zur Anmeldung der Verwaltung (`/admin#system/plattform`). Die Seite bleibt eine einzelne Datei mit eigener Stilvorlage, ohne Skript. Unter einer Sperre von `alles` öffnet die Verwaltung für Berechtigte nur «Wartung und Sperre» (`admin.js`, Rückfall in `pruefeKonto`).
+
+### Prüfpunkte
+
+- [ ] **87.1** Der Link ist ein echter Link (`a href`), erreichbar mit Tab nach «Nochmals versuchen», Enter folgt ihm. Der Name «Für Berechtigte: Anmelden» sagt allein, wohin er führt.
+- [ ] **87.2** Sichtbarer Fokus (3 px Rahmen, Abstand 3 px), auch in Hell und Dunkel; Zielgrösse mindestens 44 Pixel hoch (24 x 24 verlangt WCAG 2.5.8).
+- [ ] **87.3** Der Link ist unterstrichen, nicht nur durch Farbe erkennbar. Kontrast der Schriftfarbe `--leise` zur Fläche: hell #4d4d4d auf #ffffff, dunkel #bebeb6 auf #1c1c1a (je über 4,5:1).
+- [ ] **87.4** Bei 390 und 1280 Pixel, hell und dunkel: der Link bleibt in der Textspalte, kein waagrechtes Scrollen. Im Modus «Erzwungene Farben» trägt er keinen Rahmen und bleibt als Linktext lesbar.
+- [ ] **87.5** Die Hinweisseite bleibt neutral: Kein Wort zu Anlass, Daten, Panne oder Sicherheit; der Link benennt keine Rollen und keine Sperre.
+- [ ] **87.6** Nach dem Link zeigt die Anmeldung der Verwaltung dieselben Prüfpunkte wie bisher (Abschnitt 9, Fokus auf der Überschrift, Fehler als `role="alert"`); nach dem Code liegt der Fokus auf der Überschrift «Wartung und Sperre», das Band «Informationssperre» steht als Bereich «Betriebshinweis» darüber.
+
+### Stand der Prüfung (#803)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Proxy für die Website, Kopie der Vorschau-Datenbank, Demo-Konten mit zweitem Faktor) bei 390 x 844 und 1280 x 900, hell und dunkel:
+
+- **87.1, 87.2:** Tab, Tab erreicht den Link, Enter öffnet `/admin#system/plattform`; der Fokusrahmen ist in Hell und Dunkel sichtbar (Ansicht angeschaut).
+- **87.4:** Kein waagrechtes Scrollen (`scrollWidth` gleich `clientWidth`).
+- **87.6:** Entwickler und Abteilungsleitung (Sperre `alles` mit «Öffentliche Website vom Netz nehmen»): Anmeldung, Code, «Wartung und Sperre» mit Band und «Aufheben»; danach ist die Website wieder da. Ein Elternkonto bekommt «Anmeldung nicht möglich …» (401).
+
+**Nicht geprüft:** Bildschirmleser, Safari und Firefox, Zoom 200 %, Modus «Erzwungene Farben» (nur im CSS vorgesehen), Kontrast 87.3 nicht gemessen (Werte aus den Tokens).
