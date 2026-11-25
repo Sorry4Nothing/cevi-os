@@ -27,7 +27,7 @@ import { beendeSitzungen } from "../sitzungen-beenden.js";
 import { meldeWebsiteEreignis } from "../website/ereignisse.js";
 
 // Wartungsmodus (#424) und Informationssperre (#425): schalten, aufheben, Zustand lesen. Die Routen liegen unter /api/v1/plattform und nicht unter /admin, weil auch Entwickler und Webmaster ohne Verwaltungskonto hier schalten; weder Wartung noch Sperre treffen diesen Pfad.
-// Wer schaltet (Entscheid vom 22.11.2026, erweitert mit #648): Entwickler und Abteilungsleitung jeden Bereich und jede Art. Rollen schalten die Wartung: die der Website mit dem Recht «wartungsmodus.website», die der übrigen Bereiche (Lager, Chat, Programme, Verwaltung) mit «wartung.bereiche». Die Sperre und die Wartung von «alles» lösen und heben nur Entwickler und Abteilungsleitung auf («plattform.sperren», fest), nie eine Rolle. Jede Schaltung braucht den zweiten Faktor, wie jedes erweiterte Recht.
+// Wer schaltet (#802): Den Wartungsmodus jedes Bereichs, auch «alles» und «website», schaltet nur der Entwickler («wartung.bereiche» und «wartungsmodus.website», fest und nur Entwickler), nie die Abteilungsleitung, nie eine Rolle. Die Informationssperre lösen und heben Entwickler und Abteilungsleitung auf («plattform.sperren», fest), nie eine Rolle. Die Abteilungsleitung liest den Stand der Wartung (GET), schaltet sie nicht. Jede Schaltung braucht den zweiten Faktor, wie jedes erweiterte Recht.
 // Art und Bereich stehen im Body (PUT) und in der Query (DELETE), nicht im Pfad: Der Schalter gehört der Abteilung der Sitzung, es gibt kein fremdes Objekt, das ein Pfad nennen könnte.
 
 const zielSchema = {
@@ -94,10 +94,10 @@ export function erstellePlattformRouten({
     gibFrei: () => Promise<void>;
   };
 }) {
-  // Darf diese Person genau diesen Schalter lesen und schalten? Das Recht dazu steht im Katalog: Sperre und Wartung von «alles» fest, Wartung der Website und der übrigen Bereiche vergebbar
+  // Darf diese Person genau diesen Schalter schalten? Das Recht dazu steht im Katalog: die Sperre «plattform.sperren» (Abteilungsleitung und Entwickler), jede Wartung nur für den Entwickler
   async function darf(person: Person, art: SchalterArt, bereich: string) {
     const recht =
-      art === "sperre" || bereich === "alles"
+      art === "sperre"
         ? "plattform.sperren"
         : bereich === "website"
           ? "wartungsmodus.website"
@@ -108,12 +108,9 @@ export function erstellePlattformRouten({
   // Vor jeder Prüfung des Inhalts: Wer gar nichts schalten darf, erfährt nichts über Eingabe oder Zustand; der zweite Faktor gilt für jede Route hier
   const berechtigt = createMiddleware<Env>(async (c, next) => {
     const person = c.get("person");
+    // Wer die Sperre darf, liest auch den Stand der Wartung; wer nur die Wartung darf (Entwickler), hat auch die Sperre
     if (
-      !(await darfEines(db, person, [
-        "wartungsmodus.website",
-        "wartung.bereiche",
-        "plattform.sperren",
-      ]))
+      !(await darfEines(db, person, ["wartung.bereiche", "plattform.sperren"]))
     ) {
       throw new HTTPException(403);
     }
@@ -148,20 +145,19 @@ export function erstellePlattformRouten({
   return new Hono<Env>()
     .get("/schalter", berechtigt, async (c) => {
       const person = c.get("person");
-      // Aus dem Speicher, ohne Datenbank; wer nur die Wartung der Website darf, sieht nur diese
-      const sichtbar = [];
-      for (const s of zustand.vonAbteilung(person.abteilungId)) {
-        if (await darf(person, s.art, s.bereich)) sichtbar.push(s);
-      }
-      // Die Bereiche, die die Person schalten darf: Die Verwaltung zeigt nur diese Zeilen; die Sperre gilt nur für Entwickler und Abteilungsleitung
-      const bereiche = [];
-      for (const b of BEREICHE) {
-        if (await darf(person, "wartung", b)) bereiche.push(b);
-      }
+      const darfSperre = await darf(person, "sperre", "alles");
+      const darfWartung = await darf(person, "wartung", "alles");
+      // Aus dem Speicher, ohne Datenbank; jede Person hier liest die Wartung, die Sperre nur, wer sie schalten darf
+      const sichtbar = zustand
+        .vonAbteilung(person.abteilungId)
+        .filter((s) => s.art === "wartung" || darfSperre);
       return c.json({
         schalter: sichtbar.map(alsAntwort),
-        bereiche,
-        darfSperre: await darf(person, "sperre", "alles"),
+        // Die Zeilen der Seite: jeder Bereich, sobald die Person eine der beiden Arten schalten darf
+        bereiche: darfSperre || darfWartung ? [...BEREICHE] : [],
+        darfSperre,
+        // Nur der Entwickler: alle anderen sehen die Wartung lesend
+        darfWartung,
         // Ob es eine Website gibt, die sich vom Netz nehmen lässt
         websiteVorhanden: website?.abteilungId === person.abteilungId,
       });

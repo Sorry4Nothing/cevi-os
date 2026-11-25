@@ -33,6 +33,7 @@ export default defineConfig(
         Event: "readonly",
         CSS: "readonly",
         HTMLInputElement: "readonly",
+        Element: "readonly",
         queueMicrotask: "readonly",
         MutationObserver: "readonly",
         window: "readonly",

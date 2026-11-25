@@ -1,4 +1,4 @@
-import { anfrage, fehlertext } from "./api.js";
+import { anfrage, fehlertext, kennungGueltig } from "./api.js";
 import { flussOffen } from "./fluss.js";
 import {
   aktionenZelle,
@@ -50,9 +50,17 @@ const zustand = {
   sort: { schluessel: "name", richtung: "auf" },
   gruppierung: "rolle",
   fokus: null,
+  // Person, deren Blatt nach dem Laden aufgeht (Adresse #personen/personen/<id>, zum Beispiel aus der Liste einer Funktion)
+  oeffne: null,
 };
 
 export function zeige(bereich, ctx) {
+  const [id] = ctx.pfad;
+  // Die Kennung geht nie in einen Pfad der API, aber nur eine echte UUID öffnet ein Blatt
+  if (id && (!kennungGueltig(id) || ctx.pfad.length > 1)) {
+    return ctx.nichtGefunden();
+  }
+  zustand.oeffne = id ?? null;
   // Wunsch der Befehlspalette: «Neue Person» öffnet das Formular, eine Person setzt die Suche
   const wunsch = nimmWunsch();
   zustand.frage = wunsch?.art === "person" ? wunsch.frage : "";
@@ -62,7 +70,9 @@ export function zeige(bereich, ctx) {
   zustand.sort = { schluessel: "name", richtung: "auf" };
   zustand.fokus = gesucht ?? null;
   ctx.lade(
-    mitFehlertitel("Die Personen konnten nicht geladen werden.", ladeDaten),
+    mitFehlertitel("Die Personen konnten nicht geladen werden.", () =>
+      ladeDaten({ funktionen: ctx.zugang?.darf("rechte.verwalten") === true }),
+    ),
     (daten, neu) => {
       meldePersonen(daten, { systemRollen, kontoChips, typName });
       zeichne(bereich, ctx, daten, neu);
@@ -81,10 +91,14 @@ export function zeige(bereich, ctx) {
 }
 
 // Die API nennt die Tags einer Person nicht; sie stehen im Einzelabruf des Tags. Darum: Personen und Tags in einer Runde, danach je ein Abruf für jeden Tag, den jemand trägt (nicht je Person).
-export async function ladeDaten() {
-  const [liste, tagListe] = await Promise.all([
+// funktionen: dazu die globalen Rollen laden (Funktionen wie Webmaster, mit ihren Personen). Das geht nur mit «Rechte und Rollen vergeben»; fehlt es oder der zweite Faktor, bleibt die Liste und das Blatt zeigt keine Funktionen
+export async function ladeDaten({ funktionen = false } = {}) {
+  const [liste, tagListe, rollen] = await Promise.all([
     anfrage("GET", "/api/v1/admin/personen"),
     anfrage("GET", "/api/v1/admin/tags"),
+    funktionen
+      ? anfrage("GET", "/api/v1/admin/rechte/rollen").catch(() => null)
+      : null,
   ]);
   const belegt = tagListe.tags.filter((t) => t.anzahlPersonen > 0);
   const details = await Promise.all(
@@ -100,7 +114,12 @@ export async function ladeDaten() {
     }
   }
   for (const eigene of tagsJePerson.values()) sortiereTags(eigene);
-  return { ...liste, tags: tagListe.tags, tagsJePerson };
+  return {
+    ...liste,
+    tags: tagListe.tags,
+    tagsJePerson,
+    funktionen: rollen?.rollen ?? null,
+  };
 }
 
 const sortiereTags = (eigene) =>
@@ -483,7 +502,7 @@ function zeichne(bereich, ctx, daten, neu) {
     );
     auswahlLeiste.replaceChildren(
       kopfZeile,
-      offeneAktion ? aktionsFormular(offeneAktion) : false,
+      ...(offeneAktion ? [aktionsFormular(offeneAktion)] : []),
     );
     alleBox.eingabe.checked =
       sichtbar.length > 0 && sichtbar.every((e) => gewaehlt.has(e.person.id));
@@ -715,6 +734,12 @@ function zeichne(bereich, ctx, daten, neu) {
     keine,
     tabellenBox,
   );
+  // Adresse mit Kennung: Das Blatt der Person geht auf (einmal)
+  if (zustand.oeffne) {
+    const ziel = eintraege.find((e) => e.person.id === zustand.oeffne);
+    zustand.oeffne = null;
+    ziel?.knopf.click();
+  }
   // Nach Speichern oder Kontoaktion zurück zur Zeile, wenn keine Seite im Fluss den Fokus hält
   if (zustand.fokus) {
     const ziel = eintraege.find((e) => e.person.id === zustand.fokus);

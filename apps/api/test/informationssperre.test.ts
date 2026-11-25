@@ -255,7 +255,7 @@ describe("Informationssperre: Wirkung", () => {
   });
 
   test("die Sperre geht der Wartung vor", async () => {
-    await wartung(admin, "chat");
+    await wartung(entwickler, "chat");
     await sperre(admin, "chat");
     expect((await anfrage(eltern, "GET", "/api/v1/chats")).status).toBe(423);
     await hebeAuf(admin, "chat");
@@ -322,22 +322,14 @@ describe("Informationssperre: wer schalten darf", () => {
     expect(zustand.vonAbteilung(welt.testabteilungId)).toEqual([]);
   });
 
-  test("der Webmaster mit dem Recht darf die Wartung der Website, aber die Sperre weder setzen noch aufheben noch sehen", async () => {
-    expect((await wartung(webmasterMitRecht, "website")).status).toBe(200);
+  test("die Abteilungsleitung schaltet die Sperre, die Wartung nicht (#802); der Webmaster mit dem alten Recht weder noch, er sieht nichts", async () => {
+    expect((await wartung(admin, "website")).status).toBe(403);
+    expect((await wartung(webmasterMitRecht, "website")).status).toBe(403);
     expect((await sperre(admin, "website")).status).toBe(200);
-    // Er sieht nur die Wartung, die Sperre bleibt ihm verborgen
-    const lesen = await anfrage(
-      webmasterMitRecht,
-      "GET",
-      "/api/v1/plattform/schalter",
-    );
-    expect(lesen.status).toBe(200);
-    const { schalter, darfSperre } = (await lesen.json()) as {
-      schalter: { art: string }[];
-      darfSperre: boolean;
-    };
-    expect(schalter.map((s) => s.art)).toEqual(["wartung"]);
-    expect(darfSperre).toBe(false);
+    expect(
+      (await anfrage(webmasterMitRecht, "GET", "/api/v1/plattform/schalter"))
+        .status,
+    ).toBe(403);
     expect((await hebeAuf(webmasterMitRecht, "website")).status).toBe(403);
     expect(
       zustand.trifft(welt.testabteilungId, "website", "sperre"),
@@ -442,6 +434,29 @@ describe("Informationssperre: Anmeldung unter «alles»", () => {
     expect((await anmelden(loginAdmin)).status).toBe(200);
     // Die andere Abteilung meldet sich normal an
     expect((await anmelden(demoEltern)).status).toBe(200);
+  });
+
+  test("unter «alles» trägt die Sitzung der Berechtigten die Verwaltung bis zu «Wartung und Sperre» (#803)", async () => {
+    await sperre(admin, "alles");
+    // Die Verwaltung fragt beim Start GET /api/v1/ich: Das trifft «alles» (423), sie fällt dann auf die Sitzung und den Schalter zurück
+    expect((await anfrage(admin, "GET", "/api/v1/ich")).status).toBe(423);
+    const sitzung = await anfrage(admin, "GET", "/api/auth/get-session");
+    expect(sitzung.status).toBe(200);
+    expect((await sitzung.json()).user.id).toBe(admin.id);
+    const schalter = await anfrage(admin, "GET", "/api/v1/plattform/schalter");
+    expect(schalter.status).toBe(200);
+    expect(await schalter.json()).toMatchObject({
+      darfSperre: true,
+      schalter: [{ art: "sperre", bereich: "alles" }],
+    });
+    // Ohne zweiten Faktor führt dieselbe Route zur Einrichtung statt ins Leere
+    const ohne = await anfrage(adminOhne, "GET", "/api/v1/plattform/schalter");
+    expect(ohne.status).toBe(403);
+    expect(await ohne.json()).toMatchObject({ code: "ZWEITER_FAKTOR_FEHLT" });
+    // Alle anderen: 403, kein Hinweis auf die Sperre
+    expect(
+      (await anfrage(eltern, "GET", "/api/v1/plattform/schalter")).status,
+    ).toBe(403);
   });
 
   test("eine Sperre eines Bereichs sperrt die Anmeldung nicht", async () => {

@@ -121,6 +121,15 @@ describe("Pflichtwechsel über change-password", () => {
     expect(antwort.status).toBe(200);
   });
 
+  test("das Startpasswort mit Leerzeichen und in Kleinbuchstaben als bisheriges Passwort, ein anderes als neues: 200 (#797)", async () => {
+    const konto = await legePersonaAn(welt, "mussPasswortAendern");
+    const antwort = await post("change-password", konto.headers, {
+      currentPassword: ` ${konto.passwort!.toLowerCase()} `,
+      newPassword: "Ein ganz anderer Satz 2027",
+    });
+    expect(antwort.status).toBe(200);
+  });
+
   test("das Startpasswort in Kleinbuchstaben als neues Passwort liefert 400 PASSWORT_UNVERAENDERT", async () => {
     const konto = await legePersonaAn(welt, "mussPasswortAendern");
     const antwort = await post("change-password", konto.headers, {

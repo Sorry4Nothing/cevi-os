@@ -76,7 +76,6 @@ const EINGESCHRAENKT: Record<string, PlattformRecht[]> = {
   nurWeiterleitungen: ["weiterleitungen.verwalten"],
   nurVorlagen: ["vorlagen.nutzen"],
   anlegenUndVorlagen: ["seiten.anlegen_loeschen", "vorlagen.nutzen"],
-  nurWartung: ["wartungsmodus.website"],
 };
 
 beforeAll(async () => {
@@ -212,8 +211,6 @@ const ZEILEN: Zeile[] = [
       nurWeiterleitungen: 200,
       nurVorlagen: 200,
       anlegenUndVorlagen: 200,
-      // Der Wartungsmodus öffnet die Verwaltung nicht
-      nurWartung: 403,
       demoAdmin: 200,
       demoWebmaster: 200,
       eltern: 403,
@@ -543,8 +540,8 @@ describe("Rechte-Matrix der Website-Verwaltung", () => {
     ).toBe(200);
   });
 
-  test("ohne Recht oder mit einer Rolle ohne Bereich bleibt es beim 403 der Route (KEINE_BERECHTIGUNG)", async () => {
-    for (const name of ["eltern", "nurWartung"]) {
+  test("ohne Recht bleibt es beim 403 der Route (KEINE_BERECHTIGUNG)", async () => {
+    for (const name of ["eltern"]) {
       const antwort = await anfrage(konten[name], "GET", `${R}/seiten`);
       expect(antwort.status).toBe(403);
       expect(((await antwort.json()) as { code: string }).code).toBe(
@@ -624,19 +621,14 @@ describe("Listen und Panel", () => {
       verwalten: false,
       rechte: ["medien.verwalten"],
     });
-    // Der Wartungsmodus öffnet nur den Bereich «plattform», nicht die Website-Verwaltung
-    expect(await ich("nurWartung")).toMatchObject({
-      redigieren: false,
-      bereiche: ["plattform"],
-      rechte: ["wartungsmodus.website"],
-    });
     // Stufenleitung: Zugang, aber keine Plattformrechte
     expect(await ich("slA")).toMatchObject({
       redigieren: true,
       verwalten: false,
       rechte: [],
     });
-    expect((await ich("admin")).rechte).toContain("wartungsmodus.website");
+    // Der Wartungsmodus ist kein Plattformrecht der Rollen mehr (#802): nur der Entwickler schaltet ihn
+    expect((await ich("admin")).rechte).not.toContain("wartungsmodus.website");
   });
 });
 

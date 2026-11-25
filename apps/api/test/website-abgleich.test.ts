@@ -844,6 +844,28 @@ describe("Hash, Idempotenz und Aufräumen", () => {
     expect(await hash(id)).toEqual(vorher);
   });
 
+  test("nach einer Sperre ohne Verwaltung (Notausgang in der Datenbank) ersetzt der nächste Lauf die Hinweisseiten (#803)", async () => {
+    await seite({ adresse: "start", inhalt: dok("Start", text("Echt")) });
+    const merker = new Map<string, string>();
+    await lauf({ merker });
+    const echt = await lies("index.html");
+    expect(echt).toContain("Echt");
+    // Die Sperre nimmt die Website vom Netz; aufgehoben wird sie in der Datenbank, ohne gibFrei: Hash und Merker bleiben unverändert
+    await erstelleWebsiteSperre(ausgabe, abteilungId).nimmVomNetz();
+    expect(await lies("index.html")).toContain(
+      "Vorübergehend nicht erreichbar",
+    );
+    await lauf({ merker });
+    expect(await lies("index.html")).toBe(echt);
+    expect(await lies("404.html")).not.toContain("Vorübergehend");
+    expect(await ausgabe.liste()).not.toContain("gesperrt.css");
+    // Ebenso nach einem Neustart (leerer Merker); danach schreibt ein Lauf nichts mehr
+    await erstelleWebsiteSperre(ausgabe, abteilungId).nimmVomNetz();
+    await lauf();
+    expect(await lies("index.html")).toBe(echt);
+    expect(await lauf({ merker })).toMatchObject({ geschrieben: 0, fehler: 0 });
+  });
+
   test("eine geänderte Seite schreibt nur sich; eine fehlende Datei kommt zurück", async () => {
     const a = await seite({
       adresse: "start",

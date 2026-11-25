@@ -161,12 +161,12 @@ export const RECHTE_KATALOG = {
     "erweitert",
     ALLE,
   ),
-  "wartungsmodus.website": v(
+  // Fest, nur der Entwickler (#802): Der Wartungsmodus sperrt einen Bereich für alle ausser Abteilungsleitung und Entwickler. Nie an Rollen oder die Abteilungsleitung vergebbar
+  "wartungsmodus.website": f(
     "website",
     "Wartungsmodus der Website schalten",
-    "Die öffentliche Website in den Wartungsmodus setzen und wieder öffnen.",
-    "erweitert",
-    ALLE,
+    "Die öffentliche Website in den Wartungsmodus setzen und wieder öffnen. Das darf nur der Entwickler, nicht die Abteilungsleitung.",
+    { nurEntwickler: true },
   ),
 
   // Termine: Quelle TERMINE_RECHTE
@@ -492,14 +492,14 @@ export const RECHTE_KATALOG = {
   "plattform.sperren": f(
     "plattform",
     "Informationssperre schalten",
-    "Einen Bereich oder alles sperren (Informationssperre) und die Sperre wieder aufheben. Die Wartung eines Bereichs ist ein eigenes, vergebbares Recht.",
+    "Einen Bereich oder alles sperren (Informationssperre) und die Sperre wieder aufheben. Die Wartung eines Bereichs schaltet nur der Entwickler («Wartung der Bereiche schalten»).",
   ),
-  "wartung.bereiche": v(
+  // Fest, nur der Entwickler (#802; vorher vergebbar seit #648)
+  "wartung.bereiche": f(
     "plattform",
     "Wartung der Bereiche schalten",
-    "Die Bereiche Lager, Chat, Programme und Verwaltung in Wartung setzen und wieder öffnen. Die Website hat ein eigenes Recht, die Informationssperre bleibt bei der Abteilungsleitung.",
-    "erweitert",
-    ALLE,
+    "Alle Bereiche (Lager, Chat, Programme, Verwaltung und «Alles») in Wartung setzen und wieder öffnen. Das darf nur der Entwickler, nicht die Abteilungsleitung. Die Website hat ein eigenes Recht, die Informationssperre bleibt bei der Abteilungsleitung.",
+    { nurEntwickler: true },
   ),
   "system.lesen": v(
     "plattform",
@@ -539,10 +539,8 @@ export const eintragVon = eintrag;
 export const VERGEBBARE_RECHTE = RECHT_IDS.filter(
   (r) => eintrag(r).art === "vergebbar",
 );
-// Rechte, die Gruppenrollen tragen dürfen: alles Vergebbare ausser dem Wartungsmodus der ganzen Website
-export const GRUPPENROLLEN_RECHTE = VERGEBBARE_RECHTE.filter(
-  (r) => r !== "wartungsmodus.website",
-);
+// Rechte, die Gruppenrollen tragen dürfen: alles Vergebbare
+export const GRUPPENROLLEN_RECHTE = VERGEBBARE_RECHTE;
 
 // Ist diese Geltung für das Recht im Katalog vorgesehen?
 export const kenntGeltung = (recht: RechtId, geltung: Geltung) =>

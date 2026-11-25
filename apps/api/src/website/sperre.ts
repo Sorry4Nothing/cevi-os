@@ -12,7 +12,7 @@ import {
 // Nach dem Aufheben löscht gibFrei die Hinweisseiten; der Abgleich findet dann eine leere Ausgabe und schreibt alles neu.
 
 // Dieselben Dateien, die der Abgleich für den Start und für unbekannte Adressen schreibt
-const HINWEIS_DATEIEN = ["index.html", "404.html"];
+export const HINWEIS_DATEIEN = ["index.html", "404.html"];
 // Der Stil der Hinweisseite als eigene Datei: Die CSP des Hosts erlaubt nur style-src 'self', ein Inline-Stil bliebe wirkungslos
 export const HINWEIS_STIL_DATEI = "gesperrt.css";
 // Die Schrift und ihre Lizenz bleiben liegen: Sie sind kein Inhalt, und die Hinweisseite setzt ihren Titel damit. Ebenso das Favicon (#581): das öffentliche Zeichen der Abteilung, das auch die Hinweisseite trägt
@@ -116,6 +116,19 @@ a:focus-visible {
   outline-offset: 3px;
 }
 
+/* Der Weg für Berechtigte (#803): ein stiller Link unter dem Knopf, kein zweiter Knopf */
+a.anmelden {
+  min-height: 2.75rem;
+  padding: 0;
+  border-radius: 0.25rem;
+  background: none;
+  color: var(--leise);
+  font-size: 1rem;
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
 .feld {
   position: relative;
   display: flex;
@@ -163,7 +176,7 @@ a:focus-visible {
 }
 
 @media (forced-colors: active) {
-  a,
+  a:not(.anmelden),
   .schild {
     border: 1px solid CanvasText;
   }
@@ -175,7 +188,10 @@ a:focus-visible {
 }
 `;
 
-// Neutral: kein Anlass, keine Namen, keine Zeitangabe. Eine kleine Seite ohne Skript und ohne Dateien von aussen; «Nochmals versuchen» ist ein Link auf dieselbe Adresse
+// Wer die Sperre aufheben darf, meldet sich in der Verwaltung an und landet gleich bei «Wartung und Sperre» (#803). Der Link steht für alle da und sagt nichts über den Anlass; die Anmeldung weist alle ausser Abteilungsleitung und Entwickler wie immer ab
+export const ANMELDE_ADRESSE = "/admin#system/plattform";
+
+// Neutral: kein Anlass, keine Namen, keine Zeitangabe. Eine kleine Seite ohne Skript und ohne Dateien von aussen; «Nochmals versuchen» ist ein Link auf dieselbe Adresse, «Anmelden» einer zur Verwaltung
 // «zeichen»: die Einträge des Favicons (zeichenLinks), leer ohne Zeichen
 const hinweisseite = (zeichen: string) => `<!doctype html>
 <html lang="de-CH">
@@ -193,6 +209,7 @@ const hinweisseite = (zeichen: string) => `<!doctype html>
 <h1>Vorübergehend nicht erreichbar</h1>
 <p>Diese Website ist im Moment nicht verfügbar. Versuche es später nochmals.</p>
 <a href="">Nochmals versuchen</a>
+<a class="anmelden" href="${ANMELDE_ADRESSE}">Für Berechtigte: Anmelden</a>
 </div>
 <div class="feld"><span class="schild">Im Moment geschlossen</span></div>
 </main>

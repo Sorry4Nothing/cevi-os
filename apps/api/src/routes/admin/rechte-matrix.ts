@@ -263,9 +263,8 @@ export function erstelleRechteMatrixRouten({ db }: { db: Db }) {
               bezug: e.bezug ?? null,
               zweiterFaktor: e.risiko !== "normal",
               nurEntwickler: e.nurEntwickler === true,
-              // Rechte, die eine Gruppenrolle tragen darf (alles Vergebbare ausser dem Wartungsmodus)
-              gruppenrolle:
-                e.art === "vergebbar" && id !== "wartungsmodus.website",
+              // Rechte, die eine Gruppenrolle tragen darf (alles Vergebbare)
+              gruppenrolle: e.art === "vergebbar",
             };
           }),
         });

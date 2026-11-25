@@ -245,6 +245,8 @@ describe("Gruppenrollen je Gruppe", () => {
         name: "A",
         rechte: [{ recht: "wartungsmodus.website", geltung: "alle" }],
       },
+      // Der Wartungsmodus ist fest und nur für den Entwickler (#802)
+      { name: "A", rechte: [{ recht: "wartung.bereiche", geltung: "alle" }] },
       { name: "A", rechte: [{ recht: "termine.alle", geltung: "alle" }] },
       {
         name: "A",

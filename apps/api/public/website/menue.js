@@ -8,6 +8,9 @@ const mobil = document.querySelector(".menue-mobil");
 const ruhig = window.matchMedia("(prefers-reduced-motion: reduce)");
 const maus = window.matchMedia("(hover: hover) and (pointer: fine)");
 
+// Verhalten eines Untermenüs der Leiste (Zeigen, Fokus, Rand); ohne Leiste ein leerer Aufruf
+export let bindeUntermenue = () => {};
+
 const punktVon = (details) => details.closest("li.mit-unter");
 const offene = () => [...leiste.querySelectorAll("details[open]")];
 
@@ -35,7 +38,8 @@ if (leiste) {
       li.querySelector(":scope > a, :scope > details > summary"),
     );
 
-  for (const details of leiste.querySelectorAll("details")) {
+  // Auch für Untermenüs, die navigation.js nachträglich anlegt (#795)
+  bindeUntermenue = (details) => {
     const li = punktVon(details);
     let warten;
 
@@ -82,6 +86,9 @@ if (leiste) {
         schliesse(details, false);
       }
     });
+  };
+  for (const details of leiste.querySelectorAll("details")) {
+    bindeUntermenue(details);
   }
 
   leiste.addEventListener("keydown", (e) => {
