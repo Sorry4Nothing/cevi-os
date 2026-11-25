@@ -55,6 +55,9 @@ const OHNE_BEREICH = new Set([
   "/api/v1/stufen/:id/logo",
   "/api/v1/stufen/:id/kontakte",
   "/api/v1/plattform/schalter",
+  // App-Nachweis (#785): ohne Sitzung, vor jeder Bereichsprüfung
+  "/api/v1/app/nachweis",
+  "/api/v1/app/nachweis/challenge",
 ]);
 
 const routen = [
@@ -172,6 +175,8 @@ describe("Sperre «alles» erfasst jede Route", () => {
     const abweichler: string[] = [];
     for (const { methode, pfad } of routen) {
       if (pfad.startsWith("/api/v1/plattform")) continue;
+      // Ohne Sitzung, die Sperre der Bereiche gilt dort nicht (#785)
+      if (pfad.startsWith("/api/v1/app/nachweis")) continue;
       const antwort = await anfrage(admin, methode, pfad);
       if (antwort.status !== 423) {
         abweichler.push(`${methode} ${pfad} ${antwort.status}`);
