@@ -1663,6 +1663,8 @@ Gilt für die Seite mit dem Baustein «Fotoalben» (`src/website/fotoalben.ts`, 
 - [ ] **88.9** Kontrast Hell und Dunkel (Titel, Meta, Anzahl, Jahr, Rand des Suchfelds) mindestens 4,5 : 1, Rand des Suchfelds und Fortschritt mindestens 3 : 1.
 - [ ] **88.10** 320 px, Zoom 200 % und 400 % ohne waagrechtes Scrollen; 1, 2, 3 und 4 Spalten bei 40, 62 und 80 em.
 - [ ] **88.11** Bewegung: Heranzoomen der Bilder beim Zeigen und Drehen des Dreiecks nur unter «Bewegung nicht reduzieren»; Skelette und Einblenden der Bilder folgen den Regeln der Website. Erzwungene Farben: Karten, Taste und Jahre behalten Rand und Linie.
+- [ ] **88.12** Ladezustand (#816): Die Seite «Fotos» ist eine geschützte Hülle. Solange die Sitzung nicht geklärt ist, steht nur ein ruhiges Skelett (`aria-hidden`, erscheint nach 150 ms, `aria-busy` am Behälter, Ansage «Geschützte Inhalte werden geladen.» in der Statusregion) und **nie** «Nur angemeldet sichtbar»; der Hinweis erscheint nur nach der Antwort 401 (`role="status"`-Ansage «Melde dich an, um das zu sehen.»). Eine angemeldete Person sieht Skelett, dann direkt die Fotos: ohne Hinweis, ohne zweiten Ladevorgang und ohne dass der Fuss ins Bild springt (das Skelett reicht über die Höhe des Fensters). Ohne Skript und wenn `geschuetzt.js` nach acht Sekunden nicht läuft, steht der Hinweis mit dem Link zur Anmeldung (Rückfall, `data-skript-spaet`).
+- [ ] **88.13** Abstand unten (#816): Unter dem letzten Foto, «Weitere Fotos anzeigen» und dem Ende der Übersicht steht der Abschnittsabstand der Website (`--abstand`: 3 rem bis 5,5 rem, gemessen 48, 59 und 77 px bei 320 bis 390, 768 und 1280 px), gleich in Hell und Dunkel; er gilt für alle Zustände der Hülle (Hinweis, Fehler, Inhalt).
 
 ### Stand der Prüfung (#796)
 

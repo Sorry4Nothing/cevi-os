@@ -1524,6 +1524,7 @@ export const rendereRobots = (basisUrl: string) =>
   `User-agent: *\nDisallow: /api/\nDisallow: /admin\nSitemap: ${basisUrl}/sitemap.xml\n`;
 
 // Hülle einer ganz geschützten Seite (#354): kein Titel, kein Inhalt, nur der Hinweis. Das Skript ersetzt sie nach der Anmeldung durch die Seite; ohne Sitzung bleibt der Hinweis stehen (Design W10)
+// Mit Skript steht zuerst das Skelett «huelle-laden» und der Hinweis ist verborgen, bis geschuetzt.js die Sitzung kennt (#816, website.css); ohne Skript gilt der Hinweis. Die Klasse «huelle» an main gibt der Seite unten den Abstand der übrigen Seiten und bleibt, wenn das Skript die Seite ersetzt
 export function rendereHuelle(pfad: string, k: Kontext): string {
   return rahmen(k, {
     titel: "Geschützte Seite",
@@ -1531,7 +1532,7 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
     robots: "noindex",
     // Immer dabei, damit die Hülle nichts über den Inhalt verrät: Ein nachgeladenes Karussell oder Fotoalbum findet Stil und Skript vor
     skript: [SKRIPT_GESCHUETZT, SKRIPT_FOTOS],
-    hauptAttr: ` data-huelle data-pfad="${esc(pfad)}"`,
+    hauptAttr: ` data-huelle data-pfad="${esc(pfad)}" class="huelle"`,
     zusatzSkripte: [SKRIPT_LICHTKASTEN, SKRIPT_KARUSSELL, SKRIPT_VERGLEICH],
     stile: [STIL_LICHTKASTEN, STIL_KARUSSELL, STIL_FOTOS, STIL_MEDIEN],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
@@ -1539,7 +1540,8 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
 <p class="schutz">${serialisiere(symbol("schloss"))}Nur angemeldet sichtbar</p>
 <p>Diese Seite ist nur für angemeldete Personen.</p>
 <a class="btn p gross" href="${esc(anmeldeAdresse(pfad))}">Anmelden</a>
-</div>`,
+</div>
+<div class="huelle-laden"><div class="skelett karte" aria-hidden="true"><span class="sk h24 b40"></span><span class="sk t b90"></span><span class="sk t b60"></span><span class="sk t b90"></span></div></div>`,
   });
 }
 
