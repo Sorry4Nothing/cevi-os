@@ -93,8 +93,8 @@ const SERVERFEHLER = "500.html";
 const WARTUNG = "wartung.html";
 const STYLESHEET = "website/website.css";
 // Seiten des Baums, auf die der Fuss verweist (Adresse auf der obersten Ebene); «datenschutz» selbst gehört der Plattform
-const IMPRESSUM_ADRESSE = "impressum";
-const DATENSCHUTZ_ADRESSE = "datenschutz-website";
+export const IMPRESSUM_ADRESSE = "impressum";
+export const DATENSCHUTZ_ADRESSE = "datenschutz-website";
 // Die Anmeldeseite (#354) liegt unter der reservierten Adresse «anmelden»
 const ANMELDUNG = "anmelden/index.html";
 // Nur diese Dateien löscht der Abgleich selbst, wenn sie nicht mehr gebraucht werden: die Seiten (und die Rückfallseiten der Weiterleitungen, die ebenso heissen) und weiterleitungen.caddy. Alles andere im Verzeichnis bleibt unangetastet
@@ -376,7 +376,7 @@ export async function ladeDaten(
 }
 
 // Pfad im Netz und Datei: die Seite «start» der obersten Ebene ist «/»; null, wenn die Adresse nie ausgeliefert wird
-function ziel(knoten: Knoten, id: string) {
+export function ziel(knoten: Knoten, id: string) {
   const adressen = adressenVon(knoten, id);
   if (
     adressen.length === 0 ||

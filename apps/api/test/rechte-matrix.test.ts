@@ -2562,6 +2562,15 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Menü für Angemeldete (#795): jede Person mit Sitzung bekommt die Seiten, die sie sehen darf (leere Liste ohne Seiten); ohne Sitzung 401; die Wirkung steht in test/website-navigation.test.ts
+  "GET /api/v1/website/navigation": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   "PUT /api/v1/push-token": {
     // Eigenes Token pro Persona: Die Zeile schreibt nur auf die eigene Sitzung, darum keine frischen Personas
     body: (konto) => ({

@@ -1040,3 +1040,16 @@ html[data-konto="erwartet"] .kopf a.anmelden {
     display: none;
   }
 }
+
+/* Einträge, die navigation.js nach der Anmeldung einfügt (navigation.js, #795): ruhiges Einblenden; bei «Bewegung reduzieren» erscheinen sie ohne */
+@media (prefers-reduced-motion: no-preference) {
+  .nav-neu {
+    animation: nav-ein 0.2s ease-out;
+  }
+}
+
+@keyframes nav-ein {
+  from {
+    opacity: 0;
+  }
+}

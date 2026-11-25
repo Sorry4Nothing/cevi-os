@@ -322,10 +322,11 @@ Von Hand ergänzt (#785); die Matrix läuft mit `APP_NACHWEIS=aus`, dort gibt es
 
 ## App: website
 
-| Route                        | Zweck                                                  | Status je Persona                                                                                                                                                                                 |
-| ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /api/v1/website/inhalt` | Geschützte Bausteine einer Seite der Website nachladen | **401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern |
-| `GET /api/v1/website/konto`  | Konto-Menü im Kopf der Website                         | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
+| Route                            | Zweck                                                  | Status je Persona                                                                                                                                                                                 |
+| -------------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/v1/website/inhalt`     | Geschützte Bausteine einer Seite der Website nachladen | **401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern<br>**404** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern |
+| `GET /api/v1/website/konto`      | Konto-Menü im Kopf der Website                         | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
+| `GET /api/v1/website/navigation` | Menü der Website für Angemeldete                       | **200** admin, adminOhneZweitenFaktor, slA, slB, leitendeA, leitendeB, leitendeAElternB, elternA, elternB, demoAdmin, demoEltern<br>**401** deaktiviert, ohneLogin<br>**403** mussPasswortAendern |
 
 ## App: push-token
 

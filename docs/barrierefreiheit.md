@@ -1605,3 +1605,31 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frisch migrierte 
 - Server über HTTP mit einer Rolle «Datenschutz» (nur `konto.loeschen`, zweiter Faktor): Konto ohne Rechte 204; Entwickler 403 `KONTO_GESCHUETZT`; Abteilungsleitung 403 `KONTO_GESCHUETZT`; eigenes Konto 409 `EIGENES_KONTO`; Personenliste 403 (das Recht gibt keine Liste).
 
 **Nicht geprüft:** 86.4 und 86.5 im Browser (86.5: nur die Katalogantwort mit Klartext und Erklärung gelesen, die Seite des Rechte-Editors nicht bedient), Bildschirmleser, Safari und Firefox, Zoom 200 %. Offen: Die Seite «Personen» der Verwaltung öffnet sich nur für Abteilungsleitung und Entwickler (`navigation.js`, Standard `abteilungsleitung`). Eine Rolle mit `konto.loeschen` kann die Route über die API nutzen, bekommt in der Verwaltung aber noch keinen Weg zum Blatt der Person.
+
+## 87. Website: Menü für Angemeldete (#795)
+
+Seiten, die nur für Angemeldete oder für Gruppen sichtbar sind, stehen im Hauptmenü der Website, sobald die Person angemeldet ist und die Seite sehen darf: im Menü am Computer, im Menü am Handy und in der Unterleiste, an der Stelle im Seitenbaum. Für Besucher ohne Anmeldung und ohne Skript bleibt das Menü wie es war. Das Skript `navigation.js` fügt die Einträge nur ein; die Bedienung bleibt die der öffentlichen Punkte. In der Verwaltung steht beim Blatt «Sichtbarkeit» einer Seite der Hinweis, wo die Seite im Menü erscheint.
+
+### Prüfpunkte
+
+- [ ] **87.1** Ohne Anmeldung (und ohne Skript) fehlt jeder geschützte Punkt im Menü; die direkte Adresse einer geschützten Seite zeigt die Hülle mit «Nur angemeldet sichtbar» und dem Link zur Anmeldung, wie bisher.
+- [ ] **87.2** Nach der Anmeldung erscheinen die Punkte an ihrer Stelle (Eltern, Gruppen, Reihenfolge der Seitenliste) ohne Sprung des Kopfes: Die Kopfzeile wird nicht höher, nichts rutscht in eine zweite Zeile; was nicht mehr passt, steht unter «Mehr».
+- [ ] **87.3** Neue Links sind mit der Tastatur wie die öffentlichen erreichbar: Tab-Reihenfolge von links nach rechts und in die Tafel, Pfeiltasten in der Tafel, Esc schliesst die Tafel und gibt den Fokus an das Dreieck zurück. Ein neues Untermenü hat einen Namen («Unterseiten von …») und öffnet sich mit Dreieck, Enter und Leertaste.
+- [ ] **87.4** Auf einer geschützten Seite trägt ihr Punkt `aria-current="page"`, ihre Oberseiten `aria-current="true"`, im Menü am Handy ist der Zweig offen. Die aktuelle Seite ist nicht nur an der Farbe erkennbar (roter Strich, fette Schrift).
+- [ ] **87.5** Das Einblenden dauert 0,2 s und entfällt bei «Bewegung reduzieren». Es gibt keine Ansage der Bildschirmleser für das Einfügen (kein Live-Bereich); die Links erscheinen in der Lesereihenfolge des Menüs.
+- [ ] **87.6** Hell, dunkel und bei 390, 1280 und 2560 Pixel: Texte lesbar, kein waagrechtes Scrollen, Ziele mindestens 44 mal 44 Pixel wie bei den übrigen Punkten.
+- [ ] **87.7** Netzfehler, 401 und eine ungültige Antwort der Schnittstelle lassen das statische Menü unverändert, ohne Meldung.
+- [ ] **87.8** Verwaltung, Blatt «Sichtbarkeit» einer Seite: Der Satz zum Menü steht unter den Wahlkarten, ändert sich mit der Wahl («Steht im Menü der Website für alle, sobald die Seite veröffentlicht ist.» oder «Erscheint im Menü nur für angemeldete Personen, die die Seite sehen dürfen.») und ist über `aria-describedby` mit der Gruppe der Wahlkarten verbunden. Bei einem Baustein steht er nicht.
+
+### Stand der Prüfung (#795)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vorschau-Datenbank, Konten mit Sitzung für Eltern, Leitung einer Stufe und Abteilungsleitung; Seiten «Fotos» und «Dokumente» nur für Angemeldete, eine Seite für die Gruppe Pilami, eine Unterseite für Angemeldete, ein Entwurf und eine Seite für eine fremde Stufe):
+
+- **87.1:** Ohne Anmeldung kein Punkt im Menü am Computer und am Handy; `/fotos` zeigt die Hülle mit Anmeldelink. In keiner erzeugten Datei der Website steht ein Titel der geschützten Seiten.
+- **87.2:** Eltern sehen «Fotos» und «Dokumente» am Ende der obersten Ebene und «Intern für Angemeldete» im Untermenü «Über den Cevi Stäfa-Hombi»; die Leitung der Pilami zusätzlich «Pilami intern» unter «Unsere Gruppen» an der Stelle der Seitenliste; die Abteilungsleitung auch die Seite einer anderen Stufe. Nie der Entwurf. Ein Untermenü, das nur geschützte Seiten hat («Fotos» mit «Fotoarchiv»), entsteht im Menü am Computer, am Handy und in der Unterleiste. Bei 1024 und 1280 Pixel mit neun Punkten wandern die letzten unter «Mehr», die Höhe des Kopfs bleibt gleich (Abteilungsleitung); bei 2560 Pixel bleibt der Kopf einzeilig. Die Layoutverschiebung (CLS) lag beim Einfügen auf einer öffentlichen Seite bei 0,001; auf den geschützten Seiten selbst zwischen 0,07 und 0,14 durch den nachgeladenen Inhalt, wie bei der Hülle ohne Anmeldung (0,07).
+- **87.3:** Pfeil runter im Untermenü «Unsere Gruppen»: Fröschli, Pilami, Pilami intern, Imperius; Esc: Fokus zurück auf das Dreieck «Unterseiten von Unsere Gruppen». Das neue Untermenü «Fotos»: Pfeil runter auf «Fotoarchiv», Esc zurück auf das Dreieck. Tab-Reihenfolge: Link, Dreieck, nächster Link und in die Tafel.
+- **87.4:** Auf `/fotos` trägt «Fotos» `aria-current="page"`, auf `/fotos/archiv` «Fotos» `"true"` und «Fotoarchiv» `"page"`; im Menü am Handy ist der Zweig offen.
+- **87.6:** Menü am Handy (390, hell und dunkel) und Computer (1280 hell und dunkel, 2560 hell) angeschaut, kein waagrechtes Scrollen (Ansicht, kein Messwert).
+- **Ablauf von Anfang bis Ende:** Sitzung, Seite «Fotos»: Hülle, danach Titel, Text und Baustein Fotoalben (ohne Alben: «Hier gibt es noch keine Fotos.»); Klick auf «Fotoarchiv» im Untermenü lädt die Seite und markiert den Punkt.
+
+**Nicht geprüft:** 87.5 (Bewegung reduzieren) und 87.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 87.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).

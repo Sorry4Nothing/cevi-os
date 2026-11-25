@@ -24826,6 +24826,45 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/website/navigation:
+    get:
+      operationId: leseWebsiteNavigation
+      summary: Menü der Website für Angemeldete
+      description: |
+        Für das Skript der öffentlichen Website (#795). Das statische Menü der Website kennt nur öffentliche Seiten; nach der Anmeldung fragt das Skript hier, welche Seiten, die nicht öffentlich sind, die Person im Menü sehen darf, und fügt sie an ihrer Stelle im Seitenbaum ein.
+
+        Die Liste hat genau die Seiten der Abteilung der Person mit veröffentlichter Version, die nicht öffentlich sind und die die Person laut Sichtbarkeit sehen darf (dieselbe Regel wie bei `GET /api/v1/website/inhalt`): «nur angemeldet» für jede Person der Abteilung, «bestimmte Gruppen» für Personen mit einer der Gruppen und für die Abteilungsleitung. Entwürfe, Seiten ohne veröffentlichte Version, öffentliche Seiten und Seiten anderer Abteilungen kommen nie vor; es gibt keinen Hinweis und keine Zahl zu Seiten ohne Recht. Pro Eintrag nur Titel, Adresse und Position, nie Inhalt.
+
+        Die Position: `eltern` ist die Adresse der nächsten Elternseite, die im Menü steht (öffentlich oder für die Person sichtbar), `null` heisst oberste Ebene. `davor` ist die Adresse der öffentlichen Geschwisterseite, vor der der Eintrag steht (Reihenfolge der Seitenliste), `null` heisst ans Ende. Eltern stehen vor ihren Kindern in der Liste. Höchstens 200 Einträge.
+
+        Ohne Sitzung 401 mit dem üblichen neutralen Body. Die Antwort ist `Cache-Control: private, no-store` und `Vary: Cookie`.
+
+        Statuscodes: 200, 401, 403 (Pflichtwechsel des Passworts offen).
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Seiten, die die Person im Menü zusätzlich sieht (leer, wenn es keine gibt).
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                enum:
+                  - private, no-store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WebsiteNavigation"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/redaktion/website:
     get:
       operationId: leseRedaktionWebsiteEinstellungen
@@ -41449,6 +41488,44 @@ components:
         verwaltung:
           type: boolean
           description: Die Person darf die Verwaltung öffnen. Nur Anzeige für den Eintrag «Verwaltung»; jede Route prüft selbst.
+    WebsiteNavigation:
+      type: object
+      required:
+        - eintraege
+      properties:
+        eintraege:
+          type: array
+          maxItems: 200
+          items:
+            type: object
+            required:
+              - pfad
+              - titel
+              - eltern
+              - davor
+            properties:
+              pfad:
+                type: string
+                maxLength: 400
+                pattern: "^/[a-z0-9-]{1,60}(/[a-z0-9-]{1,60}){0,4}$"
+                description: Adresse der Seite auf der Website.
+              titel:
+                type: string
+                minLength: 1
+                maxLength: 200
+                description: Titel der Seite wie in der Seitenliste.
+              eltern:
+                type:
+                  - string
+                  - "null"
+                pattern: "^/[a-z0-9-]{1,60}(/[a-z0-9-]{1,60}){0,4}$"
+                description: Adresse der nächsten Elternseite, die im Menü steht; `null` für die oberste Ebene.
+              davor:
+                type:
+                  - string
+                  - "null"
+                pattern: "^/[a-z0-9-]{1,60}(/[a-z0-9-]{1,60}){0,4}$"
+                description: Adresse der öffentlichen Geschwisterseite, vor der der Eintrag steht; `null` für ans Ende.
     WebsiteKnoten:
       description: Ein Text (Zeichenkette) oder ein Element. Das Skript setzt Text als Textknoten und lässt nur bekannte Elemente und Attribute mit geprüften Werten zu.
       oneOf:

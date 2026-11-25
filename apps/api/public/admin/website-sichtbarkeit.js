@@ -53,6 +53,11 @@ export function sichtbarkeitBlatt(opt) {
     ARTEN.map(([w, n, t]) => karte(w, n, t)),
   );
 
+  // Wo die Seite erscheint (#795): Nur bei einer Seite; sie steht im Menü der Website, aber nur für berechtigte angemeldete Personen
+  const menueId = neueId("menue");
+  const menueHinweis = el("p", { class: "hilfe", id: menueId });
+  if (opt.typ === "seite") arten.setAttribute("aria-describedby", menueId);
+
   const gruppen = el("div", { class: "feld", hidden: true });
   const warnung = el("div", { class: "ws-warnplatz" });
   let tags = null;
@@ -60,6 +65,10 @@ export function sichtbarkeitBlatt(opt) {
   let laedt = true;
 
   function zeichneGruppen() {
+    menueHinweis.textContent =
+      art === "oeffentlich"
+        ? "Steht im Menü der Website für alle, sobald die Seite veröffentlicht ist."
+        : "Erscheint im Menü nur für angemeldete Personen, die die Seite sehen dürfen.";
     gruppen.hidden = art !== "tags";
     warnung.replaceChildren();
     if (art !== "tags") return;
@@ -207,6 +216,7 @@ export function sichtbarkeitBlatt(opt) {
       "div",
       { class: "ws-blattinhalt" },
       arten,
+      opt.typ === "seite" && menueHinweis,
       gruppen,
       warnung,
       rechteBox,
