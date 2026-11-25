@@ -18,6 +18,10 @@ export const SYMBOLE: Record<string, HtmlKnoten[]> = {
     { tag: "path", attr: { d: "M5 11h14v10H5z" } },
     { tag: "path", attr: { d: "M8 11V7.5a4 4 0 0 1 8 0V11" } },
   ],
+  schild: [
+    { tag: "path", attr: { d: "M12 3l8 3v6a8 8 0 0 1-8 8 8 8 0 0 1-8-8V6z" } },
+    { tag: "path", attr: { d: "M8.5 12l2.5 2.5 4.5-5" } },
+  ],
   person: [
     { tag: "circle", attr: { cx: "12", cy: "8", r: "4" } },
     { tag: "path", attr: { d: "M4 21v-2a5 5 0 0 1 5-5h6a5 5 0 0 1 5 5v2" } },

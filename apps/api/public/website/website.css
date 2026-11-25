@@ -1096,7 +1096,7 @@ a.termin:hover {
   margin-bottom: 1.5rem;
 }
 
-/* Die Anmeldeseite (#818): eine Spalte in der Mitte, links so viel Rand wie rechts, bei jeder Breite. Die Höhe sucht sich die Mitte des Fensters, ohne dass die Seite höher wird als ihr Inhalt verlangt */
+/* Die Anmeldeseite (#818, #829): eine Karte in der Mitte, links so viel Rand wie rechts, bei jeder Breite. Die Höhe sucht sich die Mitte des Fensters, ohne dass die Seite höher wird als ihr Inhalt verlangt. Die Karte trägt beide Schritte (Anmelden, zweiter Faktor) */
 .anmelde-mitte {
   display: grid;
   justify-items: center;
@@ -1108,15 +1108,129 @@ a.termin:hover {
 .anmelde-karte {
   width: min(100%, 28rem);
   min-width: 0;
+  padding: 2rem;
+  border-radius: calc(var(--r-md) * 1.5);
+  background: var(--karte);
+  box-shadow: var(--schatten);
 }
 
-.anmelde-karte .seitenkopf {
-  padding: 0 0 1.5rem;
+.anmelde-kopf {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  text-align: center;
+  margin-bottom: 1.5rem;
+}
+
+.anmelde-kopf h1 {
+  font-size: 2rem;
+  line-height: 2.5rem;
+}
+
+.anmelde-kopf p {
+  margin: 0;
+}
+
+.kreis {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--r-full);
+  background: var(--secondary-container);
+  color: var(--on-secondary-container);
+}
+
+.kreis > span {
+  display: flex;
+}
+
+.ueber {
+  color: var(--accent);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .anmelde-karte .formular,
 .anmelde-karte #meldung:not(:empty) {
   max-width: none;
+}
+
+/* Sechs Ziffernfelder, nach der dritten eine Lücke; sie teilen sich die Breite der Karte, die Höhe bleibt */
+.ziffern {
+  display: flex;
+  gap: 0.5rem;
+}
+
+.ziffer {
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 3.5rem;
+  height: 3.75rem;
+  padding: 0;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-sm);
+  background: var(--surface-container-low);
+  color: var(--on-surface);
+  font: inherit;
+  font-size: 1.5rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.ziffer:nth-child(3) {
+  margin-inline-end: 0.5rem;
+}
+
+/* Rand wird zu 2 px über einen Innenschatten: Die Breite der Felder ändert sich beim Fokus nicht */
+.ziffer:focus-visible {
+  border-color: var(--focus);
+  outline: none;
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+
+.ziffer[readonly] {
+  background: var(--surface-container);
+  color: var(--on-surface-variant);
+}
+
+.feld.fehler .ziffer,
+.ziffer[aria-invalid="true"] {
+  border-color: var(--on-error-container);
+  box-shadow: inset 0 0 0 1px var(--on-error-container);
+}
+
+.anmelde-karte .knopfreihe {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+@media (max-width: 30em) {
+  .anmelde-karte {
+    padding: 1.5rem 1rem;
+  }
+
+  .ziffern {
+    gap: 0.25rem;
+  }
+
+  .ziffer:nth-child(3) {
+    margin-inline-end: 0.25rem;
+  }
+}
+
+@media (forced-colors: active) {
+  .anmelde-karte,
+  .kreis {
+    outline: 1px solid CanvasText;
+  }
 }
 
 .feld {

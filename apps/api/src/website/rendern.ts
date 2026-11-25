@@ -1565,20 +1565,37 @@ export function rendereAnmeldung(k: Kontext): string {
     aktuell: null,
     robots: "noindex",
     skript: SKRIPT_ANMELDEN,
-    inhalt: `<div class="anmelde-mitte"><div class="anmelde-karte">
-<div class="seitenkopf"><h1>Anmelden</h1></div>
+    // Eine Karte für beide Schritte (#829): Kopf mit Symbol, Überzeile und Titel gehört beiden, das Skript tauscht die Texte; die Überzeile «Schritt 1 von 2» zeigt es nur, wenn die Verwaltung das Ziel ist (dort braucht es den zweiten Faktor)
+    inhalt: `<div class="anmelde-mitte"><div class="anmelde-karte" id="karte" data-schritt="1">
 <noscript><div class="band wa">${serialisiere(symbol("warnung"))}<div class="text"><strong>Zum Anmelden braucht diese Seite JavaScript.</strong>Schalte es im Browser ein und lade die Seite neu.</div></div></noscript>
+<div class="anmelde-kopf">
+<span class="kreis" aria-hidden="true"><span id="sym-1">${serialisiere(symbol("schloss"))}</span><span id="sym-2" hidden>${serialisiere(symbol("schild"))}</span></span>
+<p class="ueber" id="ueber" hidden>Schritt 1 von 2</p>
+<h1 id="titel">Anmelden</h1>
+<p class="leise" id="kopftext">Mit demselben Konto wie in der App.</p>
+</div>
 <div id="meldung"></div>
+<p class="nur-sr" id="status" role="status"></p>
 <form id="anmeldung" class="formular" method="post" action="#" novalidate>
-<p class="leise">Mit demselben Konto wie in der App.</p>
 <div class="feld"><label for="benutzername">Benutzername</label><input class="eingabe" id="benutzername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
 <div class="feld"><label for="passwort">Passwort</label><div class="pw"><input class="eingabe" id="passwort" type="password" autocomplete="current-password" required><button type="button" id="zeigen" aria-pressed="false" aria-label="Passwort anzeigen"><span class="auf">${serialisiere(symbol("auge"))}</span><span class="zu">${serialisiere(symbol("auge-zu"))}</span></button></div></div>
 <button type="submit" class="btn p gross voll">Anmelden</button>
 <p class="hilfe">Passwort vergessen? Wende dich an die Abteilungsleitung.</p>
 </form>
 <form id="faktor" class="formular" method="post" action="#" novalidate hidden>
-<p class="leise">Schritt 2 von 2. Gib den Code aus deiner Authenticator-App ein.</p>
-<div class="feld"><label for="code" id="code-label">Code aus deiner App</label><input class="eingabe code" id="code" type="text" inputmode="numeric" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" required aria-describedby="code-hilfe"><p class="hilfe" id="code-hilfe">Sechs Ziffern. Einfügen geht auch.</p></div>
+<div class="feld">
+<label for="code" id="code-label">Code aus der Authenticator-App</label>
+<div class="ziffern" id="ziffern" role="group" aria-labelledby="code-label" aria-describedby="code-hilfe">${[
+      1, 2, 3, 4, 5, 6,
+    ]
+      .map(
+        (n) =>
+          `<input class="ziffer" id="ziffer-${n}" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="${n === 1 ? "one-time-code" : "off"}" autocapitalize="none" spellcheck="false" aria-label="Ziffer ${n} von 6">`,
+      )
+      .join("")}</div>
+<input class="eingabe" id="code" type="text" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="code-hilfe" hidden>
+<p class="hilfe" id="code-hilfe">Sechs Ziffern. Der Code wird nach der letzten Ziffer geprüft.</p>
+</div>
 <button type="submit" class="btn p gross voll">Bestätigen</button>
 <div class="knopfreihe"><button type="button" id="ersatz" class="btn t">Ersatzcode verwenden</button><button type="button" id="abbrechen" class="btn t">Abbrechen</button></div>
 </form>
