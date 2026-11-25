@@ -147,7 +147,9 @@ export function bestaetigungAmOrt({
   let eingabe = null;
   karte.append(
     el("p", { class: "fett", id: `${id}-frage` }, frage),
-    folge && el("p", { class: "leise klein", id: `${id}-folge` }, folge),
+    ...(folge
+      ? [el("p", { class: "leise klein", id: `${id}-folge` }, folge)]
+      : []),
   );
   // Der Screenreader liest mit der Frage auch, was verloren geht
   if (folge) karte.setAttribute("aria-describedby", `${id}-folge`);

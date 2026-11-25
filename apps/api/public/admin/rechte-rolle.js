@@ -327,12 +327,15 @@ export function personenBlock(
     wahl.wurzel,
     fehler,
     el("div", { class: "reihe" }, zuordnen),
-    rolle.art === "gruppe" &&
-      el(
-        "p",
-        { class: "klein leise" },
-        "Wer noch nicht in der Gruppe ist, wird mit der Rolle aufgenommen. Wer schon eine andere Rolle hat, bekommt diese statt der alten. Wer Rechte zuordnet, hat sie selbst: Der Server prüft das.",
-      ),
+    ...(rolle.art === "gruppe"
+      ? [
+          el(
+            "p",
+            { class: "klein leise" },
+            "Wer noch nicht in der Gruppe ist, wird mit der Rolle aufgenommen. Wer schon eine andere Rolle hat, bekommt diese statt der alten. Wer Rechte zuordnet, hat sie selbst: Der Server prüft das.",
+          ),
+        ]
+      : []),
   );
   return wurzel;
 }

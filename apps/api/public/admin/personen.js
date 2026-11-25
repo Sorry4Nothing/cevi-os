@@ -483,7 +483,7 @@ function zeichne(bereich, ctx, daten, neu) {
     );
     auswahlLeiste.replaceChildren(
       kopfZeile,
-      offeneAktion ? aktionsFormular(offeneAktion) : false,
+      ...(offeneAktion ? [aktionsFormular(offeneAktion)] : []),
     );
     alleBox.eingabe.checked =
       sichtbar.length > 0 && sichtbar.every((e) => gewaehlt.has(e.person.id));
