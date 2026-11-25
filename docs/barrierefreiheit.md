@@ -16,6 +16,7 @@ Mit dieser Checkliste wird jeder Bildschirm der App von Hand geprüft, auf einem
 - Rückmeldungen nach einer Aktion auf der öffentlichen Website (Toasts): Abschnitt 83, im Browser geprüft.
 - Fotos in der Verwaltung (Albumliste mit Suche, Filter und Sammelaktionen): Abschnitt 87, im Browser geprüft.
 - Funktionen im Blatt der Person (Verwaltung, Personen) und Rollenseite nur zum Lesen: Abschnitt 89, im Browser geprüft.
+- Rufname in der Verwaltung (Personenliste, Blatt, Kontomenü, Suche, Personenwahl): Abschnitt 94, im Browser geprüft.
 - Die Nummern bleiben fest, damit ältere PRs stimmen: Neue Punkte kommen ans Ende ihres Abschnitts.
 
 ## Vorbereitung
@@ -1745,3 +1746,28 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vors
 - **Ablauf von Anfang bis Ende:** Sitzung, Seite «Fotos»: Hülle, danach Titel, Text und Baustein Fotoalben (ohne Alben: «Hier gibt es noch keine Fotos.»); Klick auf «Fotoarchiv» im Untermenü lädt die Seite und markiert den Punkt.
 
 **Nicht geprüft:** 91.5 (Bewegung reduzieren) und 91.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 91.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).
+
+## 94. Verwaltung: Rufname statt vollem Namen (#815)
+
+Die Verwaltung nennt eine Person wie die Website: mit dem Cevi-Namen, sonst mit dem Vornamen (bei Konten das erste Wort des Namens, bei Kindern der Vorname), sonst mit dem vollen Namen. Leere Werte und Leerzeichen zählen als nicht vorhanden. Der volle Name bleibt sichtbar, damit Personen eindeutig bleiben: als zweite Zeile unter dem Rufnamen, ausser beide sind gleich. Die Regel steht an einer Stelle (`rufname` und `vollerNameZusatz` in `dom.js`) und gilt für Karte und Zeile der Personen, Kinder, Stufenleitung und Gruppenmitglieder (`mitgliedKopf`), den Titel des Blatts der Person und seine Profilkarte, das Kontomenü im Kopf, die Suche (Strg K), die Personenwahl bei Rollen, Eltern eines Kindes und im Lager. Bewusst unverändert, weil sie den vollen Namen brauchen: die Felder «Name», «Vorname» und «Nachname» in den Formularen, Exporte und Import, die Datenschutz-Auskunft, die Teilnehmerlisten der Lager, das Protokoll, Beschriftungen von Knöpfen («Entfernen: Anna Muster») und die Suche selbst (sie findet über Cevi-Name, Name und Benutzername). Leitplanke: `test/admin-rufname.test.ts`.
+
+### Prüfpunkte
+
+- [ ] **94.1** Der Titel der Karte, der Zeile und des Blatts ist der Rufname, die zweite Zeile der volle Name; ohne Unterschied steht nur eine Zeile. Der Bildschirmleser liest zuerst den Rufnamen, danach den vollen Namen (Reihenfolge im Quelltext, kein `aria-label`, das den Namen ersetzt).
+- [ ] **94.2** Die Initialen im Kreis stammen aus dem Rufnamen (der Kreis bleibt `aria-hidden`); beim «(du)» steht der Zusatz hinter dem Rufnamen im Titel.
+- [ ] **94.3** Kontomenü: Im Kopf steht der Rufname, im offenen Menü darunter der volle Name und die Rolle; der Name der Schaltfläche beginnt mit «Konto: » und dem Rufnamen.
+- [ ] **94.4** Befehlspalette: Rufname als Titel, voller Name als Zusatz; wer nach dem Nachnamen, dem Cevi-Namen oder dem Benutzernamen sucht, findet die Person weiter, die Treffer im Zusatz sind markiert.
+- [ ] **94.5** Personenwahl (Rollen zuordnen, Eltern eines Kindes, Lager): Rufname vorne, voller Name im Nebentext; gleiche Rufnamen sind am vollen Namen unterscheidbar. Namen von Knöpfen («Entfernen: …», «Hinzufügen: …») behalten den vollen Namen.
+- [ ] **94.6** Der Titel im Formular bleibt: «Name» zeigt den vollen Namen, das Feld «Cevi-Name» den Cevi-Namen; die Vorschau rechts folgt beiden Feldern beim Tippen.
+- [ ] **94.7** Bei 390 und 1280 Pixel, hell und dunkel: lange Namen umbrechen, kein waagrechtes Scrollen, Kontrast der zweiten Zeile wie bisher (`--on-surface-variant`).
+
+### Stand der Prüfung (#815)
+
+Im Browser (Chromium headless, Playwright, eigener Dev-Server, Kopie der Demo-Datenbank, Konto der Abteilungsleitung mit zweitem Faktor), 1280 x 900 hell und 390 x 844 dunkel:
+
+- **94.1:** Personenliste: «Linn» mit «Linn Demo», «Stufenleitung» mit «Stufenleitung Demo»; Blatt: Titel «Linn», darunter «Linn Demo · Stufenleitung», Profilkarte «Linn» / «Linn Demo».
+- **94.2, 94.3:** Das eigene Konto ohne Cevi-Namen steht als «Demo (du)» mit «Demo Admin» darunter; Kontomenü zeigt «Demo», «Demo Admin», «Abteilungsleitung».
+- **94.4:** Suche «demo»: Titel «Linn», Zusatz «Linn Demo» und so weiter.
+- **94.7:** kein waagrechtes Scrollen bei beiden Grössen (`scrollWidth` gleich `clientWidth`), Ansichten von Liste, Blatt und Kontomenü angeschaut.
+
+**Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (Tokens unverändert), 94.5 (Personenwahl) und 94.6 (Vorschau beim Tippen) nicht im Browser, Tabellenansicht der Personen nur über denselben Baustein.
