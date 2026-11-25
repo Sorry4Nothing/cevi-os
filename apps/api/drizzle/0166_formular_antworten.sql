@@ -1,6 +1,6 @@
 -- Antworten auf den Baustein «Formular» der Website (#819). Die Definition des Formulars bleibt im Dokument der Seite; die Tabelle nimmt nur die Antworten auf, je Antwort mit der Version der Seite, mit der sie entstand.
 -- Mit dem Konto verschwindet nur die Zuordnung (ON DELETE SET NULL), die Antwort bleibt anonym. Fällt die Seite weg, fallen ihre Antworten mit (CASCADE).
--- Rückweg: drizzle/rueckweg/0165_formular_antworten.sql
+-- Rückweg: drizzle/rueckweg/0166_formular_antworten.sql
 CREATE TABLE "formular_antwort" (
 	"id" uuid PRIMARY KEY DEFAULT uuidv7() NOT NULL,
 	"abteilung_id" uuid NOT NULL,

@@ -510,8 +510,7 @@ describe("Antworten in der Verwaltung", () => {
     const bytes = new Uint8Array(await a.arrayBuffer());
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const text = new TextDecoder("utf-8", { ignoreBOM: false }).decode(bytes);
-    expect(text.split("
-")[0]).toBe("Eingang;Person;Name;Anzahl;Mitbringen;Einverstanden");
+    expect(text.split("\r\n")[0]).toBe("Eingang;Person;Name;Anzahl;Mitbringen;Einverstanden");
     // Keine Zelle beginnt mit einem Formelzeichen
     for (const zeile of text.split("\r\n").slice(1).filter(Boolean)) {
       for (const zelle of zeile.split(";")) {
