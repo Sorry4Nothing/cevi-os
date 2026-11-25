@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { and, asc, eq, inArray, isNotNull, isNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { personTag, profilbild, tag, user } from "../db/schema.js";
+import { keinKindKonto } from "../kind-konto.js";
 import type { Baustein } from "./bausteine.js";
 import type { Seitendokument } from "./dokument.js";
 import type { StufenMitglied, WebsitePerson } from "./rendern.js";
@@ -17,8 +18,8 @@ export const PERSON_DATEI = /^website\/person-[0-9a-f]{16}\.jpg$/;
 export const AUSSENROLLEN = ["leitung", "stufenleitung"] as const;
 const ROLLEN_SQL = sql.raw(AUSSENROLLEN.map((r) => `'${r}'`).join(", "));
 
-// Hat die Person (in der Abfrage auf «user») eine Rolle mit Aussenwirkung in einer Stufe ihrer Abteilung?
-export const hatAussenrolle = sql<boolean>`exists (select 1 from person_tag as aussen_pt inner join tag as aussen_tag on aussen_tag.id = aussen_pt.tag_id where aussen_pt.user_id = ${user.id} and aussen_tag.typ = 'stufe' and aussen_tag.abteilung_id = ${user.abteilungId} and aussen_pt.rolle in (${ROLLEN_SQL}))`;
+// Hat die Person (in der Abfrage auf «user») eine Rolle mit Aussenwirkung in einer Stufe ihrer Abteilung? Das Konto eines Kindes nie, auch wenn eine Zuordnung dort stünde (Verteidigung in der Tiefe, die Routen vergeben ihm keine Rolle)
+export const hatAussenrolle = sql<boolean>`(${keinKindKonto(user.id)} and exists (select 1 from person_tag as aussen_pt inner join tag as aussen_tag on aussen_tag.id = aussen_pt.tag_id where aussen_pt.user_id = ${user.id} and aussen_tag.typ = 'stufe' and aussen_tag.abteilung_id = ${user.abteilungId} and aussen_pt.rolle in (${ROLLEN_SQL})))`;
 
 // IDs der Personen, die in Bausteinen «personen» stehen
 export function personenIn(dokumente: Iterable<Seitendokument>): string[] {
@@ -39,8 +40,12 @@ export const anzeigename = (ceviName: string | null, name: string) =>
 
 const AKTIV = and(isNull(user.deaktiviertAm), sql`${user.banned} is not true`);
 
-// Cevi-Name und Funktion, nie der Name im Konto: Wer keinen Cevi-Namen hat, erscheint in einem Team nicht
-export const sichtbarePerson = and(AKTIV, isNotNull(user.ceviName));
+// Cevi-Name und Funktion, nie der Name im Konto: Wer keinen Cevi-Namen hat, erscheint auf der Website nicht, ein Kind-Konto nie
+export const sichtbarePerson = and(
+  AKTIV,
+  isNotNull(user.ceviName),
+  keinKindKonto(user.id),
+);
 
 // Die Rolle als Funktion im Leitungsteam einer Stufe
 export const funktionsname = (rolle: string | null) =>
@@ -82,6 +87,7 @@ export function stufenteamZeilen(
         inArray(personTag.tagId, stufenIds),
         inArray(personTag.rolle, [...AUSSENROLLEN]),
         AKTIV,
+        keinKindKonto(user.id),
       ),
     )
     .orderBy(
@@ -92,7 +98,8 @@ export function stufenteamZeilen(
     );
 }
 
-// Die Mitglieder jedes anderen Teams (Tag ohne Typ «stufe») als einfache Liste, wie die Website sie zeigt: Cevi-Name und Rolle als Text, nach Reihenfolge der Kontakte (null zuletzt) und Name
+// Die Mitglieder jedes anderen Teams (Tag ohne Typ «stufe», zum Beispiel Vorstand oder Kasse) als einfache Liste, wie die Website sie zeigt: Cevi-Name und Rolle als Text, nach Reihenfolge der Kontakte (null zuletzt) und Name.
+// Hier gilt bewusst nicht die Aussenrolle: Eine Funktionsgruppe hat keine Stufenrolle, ihre Rolle ist die Funktion (#776). Wer keine Rolle in der Gruppe hat (Eltern, Teilnehmende), erscheint nie, ein Kind-Konto ebenso nicht
 export function teamZeilen(
   db: Pick<Db, "select">,
   abteilungId: string,
@@ -111,6 +118,7 @@ export function teamZeilen(
       and(
         inArray(personTag.tagId, tagIds),
         eq(user.abteilungId, abteilungId),
+        isNotNull(personTag.rolle),
         sichtbarePerson,
       ),
     )

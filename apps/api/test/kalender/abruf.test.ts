@@ -38,3 +38,14 @@ test("weist eine zu grosse angekündigte Länge ohne Lesen ab", async () => {
   );
   await expect(holeKalender(ADRESSE)).rejects.toThrow(ANTWORT_UNGUELTIG);
 });
+
+test("folgt keiner Weiterleitung, und ein Fehler dabei nennt die Adresse nicht", async () => {
+  const abruf = vi
+    .fn()
+    .mockRejectedValue(new TypeError(`unexpected redirect ${ADRESSE}`));
+  vi.stubGlobal("fetch", abruf);
+  const fehler = await holeKalender(ADRESSE).catch((e: Error) => e);
+  expect(abruf.mock.calls[0]![1].redirect).toBe("error");
+  expect(fehler).toBeInstanceOf(Error);
+  expect((fehler as Error).message).not.toContain("kalender.example");
+});

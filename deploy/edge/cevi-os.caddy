@@ -9,12 +9,12 @@ api.example.org {
 		Referrer-Policy no-referrer
 		-Server
 	}
-	# Zugriffslog ohne den geheimen Token des Kalender-Feeds (/ical/<Token>.ics, #438); Vorschlag, nicht gegen einen laufenden Caddy geprüft (docs/betrieb.md, «Logs»)
+	# Zugriffslog ohne Query (Suchtexte mit Namen, Filter, #775) und ohne den geheimen Token des Kalender-Feeds (/ical/<Token>.ics, #438). Ein Filter je Feld: Das Muster fasst beides zusammen, $1 ist /ical/ und $2 das Fragezeichen der Query (docs/betrieb.md, «Logs»)
 	log {
 		format filter {
 			wrap json
 			fields {
-				request>uri regexp ^/ical/[^?]* /ical/<verborgen>
+				request>uri regexp "^(/ical/)[^?]*|(\?).*$""$1$2<verborgen>"
 			}
 		}
 	}
@@ -23,7 +23,10 @@ api.example.org {
 	@api path /api/* /admin /admin/* /health /datenschutz /konto-loeschen /support /ical /ical/* /.well-known/*
 	handle @api {
 		# Alias im Netz edge-cevi-os (deploy/docker-compose.prod.yml). Ohne encode und ohne Zeitlimit für Antworten, wegen der Server-Sent Events des Lagers (docs/betrieb.md)
-		reverse_proxy cevi-os-api:3000
+		# Genau eine Adresse in X-Forwarded-For, die des Clients bei diesem Caddy: Ein vom Client mitgeschickter Wert gilt nie (apps/api/src/client-ip.ts, #775)
+		reverse_proxy cevi-os-api:3000 {
+			header_up X-Forwarded-For {http.request.remote.host}
+		}
 	}
 
 	# Alles andere sind erzeugte Dateien der Website (docs/website-auslieferung.md)
