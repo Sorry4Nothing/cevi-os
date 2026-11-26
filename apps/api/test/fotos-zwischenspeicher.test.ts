@@ -129,10 +129,10 @@ describe("Zwischenspeicher", () => {
       titel: "",
       breite: 4,
       hoehe: 3,
-      groessen: [],
+      groessen: {},
     };
-    await s.datei(bild, "mittel");
-    await s.datei(bild, "mittel");
+    await s.datei(bild, "640");
+    await s.datei(bild, "640");
     expect(n.datei).toBe(2);
   });
 });

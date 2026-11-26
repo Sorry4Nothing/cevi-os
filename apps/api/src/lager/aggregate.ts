@@ -1,11 +1,13 @@
-import { and, count, eq, isNull, sql } from "drizzle-orm";
+import { and, asc, count, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import {
   aufgabe,
+  dienst as dienstTabelle,
   lagerBenachrichtigung,
   lagertag,
   ressort,
   schicht,
+  tagesabschnitt,
   tagesseite,
   tagesseiteBlock,
 } from "../db/schema.js";
@@ -31,6 +33,10 @@ import { ladeZeitplan } from "./zeitplan.js";
 // Begrenzungen: halten jede Antwort in einer Abfrage ohne Seitenwechsel
 const MAX_AUFGABEN = 100;
 const MAX_HOECKS = 50;
+// Widget-Stand (#871): so viele Zeilen zeigen W3 («Wichtig heute») und W4 (nächste Aufgaben) in der grössten Grösse; Titel mit höchstens so vielen Zeichen
+const WIDGET_WICHTIG = 2;
+const WIDGET_AUFGABEN = 3;
+const WIDGET_TITEL = 60;
 
 const zuerich = new Intl.DateTimeFormat("sv-SE", {
   timeZone: "Europe/Zurich",
@@ -263,7 +269,23 @@ export async function ladeStart(db: Leser, zugriff: LagerZugriff, jetzt: Date) {
   };
 }
 
-// Kompakter Stand für die Widgets der Apps (#848): ein Aufruf mit nur Zahlen und Daten, nie Namen oder Texte. Jeder Teil folgt dem Leserecht seiner Quelle wie «Heute» und «Meine Woche»; fehlt es, ist der Teil null. Die Tage bis Beginn und Ende und die ungelesenen Benachrichtigungen sieht jedes Mitglied, darum nie 403. Abfragen: vier, parallel und unabhängig von der Zahl der Zeilen
+// Titel eines freien Textes fürs Widget: die erste nicht leere Zeile, gekürzt mit «…»; null, wenn der Text leer ist
+export function widgetTitel(text: string) {
+  const zeile = text
+    .split("\n")
+    .map((z) => z.trim())
+    .find((z) => z);
+  if (!zeile) return null;
+  const zeichen = Array.from(zeile);
+  return zeichen.length <= WIDGET_TITEL
+    ? zeile
+    : `${zeichen
+        .slice(0, WIDGET_TITEL - 1)
+        .join("")
+        .trimEnd()}…`;
+}
+
+// Kompakter Stand für die Widgets der Apps (#848, #871): ein Aufruf mit Zahlen und Daten, dazu genau die Texte, die W3 und W4 zeigen: die eigenen Dienste heute (Dienst, Tagesabschnitt, Zeit), höchstens zwei Titel «Wichtig heute» und die nächsten drei eigenen offenen Aufgaben (ID, Titel, Frist). Nie Namen von Personen. Jeder Teil folgt dem Leserecht seiner Quelle wie «Heute» und «Meine Woche»; fehlt es, ist der Teil null. Die Tage bis Beginn und Ende und die ungelesenen Benachrichtigungen sieht jedes Mitglied, darum nie 403. Abfragen: fünf, parallel und unabhängig von der Zahl der Zeilen
 export async function ladeWidget(
   db: Leser,
   zugriff: LagerZugriff,
@@ -272,17 +294,43 @@ export async function ladeWidget(
   const lagerId = zugriff.lager.id;
   const heute = datumInZuerich(jetzt);
   const ich = zugriff.personId;
+  // Nur die eigenen Aufgaben, auch wenn die Rolle alle liest (wie «Meine Woche»)
+  const eigeneOffen = and(
+    eq(aufgabe.lagerId, lagerId),
+    sql`${aufgabe.status} <> 'erledigt'`,
+    beteiligt(ich),
+  );
+  const mitAufgaben = leseUmfang(zugriff);
 
-  const [dienste, wichtig, aufgaben, ungelesen] = await Promise.all([
+  const [dienste, wichtig, aufgaben, naechste, ungelesen] = await Promise.all([
+    // Je Lagertag und Abschnitt hat eine Person höchstens einen Dienst: die Liste ist so lang wie die Zahl der Abschnitte
     darf(zugriff, "einteilung.lesen")
       ? db
-          .select({ anzahl: count() })
+          .select({
+            dienst: dienstTabelle.name,
+            abschnitt: tagesabschnitt.name,
+            zeit: tagesabschnitt.zeit,
+          })
           .from(schicht)
           .innerJoin(
             lagertag,
             and(
               eq(lagertag.lagerId, schicht.lagerId),
               eq(lagertag.id, schicht.lagertagId),
+            ),
+          )
+          .innerJoin(
+            dienstTabelle,
+            and(
+              eq(dienstTabelle.lagerId, schicht.lagerId),
+              eq(dienstTabelle.id, schicht.dienstId),
+            ),
+          )
+          .innerJoin(
+            tagesabschnitt,
+            and(
+              eq(tagesabschnitt.lagerId, schicht.lagerId),
+              eq(tagesabschnitt.id, schicht.tagesabschnittId),
             ),
           )
           .where(
@@ -292,11 +340,19 @@ export async function ladeWidget(
               eq(lagertag.datum, heute),
             ),
           )
-          .then((z) => z[0]!.anzahl)
+          .orderBy(
+            asc(tagesabschnitt.reihenfolge),
+            asc(tagesabschnitt.id),
+            asc(dienstTabelle.reihenfolge),
+          )
       : undefined,
+    // Die ersten Blöcke in der Reihenfolge der Tagesseite, die Zahl aller Blöcke steht in jeder Zeile
     darf(zugriff, "tagesseiten.lesen")
       ? db
-          .select({ anzahl: count() })
+          .select({
+            text: tagesseiteBlock.text,
+            anzahl: sql<number>`count(*) over ()`.mapWith(Number),
+          })
           .from(tagesseiteBlock)
           .innerJoin(
             tagesseite,
@@ -319,10 +375,10 @@ export async function ladeWidget(
               eq(lagertag.datum, heute),
             ),
           )
-          .then((z) => z[0]!.anzahl)
+          .orderBy(asc(tagesseiteBlock.reihenfolge), asc(tagesseiteBlock.id))
+          .limit(WIDGET_WICHTIG)
       : undefined,
-    // Nur die eigenen Aufgaben, auch wenn die Rolle alle liest (wie «Meine Woche»)
-    leseUmfang(zugriff)
+    mitAufgaben
       ? db
           .select({
             offen: sql<number>`count(*)`.mapWith(Number),
@@ -340,14 +396,27 @@ export async function ladeWidget(
           })
           .from(aufgabe)
           .leftJoin(ressort, ressortJoin)
-          .where(
-            and(
-              eq(aufgabe.lagerId, lagerId),
-              sql`${aufgabe.status} <> 'erledigt'`,
-              beteiligt(ich),
-            ),
-          )
+          .where(eigeneOffen)
           .then((z) => z[0]!)
+      : undefined,
+    // Sortiert wie «Meine Aufgaben» nach Frist in den Apps: Frist (ohne zuletzt), Reihenfolge, Titel
+    mitAufgaben
+      ? db
+          .select({
+            id: aufgabe.id,
+            titel: aufgabe.titel,
+            frist: aufgabe.frist,
+          })
+          .from(aufgabe)
+          .leftJoin(ressort, ressortJoin)
+          .where(eigeneOffen)
+          .orderBy(
+            sql`${aufgabe.frist} asc nulls last`,
+            asc(aufgabe.reihenfolge),
+            sql`lower(${aufgabe.titel})`,
+            asc(aufgabe.id),
+          )
+          .limit(WIDGET_AUFGABEN)
       : undefined,
     db
       .select({ anzahl: count() })
@@ -366,9 +435,14 @@ export async function ladeWidget(
     heute,
     tageBisBeginn: tageBis(heute, zugriff.lager.von),
     tageBisEnde: tageBis(heute, zugriff.lager.bis),
-    eigeneDiensteHeute: dienste ?? null,
-    wichtigHeute: wichtig ?? null,
+    eigeneDiensteHeute: dienste ? dienste.length : null,
+    eigeneDienste: dienste ?? null,
+    wichtigHeute: wichtig ? (wichtig[0]?.anzahl ?? 0) : null,
+    wichtigTitel: wichtig
+      ? wichtig.flatMap((b) => widgetTitel(b.text) ?? [])
+      : null,
     eigeneAufgaben: aufgaben ?? null,
+    naechsteAufgaben: naechste ?? null,
     ungelesen,
   };
 }

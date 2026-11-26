@@ -58,6 +58,7 @@ import {
   raeumeAenderungenAuf,
   starteAenderungenAufraeumen,
 } from "./lager/aufraeumen.js";
+import { loescheAlteIdempotenz } from "./idempotenz.js";
 import { log, setzeLogSenke } from "./log.js";
 import { setzeRechteModus } from "./rechtemodell/modus.js";
 import { erstelleMedienspeicher } from "./medien-speicher-sdk.js";
@@ -274,6 +275,8 @@ starteSitzungenAufraeumen(
   () => raeumeDateienOhneVerweisAuf(db),
   "lager_dateien",
 );
+// Gespeicherte Antworten der Idempotenz-Schlüssel (#873) nach 24 Stunden löschen
+starteSitzungenAufraeumen(() => loescheAlteIdempotenz(db), "idempotenz");
 // Widerrufene ICS-Token (#437) nach 30 Tagen entfernen
 starteSitzungenAufraeumen(() => loescheWiderrufene(db), "kalender_token");
 // Teilnehmende nach dem Ende des Lagers löschen (#384, sechs Monate)

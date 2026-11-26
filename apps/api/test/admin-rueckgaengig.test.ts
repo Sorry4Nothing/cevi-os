@@ -112,7 +112,7 @@ describe("rueckgaengig.js: Aktion mit Frist", () => {
     expect(ausfuehren).toHaveBeenCalledTimes(1);
   });
 
-  test("nach dem Ausführen steht «Erledigt», danach geht der Toast nach 6 Sekunden von selbst", async () => {
+  test("nach dem Ausführen steht «Erledigt», danach geht der Toast nach seiner Lesedauer (5 Sekunden) von selbst", async () => {
     const { s, zeit } = aufbau();
     const danach = vi.fn();
     const a = s.starte({
@@ -124,7 +124,8 @@ describe("rueckgaengig.js: Aktion mit Frist", () => {
     expect(a.phase).toBe("erledigt");
     expect(a.text).toBe("Erledigt.");
     expect(danach).toHaveBeenCalledWith(42);
-    await zeit.fortschritt(r.ERLEDIGT_MS - 1);
+    expect(r.lesedauer("Erledigt.")).toBe(5000);
+    await zeit.fortschritt(r.lesedauer("Erledigt.") - 1);
     expect(s.liste()).toHaveLength(1);
     await zeit.fortschritt(1);
     expect(s.liste()).toHaveLength(0);

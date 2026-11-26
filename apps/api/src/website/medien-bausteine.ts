@@ -4,7 +4,7 @@ import {
   bild,
   el,
   groesse,
-  medienUrl,
+  bildQuelle,
   verlinke,
   type Daten,
   type HtmlKnoten,
@@ -64,7 +64,7 @@ const istBild = (m: MedienDaten | undefined): m is MedienDaten =>
 // Das Bild mit Breite und Höhe der Datei: Der Platz steht fest, bevor es geladen ist. Alt-Text nur vom Medium (null = dekorativ)
 function bildElement(id: string, m: MedienDaten, alt?: string): HtmlKnoten {
   return el("img", {
-    src: medienUrl(id),
+    ...bildQuelle(id, m),
     alt: alt ?? m.altText ?? "",
     ...(m.breite &&
       m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),

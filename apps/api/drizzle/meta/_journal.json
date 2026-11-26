@@ -883,6 +883,20 @@
       "when": 1793645600000,
       "tag": "0173_sichtbarkeit_rollen",
       "breakpoints": true
+    },
+    {
+      "idx": 174,
+      "version": "7",
+      "when": 1793645700000,
+      "tag": "0174_medium_varianten",
+      "breakpoints": true
+    },
+    {
+      "idx": 175,
+      "version": "7",
+      "when": 1793645800000,
+      "tag": "0175_idempotenz",
+      "breakpoints": true
     }
   ]
 }

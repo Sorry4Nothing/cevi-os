@@ -225,9 +225,15 @@ describe("Rückmeldungen als Toast", () => {
     expect(admin).not.toContain("rueckmeldung");
   });
 
-  test("Zeiten: Erfolg und Info 4 Sekunden, Warnung und Fehler 8 Sekunden", () => {
+  // #869: Bestätigungen gehen nach ihrer Lesedauer, alles andere bleibt bis zum Schliessen (Werte geprüft in seiten.test.ts)
+  test("Zeiten: Bestätigungen nach der Lesedauer, mindestens 5 Sekunden; Warnung, Fehler und Aktion bleiben", () => {
     const rahmen = readFileSync(join(ORDNER, "rahmen.js"), "utf8");
-    expect(rahmen).toContain("OK_MS = 4000");
-    expect(rahmen).toContain("FEHLER_MS = 8000");
+    expect(rahmen).toContain("dauerVon(art, aktion, text)");
+    expect(rahmen).toContain(
+      'aktion || art === "fehler" || art === "warn" ? 0 : lesedauer(text)',
+    );
+    expect(rahmen).not.toContain("FEHLER_MS");
+    const rueckgaengig = readFileSync(join(ORDNER, "rueckgaengig.js"), "utf8");
+    expect(rueckgaengig).toContain("LESE_MIN_MS = 5000");
   });
 });

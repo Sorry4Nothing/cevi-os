@@ -10,7 +10,13 @@ import type { Db } from "../db/client.js";
 import { abteilung, auditLog, medium } from "../db/schema.js";
 import { eingabe } from "../eingabe.js";
 import { log } from "../log.js";
-import { MEDIEN_BILD_MAX_BYTES, type MedienKodierer } from "../medien.js";
+import {
+  entferneBild,
+  legeBildAb,
+  MEDIEN_BILD_MAX_BYTES,
+  variantenSchluessel,
+  type MedienKodierer,
+} from "../medien.js";
 import type { Medienspeicher } from "../medien-speicher.js";
 import type { Person } from "../rechte.js";
 import { verlange } from "../rechtemodell/darf.js";
@@ -47,7 +53,7 @@ const LISTE_STANDARD = 200;
 const likeText = (s: string) => s.replace(/[\\%_]/g, "\\$&");
 const ZU_GROSS = {
   code: "ZU_GROSS",
-  message: "Ein Bild darf höchstens 10 MB gross sein.",
+  message: `Ein Bild darf höchstens ${MEDIEN_BILD_MAX_BYTES / 1024 / 1024} MB gross sein.`,
 };
 // Der Body ist das Bild selbst; der Handler prüft die Grösse nach dem Typ noch einmal. Dateien zum Herunterladen liegen nicht hier, sondern im SharePoint (#428)
 export const medienUploadLimit = bodyLimit({
@@ -76,6 +82,7 @@ const antwort = (m: Zeile) => ({
   groesse: m.groesse,
   breite: m.breite,
   hoehe: m.hoehe,
+  varianten: m.varianten,
   altText: m.altText,
   dekorativ: m.dekorativ,
   sichtbarkeit: m.sichtbarkeit,
@@ -84,9 +91,19 @@ const antwort = (m: Zeile) => ({
 });
 
 // Die Bytes mit den Kopfzeilen, die ein aktives Format entschärfen: nosniff, kein Skript, kein Rahmen. Ein Dateiname der Nutzer existiert nicht. Nur Bilder: ein altes PDF-Medium (vor #428) liefert keine Route mehr
+// ?breite=<n> (#868): die kleinste Variante, die mindestens n px breit ist (Website-srcset, Apps); gibt es keine (Bestand, kleines Bild, n grösser als jede Variante), kommt das Bild selbst, nie etwas Grösseres. Der Schlüssel entsteht nur aus Werten der Datenbank
 async function liefere(c: Context, speicher: Medienspeicher, m: Zeile) {
   if (!m.mimeTyp.startsWith("image/")) throw new HTTPException(404);
-  const inhalt = await speicher.holen(m.speicherSchluessel);
+  const wunsch = Number(c.req.query("breite"));
+  const variante =
+    Number.isInteger(wunsch) && wunsch > 0
+      ? m.varianten.find((b) => b >= wunsch)
+      : undefined;
+  const inhalt = await speicher.holen(
+    variante === undefined
+      ? m.speicherSchluessel
+      : variantenSchluessel(m.speicherSchluessel, variante),
+  );
   c.header("X-Content-Type-Options", "nosniff");
   c.header("Content-Security-Policy", "sandbox; frame-ancestors 'none'");
   // Öffentliche Medien darf ein Cache kurz halten, die übrigen nie, wie das Profilbild
@@ -177,10 +194,7 @@ export function erstelleMedienHandler({
       const daten = new Uint8Array(await c.req.arrayBuffer());
       const dekorativ = meta.dekorativ === "true";
 
-      let mimeTyp: string;
-      let inhalt: Uint8Array;
-      let breite: number | null = null;
-      let hoehe: number | null = null;
+      let bild: Awaited<ReturnType<MedienKodierer>>;
       if (istErlaubtesBild(daten)) {
         if (daten.length > MEDIEN_BILD_MAX_BYTES) {
           return c.json(ZU_GROSS, 413);
@@ -190,12 +204,7 @@ export function erstelleMedienHandler({
           return c.json(ALT_TEXT, 400);
         }
         try {
-          ({
-            inhalt,
-            typ: mimeTyp,
-            breite,
-            hoehe,
-          } = await kodiereMedienbild(daten));
+          bild = await kodiereMedienbild(daten);
         } catch {
           // Kein lesbares Bild oder zu viele Pixel
           return c.json(FORMAT, 415);
@@ -205,8 +214,10 @@ export function erstelleMedienHandler({
         return c.json(FORMAT, 415);
       }
 
-      // Erst in den Speicher, dann in die Datenbank: Scheitert der Speicher, gibt es keine Zeile, die auf nichts zeigt. Scheitert die Datenbank, räumt die Route das Objekt weg; scheitert auch das, bleibt eine Waise ohne Zeile, die keine Route ausliefert (im Log: WAISE)
-      const schluessel = await speicher.ablegen(inhalt, mimeTyp);
+      // Erst in den Speicher, dann in die Datenbank: Scheitert der Speicher, gibt es keine Zeile, die auf nichts zeigt. Scheitert die Datenbank, räumt die Route die Objekte weg; scheitert auch das, bleibt eine Waise ohne Zeile, die keine Route ausliefert (im Log: WAISE)
+      const { typ: mimeTyp, breite, hoehe } = bild;
+      const varianten = bild.varianten.map((v) => v.breite);
+      const schluessel = await legeBildAb(speicher, bild);
       try {
         const neu = await db.transaction(async (tx) => {
           const [zeile] = await tx
@@ -214,9 +225,10 @@ export function erstelleMedienHandler({
             .values({
               abteilungId: person.abteilungId,
               mimeTyp,
-              groesse: inhalt.length,
+              groesse: bild.inhalt.length,
               breite,
               hoehe,
+              varianten,
               altText: meta.altText ?? null,
               dekorativ,
               sichtbarkeit: meta.sichtbarkeit,
@@ -237,11 +249,8 @@ export function erstelleMedienHandler({
         });
         return c.json(antwort(neu), 201);
       } catch (fehler) {
-        await speicher
-          .loeschen(schluessel)
-          .catch(() =>
-            log(c, { ereignis: "medien", code: "WAISE", schluessel }),
-          );
+        for (const waise of await entferneBild(speicher, schluessel, varianten))
+          log(c, { ereignis: "medien", code: "WAISE", schluessel: waise });
         throw fehler;
       }
     },
@@ -346,7 +355,10 @@ export function erstelleMedienHandler({
           .where(
             and(eq(medium.id, id), eq(medium.abteilungId, person.abteilungId)),
           )
-          .returning({ schluessel: medium.speicherSchluessel });
+          .returning({
+            schluessel: medium.speicherSchluessel,
+            varianten: medium.varianten,
+          });
         if (!m) throw new HTTPException(404);
         await tx.insert(auditLog).values({
           abteilungId: person.abteilungId,
@@ -355,7 +367,7 @@ export function erstelleMedienHandler({
           zielTyp: "medium",
           zielId: id,
         });
-        return { schluessel: m.schluessel };
+        return m;
       });
       if ("seiten" in ergebnis) {
         return c.json(
@@ -368,10 +380,12 @@ export function erstelleMedienHandler({
           409,
         );
       }
-      const { schluessel } = ergebnis;
-      await speicher
-        .loeschen(schluessel)
-        .catch(() => log(c, { ereignis: "medien", code: "WAISE", schluessel }));
+      for (const waise of await entferneBild(
+        speicher,
+        ergebnis.schluessel,
+        ergebnis.varianten,
+      ))
+        log(c, { ereignis: "medien", code: "WAISE", schluessel: waise });
       return c.body(null, 204);
     },
   };

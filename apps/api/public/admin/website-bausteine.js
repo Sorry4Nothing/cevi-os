@@ -681,7 +681,7 @@ export function bildDialog(k, beiWahl, opt = {}) {
             blatt.close();
           },
         },
-        el("img", { src: m.url, alt: "", loading: "lazy" }),
+        el("img", { src: `${m.url}?breite=640`, alt: "", loading: "lazy" }),
         el(
           "span",
           {},

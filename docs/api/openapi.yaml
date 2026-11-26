@@ -4091,7 +4091,7 @@ paths:
         Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
         andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
-        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet. Die Pushes des Lagers (`typ` `lager_*`) und ihre Schalter beschreibt `GET /api/v1/ich/lager-benachrichtigungen`.
+        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet; alle Typen nennt das Schema `PushTyp`. Die Pushes des Lagers (`typ` `lager_*`) und ihre Schalter beschreibt `GET /api/v1/ich/lager-benachrichtigungen`.
 
         **Anmelde-Push.** `pushAnmeldungen` (Push an die Leitung bei An- und Abmeldung eines Kindes für ein Programm) ist ein Boolean und standardmässig an. `GET /api/v1/ich` gibt den Schalter nur Personen mit einer Stufenrolle zurück; setzen lässt er sich von jeder Person, ohne Wirkung ohne Stufenrolle.
 
@@ -4380,9 +4380,25 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/MediumId"
+        - name: breite
+          in: query
+          required: false
+          description: |
+            Gewünschte Breite in Pixeln (#868). Der Server liefert die kleinste Variante, die mindestens so breit ist; gibt es
+            keine (Bild ohne Varianten, kleines Bild, Wert grösser als jede Variante), das Bild selbst. Nie etwas Grösseres als
+            das Bild selbst. Kein ganzzahliger positiver Wert zählt wie ohne Angabe.
+          schema:
+            type: integer
+            minimum: 1
+          example: 640
       description: |
         Liefert die Datei eines Mediums. Der Server liest sie aus dem Medienspeicher und gibt sie selbst aus; es gibt
         keine Adresse des Speichers und keinen öffentlichen Bucket.
+
+        **Varianten (#868).** Bilder liegen bis 4096 Pixel je Seite vor, dazu kleinere Fassungen mit 640, 1280, 1920, 2560 und
+        3840 Pixel Breite, soweit das Bild breiter ist (`varianten` in der Liste der Medien). Die Website nennt sie in `srcset`;
+        die Apps fragen mit `?breite=<n>` eine passende Grösse an (z. B. `?breite=512` für ein Artikelbild: die Variante mit
+        640 Pixel). Ohne `breite` kommt das Bild in voller Grösse («Original herunterladen» in der Verwaltung).
 
         **Sichtbarkeit.** Ein Medium mit Sichtbarkeit `oeffentlich` ist ohne Anmeldung abrufbar (auch ohne Sitzung, für
         gesperrte Konten und andere Abteilungen). Ein Medium mit Sichtbarkeit `angemeldet` liefert der Server nur mit
@@ -4793,6 +4809,8 @@ paths:
         Der Body ist strikt: Fremde Felder (`userId`, `sessionId`), ein Token in falscher Form, eine andere
         Plattform oder ein leerer Body ergeben 400. Das Token ist ein FCM-Registrierungstoken: 20 bis 512 Zeichen aus Buchstaben, Ziffern
         und `_ : . -`. Die Form `ExponentPushToken[…]` aus der früheren Expo-Anbindung ergibt 400.
+
+        Was ein Push an das Gerät bringt (`data.typ`, `data.id`, Kanal) und alle Typen mit Auslöser, Empfänger und Schalter beschreiben die Schemas `PushNachricht` und `PushTyp`.
 
         **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
         Statuscodes: 204, 400, 401, 403, 426.
@@ -6607,15 +6625,17 @@ paths:
 
         **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes, nie aus Dateiendung, `Content-Type` oder Query. PDF, SVG, GIF und
-        alles andere sind 415: Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei» nur verknüpft (#428). Ein Bild darf höchstens 10 MiB gross sein (vor dem Verkleinern) und höchstens 16 Millionen
-        Pixel haben. Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
+        alles andere sind 415: Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei» nur verknüpft (#428). Ein Bild darf höchstens 25 MiB gross sein (vor dem Verkleinern) und höchstens 40 Millionen
+        Pixel haben (#868: ein Foto mit 24 MP und ein Original von Flickr gehen durch). Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
 
         **Alt-Text.** Ein Bild braucht entweder `altText` (1 bis 500 Zeichen) oder `dekorativ=true`, nie beides und nie
         keines (400, code `ALT_TEXT`).
 
-        **Verarbeitung.** Ein Bild dreht der Server nach der EXIF-Angabe, verkleinert es auf höchstens 2048 Pixel je Seite
+        **Verarbeitung.** Ein Bild dreht der Server nach der EXIF-Angabe, verkleinert es auf höchstens 4096 Pixel je Seite
         (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als WebP ohne
-        Metadaten (kein EXIF, kein Aufnahmeort). Das Original bleibt nicht erhalten.
+        Metadaten (kein EXIF, kein Aufnahmeort). Dazu legt er Varianten mit 640, 1280, 1920, 2560 und 3840 Pixel Breite an,
+        soweit das Bild breiter ist (`varianten`, abrufbar mit `?breite=` auf `GET /api/v1/medien/{id}`). Die hochgeladene Datei
+        selbst bleibt nicht erhalten.
 
         **Begrenzung.** Pro Person höchstens 10 Uploads in 10 Minuten (429); auch abgelehnte zählen.
 
@@ -6679,7 +6699,7 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB.
+          description: Ein Bild ist grösser als 25 MiB.
         "415":
           description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
@@ -10059,7 +10079,7 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB.
+          description: Ein Bild ist grösser als 25 MiB.
         "415":
           description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
@@ -10487,7 +10507,7 @@ paths:
       operationId: holeLagerAenderungen
       summary: Änderungsfeed des Lagers
       description: |
-        Meldet, welche Einträge des Lagers seit einer Folgenummer neu, geändert oder gelöscht sind. Der Feed nennt nur Objekttyp, ID, Art, Version und Zeitpunkt, nie Inhalte; die App holt den Inhalt über die Route des Moduls. So gelten die Rechte der Rolle dort, und der Feed verrät höchstens, dass es einen Eintrag gibt, den die Rolle lesen darf.
+        Meldet, welche Einträge des Lagers seit einer Folgenummer neu, geändert oder gelöscht sind. Der Feed nennt nur Objekttyp (alle Typen mit Leserecht: Schema `LagerObjekttyp`), ID, Art, Version und Zeitpunkt, nie Inhalte; die App holt den Inhalt über die Route des Moduls. So gelten die Rechte der Rolle dort, und der Feed verrät höchstens, dass es einen Eintrag gibt, den die Rolle lesen darf.
 
         Filter: Es erscheinen nur Objekttypen, deren Leserecht die Rolle hat, und davon nur die Zeilen, die der Zeilenfilter der Rolle zulässt. Gelöscht ist endgültig: Der Eintrag `geloescht` (nur Objekttyp, ID und Version) geht an jede Rolle mit dem Leserecht des Typs, weil die Zeile nicht mehr zu filtern ist; er bleibt 30 Tage im Feed. Eine Seite, deren Einträge alle herausfallen, kommt leer zurück, `bis` rückt trotzdem vor.
 
@@ -13742,11 +13762,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - name: id
           in: path
           required: true
@@ -13780,6 +13801,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -14297,11 +14320,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten` und `check.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - name: id
           in: path
           required: true
@@ -14337,6 +14361,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -14534,11 +14560,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - *a2
+        - $ref: "#/components/parameters/IdempotencyKey"
         - *a3
       requestBody:
         required: true
@@ -14563,6 +14590,8 @@ paths:
             application/json:
               schema: &a11
                 $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426": *a8
         "429": *a9
   /api/v1/lager/{id}/hoecks/{hoeckId}:
@@ -16192,11 +16221,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED`, `RESSORT_UNBEKANNT`, `GRUPPE_UNBEKANNT`, `DATEI_UNBEKANNT` oder `ZEITFENSTER_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED`, `RESSORT_UNBEKANNT`, `GRUPPE_UNBEKANNT`, `DATEI_UNBEKANNT` oder `ZEITFENSTER_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - name: id
           in: path
           required: true
@@ -16227,6 +16257,8 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/LagerVersionKonflikt409"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -22291,9 +22323,9 @@ paths:
       operationId: holeLagerWidget
       summary: Widget-Stand des Lagers
       description: |
-        Kompakter Stand für die Widgets der Apps (#848): ein Aufruf statt `/lager`, `/heute`, `/meine-woche`, `/zeitplan` und Seiten der Aufgaben. Die Antwort enthält nur Zahlen und Daten, nie Namen, Titel oder freien Text. `tageBisBeginn` und `tageBisEnde` zählen ab heute (Zürcher Zeit), negativ, sobald das Datum vorbei ist; daraus folgt «Tag X von Y» (`1 - tageBisBeginn` von `tageBisEnde - tageBisBeginn + 1`). `eigeneDiensteHeute` zählt die eigenen Schichten am heutigen Lagertag (braucht `einteilung.lesen`), `wichtigHeute` die Blöcke «wichtig» der heutigen Tagesseite (braucht `tagesseiten.lesen`), `eigeneAufgaben` die eigenen nicht erledigten Aufgaben (die Person ist verantwortlich oder unterstützt; braucht `aufgaben.eigene` oder das Recht auf alle Aufgaben, zählt aber immer nur die eigenen). `ungelesen` sind die ungelesenen Benachrichtigungen der Person in diesem Lager. Fehlt das Recht eines Teils, ist er `null`. Tage und Benachrichtigungen gehören jedem Mitglied, darum gibt es kein 403.
+        Kompakter Stand für die Widgets der Apps (#848, #871): ein Aufruf statt `/lager`, `/heute`, `/meine-woche`, `/zeitplan` und Seiten der Aufgaben. Die Antwort enthält Zahlen und Daten und nur die Texte, die die Widgets W3 («Lager heute») und W4 («Meine Aufgaben») zeigen; nie Namen von Personen. `tageBisBeginn` und `tageBisEnde` zählen ab heute (Zürcher Zeit), negativ, sobald das Datum vorbei ist; daraus folgt «Tag X von Y» (`1 - tageBisBeginn` von `tageBisEnde - tageBisBeginn + 1`). `eigeneDiensteHeute` zählt die eigenen Schichten am heutigen Lagertag, `eigeneDienste` nennt sie mit Dienst, Tagesabschnitt und Zeit (beide brauchen `einteilung.lesen`). `wichtigHeute` zählt die Blöcke «wichtig» der heutigen Tagesseite, `wichtigTitel` gibt die ersten zwei als Titel (erste nicht leere Zeile, höchstens 60 Zeichen, sonst mit «…» gekürzt; beide brauchen `tagesseiten.lesen`). `eigeneAufgaben` zählt die eigenen nicht erledigten Aufgaben (die Person ist verantwortlich oder unterstützt), `naechsteAufgaben` nennt die ersten drei davon mit ID, Titel und Frist, sortiert nach Frist (ohne Frist zuletzt), Reihenfolge und Titel; die Dringlichkeit leitet die App aus Frist und `heute` ab (beide brauchen `aufgaben.eigene` oder das Recht auf alle Aufgaben, zeigen aber immer nur die eigenen). `ungelesen` sind die ungelesenen Benachrichtigungen der Person in diesem Lager. Fehlt das Recht eines Teils, ist er `null`. Tage und Benachrichtigungen gehören jedem Mitglied, darum gibt es kein 403. Die Felder aus #871 sind neu; ältere Apps lesen die Antwort wie bisher.
 
-        Datenbanklast: vier Abfragen, parallel und unabhängig von der Datenmenge. Dazu kommen die Abfragen der Rechteprüfung.
+        Datenbanklast: fünf Abfragen, parallel und unabhängig von der Datenmenge. Dazu kommen die Abfragen der Rechteprüfung.
 
         Statuscodes: 200 bei Erfolg, auch im abgeschlossenen Lager. 400 bei ungültiger ID. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
 
@@ -24942,11 +24974,12 @@ paths:
       description: |
         Entscheiden darf, wer das Recht `raum.anfrage_entscheiden` für den Raum hat: wer den Team-Tag des Raums trägt (eine Person genügt), eine Gruppenrolle des Teams mit dem Recht; bei einem Raum ohne Team die Abteilungsleitung. Alle drei ohne zweiten Faktor, auch aus einer App-Sitzung (Entscheid vom 26.11.2026, #859: die App kennt ihn nicht; Abweichung von der Pflicht für erweiterte Rechte, Restrisiko im Bedrohungsmodell, Bedrohung 38). Nur eine Plattformrolle und der Entwickler brauchen ihn (403 `ZWEITER_FAKTOR_FEHLT` oder `ZWEITER_FAKTOR_SITZUNG`). Alle anderen erweiterten Rechte derselben Personen verlangen ihn weiter. Ein Team eines Raums, das die Rolle nicht trägt, entscheidet nicht (403). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push `raum_entscheid` mit festem Text, wenn ihr Konto aktiv ist und ihr Schalter `pushRaumEntscheid` an ist (`PATCH /api/v1/ich`).
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Termine
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - $ref: "#/components/parameters/RaumAnfrageId"
       requestBody:
         required: true
@@ -24971,6 +25004,8 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/RaumAnfrageKonflikt409"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -25915,13 +25950,14 @@ paths:
 
         Grenzen: Die Abteilung stellt sie ein (Vorgaben: 20 Positionen, Menge 1 bis 10, 5 offene oder bereitgestellte Bestellungen je Person; GET /laden nennt sie), der Server prüft sie bei jeder Bestellung: zu viele Positionen 400 `POSITIONEN_ZU_VIELE`, zu grosse Menge 400 `MENGE_ZU_GROSS`, zu viele offene 409 `BESTELL_LIMIT`. Ist das Lädeli geschlossen, 409 `LADEN_GESCHLOSSEN` mit dem Text der Abteilung; liegt die Summe unter der Mindestbestellung, 409 `MINDESTBESTELLUNG` (mit `mindestRappen`). Derselbe Artikel in derselben Variante steht nur einmal (sonst 400), 10 Versuche je Konto in 10 Minuten (429; der Zähler liegt im Arbeitsspeicher einer Instanz).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `LADEN_GESCHLOSSEN`, `MINDESTBESTELLUNG`, `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `LADEN_GESCHLOSSEN`, `MINDESTBESTELLUNG`, `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
 
         Datenbanklast: eine Transaktion mit je einer Abfrage für Sperre (je Person), Zählen der offenen Bestellungen, Artikel (`FOR SHARE`), Übergabearten, Bestellung, alle Positionen und Audit-Eintrag (nur Kennung und Anzahl, nie was bestellt wurde).
       tags:
         - Lädeli
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -25952,7 +25988,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/LadenKonflikt"
         "422":
-          description: Nichts bestellt. `GROESSE_NICHT_VERFUEGBAR`, mit den betroffenen Positionen.
+          description: Nichts bestellt. `GROESSE_NICHT_VERFUEGBAR`, mit den betroffenen Positionen; mit `Idempotency-Key` auch `IDEMPOTENZ_KONFLIKT` (Schlüssel schon mit anderem Körper benutzt, Schema `Fehler`).
           content:
             application/json:
               schema:
@@ -26420,7 +26456,7 @@ paths:
       operationId: holeFotoAlbum
       summary: Fotoalbum mit seinen Bildern
       description: |
-        Für jede angemeldete Person der Abteilung ausser dem Konto eines Kindes: Titel, Datum und die Bilder des Albums (höchstens 2000) mit Kennung, Titel und den Massen der mittleren Grösse. Server und Secret der Bilder bei Flickr stehen nie in der Antwort. `flickrUrl` steht nur, wenn die Abteilung den Link zu Flickr eingeschaltet hat.
+        Für jede angemeldete Person der Abteilung ausser dem Konto eines Kindes: Titel, Datum und die Bilder des Albums (höchstens 2000) mit Kennung, Titel, Seitenverhältnis (`breite`, `hoehe` einer kleinen Grösse) und je Grössenstufe, die Flickr für das Bild liefert, Breite und Höhe der Datei (`groessen`, #867; das Original nur, wenn Flickr es für das Konto freigibt). Die Website baut daraus `srcset` und die Liste zum Herunterladen. Server und Secrets der Bilder bei Flickr stehen nie in der Antwort. `flickrUrl` steht nur, wenn die Abteilung den Link zu Flickr eingeschaltet hat.
 
         Statuscodes: 200 bei Erfolg. 404, wenn die Kennung kein sichtbares Album der eigenen Abteilung ist (auch bei Alben, die es bei Flickr gibt). 401, 403, 429, 502, 503 wie bei der Liste.
 
@@ -26470,11 +26506,11 @@ paths:
       operationId: holeFotoAlbumTitelbild
       summary: Titelbild eines Fotoalbums
       description: |
-        Das Titelbild eines sichtbaren Albums als Bilddatei (JPEG, PNG, GIF oder WebP), die der Server bei Flickr holt und durchreicht. Nur der feste Bild-Host von Flickr kommt in Frage; eine Adresse oder eine Pixelzahl vom Client gibt es nicht. `Cache-Control: private, no-cache` mit ETag (der Browser fragt jedes Mal nach, die Antwort kommt erst nach der Sitzungsprüfung; unverändert 304).
+        Das Titelbild eines sichtbaren Albums als Bilddatei (JPEG, PNG, GIF oder WebP), die der Server bei Flickr holt und durchreicht. Nur der feste Bild-Host von Flickr kommt in Frage; eine Adresse vom Client gibt es nicht, nur eine der festen Grössenstufen. Beim Titelbild kennt der Server die Grössen nicht: Er liefert höchstens 1024. `Cache-Control: private, no-cache` mit ETag (der Browser fragt jedes Mal nach, die Antwort kommt erst nach der Sitzungsprüfung; unverändert 304).
 
-        Statuscodes: 200 mit der Datei, 304. 404, wenn das Album nicht sichtbar ist oder kein Titelbild hat. 401, 403 (Konto eines Kindes), 429 (höchstens 1500 Bilder je Konto und Minute), 502, 503.
+        Statuscodes: 200 mit der Datei, 304. 404, wenn das Album nicht sichtbar ist oder kein Titelbild hat. 401, 403 (Konto eines Kindes), 429 (höchstens 1500 Bilder je Konto und Minute, davon höchstens 120 ab 3072 und Original), 502, 503.
 
-        Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Datei fliesst als Strom durch (höchstens 20 MiB), ohne sie im Speicher zu sammeln.
+        Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Datei fliesst als Strom durch (höchstens 40 MiB), ohne sie im Speicher zu sammeln.
       tags:
         - Fotos
       parameters:
@@ -26486,17 +26522,7 @@ paths:
           schema:
             type: string
             pattern: "^[0-9]{1,20}$"
-        - name: groesse
-          in: query
-          required: false
-          description: Feste Grössenstufe; ohne Angabe `mittel`. Eine Pixelzahl gibt es nicht.
-          schema:
-            type: string
-            enum:
-              - klein
-              - mittel
-              - gross
-            default: mittel
+        - $ref: "#/components/parameters/FotoGroesse"
       responses:
         "200":
           description: Bilddatei.
@@ -26534,9 +26560,13 @@ paths:
       operationId: holeFotoBild
       summary: Bild eines Fotoalbums
       description: |
-        Ein Bild eines sichtbaren Albums als Datei, die der Server bei Flickr holt und durchreicht. Das Bild muss im Album stehen: Eine beliebige Kennung öffnet nichts (404). Sonst wie das Titelbild: feste Grössenstufen, nur der Bild-Host von Flickr, `private, no-cache` mit ETag, Strom ohne Zwischenspeichern, höchstens 20 MiB.
+        Ein Bild eines sichtbaren Albums als Datei, die der Server bei Flickr holt und durchreicht. Das Bild muss im Album stehen: Eine beliebige Kennung öffnet nichts (404). Sonst wie das Titelbild: feste Grössenstufen, nur der Bild-Host von Flickr, `private, no-cache` mit ETag, Strom ohne Zwischenspeichern, höchstens 40 MiB (Original 200 MiB).
 
-        Statuscodes: 200, 304, 404, 401, 403 (Konto eines Kindes), 429, 502, 503.
+        Grössen (#867): Fehlt eine Stufe bei Flickr, kommt die grösste kleinere (beim Original die grösste vorhandene). Ab 1600 und beim Original hat jede Grösse bei Flickr ein eigenes Secret; auch das bleibt beim Server.
+
+        Herunterladen (#867): Mit `herunterladen=1` kommt dieselbe Datei als Anhang (`Content-Disposition: attachment`) mit dem Namen `<Album>-<Nummer>-<Stufe>.<Endung>`, z. B. `Sommerlager-2026-024-2048.jpg` (nur Buchstaben ohne Akzent, Ziffern und `-`). Wer das Album sehen darf, darf seine Bilder herunterladen.
+
+        Statuscodes: 200, 304, 404, 401, 403 (Konto eines Kindes), 429 (höchstens 1500 Bilder je Konto und Minute, davon höchstens 120 ab 3072 und Original), 502, 503.
 
         Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Bildliste kommt aus dem Speicher des Servers.
       tags:
@@ -26557,17 +26587,15 @@ paths:
           schema:
             type: string
             pattern: "^[0-9]{1,20}$"
-        - name: groesse
+        - $ref: "#/components/parameters/FotoGroesse"
+        - name: herunterladen
           in: query
           required: false
-          description: Feste Grössenstufe; ohne Angabe `mittel`. Eine Pixelzahl gibt es nicht.
+          description: "`1`: als Anhang mit Dateinamen statt zum Anzeigen."
           schema:
             type: string
             enum:
-              - klein
-              - mittel
-              - gross
-            default: mittel
+              - "1"
       responses:
         "200":
           description: Bilddatei.
@@ -31683,6 +31711,7 @@ components:
         - groesse
         - breite
         - hoehe
+        - varianten
         - altText
         - dekorativ
         - sichtbarkeit
@@ -31711,6 +31740,17 @@ components:
             - integer
             - "null"
           description: Pixel, nur bei Bildern.
+        varianten:
+          type: array
+          items:
+            type: integer
+          description: |
+            Breiten der kleineren Fassungen in Pixeln, aufsteigend (#868); abrufbar mit `?breite=<n>` auf `url`. Leer bei
+            Bildern bis 640 Pixel Breite, bei PDF und bei Bildern, für die der Befehl `medien-varianten` noch nicht lief.
+          example:
+            - 640
+            - 1280
+            - 1920
         altText:
           type:
             - string
@@ -32387,9 +32427,9 @@ components:
           description: Folgenummer, bis zu der es Neues gibt.
         objekttypen:
           type: array
-          description: Die Objekttypen, die sich geändert haben und die die Rolle lesen darf (nur bei `aenderung`).
+          description: Die Objekttypen, die sich geändert haben und die die Rolle lesen darf (nur bei `aenderung`). Typen ohne eigenes Leserecht (`lager_datei`, `pinnwand_datei`, `umfrage`, `umfrage_option`, `umfrage_stimme`, `reaktion`) meldet der Strom nie.
           items:
-            type: string
+            $ref: "#/components/schemas/LagerObjekttyp"
         grund:
           type: string
           description: Nur bei `ende`.
@@ -32492,10 +32532,69 @@ components:
         - diensttausch_entscheid
         - anwesenheit_anfrage
         - adressbuch_aufraeumen
+    PushNachricht:
+      type: object
+      description: |
+        Was ein Push der API über Firebase Cloud Messaging an das Gerät bringt (#872). Kein Endpunkt liefert dieses Objekt; es beschreibt die Nachricht, die die App empfängt. Die API sendet an alle Push-Tokens der Empfänger (`POST /api/v1/push-token`), Tokens, die FCM als abgemeldet meldet, löscht sie.
+
+        - `notification.title`: der Titel, `notification.body`: der Text (fehlt, wenn es keinen gibt). Beide nennen nie Inhalte von Chat-Nachrichten, Namen von Kindern oder Inhalte des Lagers; die Ausnahme sind Mitteilung und Zeitregel, deren Text die Abteilungsleitung selbst schreibt.
+        - `data`: genau `typ` und `id` (dieses Schema). Daraus öffnet die App das Ziel, auch beim Kaltstart; die API liefert keine URL.
+        - Android: Priorität `high`, Ton `default`, Kanal `android.notification.channelId` je `typ` (siehe `PushTyp`). Die App legt die Kanäle an.
+        - iOS: `aps.sound` `default`.
+
+        Ohne Schlüssel des Dienstkontos geht kein Push hinaus. Ein Fehler beim Push lässt die auslösende Anfrage nie scheitern.
+      required:
+        - typ
+        - id
+      properties:
+        typ:
+          $ref: "#/components/schemas/PushTyp"
+        id:
+          type: string
+          description: ID des Ziels, je `typ` (siehe `PushTyp`); eine UUID, nur bei `mitteilung` leer.
+    PushTyp:
+      type: string
+      description: |
+        Wert von `data.typ` eines Pushes (`PushNachricht`). Je Typ: Auslöser, Empfänger, Bedeutung von `data.id`, Android-Kanal und der Schalter, mit dem die Person ihn abschaltet. «Aktiv» heisst: Konto der Abteilung, nicht deaktiviert und nicht gesperrt. Wer den Push auslöst, bekommt ihn nie, ausser bei `mitteilung`.
+
+        - `chat`: neue Nachricht in einem Chat (`POST /api/v1/chats/{id}/nachrichten`). Empfänger: die anderen Mitglieder des Chats. `id`: Chat-ID. Kanal `chat`. Schalter `pushChat`. Titel «Neue Nachricht», Text «Chat <Stufe>» oder «Einzelchat <Stufe>».
+        - `programm`: zwei Auslöser, beide mit `id` = Programm-ID, Kanal `programme`. (1) An- oder Abmeldung eines Kindes (`PUT /api/v1/programme/{id}/teilnahmen/{kindId}`, nur bei geändertem Wert): an die aktiven Leitenden der Stufen des Programms, Schalter `pushAnmeldungen`; Titel «Neue Anmeldung» oder «Neue Abmeldung», Text «<Programm> am <Datum>». (2) Erinnerung einer Zeitregel (`/api/v1/admin/zeitregeln`, Lauf im Takt): an die aktiven Eltern aktiver Kinder der Stufe der Regel (ohne Stufe: der Stufen des Programms), für die noch keine Antwort steht, Schalter `pushProgramme`; Titel und Text aus der Regel.
+        - `mitteilung`: Mitteilung aus der Verwaltung (`POST /api/v1/admin/mitteilungen`). Empfänger: die gewählten aktiven Konten. `id`: leer. Kanal `mitteilungen`. Schalter `pushProgramme` (in der App «Mitteilungen»). Titel und Text aus der Mitteilung.
+        - `plattform`: Informationssperre ausgelöst (`PUT /api/v1/plattform/schalter`, `art: sperre`, nur beim Auslösen). Empfänger: die anderen Entwickler der Abteilung. `id`: ID des Schalters. Kanal `mitteilungen`. Kein Schalter. Titel «Informationssperre ausgelöst», Text «Bereich: <Bereich>».
+        - `lager_aufgabe`, `lager_erwaehnung`, `lager_pinnwand`, `lager_eingang`, `lager_einteilung`, `lager_anwesenheit`: Pushes des Lagers, siehe `LagerPushTyp`. Empfänger: aktive Mitglieder des Lagers. Schalter: je Art in `PUT /api/v1/ich/lager-benachrichtigungen`. Titel fest je Art, Text der Lagertitel.
+        - `termin_vorschlag`: neuer Terminvorschlag (`POST /api/v1/termin-vorschlaege`). Empfänger: die aktiven Konten der Abteilungsleitung. `id`: ID des Vorschlags. Kanal `termine`. Kein Schalter. Titel «Neuer Terminvorschlag», fester Text.
+        - `termin_entscheid`: Vorschlag freigegeben oder abgelehnt (`POST /api/v1/admin/termin-vorschlaege/{id}/entscheid`). Empfänger: die vorschlagende Person, wenn ihr Konto aktiv ist. `id`: ID des Vorschlags. Kanal `termine`. Schalter `pushTerminEntscheid`. Titel «Entscheid zu deinem Terminvorschlag», fester Text je Entscheid.
+        - `raum_anfrage`: neue Raumanfrage (`POST /api/v1/raeume/{id}/anfragen`). Empfänger: die aktiven Konten mit dem Team-Tag des Raums; hat der Raum kein Team, die aktiven Konten der Abteilungsleitung. `id`: ID der Anfrage. Kanal `raeume`. Kein Schalter. Titel «Neue Raumanfrage», fester Text, nie Raum, Name oder Zweck.
+        - `raum_entscheid`: Raumanfrage angenommen oder abgelehnt (`POST /api/v1/raeume/anfragen/{id}/entscheid`). Empfänger: die anfragende Person, wenn ihr Konto aktiv ist. `id`: ID der Anfrage. Kanal `raeume`. Schalter `pushRaumEntscheid`. Titel «Entscheid zu deiner Raumanfrage», fester Text je Entscheid.
+
+        Die Schalter `pushChat`, `pushProgramme`, `pushAnmeldungen`, `pushTerminEntscheid` und `pushRaumEntscheid` setzt die Person mit `PATCH /api/v1/ich`. Ein Test gleicht die Liste mit `PUSH_KANAL` in `apps/api/src/push.ts` ab.
+      enum:
+        - chat
+        - programm
+        - mitteilung
+        - plattform
+        - lager_aufgabe
+        - lager_erwaehnung
+        - lager_pinnwand
+        - lager_eingang
+        - lager_einteilung
+        - lager_anwesenheit
+        - termin_vorschlag
+        - termin_entscheid
+        - raum_anfrage
+        - raum_entscheid
     LagerPushTyp:
       type: string
       description: |
-        Wert von `data.typ` eines Lager-Pushes. `data.id` ist die ID des Objekts; die App löst Lager und Ziel mit `GET /api/v1/lager/aufloesen/{typ}/{id}` auf. Android-Kanäle: `lager_aufgaben` (`lager_aufgabe`), `lager_mitteilungen` (`lager_erwaehnung`, `lager_pinnwand`, `lager_eingang`), `lager_einteilung` (`lager_einteilung`, `lager_anwesenheit`).
+        Wert von `data.typ` eines Lager-Pushes (Teil von `PushTyp`). `data.id` ist die ID des Objekts; die App löst Lager und Ziel mit `GET /api/v1/lager/aufloesen/{typ}/{id}` auf. Android-Kanäle: `lager_aufgaben` (`lager_aufgabe`), `lager_mitteilungen` (`lager_erwaehnung`, `lager_pinnwand`, `lager_eingang`), `lager_einteilung` (`lager_einteilung`, `lager_anwesenheit`).
+
+        Je Typ die Arten (`LagerBenachrichtigungsArt`) und was `data.id` ist:
+        - `lager_aufgabe`: `aufgabe_zugeteilt`, `aufgabe_geaendert`, `frist`; ID der Aufgabe.
+        - `lager_erwaehnung`: `erwaehnung`; ID des Inhalts mit der Erwähnung.
+        - `lager_pinnwand`: `pinnwand_wichtig` (ID des Beitrags) und `adressbuch_aufraeumen` (ID des Lagers; `objektTyp` `adressbuch`).
+        - `lager_eingang`: `eingang_antwort`; ID der Meldung.
+        - `lager_einteilung`: `diensttausch_anfrage`, `diensttausch_entscheid`; ID der Diensttausch-Anfrage.
+        - `lager_anwesenheit`: `anwesenheit_anfrage`, `anwesenheit_entscheid`; ID einer Anwesenheits-Anfrage.
       enum:
         - lager_aufgabe
         - lager_erwaehnung
@@ -39858,7 +39957,7 @@ components:
                   - $ref: "#/components/schemas/LagerHoeckTeam"
             - type: "null"
     LagerWidget:
-      description: "Kompakter Stand für die Widgets: nur Zahlen und Daten, nie Namen oder Texte. Teile ohne Leserecht sind null."
+      description: "Kompakter Stand für die Widgets: Zahlen, Daten und nur die Texte, die W3 und W4 zeigen, nie Namen von Personen. Teile ohne Leserecht sind null."
       type: object
       additionalProperties: false
       required:
@@ -39866,8 +39965,11 @@ components:
         - tageBisBeginn
         - tageBisEnde
         - eigeneDiensteHeute
+        - eigeneDienste
         - wichtigHeute
+        - wichtigTitel
         - eigeneAufgaben
+        - naechsteAufgaben
         - ungelesen
       properties:
         heute:
@@ -39886,12 +39988,49 @@ components:
             - integer
             - "null"
           minimum: 0
+        eigeneDienste:
+          description: "Die eigenen Schichten am heutigen Lagertag nach der Reihenfolge der Tagesabschnitte (einteilung.lesen), sonst null. Höchstens eine je Tagesabschnitt."
+          type:
+            - array
+            - "null"
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - dienst
+              - abschnitt
+              - zeit
+            properties:
+              dienst:
+                description: "Name des Dienstes."
+                type: string
+                maxLength: 100
+              abschnitt:
+                description: "Name des Tagesabschnitts."
+                type: string
+                maxLength: 50
+              zeit:
+                description: "Beginn des Tagesabschnitts (HH:MM), sonst null."
+                type:
+                  - string
+                  - "null"
+                pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
         wichtigHeute:
           description: "Blöcke «wichtig» der heutigen Tagesseite (tagesseiten.lesen), sonst null."
           type:
             - integer
             - "null"
           minimum: 0
+        wichtigTitel:
+          description: "Titel der ersten zwei Blöcke «wichtig» der heutigen Tagesseite (tagesseiten.lesen), sonst null: die erste nicht leere Zeile, höchstens 60 Zeichen, sonst mit «…» gekürzt. Ein Block ohne Text fehlt."
+          type:
+            - array
+            - "null"
+          maxItems: 2
+          items:
+            type: string
+            minLength: 1
+            maxLength: 60
         eigeneAufgaben:
           description: "Die eigenen nicht erledigten Aufgaben (verantwortlich oder unterstützend), mit einem Leserecht für Aufgaben; sonst null."
           type:
@@ -39921,6 +40060,31 @@ components:
                 - string
                 - "null"
               format: date
+        naechsteAufgaben:
+          description: "Die ersten drei eigenen nicht erledigten Aufgaben nach Frist (ohne Frist zuletzt), Reihenfolge und Titel, mit einem Leserecht für Aufgaben; sonst null. Ohne Personen, Ressort und Notiz."
+          type:
+            - array
+            - "null"
+          maxItems: 3
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - titel
+              - frist
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
+                maxLength: 200
+              frist:
+                type:
+                  - string
+                  - "null"
+                format: date
         ungelesen:
           description: "Ungelesene Benachrichtigungen der Person in diesem Lager."
           type: integer
@@ -42819,6 +42983,79 @@ components:
         adresse:
           type: string
           description: Aus dem Titel gebildet, bei Kollision mit Zusatz (`-2`, `-3`).
+    LagerObjekttyp:
+      type: string
+      description: |
+        Objekttyp im Änderungsfeed (`GET /api/v1/lager/{id}/aenderungen`) und im Event-Stream: der Name der Tabelle des Moduls (#872). Je Typ das Leserecht (eines genügt) und, wo es einen gibt, der Zeilenfilter. Den Inhalt liest die App über die Route des Moduls.
+
+        - `ressort`, `ressort_link`, `ressort_notiz`: Ressort, seine Links und Notizen. `ressorts.lesen`.
+        - `meilenstein`, `lagertag`, `tagesabschnitt`: Zeitplan. `zeitplan.lesen`.
+        - `aufgabe`: Aufgabe. `aufgaben.lesen_alle`, `aufgaben.bearbeiten` oder `aufgaben.eigene`; mit nur `aufgaben.eigene` die Aufgaben, an denen die Person beteiligt ist.
+        - `aufgabe_checkpunkt`, `aufgabe_link`: Checkpunkt und Link einer Aufgabe. Rechte und Filter wie `aufgabe`.
+        - `lager_check_punkt`: eigener Punkt des Lager-Checks (`/api/v1/lager/{id}/check`), nicht der Checkpunkt einer Aufgabe. `check.lesen`.
+        - `hoeck`: Höck. `hoecks.lesen_alle`, `hoecks.bearbeiten` oder `hoecks.team_lesen`; mit nur `hoecks.team_lesen` die Höcks der Art `team`.
+        - `traktandum`: Traktandum eines Höcks. `hoecks.lesen_alle` oder `hoecks.bearbeiten`.
+        - `protokoll`, `beschluss`: Protokoll (Verknüpfung auf eine Datei) und Beschluss. `protokolle.lesen`; Einträge zu einem Höck der Art `lagerleitung` nur, wer alle Höcks liest.
+        - `pinnwand_beitrag`: Beitrag der Pinnwand. `pinnwand.lesen`; ohne `pinnwand.bearbeiten` nur Beiträge im Zeitfenster und für die Person.
+        - `dokument`: Dokument (Verweis). `dokumente.team_lesen`; das Team nur Dokumente, die für das Team sichtbar sind.
+        - `packliste_punkt`, `info_abschnitt`, `info_abschnitt_datei`: Packliste und Infos. `packliste.lesen` beziehungsweise `infos.lesen`; Einträge «nur Lagerleitung» nur mit `vertrauliches.lesen`.
+        - `notfall_kontakt`: Notfallkontakt. `notfall.lesen`.
+        - `tagesseite`, `tagesseite_block`: Tagesseite und ihre Blöcke. `tagesseiten.lesen`.
+        - `einkauf_artikel`: Artikel der Einkaufsliste. `einkauf.lesen`.
+        - `adressbuch_kontakt`: Kontakt im Adressbuch. `adressbuch.lesen`.
+        - `teilnehmer`, `abzaehlen`: Teilnehmende und Abzählliste. `teilnehmer.lesen`.
+        - `anwesenheit`: Feld der Anwesenheit. `anwesenheit.lesen_alle`.
+        - `anwesenheit_anfrage`: Anfrage zur Anwesenheit. `anwesenheit.bearbeiten`.
+        - `diensttausch`: Diensttausch-Anfrage. `diensttausch.entscheiden`.
+        - `dienst`, `schicht`, `zimmer`, `zimmer_zuordnung`, `fahrt`, `fahrt_mitfahrer`, `gruppe`, `gruppe_zuordnung`: Schichtplan, Zimmer, Fahrten und Gruppen. `einteilung.lesen`; Zimmer und Fahrten mit Zeilenfilter für Rollen, die nur das Eigene sehen.
+        - `lager_datei`: Verknüpfung auf eine Datei. Kein eigenes Leserecht; sichtbar, wenn ein lesbarer Eintrag sie einbindet.
+        - `pinnwand_datei`, `umfrage`, `umfrage_option`, `umfrage_stimme`, `reaktion`: Kein eigenes Leserecht. Der Feed meldet nur `geloescht`; neue und geänderte Einträge liest die App mit dem Beitrag der Pinnwand, an dem sie hängen.
+
+        Ein Test gleicht die Liste mit den angemeldeten Tabellen ab (`registriereLagerTabelle` in `apps/api/src/lager`).
+      enum:
+        - ressort
+        - ressort_link
+        - ressort_notiz
+        - meilenstein
+        - lagertag
+        - tagesabschnitt
+        - aufgabe
+        - aufgabe_checkpunkt
+        - aufgabe_link
+        - lager_check_punkt
+        - hoeck
+        - traktandum
+        - protokoll
+        - beschluss
+        - pinnwand_beitrag
+        - dokument
+        - packliste_punkt
+        - info_abschnitt
+        - info_abschnitt_datei
+        - notfall_kontakt
+        - tagesseite
+        - tagesseite_block
+        - einkauf_artikel
+        - adressbuch_kontakt
+        - teilnehmer
+        - abzaehlen
+        - anwesenheit
+        - anwesenheit_anfrage
+        - diensttausch
+        - dienst
+        - schicht
+        - zimmer
+        - zimmer_zuordnung
+        - fahrt
+        - fahrt_mitfahrer
+        - gruppe
+        - gruppe_zuordnung
+        - lager_datei
+        - pinnwand_datei
+        - umfrage
+        - umfrage_option
+        - umfrage_stimme
+        - reaktion
     LagerFeedEintrag:
       type: object
       description: Eine Änderung. Nur Verweis auf die Zeile, kein Inhalt.
@@ -42834,8 +43071,7 @@ components:
           type: integer
           description: Folgenummer des Schreibvorgangs im Lager.
         objekttyp:
-          type: string
-          description: Name der Tabelle des Moduls (zum Beispiel `aufgabe`).
+          $ref: "#/components/schemas/LagerObjekttyp"
         id:
           type: string
           format: uuid
@@ -42881,9 +43117,9 @@ components:
           description: Aktuelle Folgenummer des Lagers.
         objekttypen:
           type: array
-          description: Die Objekttypen, die die Rolle lesen darf.
+          description: Die Objekttypen, die die Rolle lesen darf, sortiert. Typen ohne eigenes Leserecht (`lager_datei`, `pinnwand_datei`, `umfrage`, `umfrage_option`, `umfrage_stimme`, `reaktion`) stehen für jede Rolle darin.
           items:
-            type: string
+            $ref: "#/components/schemas/LagerObjekttyp"
     LagerFeedNeuLaden:
       type: object
       description: Fehler mit Statuscode 410. Gleiche Form wie `Fehler`, dazu die aktuelle Folgenummer.
@@ -44802,6 +45038,7 @@ components:
         - titel
         - breite
         - hoehe
+        - groessen
       properties:
         id:
           type: string
@@ -44811,6 +45048,30 @@ components:
           type: integer
         hoehe:
           type: integer
+        groessen:
+          type: object
+          description: Je Grössenstufe, die Flickr für das Bild liefert, Breite und Höhe der Datei in Pixeln (#867). Fehlende Stufen fehlen; `original` nur, wenn Flickr es für das Konto freigibt.
+          propertyNames:
+            enum:
+              - "320"
+              - "400"
+              - "640"
+              - "800"
+              - "1024"
+              - "1600"
+              - "2048"
+              - "3072"
+              - "4096"
+              - "5120"
+              - "6144"
+              - original
+          additionalProperties:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+            minItems: 2
+            maxItems: 2
     FotoAlbumAnsicht:
       type: object
       required:
@@ -45034,6 +45295,30 @@ components:
             - nicht_gefunden
             - nicht_erreichbar
   parameters:
+    FotoGroesse:
+      name: groesse
+      in: query
+      required: false
+      description: Feste Grössenstufe nach der langen Seite in Pixeln, wie Flickr sie anbietet, oder `original` (#867); ohne Angabe 640. `klein`, `mittel` und `gross` (320, 640, 1024) gelten noch für Seiten von vorher. Eine andere Zahl oder eine Adresse gibt es nicht.
+      schema:
+        type: string
+        enum:
+          - "320"
+          - "400"
+          - "640"
+          - "800"
+          - "1024"
+          - "1600"
+          - "2048"
+          - "3072"
+          - "4096"
+          - "5120"
+          - "6144"
+          - original
+          - klein
+          - mittel
+          - gross
+        default: "640"
     MedienLimit:
       name: limit
       in: query
@@ -45084,6 +45369,20 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/PlattformBereich"
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Optionaler Schlüssel, mit dem die App eine Anlage nach einem Netzfehler sicher wiederholen darf (#873): eine UUID oder 16 bis 64 Zeichen aus `A-Z`, `a-z`, `0-9`, `_` und `-` (sonst 400). Er gilt je Person, Methode mit Pfad und Schlüssel, 24 Stunden lang.
+        Die erste Anfrage läuft wie ohne Schlüssel; der Server merkt sich den Hash des Körpers und nur eine Antwort 2xx (Status und Körper; ist der Körper über 16 000 Zeichen lang, nur seine `id`). Jede andere Antwort bleibt nicht stehen: Eine Wiederholung führt die Route dann neu aus.
+        Eine Wiederholung mit demselben Schlüssel und demselben Körper (Byte für Byte) gibt die gespeicherte Antwort zurück, ohne die Route noch einmal auszuführen: Nichts wird doppelt angelegt, kein Push geht doppelt. Die Rechte prüft der Server wie sonst vor der Wiederholung; ein Entscheid über eine Raumanfrage prüft sie erst in der Route, seine Wiederholung gibt das Ergebnis auch nach einem Wechsel der Rechte zurück.
+        Derselbe Schlüssel mit anderem Körper ist 422 `IDEMPOTENZ_KONFLIKT`. Läuft die erste Anfrage noch, ist eine Wiederholung 409 `IN_BEARBEITUNG`: Die App fragt nach kurzer Zeit noch einmal.
+        Ohne den Header ändert sich nichts. Nach 24 Stunden gilt der Schlüssel als neu.
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9_-]{16,64}$
+        example: 0f8fad5b-d9cb-469f-a165-70867728950e
     AppVersion:
       name: X-App-Version
       in: header
@@ -45521,6 +45820,12 @@ components:
           example:
             code: ANWESENHEIT_GESCHLOSSEN
             message: Die Anwesenheit lässt sich erst nach Beginn des Programms und bis 14 Tage danach erfassen.
+    IdempotenzKonflikt422:
+      description: Der `Idempotency-Key` gehört schon zu einer Anfrage mit anderem Körper (code `IDEMPOTENZ_KONFLIKT`). Nichts wurde ausgeführt; für eine neue Anfrage braucht es einen neuen Schlüssel.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
     ZuVieleAnfragen429:
       description: Zu viele Anfragen (code ZU_VIELE_ANFRAGEN)
       content:

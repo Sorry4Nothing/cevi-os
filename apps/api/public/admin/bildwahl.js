@@ -112,7 +112,7 @@ export function bildwahl({ ausloeser, beiWahl, gewaehlt = null }) {
         },
         bildMitLader(
           el("img", {
-            src: m.url,
+            src: `${m.url}?breite=640`,
             alt: "",
             loading: "lazy",
             decoding: "async",

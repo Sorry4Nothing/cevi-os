@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
+import { idempotenzSchluessel } from "../../idempotenz.js";
 import { erzeugeHoeckIcs } from "../../lager/hoeck-ics.js";
 import {
   aendereHoeck,
@@ -75,6 +76,7 @@ export function erstelleHoeckRouten({ db }: { db: Db }) {
       .post(
         "/:id/hoecks",
         bearbeiten,
+        idempotenzSchluessel(db),
         eingabe("param", lagerPfad),
         eingabe("json", hoeckAnlegen),
         async (c) => {
