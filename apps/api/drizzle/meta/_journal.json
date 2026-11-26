@@ -848,6 +848,41 @@
       "when": 1793558800000,
       "tag": "0168_lager_seite",
       "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1793645200000,
+      "tag": "0169_user_geschlecht_von_hand",
+      "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1793645300000,
+      "tag": "0170_user_geschlecht_ohne_d",
+      "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1793645400000,
+      "tag": "0171_push_entscheide",
+      "breakpoints": true
+    },
+    {
+      "idx": 172,
+      "version": "7",
+      "when": 1793645500000,
+      "tag": "0172_anlass_ohne_anmeldung_fuer",
+      "breakpoints": true
+    },
+    {
+      "idx": 173,
+      "version": "7",
+      "when": 1793645600000,
+      "tag": "0173_sichtbarkeit_rollen",
+      "breakpoints": true
     }
   ]
 }

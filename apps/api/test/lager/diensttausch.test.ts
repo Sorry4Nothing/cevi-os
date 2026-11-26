@@ -1024,6 +1024,184 @@ describe("Entscheiden", () => {
   });
 });
 
+describe("Entscheid zurücknehmen (#848)", () => {
+  const zuruecknehmen = (
+    tauschId: string,
+    version: number,
+    konto = leiter(),
+    id = lagerId,
+  ) =>
+    anfrage(konto, "POST", `${T(id)}/${tauschId}/entscheid/zuruecknehmen`, {
+      version,
+    });
+  const tauschZeile = async (id: string) =>
+    (
+      await db
+        .select()
+        .from(schema.diensttausch)
+        .where(eq(schema.diensttausch.id, id))
+    )[0]!;
+
+  test("Übernahme: die Schicht kommt zurück, die Anfrage ist offen und lässt sich neu entscheiden", async () => {
+    const uebernimmt = await wegwerfMitglied();
+    const s = await mitAnfrage(() => ({ mitPersonId: uebernimmt }));
+    await entscheide(s.tausch.id, { entscheid: "angenommen", version: 1 });
+    const z = await zuruecknehmen(s.tausch.id, 2);
+    expect(z.status).toBe(200);
+    expect(z.body).toMatchObject({
+      id: s.tausch.id,
+      status: "offen",
+      version: 3,
+      mitPersonId: uebernimmt,
+      entschiedenVon: null,
+      entschiedenAm: null,
+    });
+    expect(await schichtZeile(s.schichtId)).toMatchObject({
+      personId: konten.team.id,
+      version: 3,
+    });
+    const e = await entscheide(s.tausch.id, {
+      entscheid: "abgelehnt",
+      version: 3,
+    });
+    expect(e.status).toBe(200);
+  });
+
+  test("Tausch in verschiedenen Abschnitten: beide Personen kommen zurück", async () => {
+    const andere = await wegwerfMitglied();
+    const t = await neuerTag();
+    const d1 = await neuerDienst(t.abschnitte[0]!);
+    const d2 = await neuerDienst(t.abschnitte[1]!);
+    const meine = await neueSchicht(
+      t.tag,
+      t.abschnitte[0]!,
+      d1,
+      konten.team.id!,
+    );
+    const ihre = await neueSchicht(t.tag, t.abschnitte[1]!, d2, andere);
+    const a = await anfrage(konten.team, "POST", T(), {
+      schichtId: meine,
+      mitSchichtId: ihre,
+    });
+    await entscheide(a.body.id, { entscheid: "angenommen", version: 1 });
+    expect((await zuruecknehmen(a.body.id, 2)).status).toBe(200);
+    expect((await schichtZeile(meine)).personId).toBe(konten.team.id);
+    expect((await schichtZeile(ihre)).personId).toBe(andere);
+  });
+
+  test("Tausch im selben Abschnitt: die Dienste kommen zurück", async () => {
+    const andere = await wegwerfMitglied();
+    const t = await neuerTag();
+    const d1 = await neuerDienst(t.abschnitte[0]!);
+    const d2 = await neuerDienst(t.abschnitte[0]!);
+    const meine = await neueSchicht(
+      t.tag,
+      t.abschnitte[0]!,
+      d1,
+      konten.team.id!,
+    );
+    const ihre = await neueSchicht(t.tag, t.abschnitte[0]!, d2, andere);
+    const a = await anfrage(konten.team, "POST", T(), {
+      schichtId: meine,
+      mitSchichtId: ihre,
+    });
+    await entscheide(a.body.id, { entscheid: "angenommen", version: 1 });
+    expect((await zuruecknehmen(a.body.id, 2)).status).toBe(200);
+    expect(await schichtZeile(meine)).toMatchObject({
+      dienstId: d1,
+      personId: konten.team.id,
+    });
+    expect(await schichtZeile(ihre)).toMatchObject({
+      dienstId: d2,
+      personId: andere,
+    });
+  });
+
+  test("abgelehnt: die Anfrage ist wieder offen, die Schicht bleibt", async () => {
+    const s = await mitAnfrage();
+    await entscheide(s.tausch.id, { entscheid: "abgelehnt", version: 1 });
+    const vorher = await schichtZeile(s.schichtId);
+    const z = await zuruecknehmen(s.tausch.id, 2);
+    expect(z.status).toBe(200);
+    expect(z.body).toMatchObject({ status: "offen", version: 3 });
+    expect(await schichtZeile(s.schichtId)).toMatchObject({
+      personId: konten.team.id,
+      version: vorher.version,
+    });
+  });
+
+  test("offen oder zurückgezogen ist nicht entschieden (409), eine neue offene Anfrage für die Schicht verhindert es (409)", async () => {
+    const s = await mitAnfrage();
+    const offen = await zuruecknehmen(s.tausch.id, 1);
+    expect(offen.status).toBe(409);
+    expect(offen.body.code).toBe("NICHT_ENTSCHIEDEN");
+    await anfrage(konten.team, "POST", `${T()}/${s.tausch.id}/zurueckziehen`, {
+      version: 1,
+    });
+    expect((await zuruecknehmen(s.tausch.id, 2)).body.code).toBe(
+      "NICHT_ENTSCHIEDEN",
+    );
+
+    const r = await mitAnfrage();
+    await entscheide(r.tausch.id, { entscheid: "abgelehnt", version: 1 });
+    const neu = await anfrage(konten.team, "POST", T(), {
+      schichtId: r.schichtId,
+    });
+    expect(neu.status).toBe(201);
+    const z = await zuruecknehmen(r.tausch.id, 2);
+    expect(z.status).toBe(409);
+    expect(z.body.code).toBe("ANFRAGE_OFFEN");
+    expect((await tauschZeile(r.tausch.id)).status).toBe("abgelehnt");
+  });
+
+  test("ist eine Schicht seit dem Entscheid geändert, bucht nichts zurück (SCHICHT_GEAENDERT)", async () => {
+    const uebernimmt = await wegwerfMitglied();
+    const s = await mitAnfrage(() => ({ mitPersonId: uebernimmt }));
+    await entscheide(s.tausch.id, { entscheid: "angenommen", version: 1 });
+    // Eine spätere Änderung hat eine höhere Folgenummer
+    const nach = await schichtZeile(s.schichtId);
+    await db
+      .update(schema.schicht)
+      .set({ lagerSeq: nach.lagerSeq + 10 })
+      .where(eq(schema.schicht.id, s.schichtId));
+    const z = await zuruecknehmen(s.tausch.id, 2);
+    expect(z.status).toBe(409);
+    expect(z.body.code).toBe("SCHICHT_GEAENDERT");
+    expect((await schichtZeile(s.schichtId)).personId).toBe(uebernimmt);
+    expect((await tauschZeile(s.tausch.id)).status).toBe("angenommen");
+  });
+
+  test("wer zurückkommt, muss die Regeln erfüllen: abwesend (F) bucht nichts zurück", async () => {
+    const uebernimmt = await wegwerfMitglied();
+    const s = await mitAnfrage(() => ({ mitPersonId: uebernimmt }));
+    await entscheide(s.tausch.id, { entscheid: "angenommen", version: 1 });
+    await abwesend(konten.team.id!, s.tag, s.abschnitte[0]!);
+    const z = await zuruecknehmen(s.tausch.id, 2);
+    expect(z.status).toBe(409);
+    expect(z.body.code).toBe("ABWESEND");
+    expect((await schichtZeile(s.schichtId)).personId).toBe(uebernimmt);
+    expect((await tauschZeile(s.tausch.id)).status).toBe("angenommen");
+  });
+
+  test("Rechte: Team und Lesen 403, die Leitung darf; unbekannt 404, fremdes Lager 404, veraltete Version 409", async () => {
+    const s = await mitAnfrage();
+    await entscheide(s.tausch.id, { entscheid: "abgelehnt", version: 1 });
+    for (const konto of [konten.team, konten.lesen]) {
+      expect((await zuruecknehmen(s.tausch.id, 2, konto)).status).toBe(403);
+    }
+    expect((await zuruecknehmen(UNBEKANNT, 1)).status).toBe(404);
+    expect(
+      (await zuruecknehmen(s.tausch.id, 2, leiter(), fremdLagerId)).status,
+    ).toBe(404);
+    const alt = await zuruecknehmen(s.tausch.id, 1);
+    expect(alt.status).toBe(409);
+    expect(alt.body.code).toBe("VERSION_KONFLIKT");
+    expect((await zuruecknehmen(s.tausch.id, 2, konten.leitung)).status).toBe(
+      200,
+    );
+  });
+});
+
 describe("Zurückziehen und Listen", () => {
   test("die anfragende Person zieht zurück; danach ist kein Entscheid mehr möglich", async () => {
     const s = await mitAnfrage();

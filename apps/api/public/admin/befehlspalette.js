@@ -299,7 +299,6 @@ export function kandidaten({ bereiche, daten = {} }) {
         gruppe: "anlaesse",
         id: `anlass-${a.id}`,
         titel: a.titel,
-        zusatz: a.fuer,
         zeitText: a.zeitText,
         status: a.status,
         suche: [
@@ -568,7 +567,6 @@ const QUELLEN = {
           return {
             id: a.id,
             titel: a.titel,
-            fuer: a.anmeldungFuer === "kind" ? "Anmeldung für Kinder" : "",
             zeitText: k.zeitraumText(a),
             status: vorbei
               ? { text: "Termin vorbei" }

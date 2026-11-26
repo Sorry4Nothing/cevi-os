@@ -8,7 +8,7 @@ type Tx = Parameters<Parameters<Db["transaction"]>[0]>[0];
 // Wie lange die Anmeldungen nach dem Ende des Anlasses bleiben (Annahme A13, vom Nutzer zu bestätigen)
 export const AUFBEWAHRUNG_TAGE = 180;
 
-// Wie viele Anmeldungen der Anlass hat, auch abgemeldete (Löschen und «anmeldungFuer» ändern sind nur ohne Anmeldungen erlaubt). Läuft in der Transaktion der Route, die den Anlass schon gesperrt hat (FOR UPDATE)
+// Wie viele Anmeldungen der Anlass hat, auch abgemeldete (Löschen ist nur ohne Anmeldungen erlaubt). Läuft in der Transaktion der Route, die den Anlass schon gesperrt hat (FOR UPDATE)
 export async function zaehleAnmeldungen(
   tx: Db | Tx,
   anlassId: string,

@@ -3072,6 +3072,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/sicht-rollen.js:
+    get:
+      operationId: getAdminSichtRollenSkript
+      summary: Skript der Verwaltung – Rollen in der Sichtbarkeit «Bestimmte Gruppen»
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-anlass.js:
     get:
       operationId: getAdminTagsAnlassSkript
@@ -4069,13 +4084,15 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Ändert nur die eigenen Schalter «Push für Chats» und «Push für Programme» und die eigene Telefonnummer; die
+        Ändert nur die eigenen Push-Schalter und die eigene Telefonnummer; die
         Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
         andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
         **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet. Die Pushes des Lagers (`typ` `lager_*`) und ihre Schalter beschreibt `GET /api/v1/ich/lager-benachrichtigungen`.
 
         **Anmelde-Push.** `pushAnmeldungen` (Push an die Leitung bei An- und Abmeldung eines Kindes für ein Programm) ist ein Boolean und standardmässig an. `GET /api/v1/ich` gibt den Schalter nur Personen mit einer Stufenrolle zurück; setzen lässt er sich von jeder Person, ohne Wirkung ohne Stufenrolle.
+
+        **Entscheide zu Termin und Raum (#847).** `pushTerminEntscheid` (Push `termin_entscheid` an die Person, die einen Terminvorschlag eingereicht hat, wenn die Abteilungsleitung ihn freigibt oder ablehnt) und `pushRaumEntscheid` (Push `raum_entscheid` an die Person, die einen Raum angefragt hat, wenn die Anfrage angenommen oder abgelehnt ist) sind je ein Boolean, standardmässig an, und für jede Person sichtbar. Ausgeschaltet geht der Push nicht hinaus; der Entscheid selbst gilt trotzdem und steht in `GET /api/v1/termin-vorschlaege/meine` und `GET /api/v1/raeume/anfragen/meine`.
 
         **Telefonnummer.** Freiwillig, nur für SL. `telefon` ist ein Text mit Ziffern und den Zeichen
         `+ ( ) / . -` sowie Leerzeichen (6 bis 30 Zeichen, nach dem Trimmen); sonst 400. Ein leerer Text oder `null`
@@ -5167,6 +5184,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/chats/ungelesen:
+    get:
+      operationId: zaehleUngeleseneChatNachrichten
+      summary: Ungelesene Chat-Nachrichten zählen
+      tags:
+        - Chat
+      description: |
+        Für Zähler am Dock und das Widget (#847): nur Zahlen, ohne Vorschautexte, Namen oder Stufen. Gleiche Rechte und gleiche Zählung wie `ungelesen` in `GET /api/v1/chats`: die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand eingegangen sind, nur aus Chats, in denen die Person Mitglied ist.
+
+        `anzahl` ist die Summe über alle Chats. `chats` nennt nur Chats mit mindestens einer ungelesenen Nachricht, nach ID sortiert; ein Chat, der fehlt, hat keine. Wer in keinem Chat Mitglied ist, bekommt `{ anzahl: 0, chats: [] }`.
+
+        Statuscodes: 200 Erfolg; 401 nicht angemeldet oder Konto deaktiviert; 403 Konto muss zuerst das Passwort ändern; 426 App zu alt.
+
+        Datenbanklast: die Abfragen der Sitzung und eine Abfrage für die Zählung.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Zahlen.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - anzahl
+                  - chats
+                properties:
+                  anzahl:
+                    type: integer
+                    minimum: 0
+                  chats:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - ungelesen
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        ungelesen:
+                          type: integer
+                          minimum: 1
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
@@ -19571,6 +19638,68 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/{tauschId}/entscheid/zuruecknehmen:
+    post:
+      operationId: nimmLagerDiensttauschEntscheidZurueck
+      summary: Entscheid einer Tauschanfrage zurücknehmen
+      description: |
+        Braucht das Recht `diensttausch.entscheiden` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Das «Rückgängig» nach «Annehmen» oder «Ablehnen» (#848): Die Anfrage ist danach wieder `offen` (`entschiedenVon` und `entschiedenAm` leer), mit der zuletzt gesehenen `version` (409 `VERSION_KONFLIKT`). Alles in einer Transaktion unter der Lagersperre.
+
+        Abgelehnt: Nur die Anfrage ändert sich. Angenommen: Die Schichten werden zurückgebucht (Personen zurück, bei einem Tausch im selben Abschnitt die Dienste zurück). Das geht nur, solange keine der Schichten seit dem Entscheid geändert wurde (sonst 409 `SCHICHT_GEAENDERT`). Wer zurückkommt, muss die Regeln des Schichtplans erfüllen (409 `ABWESEND`, `DOPPELBELEGT`, `PERSON_NICHT_VERFUEGBAR`). Gibt es für die Schicht schon eine neue offene Anfrage, ist es 409 `ANFRAGE_OFFEN`; eine offene oder zurückgezogene Anfrage ist 409 `NICHT_ENTSCHIEDEN`. Bei jedem Fehler ist nichts geändert. `mitPersonId` bleibt die beim Entscheid gewählte Person. Keine Benachrichtigung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit der Anfrage im Stand `offen`. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder unbekannter Anfrage. 409 bei abgeschlossenem Lager, `VERSION_KONFLIKT`, `NICHT_ENTSCHIEDEN`, `ANFRAGE_OFFEN`, `SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND` oder `DOPPELBELEGT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: tauschId
+          in: path
+          required: true
+          description: ID der Tauschanfrage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschZurueckziehen"
+      responses:
+        "200":
+          description: Die wieder offene Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`), die Anfrage ist nicht entschieden (`NICHT_ENTSCHIEDEN`), für die Schicht wartet eine neue Anfrage (`ANFRAGE_OFFEN`) oder das Zurückbuchen verletzt eine Regel (`SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND`, `DOPPELBELEGT`). Dann ist nichts geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/lager/{id}/diensttausch/{tauschId}/zurueckziehen:
     post:
       operationId: ziehLagerDiensttauschZurueck
@@ -22154,6 +22283,46 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/widget:
+    get:
+      operationId: holeLagerWidget
+      summary: Widget-Stand des Lagers
+      description: |
+        Kompakter Stand für die Widgets der Apps (#848): ein Aufruf statt `/lager`, `/heute`, `/meine-woche`, `/zeitplan` und Seiten der Aufgaben. Die Antwort enthält nur Zahlen und Daten, nie Namen, Titel oder freien Text. `tageBisBeginn` und `tageBisEnde` zählen ab heute (Zürcher Zeit), negativ, sobald das Datum vorbei ist; daraus folgt «Tag X von Y» (`1 - tageBisBeginn` von `tageBisEnde - tageBisBeginn + 1`). `eigeneDiensteHeute` zählt die eigenen Schichten am heutigen Lagertag (braucht `einteilung.lesen`), `wichtigHeute` die Blöcke «wichtig» der heutigen Tagesseite (braucht `tagesseiten.lesen`), `eigeneAufgaben` die eigenen nicht erledigten Aufgaben (die Person ist verantwortlich oder unterstützt; braucht `aufgaben.eigene` oder das Recht auf alle Aufgaben, zählt aber immer nur die eigenen). `ungelesen` sind die ungelesenen Benachrichtigungen der Person in diesem Lager. Fehlt das Recht eines Teils, ist er `null`. Tage und Benachrichtigungen gehören jedem Mitglied, darum gibt es kein 403.
+
+        Datenbanklast: vier Abfragen, parallel und unabhängig von der Datenmenge. Dazu kommen die Abfragen der Rechteprüfung.
+
+        Statuscodes: 200 bei Erfolg, auch im abgeschlossenen Lager. 400 bei ungültiger ID. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), danach die Rechte je Teil.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Widget-Stand des Lagers."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerWidget"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/lager/{id}/start:
     get:
       operationId: holeLagerStart
@@ -23300,6 +23469,55 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termine/{id}.ics:
+    get:
+      operationId: termineMeinKalenderdatei
+      summary: Ein Termin als Kalenderdatei (ICS)
+      tags:
+        - Termine
+      description: |
+        Für «Zum Kalender hinzufügen» in den Apps (#847): ein einzelner Termin als Datei nach RFC 5545 (`text/calendar`, als Anhang). Wer aufrufen darf, wie bei `GET /api/v1/termine/{id}`: jede angemeldete Person, für die der Termin sichtbar ist. Ein Termin, den die Person nicht sieht, den es nicht gibt oder der zu einer anderen Abteilung gehört, ist 404, auch eine ID, die keine UUID ist.
+
+        Inhalt wie ein Eintrag des Kalenderabos (`/ical/{datei}`): ein `VEVENT` mit `UID` (`<id>@cevi-os`, gleich wie im Abo), Titel, Zeit, Ort und Status (`CONFIRMED`, `CANCELLED`, `TENTATIVE`). Nie Beschreibung, Tags, Kinder, Anmeldungen oder andere Personendaten. Ohne Kalendername und Abo-Intervall, damit der Kalender den Termin nur importiert. Zeiten stehen in UTC (`Z`), die Kalender-App zeigt sie in ihrer Zeitzone (in der Schweiz Europe/Zurich); ein ganztägiger Termin hat Tageswerte (`VALUE=DATE`), das Ende ist der Tag nach dem letzten Tag. Der Dateiname nennt den Tag des Beginns in Zürcher Zeit: `termin-JJJJ-MM-TT.ics`.
+
+        Kein Zwischenspeicher (`Cache-Control: private, no-store`).
+
+        Statuscodes: 200 Erfolg; 401 keine gültige Sitzung; 403 das Konto muss zuerst das Passwort ändern; 404 Termin unbekannt, nicht sichtbar oder fremd; 426 App-Version zu alt.
+
+        Datenbanklast: die Abfragen der Sitzung, eine für die Tags der Person und eine für den Termin.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Termins (UUID), gefolgt von `.ics`.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Kalenderdatei.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="termin-<Datum>.ics"`.'
+              schema:
+                type: string
+            Cache-Control:
+              description: Immer `private, no-store`.
+              schema:
+                type: string
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/termine/{id}:
     get:
       operationId: termineMeinDetail
@@ -23893,7 +24111,7 @@ paths:
       description: |
         Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Nie über den eigenen Vorschlag (403 `EIGENER_VORSCHLAG`). Erlaubt ist nur der Übergang `offen` zu `freigegeben` oder `abgelehnt`; sonst 409 `STATUS_UNGUELTIG`. Der Übergang ist ein bedingtes UPDATE: Bei gleichzeitigen Entscheiden gewinnt genau einer. Ablehnen braucht eine Begründung (1 bis 500 Zeichen), Freigeben hat keine. «Freigegeben» heisst: Die Abteilungsleitung trägt den Termin in Outlook von Hand ein und meldet es mit `/eingetragen`; Cevi OS legt Termine nie in Outlook an (Kategorien schreibt es seit #835, nur mit der Anbindung).
 
-        Nach dem Speichern geht ein Push `termin_entscheid` (Kanal `termine`, `data.id` ist die Vorschlags-ID) an die vorschlagende Person, mit festem Text je Entscheid; nie der Titel und nie die Begründung. Das Protokoll hält ID und neuen Stand fest, nie Inhalt oder Begründung. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
+        Nach dem Speichern geht ein Push `termin_entscheid` (Kanal `termine`, `data.id` ist die Vorschlags-ID) an die vorschlagende Person, wenn ihr Konto aktiv ist und ihr Schalter `pushTerminEntscheid` an ist (`PATCH /api/v1/ich`), mit festem Text je Entscheid; nie der Titel und nie die Begründung. Das Protokoll hält ID und neuen Stand fest, nie Inhalt oder Begründung. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für alle anderen und beim eigenen Vorschlag. 404 bei unbekanntem Vorschlag oder fremder Abteilung. 409 `STATUS_UNGUELTIG`, wenn schon entschieden ist.
       tags:
@@ -24109,9 +24327,9 @@ paths:
       operationId: aendereAdminAnlass
       summary: Anmeldung, Frist und Sichtbarkeit eines Anlasses ändern
       description: |
-        Recht `anlass.verwalten` für diesen Anlass (erweitert: zweiter Faktor); eine Gruppenrolle des OK mit «eigene» ändert den Anlass ihrer Gruppe. Ohne Schlüssel bleibt der Wert; `frist: null` löscht die Frist. `anmeldungFuer` lässt sich nur ändern, solange es keine Anmeldungen gibt.
+        Recht `anlass.verwalten` für diesen Anlass (erweitert: zweiter Faktor); eine Gruppenrolle des OK mit «eigene» ändert den Anlass ihrer Gruppe. Ohne Schlüssel bleibt der Wert; `frist: null` löscht die Frist. `anmeldungFuer` älterer Clients wird ignoriert (#844).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TAG_UNBEKANNT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANMELDUNGEN_VORHANDEN`.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TAG_UNBEKANNT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört.
       tags:
         - Termine
       parameters:
@@ -24215,9 +24433,9 @@ paths:
       description: |
         Die Vorlage für die Anmeldung. Wer den Anlass sehen darf (Sichtbarkeit `oeffentlich` oder `angemeldet` für alle der Abteilung, `tags` für Personen mit einem der Tags, bei Eltern auch über die Stufe eines ihrer aktiven Kinder, die Abteilungsleitung immer), bekommt ihn; für alle anderen ist er 404, auch für Personen anderer Abteilungen.
 
-        `teilnehmende` sind bei `anmeldungFuer: kind` die eigenen aktiven Kinder (ohne Kind eine leere Liste), bei `person` die Person selbst. Je Teilnehmende gibt `konto` an, was das Konto schon kennt (bei der Person Name und Cevi-Name, bei Kindern Vorname, Nachname, Cevi-Name und Stufe). Die App zeigt es als «aus deinem Konto», nicht editierbar; Gesundheitsdaten gibt es nie. `anmeldung` ist die bisherige Anmeldung oder `null`; ein Kind hat eine Anmeldung, auch wenn der andere Elternteil sie angelegt hat. `anmeldungOffen` ist der Stand jetzt: Der Anlass erlaubt die Anmeldung, die Frist ist nicht vorbei, und der Termin ist weder abgesagt noch vorbei. Eine Platzzahl gibt es nicht.
+        `teilnehmende` sind die Personen, für die die Person anmelden darf (#844): sie selbst, wenn sie zur Zielgruppe gehört (`angemeldet` und `oeffentlich`: jede Person der Abteilung; `tags`: wer einen der Tags trägt, die Abteilungsleitung nicht von selbst; ein Kind mit eigenem Konto nie als Person), dann ihre verbundenen aktiven Kinder (als Elternteil oder eigenes Konto), deren Stufe zur Zielgruppe gehört (bei `tags` die Stufe unter den Tags). Gehört niemand dazu, ist die Liste leer. `anmeldungFuer` ist veraltet und nur noch abgeleitet. Je Teilnehmende gibt `konto` an, was das Konto schon kennt (bei der Person Name und Cevi-Name, bei Kindern Vorname, Nachname, Cevi-Name und Stufe). Die App zeigt es als «aus deinem Konto», nicht editierbar; Gesundheitsdaten gibt es nie. `anmeldung` ist die bisherige Anmeldung oder `null`; ein Kind hat eine Anmeldung, auch wenn der andere Elternteil sie angelegt hat. `anmeldungOffen` ist der Stand jetzt: Der Anlass erlaubt die Anmeldung, die Frist ist nicht vorbei, und der Termin ist weder abgesagt noch vorbei. Eine Platzzahl gibt es nicht.
 
-        Abfragen: 2 (Anlass mit Termin, Name und Feldern; Teilnehmende mit Anmeldungen), unabhängig von der Zahl der Kinder.
+        Abfragen: höchstens 3 (Anlass mit Termin, Name, Zielgruppe und Feldern; eigene Anmeldung; Kinder mit Anmeldungen), unabhängig von der Zahl der Kinder.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger `id`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -24247,17 +24465,17 @@ paths:
       operationId: meldeZuAnlassAn
       summary: Zu einem Anlass anmelden oder die Anmeldung ändern
       description: |
-        Meldet die Person (`anmeldungFuer: person`, ohne `kindId`) oder eines ihrer aktiven Kinder (`anmeldungFuer: kind`, mit `kindId`) an. Der Aufruf ist idempotent: Eine zweite Anmeldung ändert nur die Antworten, es bleibt eine Anmeldung je Person oder Kind, auch bei gleichzeitigen Aufrufen. Wer sich abgemeldet hat, meldet sich mit demselben Aufruf wieder an. Das Ändern geht bis zum Anmeldeschluss. Die Antwort ist die Bestätigung; es gibt keine E-Mail.
+        Meldet die Person selbst (ohne `kindId`) oder eines ihrer verbundenen aktiven Kinder (mit `kindId`) an, beide nur, wenn sie zur Zielgruppe gehören (wie `teilnehmende` beim Lesen, #844). Der Aufruf ist idempotent: Eine zweite Anmeldung ändert nur die Antworten, es bleibt eine Anmeldung je Person oder Kind, auch bei gleichzeitigen Aufrufen. Wer sich abgemeldet hat, meldet sich mit demselben Aufruf wieder an. Das Ändern geht bis zum Anmeldeschluss. Die Antwort ist die Bestätigung; es gibt keine E-Mail.
 
         Die Antworten gelten gegen die Felder des Anlasses: unbekannte Schlüssel, fehlende Pflichtfelder (bei Text zählt leer als fehlend), falscher Typ (`ja_nein` ist `true` oder `false`), eine Auswahl ausserhalb der Optionen, Text über 500 Zeichen oder mit Steuerzeichen (auch Zeilenumbruch) ergeben 400 mit `fehler: [{ schluessel, code }]` und den Codes `UNBEKANNT`, `PFLICHT`, `TYP`, `OPTION`, `ZU_LANG`, `STEUERZEICHEN`, nie mit dem Wert. Text wird getrimmt gespeichert.
 
-        Anmelden für ein Kind darf nur ein Elternteil des aktiven Kindes (`kind_eltern`): Jedes andere Kind ist 404, auch ein Kind einer anderen Abteilung. `kindId` ist bei `kind` Pflicht (400 `KIND_ID_PFLICHT`) und bei `person` verboten (400 `KIND_ID_VERBOTEN`).
+        Anmelden für ein Kind darf nur ein Elternteil des aktiven Kindes oder das eigene Konto des Kindes (Sicht `kind_zugang`): Jedes andere Kind ist 404, auch ein Kind einer anderen Abteilung. Gehört die Person oder das Kind nicht zur Zielgruppe, ist es 403 `NICHT_IN_ZIELGRUPPE`; ein Kind mit eigenem Konto meldet sich immer mit `kindId` an.
 
         Ratenbegrenzung: höchstens 30 Anmeldungen und Abmeldungen je Person und Minute (429). Audit: `anlass_angemeldet` mit der ID der Anmeldung, nie mit Antworten.
 
-        Abfragen: eine Transaktion, in der der Anlass gelesen und bis zum Ende festgehalten wird (1), das Kind geprüft (1, nur bei `kind`), die Anmeldung geschrieben (1) und das Audit geschrieben (1).
+        Abfragen: eine Transaktion, in der der Anlass gelesen und bis zum Ende festgehalten wird (1), das Kind geprüft (1, nur mit `kindId`), die Anmeldung geschrieben (1) und das Audit geschrieben (1).
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `ANTWORTEN_UNGUELTIG`, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist, zu einer anderen Abteilung gehört oder das Kind nicht zur Person gehört. 409 `ANMELDUNG_GESCHLOSSEN`, wenn die Anmeldung nicht offen ist (nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei). 429 bei zu vielen Anfragen.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `ANTWORTEN_UNGUELTIG`. 403 `NICHT_IN_ZIELGRUPPE`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist, zu einer anderen Abteilung gehört oder das Kind nicht zur Person gehört. 409 `ANMELDUNG_GESCHLOSSEN`, wenn die Anmeldung nicht offen ist (nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei). 429 bei zu vielen Anfragen.
       tags:
         - Termine
       parameters:
@@ -24280,6 +24498,8 @@ paths:
           $ref: "#/components/responses/AnlassAnmeldung400"
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
@@ -24292,9 +24512,9 @@ paths:
       operationId: meldeVonAnlassAb
       summary: Von einem Anlass abmelden
       description: |
-        Setzt die Anmeldung der Person (ohne `kindId`) oder des Kindes (`kindId` als Query-Parameter) auf `abgemeldet` und löscht die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses). Idempotent: Wer schon abgemeldet ist oder nie angemeldet war, bekommt dasselbe 204. Die Regeln für `kindId`, Sichtbarkeit und Anmeldeschluss gelten wie beim Anmelden: Nach dem Anmeldeschluss ist auch das Abmelden 409. Audit: `anlass_abgemeldet` mit der ID der Anmeldung.
+        Setzt die Anmeldung der Person (ohne `kindId`) oder des Kindes (`kindId` als Query-Parameter) auf `abgemeldet` und löscht die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses). Idempotent: Wer schon abgemeldet ist oder nie angemeldet war, bekommt dasselbe 204. Die Regeln für `kindId` (fremdes Kind 404), Sichtbarkeit und Anmeldeschluss gelten wie beim Anmelden: Nach dem Anmeldeschluss ist auch das Abmelden 409. Die Zielgruppe gilt beim Abmelden nicht: Wer angemeldet ist, kann sich abmelden, auch wenn sich die Zielgruppe geändert hat. Audit: `anlass_abgemeldet` mit der ID der Anmeldung.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 wie beim Anmelden. 409 `ANMELDUNG_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 404 wie beim Anmelden. 409 `ANMELDUNG_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
       tags:
         - Termine
       parameters:
@@ -24303,7 +24523,7 @@ paths:
         - name: kindId
           in: query
           required: false
-          description: "Das Kind, nur bei Anlässen mit `anmeldungFuer: kind` (dort Pflicht)."
+          description: Das verbundene Kind; ohne Angabe meldet sich die Person selbst ab.
           schema:
             type: string
             format: uuid
@@ -24717,7 +24937,7 @@ paths:
       operationId: entscheideRaumAnfrage
       summary: Eine Raumanfrage annehmen oder ablehnen
       description: |
-        Entscheiden darf, wer das Recht `raum.anfrage_entscheiden` für den Raum hat: wer den Team-Tag des Raums trägt (eine Person genügt, ohne zweiten Faktor), eine Gruppenrolle des Teams mit dem Recht (mit zweitem Faktor); bei einem Raum ohne Team die Abteilungsleitung (mit zweitem Faktor). Ein Team eines Raums, das die Rolle nicht trägt, entscheidet nicht (403). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push mit festem Text.
+        Entscheiden darf, wer das Recht `raum.anfrage_entscheiden` für den Raum hat: wer den Team-Tag des Raums trägt (eine Person genügt, ohne zweiten Faktor), eine Gruppenrolle des Teams mit dem Recht (mit zweitem Faktor); bei einem Raum ohne Team die Abteilungsleitung (mit zweitem Faktor). Ein Team eines Raums, das die Rolle nicht trägt, entscheidet nicht (403). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push `raum_entscheid` mit festem Text, wenn ihr Konto aktiv ist und ihr Schalter `pushRaumEntscheid` an ist (`PATCH /api/v1/ich`).
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`.
       tags:
@@ -26739,7 +26959,7 @@ paths:
       description: |
         Die Anmeldung ruft diese Route einmal beim Öffnen auf und füllt damit freiwillige Angaben vor, die die Person in der Cevi-Datenbank selbst gemacht hat. Nur lesend; es wird nichts gespeichert, erst das Absenden der Anmeldung speichert, wie jede Antwort.
 
-        Wer den Anlass sehen darf (wie bei der Anmeldung), darf den Vorschlag für sich (`anmeldungFuer: person`, ohne `kindId`) oder für das eigene aktive Kind (`anmeldungFuer: kind`, mit `kindId`) abrufen; jedes andere Kind und jeder unsichtbare oder fremde Anlass ist 404. Es gibt keine Suche und nie eine Auskunft über Dritte.
+        Wer den Anlass sehen darf (wie bei der Anmeldung), darf den Vorschlag für sich (ohne `kindId`) oder für ein eigenes aktives Kind (mit `kindId`) abrufen; jedes andere Kind und jeder unsichtbare oder fremde Anlass ist 404. Es gibt keine Suche und nie eine Auskunft über Dritte.
 
         Der Server liefert nur Werte für Textfelder des Anlasses, die `ceviQuelle` gesetzt haben, und nie für ein Feld, das in der gespeicherten Anmeldung schon beantwortet ist (der eigene Wert gewinnt). Zugeordnet wird nur bei genau einem eindeutigen Treffer: über die gemerkte Nummer, sonst über die E-Mail (beim Kind die der Eltern) plus Vorname, sonst über Vorname, Nachname und Geburtsdatum. Ein Name allein genügt nie. Bei keinem oder mehreren Treffern ist `status` `kein_treffer`, ohne Hinweis, was von beidem zutrifft und ohne Namen Dritter.
 
@@ -26749,7 +26969,7 @@ paths:
 
         Abfragen: Anlass mit Feldern (1), Kind und Eltern (2, nur bei `kind`) oder Konto (1), bestehende Anmeldung (1), Audit (1); der Abruf bei der Cevi-Datenbank ist der Zwischenspeicher oder höchstens ein Abruf je 15 Minuten.
 
-        Statuscodes: 200 bei Erfolg (auch bei `aus`, `kein_treffer` und `nicht_erreichbar`). 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 für einen unbekannten oder unsichtbaren Anlass und ein fremdes Kind. 429 bei zu vielen Abrufen.
+        Statuscodes: 200 bei Erfolg (auch bei `aus`, `kein_treffer` und `nicht_erreichbar`). 400 bei ungültiger Eingabe. 404 für einen unbekannten oder unsichtbaren Anlass und ein fremdes Kind. 429 bei zu vielen Abrufen.
       tags:
         - Termine
       parameters:
@@ -26884,6 +27104,95 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /api/v1/formulare:
+    get:
+      operationId: listeMeineFormulare
+      summary: Offene Formulare, die die angemeldete Person sieht
+      description: |
+        Für die Apps (#847): die Formulare der Website, die die angemeldete Person ausfüllen kann. Massgebend sind die veröffentlichten Seiten der eigenen Abteilung und die Sichtbarkeit der Seite und des Bausteins, wie bei `POST /api/v1/formulare/{id}/antworten`. Nur angemeldet; jede angemeldete Person, kein eigenes Recht.
+
+        Nur offene Formulare: Nach dem letzten Tag (`schliesstAm`, Zürcher Zeit) fehlt ein Formular in der Liste, denn ausfüllen lässt es sich nicht mehr. Die Definition eines geschlossenen Formulars liefert weiterhin `GET /api/v1/formulare/{id}` (mit `geschlossen: true`). `beantwortet` sagt, ob die Person schon eine Antwort gesendet hat, die noch nicht gelöscht ist. Sortiert nach Seitentitel, dann Titel des Formulars.
+
+        Statuscodes: 200, 401 ohne Sitzung, 403 mit Passwortpflicht, 423 Sperre der Website.
+
+        Datenbanklast: die Abfragen der Sitzung, eine Abfrage für die Tags der Person, eine für die veröffentlichten Formulare der Abteilung, eine für die eigenen Antworten.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die offenen Formulare.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - formulare
+                properties:
+                  formulare:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FormularFuerMich"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "423":
+          description: Die Website ist gesperrt (`GESPERRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/formulare/{id}:
+    get:
+      operationId: holeFormularDefinition
+      summary: Veröffentlichte Definition eines Formulars zum Ausfüllen
+      description: |
+        Für die Apps (#847): die veröffentlichte Definition des Bausteins «Formular», damit die App das Formular selbst zeigt und über `POST /api/v1/formulare/{id}/antworten` sendet. Dieselbe Sichtbarkeit wie das Senden: Seite und Baustein müssen für die Person sichtbar sein. Ohne Anmeldung (und mit einem Konto einer anderen Abteilung) nur auf einer öffentlichen Seite mit öffentlichem Baustein. Ein Formular, das es nicht gibt, nicht veröffentlicht ist oder das die Person nicht sehen darf, antwortet gleich: 404 `NICHT_GEFUNDEN`.
+
+        Nur, was das Ausfüllen braucht: `felder` ist die Liste der Felder genau wie im Baustein (`id`, `typ`, `beschriftung`, `hilfe`, `pflicht` und je Typ `optionen`, `minLaenge`, `maxLaenge`, `min`, `max`, `ganzzahl`, `von`, `bis`, `minAuswahl`, `maxAuswahl`); `datenschutz` ist der Hinweis, den die App vor dem Senden zeigt. Nie Aufbewahrung, Obergrenze der Antworten oder Antworten anderer. Ein geschlossenes Formular bleibt lesbar (`geschlossen: true`); Senden ergibt dann 410. `beantwortet` ist `true`, wenn die angemeldete Person schon eine Antwort gesendet hat, die noch nicht gelöscht ist; ohne Anmeldung immer `false`. Mit `eineProPerson` ist eine zweite Antwort 409.
+
+        Die Sperre der Website ist 423; die Wartung sperrt nur das Senden, nicht das Lesen.
+
+        Statuscodes: 200, 400 ID ist keine UUID, 403 mit Passwortpflicht, 404, 423.
+
+        Datenbanklast: eine Abfrage für die veröffentlichte Definition; bei Sitzung die Abfragen der Person, eine für die Tags und eine für die eigene Antwort.
+      tags:
+        - Website
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Definition.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularDefinition"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "423":
+          description: Die Website ist gesperrt (`GESPERRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/formulare/{id}/antworten:
     post:
       operationId: sendeFormularAntwort
@@ -27312,6 +27621,134 @@ components:
                   - OPTION
                   - ANZAHL
                   - STEUERZEICHEN
+    FormularFuerMich:
+      type: object
+      required:
+        - id
+        - titel
+        - seitenTitel
+        - schliesstAm
+        - beantwortet
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID des Bausteins, für `GET /api/v1/formulare/{id}`.
+        titel:
+          type: string
+          nullable: true
+        seitenTitel:
+          type: string
+        schliesstAm:
+          type: string
+          nullable: true
+          description: Letzter Tag für Antworten (`JJJJ-MM-TT`, Zürcher Zeit).
+        beantwortet:
+          type: boolean
+    FormularDefinition:
+      type: object
+      required:
+        - id
+        - titel
+        - einleitung
+        - felder
+        - datenschutz
+        - absenden
+        - danke
+        - schliesstAm
+        - geschlossen
+        - eineProPerson
+        - beantwortet
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+          nullable: true
+        einleitung:
+          type: string
+          nullable: true
+        felder:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormularFeld"
+        datenschutz:
+          type: string
+          description: Wozu die Angaben dienen und wer die Antworten sieht; vor dem Senden zeigen.
+        absenden:
+          type: string
+          description: Text des Knopfs.
+        danke:
+          type: string
+          description: Bestätigung nach dem Senden.
+        schliesstAm:
+          type: string
+          nullable: true
+          description: Letzter Tag für Antworten (`JJJJ-MM-TT`, Zürcher Zeit).
+        geschlossen:
+          type: boolean
+          description: Nach dem letzten Tag; Senden ergibt dann 410.
+        eineProPerson:
+          type: boolean
+        beantwortet:
+          type: boolean
+    FormularFeld:
+      type: object
+      description: Ein Feld wie im Baustein. Die Grenzen gibt es nur beim passenden Typ (`minLaenge`, `maxLaenge` bei `text` und `textbereich`; `min`, `max`, `ganzzahl` bei `zahl`; `von`, `bis` bei `datum`; `optionen` bei `auswahl`, `optionsfelder`, `mehrfachwahl`; `minAuswahl`, `maxAuswahl` bei `mehrfachwahl`). Bei `zustimmung` ist `pflicht` immer `true`.
+      required:
+        - id
+        - typ
+        - beschriftung
+        - pflicht
+      properties:
+        id:
+          type: string
+          format: uuid
+        typ:
+          type: string
+          enum:
+            - text
+            - textbereich
+            - zahl
+            - datum
+            - email
+            - telefon
+            - auswahl
+            - optionsfelder
+            - mehrfachwahl
+            - janein
+            - zustimmung
+        beschriftung:
+          type: string
+        hilfe:
+          type: string
+        pflicht:
+          type: boolean
+        optionen:
+          type: array
+          items:
+            type: string
+        minLaenge:
+          type: integer
+        maxLaenge:
+          type: integer
+        min:
+          type: number
+        max:
+          type: number
+        ganzzahl:
+          type: boolean
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+        minAuswahl:
+          type: integer
+        maxAuswahl:
+          type: integer
     FormularZeile:
       type: object
       required:
@@ -27879,6 +28316,8 @@ components:
         - bildUrl
         - pushChat
         - pushProgramme
+        - pushTerminEntscheid
+        - pushRaumEntscheid
         - abteilungsleitung
         - entwickler
         - zweiterFaktor
@@ -27906,9 +28345,8 @@ components:
           enum:
             - w
             - m
-            - d
             - null
-          description: Eigene Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die eigene Rolle nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung). Ändern lässt sie sich nur in der Verwaltung unter Personen (#817).
+          description: Eigene Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die eigene Rolle nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung). Ändern lässt sie sich nur in der Verwaltung unter Personen (#817).
         benutzername:
           type:
             - string
@@ -27942,6 +28380,12 @@ components:
         pushAnmeldungen:
           type: boolean
           description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
+        pushTerminEntscheid:
+          type: boolean
+          description: Push «Entscheid zu deinem Terminvorschlag» (`termin_entscheid`) an die vorschlagende Person.
+        pushRaumEntscheid:
+          type: boolean
+          description: Push «Entscheid zu deiner Raumanfrage» (`raum_entscheid`) an die anfragende Person.
         abteilungsleitung:
           type: boolean
           description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier; `role` von better-auth gibt es nicht mehr.
@@ -28018,6 +28462,10 @@ components:
         pushProgramme:
           type: boolean
         pushAnmeldungen:
+          type: boolean
+        pushTerminEntscheid:
+          type: boolean
+        pushRaumEntscheid:
           type: boolean
         telefon:
           type:
@@ -28257,9 +28705,8 @@ components:
               enum:
                 - w
                 - m
-                - d
                 - null
-              description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
+              description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
             rolle:
               type: string
               enum:
@@ -28992,9 +29439,8 @@ components:
           enum:
             - w
             - m
-            - d
             - null
-          description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
+          description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
         bildUrl:
           type:
             - string
@@ -29139,8 +29585,7 @@ components:
           enum:
             - w
             - m
-            - d
-          description: Freiwillig (#817). `w` weiblich, `m` männlich, `d` andere; ohne Angabe nennt die Verwaltung die Rolle neutral. Ein anderer Wert ergibt 400.
+          description: Freiwillig (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`); ohne Angabe nennt die Verwaltung die Rolle neutral. Ein anderer Wert ergibt 400.
         telefon:
           type: string
           description: Freiwillig, nur mit einer Rolle `stufenleitung` (sonst 400). Ziffern mit `+`, Leerzeichen, `()`, `/`, `.` und `-`, 6 bis 30 Zeichen; leer heisst nicht gesetzt.
@@ -29220,9 +29665,8 @@ components:
           enum:
             - w
             - m
-            - d
             - null
-          description: Freiwillige Angabe (#817). `w` weiblich, `m` männlich, `d` andere; `null` entfernt sie. Ein anderer Wert ergibt 400. Es schreibt keinen Audit-Eintrag, wie `ceviName`.
+          description: Freiwillige Angabe (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`); `null` entfernt sie. Ein anderer Wert ergibt 400. Es schreibt keinen Audit-Eintrag, wie `ceviName`.
         telefon:
           type:
             - string
@@ -31268,7 +31712,7 @@ components:
           description: Es folgen noch Medien nach dieser Seite.
     RedaktionSichtbarkeit:
       description: |
-        Wer die Seite sieht (Sichtbarkeitsmodul): `oeffentlich` ohne Anmeldung, `angemeldet` jede Person der Abteilung, `tags` nur Personen mit einem der Tags (ODER); die Abteilungsleitung sieht immer alles. Eine leere Tag-Menge sieht nur die Abteilungsleitung. Höchstens 50 Tags ohne Doppelte, alle aus der Abteilung.
+        Wer die Seite sieht (Sichtbarkeitsmodul): `oeffentlich` ohne Anmeldung, `angemeldet` jede Person der Abteilung, `tags` nur Personen mit einem der Tags (ODER), je Tag auf Rollen einschränkbar (`rollen`, #844); die Abteilungsleitung sieht immer alles. Eine leere Tag-Menge sieht nur die Abteilungsleitung. Höchstens 50 Tags ohne Doppelte, alle aus der Abteilung.
       oneOf:
         - type: object
           required:
@@ -31299,6 +31743,25 @@ components:
               items:
                 type: string
                 format: uuid
+            rollen:
+              $ref: "#/components/schemas/SichtbarkeitRollen"
+    SichtbarkeitRollen:
+      type: object
+      description: |
+        Untergruppen (#844): je Tag aus `tagIds` (Schlüssel klein geschrieben) die Rollen, die das Objekt sehen. Ohne Schlüssel sieht die ganze Gruppe es, wie ohne `rollen`; fehlt die Einschränkung, fehlt `rollen` auch in der Antwort. `leitung` ist die Gruppenleitung, `stufenleitung` die Stufenleitung (sie sieht auch, was die Gruppenleitung sieht), `teilnehmende` alle anderen Mitglieder der Gruppe; bei Anlässen dazu die Kinder der Stufe, ihre Eltern und ihr eigenes Konto. Ein Schlüssel ausserhalb von `tagIds`, eine unbekannte Rolle, eine leere oder doppelte Liste sind 400. Die Abteilungsleitung sieht weiterhin alles.
+      propertyNames:
+        format: uuid
+      additionalProperties:
+        type: array
+        minItems: 1
+        maxItems: 3
+        uniqueItems: true
+        items:
+          type: string
+          enum:
+            - teilnehmende
+            - leitung
+            - stufenleitung
     RedaktionSeite:
       type: object
       required:
@@ -39362,6 +39825,74 @@ components:
                   - $ref: "#/components/schemas/LagerHoeckListeneintrag"
                   - $ref: "#/components/schemas/LagerHoeckTeam"
             - type: "null"
+    LagerWidget:
+      description: "Kompakter Stand für die Widgets: nur Zahlen und Daten, nie Namen oder Texte. Teile ohne Leserecht sind null."
+      type: object
+      additionalProperties: false
+      required:
+        - heute
+        - tageBisBeginn
+        - tageBisEnde
+        - eigeneDiensteHeute
+        - wichtigHeute
+        - eigeneAufgaben
+        - ungelesen
+      properties:
+        heute:
+          description: "Das heutige Datum in Zürcher Zeit."
+          type: string
+          format: date
+        tageBisBeginn:
+          description: "Tage von heute bis zum ersten Lagertag; negativ, sobald er vorbei ist."
+          type: integer
+        tageBisEnde:
+          description: "Tage von heute bis zum letzten Lagertag; negativ, sobald er vorbei ist."
+          type: integer
+        eigeneDiensteHeute:
+          description: "Eigene Schichten am heutigen Lagertag (einteilung.lesen), sonst null."
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        wichtigHeute:
+          description: "Blöcke «wichtig» der heutigen Tagesseite (tagesseiten.lesen), sonst null."
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        eigeneAufgaben:
+          description: "Die eigenen nicht erledigten Aufgaben (verantwortlich oder unterstützend), mit einem Leserecht für Aufgaben; sonst null."
+          type:
+            - object
+            - "null"
+          additionalProperties: false
+          required:
+            - offen
+            - ueberfaellig
+            - heute
+            - naechsteFrist
+          properties:
+            offen:
+              type: integer
+              minimum: 0
+            ueberfaellig:
+              description: "Davon mit Frist vor heute."
+              type: integer
+              minimum: 0
+            heute:
+              description: "Davon mit Frist heute."
+              type: integer
+              minimum: 0
+            naechsteFrist:
+              description: "Die früheste Frist ab heute, sonst null."
+              type:
+                - string
+                - "null"
+              format: date
+        ungelesen:
+          description: "Ungelesene Benachrichtigungen der Person in diesem Lager."
+          type: integer
+          minimum: 0
     LagerStart:
       description: "Der Start der Lagerleitung: Countdown, Fortschritt, überfällige und eigene Aufgaben."
       type: object
@@ -40471,7 +41002,7 @@ components:
           enum: [freigegeben, abgelehnt, in_outlook_eingetragen]
     # termine-schemas: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     AnlassSichtbarkeit:
-      description: Wer den Anlass sieht (Sichtbarkeit nach Tags wie bei Seiten). Ohne Tags in `tagIds` sieht ihn bei `tags` nur die Abteilungsleitung.
+      description: Wer den Anlass sieht und zur Zielgruppe der Anmeldung gehört (Sichtbarkeit nach Tags wie bei Seiten, je Tag auf Rollen einschränkbar, #844). Ohne Tags in `tagIds` sieht ihn bei `tags` nur die Abteilungsleitung.
       oneOf:
         - type: object
           required:
@@ -40500,6 +41031,8 @@ components:
               items:
                 type: string
                 format: uuid
+            rollen:
+              $ref: "#/components/schemas/SichtbarkeitRollen"
     AdminAnlassFeldEingabe:
       type: object
       required:
@@ -40614,7 +41147,6 @@ components:
       type: object
       required:
         - programmId
-        - anmeldungFuer
         - anmeldungOffen
         - sichtbarkeit
       additionalProperties: false
@@ -40628,6 +41160,8 @@ components:
           enum:
             - kind
             - person
+          deprecated: true
+          description: Veraltet (#844), wird ignoriert. «Wer meldet sich an?» gibt es nicht mehr; wer sich für wen anmeldet, folgt aus der Zielgruppe (Sichtbarkeit).
         anmeldungOffen:
           type: boolean
         frist:
@@ -40674,7 +41208,8 @@ components:
           enum:
             - kind
             - person
-          description: Nur ohne Anmeldungen änderbar (sonst 409 `ANMELDUNGEN_VORHANDEN`).
+          deprecated: true
+          description: Veraltet (#844), wird ignoriert. «Wer meldet sich an?» gibt es nicht mehr; wer sich für wen anmeldet, folgt aus der Zielgruppe (Sichtbarkeit).
     AdminAnlassKopf:
       type: object
       required:
@@ -40687,7 +41222,6 @@ components:
         - tagVon
         - tagBis
         - art
-        - anmeldungFuer
         - anmeldungOffen
         - frist
         - sichtbarkeit
@@ -40731,11 +41265,6 @@ components:
           enum:
             - anlass
             - lager
-        anmeldungFuer:
-          type: string
-          enum:
-            - kind
-            - person
         anmeldungOffen:
           type: boolean
         frist:
@@ -41049,13 +41578,15 @@ components:
           enum:
             - kind
             - person
+          deprecated: true
+          description: Veraltet (#844), nur noch für ältere Apps. Abgeleitet aus `teilnehmende`, `kind`, sobald ein Kind darunter ist, sonst `person`. Neue Clients entscheiden je Eintrag über `kindId`.
         felder:
           type: array
           items:
             $ref: "#/components/schemas/AnlassVorlageFeld"
         teilnehmende:
           type: array
-          description: Bei `kind` die eigenen aktiven Kinder, bei `person` die Person selbst.
+          description: Für wen die Person anmelden darf (#844), zuerst sie selbst (`kindId` null), wenn sie zur Zielgruppe gehört, dann ihre verbundenen aktiven Kinder der Zielgruppe. Leer, wenn niemand dazugehört.
           items:
             $ref: "#/components/schemas/AnlassTeilnehmende"
     AnlassAnmeldungEingabe:
@@ -41067,7 +41598,7 @@ components:
         kindId:
           type: string
           format: uuid
-          description: "Pflicht bei `anmeldungFuer: kind`, verboten bei `person`."
+          description: Das verbundene Kind, für das angemeldet wird; ohne Angabe meldet sich die Person selbst an.
         antworten:
           type: object
           description: Schlüssel des Feldes auf den Wert; höchstens 20 Schlüssel. Text höchstens 500 Zeichen, ohne Steuerzeichen.
@@ -45021,7 +45552,7 @@ components:
             $ref: "#/components/schemas/Fehler"
     AnlassAnmeldung400:
       description: |
-        Ungültige Eingabe: allgemein `UNGUELTIGE_EINGABE`, dazu `ANTWORTEN_UNGUELTIG` (mit `fehler`), `KIND_ID_PFLICHT` und `KIND_ID_VERBOTEN`.
+        Ungültige Eingabe: allgemein `UNGUELTIGE_EINGABE`, dazu `ANTWORTEN_UNGUELTIG` (mit `fehler`).
       content:
         application/json:
           schema:

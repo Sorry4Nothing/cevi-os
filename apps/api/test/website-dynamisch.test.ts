@@ -485,7 +485,6 @@ describe("Daten aus der Datenbank", () => {
       .values({
         abteilungId: abt,
         programmId: p!.id,
-        anmeldungFuer: "kind",
         sichtbarkeit: opt.sicht ?? "oeffentlich",
         art: opt.art ?? "anlass",
         anmeldungOffen: opt.offen ?? false,

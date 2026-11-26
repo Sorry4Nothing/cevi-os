@@ -1,5 +1,5 @@
 import { isAPIError } from "better-auth/api";
-import { and, asc, eq, inArray, sql } from "drizzle-orm";
+import { and, asc, eq, inArray, sql, type SQL } from "drizzle-orm";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
@@ -570,6 +570,7 @@ export function erstellePersonenRouten({
               name: string;
               ceviName: string | null;
               geschlecht: Geschlecht | null;
+              geschlechtVonHand: SQL;
               telefon: string | null;
             }> = {};
             // Nur geänderte Schlüssel; ein No-op des Rollen-Editors schreibt keinen Eintrag
@@ -581,6 +582,8 @@ export function erstellePersonenRouten({
             }
             if (aenderung.geschlecht !== undefined) {
               felder.geschlecht = aenderung.geschlecht;
+              // Von Hand hat Vorrang vor der Cevi-Datenbank (#843). Das Blatt sendet die Angabe bei jedem Speichern mit: Nur ein anderer Wert zählt als von Hand
+              felder.geschlechtVonHand = sql`${user.geschlechtVonHand} or ${user.geschlecht} is distinct from ${aenderung.geschlecht}`;
             }
             if (aenderung.telefon !== undefined) {
               felder.telefon = aenderung.telefon;

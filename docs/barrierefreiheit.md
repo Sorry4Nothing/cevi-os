@@ -1748,18 +1748,18 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vors
 
 **Nicht geprüft:** 91.5 (Bewegung reduzieren) und 91.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 91.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).
 
-## 92. Verwaltung: Rollenname nach Geschlecht der Person (#817)
+## 92. Verwaltung: Rollenname nach Geschlecht der Person (#817, #849)
 
 Die Verwaltung nennt die Rolle einer bestimmten Person nach ihrem Geschlecht: «Stufenleiter» und «Gruppenleiter» für Männer, «Stufenleiterin» und «Gruppenleiterin» für Frauen, sonst «Stufenleitung» und «Gruppenleitung» (Helfer `rollenName` in `rollenname.js`). Die Angabe ist freiwillig und wird im Blatt der Person gepflegt (Abschnitt «Angaben», Auswahl «Geschlecht (optional)»); in «Mein Konto» steht sie als gesperrtes Feld. Allgemeine Beschriftungen ohne Person (Rechtekatalog, Auswahl der Rolle, Mitteilungsziele) und die öffentliche Website bleiben neutral.
 
 ### Prüfpunkte
 
-- [ ] **92.1** Die Auswahl «Geschlecht (optional)» im Blatt der Person ist eine Radiogruppe (`role="radiogroup"`) mit sichtbarer Beschriftung (`aria-labelledby`) und dem Hilfetext «Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin. Ohne Angabe heisst sie neutral, z. B. Stufenleitung.» (`aria-describedby`). Der Bildschirmleser nennt Gruppe, Hilfetext, Option («Weiblich», «Männlich», «Keine Angabe oder andere») und Zustand (ausgewählt).
+- [ ] **92.1** Die Auswahl «Geschlecht (optional)» im Blatt der Person ist eine Radiogruppe (`role="radiogroup"`) mit sichtbarer Beschriftung (`aria-labelledby`) und dem Hilfetext «Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin. Ohne Angabe heisst sie neutral, z. B. Stufenleitung.» (`aria-describedby`). Der Bildschirmleser nennt Gruppe, Hilfetext, Option («Weiblich», «Männlich», «Keine Angabe») und Zustand (ausgewählt).
 - [ ] **92.2** Die Auswahl ist mit Tab erreichbar, die Pfeiltasten wechseln die Option, der Fokusring ist sichtbar; jede Option ist mindestens 44 Pixel hoch. Der gewählte Zustand zeigt einen Haken, nie nur Farbe.
-- [ ] **92.3** Die Wahl gilt erst mit «Speichern»; ohne Wahl bleibt «Keine Angabe oder andere» (neutrale Form). Beim Erfassen ist die Angabe leer.
+- [ ] **92.3** Die Wahl gilt erst mit «Speichern»; ohne Wahl bleibt «Keine Angabe» (neutrale Form). Beim Erfassen ist die Angabe leer.
 - [ ] **92.4** Wo eine Person mit Rolle steht, stimmt die Form: Chips im Blatt und in der Personenliste, Untertitel des Blatts, Chips der Gruppe einer Stufe («Mitglieder»), «Was darf wer?» (Personenliste), Anwesenheit (Leitende), Kopf und «Mein Konto». Die Gruppierung «Funktion» bleibt neutral («Stufenleitung», «Leitung»), damit eine Gruppe nicht in Männer und Frauen zerfällt.
 - [ ] **92.5** Die Suche findet beide Formen: «Stufenleitung» findet auch eine Stufenleiterin (Befehlspalette, «Was darf wer?», Mitglieder einer Gruppe).
-- [ ] **92.6** In «Mein Konto» ist das Feld «Geschlecht» gesperrt (`readonly`), hat Beschriftung und Hilfetext und zeigt «Weiblich», «Männlich», «Andere» oder «Keine Angabe».
+- [ ] **92.6** In «Mein Konto» ist das Feld «Geschlecht» gesperrt (`readonly`), hat Beschriftung und Hilfetext und zeigt «Weiblich», «Männlich» oder «Keine Angabe».
 - [ ] **92.7** Bei 390 und 1280 Pixel, hell und dunkel: kein waagrechtes Scrollen, die Auswahl bricht um, statt abgeschnitten zu werden; Kontrast von Text und gewählter Option mindestens 4,5 zu 1.
 
 ### Stand der Prüfung (#817)
@@ -1773,6 +1773,15 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frische Datenbank
 - **92.7:** bei 390 Pixel kein waagrechtes Scrollen (`scrollWidth` gleich `clientWidth`).
 
 **Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (nur Ansicht), 92.4 bei Anwesenheit (Leitende), «Was darf wer?» und Kopf im Browser (nur Test), 92.5 im Browser (nur Test).
+
+### Stand der Prüfung (#849)
+
+Nur noch «Weiblich», «Männlich» und «Keine Angabe»; die Option «Keine Angabe oder andere» heisst jetzt «Keine Angabe», «Mein Konto» zeigt nie mehr «Andere».
+
+- **92.1, 92.3:** Die Auswahl hat drei Optionen mit diesen Namen (`test/admin-rollenname.test.ts`).
+- **92.6:** Text gelesen: Die Anzeige kennt nur noch «Weiblich», «Männlich» und «Keine Angabe».
+
+**Nicht geprüft:** im Browser (kein Dev-Server gestartet), Bildschirmleser; 92.2, 92.4, 92.5 und 92.7 sind unverändert und nicht erneut geprüft.
 
 ## 93. Eine Anmeldeseite für Website und Verwaltung (#818)
 
@@ -1919,3 +1928,24 @@ Im Website-Editor steht oben neben «Seiten» ein Link «Zum Anlass» oder «Zum
 Geprüft im Quelltext und mit Tests (`test/rechte-website-lager-plattform.test.ts`, `test/redaktion-seiten.test.ts`, Matrix `test/lager/matrix/lager.ts`, `test/admin-lager-panel.test.ts`): welche Personen `anlassId` und `lagerId` bekommen, dass «Seite anlegen» nur mit beiden Rechten wirkt und beim zweiten Klick keine zweite Seite entsteht, dass das Löschen der Seite die Verknüpfung leert, keine Inline-Stile.
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (97.1 bis 97.7 als Verhalten: Umbruch bei 320 px, Fokus, Ansage des Ladezustands, Zoom, Hell und Dunkel), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
+
+## 98. Verwaltung und Website: Untergruppen in «Bestimmte Gruppen» und Anmeldung für sich und die Kinder (#844)
+
+Bei der Sichtbarkeit «Bestimmte Gruppen» erscheint unter jeder gewählten Stufe die Frage «Wer in «Stufe» sieht es?» mit den Kästchen «Alle», «Teilnehmende», «Gruppenleitung» und «Stufenleitung» (Einstellungen eines Anlasses, Sichtbarkeit einer Seite und eines Bausteins). Die Frage «Wer meldet sich an?» entfällt. Auf der Anmeldeseite der Website wählt die Person, für wen sie anmeldet: «Dich selbst» und ihre Kinder, soweit sie zur Zielgruppe gehören. Module: `sicht-rollen.js`, `anlass-gemeinsam.js`, `website-sichtbarkeit.js`, `website-dialoge.js`, `public/website/anmeldung.js`, `public/website/anlass.js`.
+
+### Prüfpunkte
+
+- [ ] **98.1** Die Rollen einer Stufe sind ein `fieldset` mit `legend` («Wer in «Stufe» sieht es?»), jedes Kästchen hat ein `label`; der Hilfetext hängt über `aria-describedby` am `fieldset`. Die Beschriftungen sind neutral (keine Form nach Geschlecht).
+- [ ] **98.2** Die Rollen erscheinen nur, solange die Stufe gewählt ist, direkt darunter und eingerückt, in der Tab-Reihenfolge nach der Stufe. Andere Gruppen als Stufen haben keine Rollen.
+- [ ] **98.3** «Alle» und eine Auswahl schliessen sich aus: Wer eine Rolle wählt, nimmt den Haken bei «Alle» weg; wer «Alle» wählt, nimmt die Rollen weg; ohne Rolle gilt wieder «Alle». Der Bildschirmleser sagt den neuen Zustand jedes Kästchens an.
+- [ ] **98.4** Die Zusammenfassung nennt die Rollen in Worten («Imperius (Gruppenleitung, Stufenleitung)», beim Anlass «Bestimmte Gruppen (1, nur bestimmte Rollen)»), nicht nur Farbe oder Symbol.
+- [ ] **98.5** «Verwerfen» setzt auch die Rollen zurück; die Zahl der ungespeicherten Änderungen zählt eine Änderung der Rollen mit.
+- [ ] **98.6** Anmeldeseite: «Für wen meldest du an?» ist eine Gruppe von Umschaltknöpfen (`aria-pressed`) mit «Dich selbst» und den Vornamen der Kinder, per Pfeiltasten bedienbar. Gehört niemand zur Zielgruppe, steht statt des Formulars «Für diesen Anlass kannst du niemanden anmelden.» mit dem nächsten Schritt.
+- [ ] **98.7** Texte nach der Wahl: «Du bist angemeldet.», «Vorname ist angemeldet.», «Du und Vorname sind angemeldet.»; beim Abmelden «Du wirst von … abgemeldet.» oder «Vorname wird …».
+- [ ] **98.8** Tastatur und Darstellung: alles mit Tab, Leertaste und Pfeiltasten erreichbar, Fokus sichtbar (mindestens 3 : 1) in Hell und Dunkel; Kästchen 48 px hoch; bei 320 px Breite und 200 % Zoom brechen die Rollen in Zeilen um, ohne waagrechtes Scrollen.
+
+### Stand der Prüfung (#844)
+
+Geprüft im Quelltext und mit Tests: Sicht je Rolle (SQL und Einzelprüfung, `test/sichtbarkeit.test.ts`), Zielgruppe und Anmeldung je Persona (`test/termine/anlaesse.test.ts`), Rundlauf der Rollen über die Routen (`test/termine/admin-anlaesse.test.ts`, `test/redaktion-seiten.test.ts`), Texte der Anmeldeseite (`test/website-termine-skripte.test.ts`).
+
+**Nicht geprüft:** alles im Browser und mit Bildschirmleser (98.1 bis 98.8 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.

@@ -415,6 +415,28 @@ describe("Anlegen", () => {
     expect((await gelesen.json()) as object).toMatchObject({
       sichtbarkeit: { art: "tags", tagIds: [eigenerTag] },
     });
+    // Untergruppen (#844): Rollen je Tag werden gespeichert und gelesen; ein Schlüssel ausserhalb der Tags ist 400
+    const mitRollen = {
+      art: "tags",
+      tagIds: [eigenerTag],
+      rollen: { [eigenerTag]: ["leitung", "stufenleitung"] },
+    };
+    const geaendert = await anfrage(admin, "PATCH", `${BASIS}/${id}`, {
+      sichtbarkeit: mitRollen,
+    });
+    expect(geaendert.status).toBeLessThan(300);
+    const nachher = (await (
+      await anfrage(admin, "GET", `${BASIS}/${id}`)
+    ).json()) as { sichtbarkeit: unknown };
+    expect(nachher.sichtbarkeit).toEqual(mitRollen);
+    const falsch = await anfrage(admin, "PATCH", `${BASIS}/${id}`, {
+      sichtbarkeit: {
+        art: "tags",
+        tagIds: [eigenerTag],
+        rollen: { [demoTag]: ["leitung"] },
+      },
+    });
+    expect(falsch.status).toBe(400);
   });
 
   test("eine Gruppe hat höchstens eine Seite", async () => {

@@ -214,7 +214,7 @@ describe("Seiten und Sichtbarkeit", () => {
     abteilungId: "abt-1",
     abteilungsleitung,
     entwickler,
-    tagIds: [],
+    gruppen: [],
   });
 
   test("ein Objekt mit Tags sieht der Entwickler ohne eigenen Tag, die Person ohne Rolle nicht", () => {

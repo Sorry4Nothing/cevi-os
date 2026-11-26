@@ -118,7 +118,6 @@ const feld = (werte: Record<string, unknown> = {}) => ({
 const anlegen = (programmId: string, werte: Record<string, unknown> = {}) =>
   anfrage(leitung, "POST", BASIS, {
     programmId,
-    anmeldungFuer: "kind",
     anmeldungOffen: true,
     sichtbarkeit: { art: "angemeldet" },
     felder: [],
@@ -185,11 +184,12 @@ describe("Anlass anlegen", () => {
       programmId: termin,
       art: "anlass",
       anmeldungOffen: true,
-      anmeldungFuer: "person",
       sichtbarkeit: "angemeldet",
       sichtbarkeitTags: [],
       seiteId,
     });
+    // «anmeldungFuer» älterer Clients wird angenommen und ignoriert (#844)
+    expect(zeile).not.toHaveProperty("anmeldungFuer");
     expect(zeile!.frist!.toISOString()).toBe("2027-02-20T17:00:00.000Z");
     expect(zeile!.erstelltVon).toBe(leitung.id);
 
@@ -305,7 +305,6 @@ describe("Anlass anlegen", () => {
     // Die Abteilungsleitung der anderen Abteilung kennt unseren Termin nicht
     const ausFremder = await anfrage(fremdeLeitung, "POST", BASIS, {
       programmId: eigener,
-      anmeldungFuer: "kind",
       anmeldungOffen: true,
       sichtbarkeit: { art: "angemeldet" },
     });
@@ -313,7 +312,6 @@ describe("Anlass anlegen", () => {
     for (const konto of [eltern, ohneFaktor]) {
       const a = await anfrage(konto, "POST", BASIS, {
         programmId: eigener,
-        anmeldungFuer: "kind",
         anmeldungOffen: true,
         sichtbarkeit: { art: "angemeldet" },
       });
@@ -546,6 +544,51 @@ describe("Liste und Detail", () => {
 });
 
 describe("Ändern", () => {
+  test("Untergruppen (#844): Rollen je Stufe speichern und lesen, ohne Einschränkung fehlt «rollen», ungültige Rollen 400", async () => {
+    const { id } = await neuerAnlass();
+    const p = (sichtbarkeit: Record<string, unknown>) =>
+      anfrage(leitung, "PATCH", `${BASIS}/${id}`, { sichtbarkeit });
+    const lies = async () =>
+      (await anfrage(leitung, "GET", `${BASIS}/${id}`)).body.sichtbarkeit;
+    const mitRollen = {
+      art: "tags",
+      tagIds: [welt.stufeAId, welt.stufeBId],
+      rollen: { [welt.stufeAId]: ["leitung", "stufenleitung"] },
+    };
+    expect((await p(mitRollen)).status).toBe(204);
+    expect(await lies()).toEqual(mitRollen);
+    expect((await p({ art: "tags", tagIds: [welt.stufeAId] })).status).toBe(
+      204,
+    );
+    expect(await lies()).toEqual({ art: "tags", tagIds: [welt.stufeAId] });
+    for (const falsch of [
+      // Schlüssel nicht unter den Tags, unbekannte Rolle, leere Liste, Rollen ohne «tags»
+      {
+        art: "tags",
+        tagIds: [welt.stufeAId],
+        rollen: { [welt.stufeBId]: ["leitung"] },
+      },
+      {
+        art: "tags",
+        tagIds: [welt.stufeAId],
+        rollen: { [welt.stufeAId]: ["eltern"] },
+      },
+      { art: "tags", tagIds: [welt.stufeAId], rollen: { [welt.stufeAId]: [] } },
+      { art: "angemeldet", rollen: {} },
+    ]) {
+      expect((await p(falsch)).status).toBe(400);
+    }
+    // Eine Stufe der anderen Abteilung bleibt TAG_UNBEKANNT, auch mit Rollen
+    const fremd = await p({
+      art: "tags",
+      tagIds: [welt.demoStufeId],
+      rollen: { [welt.demoStufeId]: ["leitung"] },
+    });
+    expect(fremd.status).toBe(400);
+    expect(fremd.body.code).toBe("TAG_UNBEKANNT");
+    expect(await lies()).toEqual({ art: "tags", tagIds: [welt.stufeAId] });
+  });
+
   test("setzt Anmeldung, Frist und Sichtbarkeit; frist null löscht, ein leerer Körper ändert nichts", async () => {
     const { id } = await neuerAnlass({ frist: "2027-01-01T10:00:00Z" });
     const p = (body: Record<string, unknown>) =>
@@ -562,13 +605,12 @@ describe("Ändern", () => {
       anmeldungOffen: false,
       frist: null,
       sichtbarkeit: { art: "tags", tagIds: [welt.stufeBId] },
-      anmeldungFuer: "kind",
     });
+    expect(d).not.toHaveProperty("anmeldungFuer");
     expect((await p({ anmeldungFuer: "person" })).status).toBe(204);
     expect((await p({ frist: "2027-03-01T10:00:00Z" })).status).toBe(204);
     const d2 = (await anfrage(leitung, "GET", `${BASIS}/${id}`)).body;
     expect(d2).toMatchObject({
-      anmeldungFuer: "person",
       frist: "2027-03-01T10:00:00.000Z",
     });
   });
@@ -591,19 +633,14 @@ describe("Ändern", () => {
     expect((await p(eltern, { anmeldungOffen: false })).status).toBe(403);
   });
 
-  test("anmeldungFuer lässt sich mit Anmeldungen nicht ändern, derselbe Wert schon", async () => {
+  test("«anmeldungFuer» älterer Clients wird ignoriert, auch mit Anmeldungen (#844)", async () => {
     const { id } = await neuerAnlass();
     vi.mocked(zaehleAnmeldungen).mockResolvedValue(3);
     try {
-      const geaendert = await anfrage(leitung, "PATCH", `${BASIS}/${id}`, {
-        anmeldungFuer: "person",
-      });
-      expect(geaendert.status).toBe(409);
-      expect(geaendert.body.code).toBe("ANMELDUNGEN_VORHANDEN");
       expect(
         (
           await anfrage(leitung, "PATCH", `${BASIS}/${id}`, {
-            anmeldungFuer: "kind",
+            anmeldungFuer: "person",
             anmeldungOffen: false,
           })
         ).status,
@@ -612,7 +649,8 @@ describe("Ändern", () => {
       vi.mocked(zaehleAnmeldungen).mockResolvedValue(0);
     }
     const d = (await anfrage(leitung, "GET", `${BASIS}/${id}`)).body;
-    expect(d).toMatchObject({ anmeldungFuer: "kind", anmeldungOffen: false });
+    expect(d).toMatchObject({ anmeldungOffen: false });
+    expect(d).not.toHaveProperty("anmeldungFuer");
   });
 });
 

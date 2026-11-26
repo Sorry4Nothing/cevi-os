@@ -83,7 +83,6 @@ const daten = () => ({
     {
       id: "a1",
       titel: "Sommerfest",
-      fuer: "",
       zeitText: "Sa 06.02.2027, ganztägig",
       status: { text: "Anmeldung offen", art: "ok" },
     },

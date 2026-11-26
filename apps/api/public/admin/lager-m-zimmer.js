@@ -495,13 +495,6 @@ function zeichne(bereich, ctx, { k, a, offenT, offenP }, neu) {
       bereich,
       leerKarte(
         "Noch keine Zimmer oder Zelte. Lege das erste an und teile dann die Personen ein.",
-        [
-          knopf("Zimmer anlegen", {
-            art: "haupt",
-            symbol: "plus",
-            onclick: () => formular(ctx, k, null, neu),
-          }),
-        ],
       ),
     );
   haenge(

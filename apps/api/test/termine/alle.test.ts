@@ -401,7 +401,6 @@ describe("Alle Termine: Anlässe", () => {
         abteilungId: welt.testabteilungId,
         programmId: id,
         art: "anlass",
-        anmeldungFuer: "kind",
         sichtbarkeit: sicht as "angemeldet",
         sichtbarkeitTags: sichtTags,
       });

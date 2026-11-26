@@ -926,17 +926,17 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "angelegt",
     gruppe: "angelegt",
   },
-  "POST /api/v1/admin/lager/:p/seite": {
-    titel: "Seite des Lagers auf der Website anlegen",
-    objekt: "Seite des Lagers auf der Website",
-    aktion: "angelegt",
-    gruppe: "angelegt",
-  },
   "POST /api/v1/admin/lager/:p/rechte/zuruecksetzen": {
     titel: "Rechte auf den Standard zurücksetzen",
     objekt: "Rechte der Lagerrollen",
     aktion: "zurückgesetzt",
     gruppe: "geaendert",
+  },
+  "POST /api/v1/admin/lager/:p/seite": {
+    titel: "Seite des Lagers auf der Website anlegen",
+    objekt: "Seite des Lagers auf der Website",
+    aktion: "angelegt",
+    gruppe: "angelegt",
   },
   "POST /api/v1/admin/medien": {
     titel: "Bild hochladen",
@@ -1212,6 +1212,12 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     objekt: "Tauschanfrage",
     aktion: "entschieden",
     gruppe: "entschieden",
+  },
+  "POST /api/v1/lager/:p/diensttausch/:p/entscheid/zuruecknehmen": {
+    titel: "Entscheid einer Tauschanfrage zurücknehmen",
+    objekt: "Entscheid einer Tauschanfrage",
+    aktion: "zurückgenommen",
+    gruppe: "geloescht",
   },
   "POST /api/v1/lager/:p/diensttausch/:p/zurueckziehen": {
     titel: "Tauschanfrage zurückziehen",

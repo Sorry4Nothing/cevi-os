@@ -547,6 +547,26 @@ describe("POST /admin/termin-vorschlaege/{id}/entscheid", () => {
     }
   });
 
+  test("Schalter pushTerminEntscheid aus (#847): kein Push, der Entscheid gilt", async () => {
+    const sl = await legePersonaAn(welt, "slA");
+    await token(sl);
+    const id = await vorschlag(sl.id!);
+    const aus = await aufruf(sl, "PATCH", "/api/v1/ich", {
+      pushTerminEntscheid: false,
+    });
+    expect(aus.status).toBe(204);
+    fcmAttrappe.zuruecksetzen();
+    const antwort = await aufruf(
+      konten.admin,
+      "POST",
+      `${ADMIN}/${id}/entscheid`,
+      { entscheid: "freigeben" },
+    );
+    expect(antwort.status).toBe(200);
+    expect((await zeile(id)).status).toBe("freigegeben");
+    expect(fcmAttrappe.nachrichten).toEqual([]);
+  });
+
   test("ohne Konto der vorschlagenden Person (gelöscht oder deaktiviert) kein Push, der Entscheid gilt", async () => {
     const alt = await legePersonaAn(welt, "slA");
     await token(alt);

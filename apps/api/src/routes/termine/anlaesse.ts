@@ -25,13 +25,16 @@ import {
 import {
   anlassSichtbar,
   anmeldungOffenSql,
+  kindInZielgruppe,
+  selbstInZielgruppe,
 } from "../../termine/anlass-sicht.js";
 import type { Person } from "../../rechte.js";
+import { sichtbarkeitAusSpalten } from "../../sichtbarkeit.js";
 import type { TermineEnv } from "./index.js";
 
 // Anmeldung zu einem Anlass über das Konto (#443, Epic #430): Vorlage, Anmelden, Ändern, Abmelden.
-// Wer den Anlass sehen darf (termine/anlass-anmeldungen.ts, sichtbarkeit.ts), darf sich anmelden; bei «kind» melden Eltern nur ihre eigenen aktiven Kinder an, bei «person» jede Person sich selbst. Alles andere ist 404.
-// Abfragen: GET 2 (Anlass mit Termin, Name und Feldern; Teilnehmende mit Anmeldungen), PUT höchstens 4 und DELETE höchstens 4 in einer Transaktion (Anlass sperren und lesen, Kind prüfen, Schreiben, Audit). Nie je Kind.
+// Wer den Anlass sehen darf (termine/anlass-sicht.ts, sichtbarkeit.ts), meldet an, wer zur Zielgruppe gehört (#844): sich selbst und seine verbundenen aktiven Kinder (als Elternteil oder über das eigene Konto des Kindes). Unsichtbare Anlässe und fremde Kinder sind 404, wer nicht zur Zielgruppe gehört, ist 403.
+// Abfragen: GET 3 (Anlass mit Termin, Name und Feldern; eigene Anmeldung; Kinder mit Anmeldungen), PUT höchstens 4 und DELETE höchstens 4 in einer Transaktion (Anlass sperren und lesen, Kind prüfen, Schreiben, Audit). Nie je Kind.
 
 const pfadSchema = z.strictObject({ id: z.uuid() });
 const putSchema = z.strictObject({
@@ -47,13 +50,9 @@ const ANMELDUNG_GESCHLOSSEN = {
   code: "ANMELDUNG_GESCHLOSSEN",
   message: "Die Anmeldung ist geschlossen.",
 } as const;
-const KIND_PFLICHT = {
-  code: "KIND_ID_PFLICHT",
-  message: "Bei diesem Anlass gehört die Anmeldung zu einem Kind.",
-} as const;
-const KIND_VERBOTEN = {
-  code: "KIND_ID_VERBOTEN",
-  message: "Bei diesem Anlass meldet sich die Person selbst an.",
+const NICHT_IN_ZIELGRUPPE = {
+  code: "NICHT_IN_ZIELGRUPPE",
+  message: "Dieser Anlass richtet sich an eine andere Gruppe.",
 } as const;
 const ANTWORTEN_UNGUELTIG = {
   code: "ANTWORTEN_UNGUELTIG",
@@ -86,7 +85,7 @@ export function erstelleAnlaesseRouten({
     return voll;
   };
 
-  // Der Anlass mit Termin, Name der Person und allen Feldern in einer Abfrage, nur wenn die Person ihn sehen darf (fremd, unbekannt und unsichtbar sind 404). Mit sperren hält die Transaktion den Anlass fest (FOR SHARE): Die Verwaltung ändert Felder und «anmeldungFuer» nur mit FOR UPDATE und wartet, bis die Anmeldung committet ist
+  // Der Anlass mit Termin, Name der Person und allen Feldern in einer Abfrage, nur wenn die Person ihn sehen darf (fremd, unbekannt und unsichtbar sind 404). Mit sperren hält die Transaktion den Anlass fest (FOR SHARE): Die Verwaltung ändert Felder und Sichtbarkeit nur mit FOR UPDATE und wartet, bis die Anmeldung committet ist
   async function ladeAnlass(
     q: Db | Tx,
     person: Person,
@@ -103,7 +102,10 @@ export function erstelleAnlaesseRouten({
         ende: programm.ende,
         tagVon: programm.tagVon,
         tagBis: programm.tagBis,
-        anmeldungFuer: anlass.anmeldungFuer,
+        sichtbarkeit: anlass.sichtbarkeit,
+        sichtbarkeitTags: anlass.sichtbarkeitTags,
+        sichtbarkeitRollen: anlass.sichtbarkeitRollen,
+        selbst: selbstInZielgruppe(person),
         frist: anlass.frist,
         offen: anmeldungOffenSql,
         name: user.name,
@@ -134,17 +136,19 @@ export function erstelleAnlaesseRouten({
       : abfrage);
     const kopf = zeilen[0];
     if (!kopf) throw new HTTPException(404);
-    // Die Felder stehen in felder; «feld» der ersten Zeile bleibt unbenutzt
+    // Die Felder stehen in felder; «feld» der ersten Zeile bleibt unbenutzt. Ein Kind mit eigenem Konto meldet sich als Kind an, nie als Person
     return {
       ...kopf,
+      sicht: sichtbarkeitAusSpalten(kopf),
+      selbst: kopf.selbst && !person.kindId,
       felder: zeilen.flatMap((z) => (z.feld?.schluessel ? [z.feld] : [])),
     };
   }
 
-  // Das Kind muss ein aktives Kind der Person in ihrer Abteilung sein, sonst 404 (auch für Kinder anderer Eltern)
+  // Das Kind muss ein aktives Kind der Person in ihrer Abteilung sein, sonst 404 (auch für Kinder anderer Eltern). Gibt seine Stufe zurück
   async function pruefeKind(q: Db | Tx, person: Person, kindId: string) {
     const [eigenes] = await q
-      .select({ id: kind.id })
+      .select({ stufeId: kind.stufeId })
       .from(kind)
       .innerJoin(
         kindZugang,
@@ -158,22 +162,19 @@ export function erstelleAnlaesseRouten({
         ),
       );
     if (!eigenes) throw new HTTPException(404);
+    return eigenes.stufeId;
   }
 
-  // kindId gehört nur zu «kind»; sonst 400. Gibt die Antwort mit Fehler zurück oder prüft das Kind
+  // Für wen angemeldet wird: ohne kindId die Person selbst, sonst ein eigenes Kind (pruefeKind). Beide nur in der Zielgruppe; gibt sonst den Fehler zurück
   async function pruefeZiel(
     q: Db | Tx,
     person: Person,
-    ziel: { anmeldungFuer: "kind" | "person" },
+    a: Awaited<ReturnType<typeof ladeAnlass>>,
     kindId: string | undefined,
   ) {
-    if (ziel.anmeldungFuer === "kind") {
-      if (kindId === undefined) return KIND_PFLICHT;
-      await pruefeKind(q, person, kindId);
-    } else if (kindId !== undefined) {
-      return KIND_VERBOTEN;
-    }
-    return null;
+    if (kindId === undefined) return a.selbst ? null : NICHT_IN_ZIELGRUPPE;
+    const stufeId = await pruefeKind(q, person, kindId);
+    return kindInZielgruppe(a.sicht, stufeId) ? null : NICHT_IN_ZIELGRUPPE;
   }
 
   const ausgabe = (z: {
@@ -218,53 +219,9 @@ export function erstelleAnlaesseRouten({
         eintraege.flatMap(([schluessel, beschriftung, wert]) =>
           wert ? [{ schluessel, beschriftung, wert }] : [],
         );
-      let teilnehmende;
-      if (a.anmeldungFuer === "kind") {
-        // Alle aktiven Kinder der Person mit ihrer Anmeldung, eine Abfrage (die Anmeldung gehört dem Kind, auch wenn der andere Elternteil sie angelegt hat)
-        const kinder = await db
-          .select({
-            kindId: kind.id,
-            vorname: kind.vorname,
-            nachname: kind.nachname,
-            ceviName: kind.ceviName,
-            stufe: tag.name,
-            ...anmeldungSpalten,
-          })
-          .from(kind)
-          .innerJoin(
-            kindZugang,
-            and(
-              eq(kindZugang.kindId, kind.id),
-              eq(kindZugang.userId, person.id),
-            ),
-          )
-          .innerJoin(tag, eq(tag.id, kind.stufeId))
-          .leftJoin(
-            anlassAnmeldung,
-            and(
-              eq(anlassAnmeldung.kindId, kind.id),
-              eq(anlassAnmeldung.anlassId, id),
-            ),
-          )
-          .where(
-            and(
-              eq(kind.abteilungId, person.abteilungId),
-              isNull(kind.inaktivSeit),
-            ),
-          )
-          .orderBy(asc(kind.vorname), asc(kind.id));
-        teilnehmende = kinder.map((k) => ({
-          kindId: k.kindId,
-          name: k.ceviName ?? `${k.vorname} ${k.nachname}`,
-          konto: konto([
-            ["vorname", "Vorname", k.vorname],
-            ["nachname", "Nachname", k.nachname],
-            ["cevi_name", "Cevi-Name", k.ceviName],
-            ["stufe", "Stufe", k.stufe],
-          ]),
-          anmeldung: anmeldung(k),
-        }));
-      } else {
+      // Die Person selbst, wenn sie zur Zielgruppe gehört
+      const selbst = [];
+      if (a.selbst) {
         const [eigene] = await db
           .select(anmeldungSpalten)
           .from(anlassAnmeldung)
@@ -275,18 +232,63 @@ export function erstelleAnlaesseRouten({
               isNull(anlassAnmeldung.kindId),
             ),
           );
-        teilnehmende = [
-          {
-            kindId: null,
-            name: a.ceviName ?? a.name,
-            konto: konto([
-              ["name", "Name", a.name],
-              ["cevi_name", "Cevi-Name", a.ceviName],
-            ]),
-            anmeldung: eigene ? anmeldung(eigene) : null,
-          },
-        ];
+        selbst.push({
+          kindId: null,
+          name: a.ceviName ?? a.name,
+          konto: konto([
+            ["name", "Name", a.name],
+            ["cevi_name", "Cevi-Name", a.ceviName],
+          ]),
+          anmeldung: eigene ? anmeldung(eigene) : null,
+        });
       }
+      // Die verbundenen aktiven Kinder der Person mit ihrer Anmeldung, eine Abfrage (die Anmeldung gehört dem Kind, auch wenn der andere Elternteil sie angelegt hat); nur die der Zielgruppe
+      const kinder = await db
+        .select({
+          kindId: kind.id,
+          vorname: kind.vorname,
+          nachname: kind.nachname,
+          ceviName: kind.ceviName,
+          stufeId: kind.stufeId,
+          stufe: tag.name,
+          ...anmeldungSpalten,
+        })
+        .from(kind)
+        .innerJoin(
+          kindZugang,
+          and(eq(kindZugang.kindId, kind.id), eq(kindZugang.userId, person.id)),
+        )
+        .innerJoin(tag, eq(tag.id, kind.stufeId))
+        .leftJoin(
+          anlassAnmeldung,
+          and(
+            eq(anlassAnmeldung.kindId, kind.id),
+            eq(anlassAnmeldung.anlassId, id),
+          ),
+        )
+        .where(
+          and(
+            eq(kind.abteilungId, person.abteilungId),
+            isNull(kind.inaktivSeit),
+          ),
+        )
+        .orderBy(asc(kind.vorname), asc(kind.id));
+      const teilnehmende = [
+        ...selbst,
+        ...kinder
+          .filter((k) => kindInZielgruppe(a.sicht, k.stufeId))
+          .map((k) => ({
+            kindId: k.kindId,
+            name: k.ceviName ?? `${k.vorname} ${k.nachname}`,
+            konto: konto([
+              ["vorname", "Vorname", k.vorname],
+              ["nachname", "Nachname", k.nachname],
+              ["cevi_name", "Cevi-Name", k.ceviName],
+              ["stufe", "Stufe", k.stufe],
+            ]),
+            anmeldung: anmeldung(k),
+          })),
+      ];
       return c.json({
         id: a.id,
         terminId: a.programmId,
@@ -298,7 +300,8 @@ export function erstelleAnlaesseRouten({
         tagBis: a.tagBis,
         anmeldungOffen: a.offen,
         frist: a.frist,
-        anmeldungFuer: a.anmeldungFuer,
+        // Veraltet (#844), nur noch für ältere Apps: «kind», sobald ein Kind zur Auswahl steht
+        anmeldungFuer: teilnehmende.some((t) => t.kindId) ? "kind" : "person",
         felder: a.felder,
         teilnehmende,
       });
@@ -315,7 +318,7 @@ export function erstelleAnlaesseRouten({
         const ergebnis = await db.transaction(async (tx) => {
           const a = await ladeAnlass(tx, person, id, true);
           const fehlerZiel = await pruefeZiel(tx, person, a, kindId);
-          if (fehlerZiel) return { status: 400 as const, body: fehlerZiel };
+          if (fehlerZiel) return { status: 403 as const, body: fehlerZiel };
           if (!a.offen)
             return { status: 409 as const, body: ANMELDUNG_GESCHLOSSEN };
           const geprueft = pruefeAntworten(a.felder, antworten);
@@ -404,8 +407,8 @@ export function erstelleAnlaesseRouten({
         if (zuViele(person.id)) throw new HTTPException(429);
         const fehler = await db.transaction(async (tx) => {
           const a = await ladeAnlass(tx, person, id, true);
-          const fehlerZiel = await pruefeZiel(tx, person, a, kindId);
-          if (fehlerZiel) return { status: 400 as const, body: fehlerZiel };
+          // Abmelden geht ohne Zielgruppe: Wer angemeldet ist, kommt wieder heraus, auch wenn sich die Zielgruppe geändert hat. Ein fremdes Kind bleibt 404
+          if (kindId !== undefined) await pruefeKind(tx, person, kindId);
           // Auch das Abmelden endet mit dem Anmeldeschluss: Danach gilt die Anmeldung, die die Leitung plant
           if (!a.offen)
             return { status: 409 as const, body: ANMELDUNG_GESCHLOSSEN };

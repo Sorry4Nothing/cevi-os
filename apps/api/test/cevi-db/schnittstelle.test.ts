@@ -4,6 +4,7 @@ import {
   CeviDbFehler,
   MAX_BYTES_SEITE,
   erstelleCeviDbClient,
+  geschlechtAus,
 } from "../../src/cevi-db/client.js";
 import {
   FEHLER_MERKEN_MS,
@@ -28,6 +29,7 @@ const person = (id: string, mehr: Partial<CeviPerson> = {}): CeviPerson => ({
   strasse: null,
   plz: null,
   ort: null,
+  geschlecht: null,
   ...mehr,
 });
 
@@ -224,9 +226,42 @@ describe("Client", () => {
       strasse: "Teststrasse 1",
       plz: "8000",
       ort: "Testdorf",
+      geschlecht: "w",
     });
-    // gender und nickname sind nirgends mehr zu finden
+    // gender kommt nur abgebildet im Feld geschlecht an (#843), nie roh; nickname ist nirgends zu finden
     expect(JSON.stringify(personen)).not.toMatch(/Sunny|"gender"/);
+    expect(Object.keys(personen[0]!)).not.toContain("gender");
+  });
+
+  test.each([
+    ["w", "w"],
+    ["m", "m"],
+    [null, null],
+    [undefined, null],
+    ["", null],
+    [" w", null],
+    ["W", null],
+    ["d", null],
+    ["x", null],
+    ["weiblich", null],
+    [1, null],
+    [true, null],
+  ])("Geschlecht: %j ergibt %j (nie eine Vermutung)", (roh, erwartet) => {
+    expect(geschlechtAus(roh)).toBe(erwartet);
+  });
+
+  test("ein unerwarteter Typ bei gender bricht den Abruf nicht ab, er ist keine Angabe", async () => {
+    const holen = vi.fn(async (ziel: URL | string | Request) =>
+      new URL(String(ziel)).searchParams.get("page[number]") === "1"
+        ? seite([roh(1, { gender: { wert: "w" } }), roh(2, { gender: "" })])
+        : seite([]),
+    );
+    const personen = await erstelleCeviDbClient({
+      url: URL_,
+      token: TOKEN,
+      holen: holen as unknown as typeof fetch,
+    }).personen();
+    expect(personen.map((p) => p.geschlecht)).toEqual([null, null]);
   });
 
   test("eine Seite ohne neue Person beendet den Abruf (die Gegenseite ignoriert die Seitenzahl)", async () => {
@@ -382,6 +417,37 @@ describe("Dienst (Zwischenspeicher im Arbeitsspeicher)", () => {
     const zeilen = log.mock.calls.map((c) => String(c[0])).join("\n");
     expect(zeilen).toContain("nicht_erreichbar");
     expect(zeilen).not.toContain(TOKEN);
+    log.mockRestore();
+  });
+
+  test("beiPersonen bekommt die Personen nur nach einem erfolgreichen Abruf, ein Fehler dort stört nichts (#843)", async () => {
+    const log = stumm();
+    const beiPersonen = vi.fn(async () => {
+      throw new Error("Datenbank weg");
+    });
+    const ok = erstelleCeviDbDienst({
+      client: {
+        personen: async () => [person("1", { geschlecht: "w" })],
+        pruefe: async () => ({ gruppe: null }),
+      },
+      beiPersonen,
+    });
+    expect((await ok.personen("a")).ok).toBe(true);
+    expect(beiPersonen).toHaveBeenCalledWith("a", [
+      expect.objectContaining({ id: "1", geschlecht: "w" }),
+    ]);
+    beiPersonen.mockClear();
+    const kaputt = erstelleCeviDbDienst({
+      client: {
+        personen: async () => {
+          throw new CeviDbFehler("abgelehnt");
+        },
+        pruefe: async () => ({ gruppe: null }),
+      },
+      beiPersonen,
+    });
+    expect((await kaputt.personen("a")).ok).toBe(false);
+    expect(beiPersonen).not.toHaveBeenCalled();
     log.mockRestore();
   });
 

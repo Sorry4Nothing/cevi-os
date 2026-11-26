@@ -555,6 +555,193 @@ describe("Sichtbarkeit", () => {
   });
 });
 
+// Lesen für die Apps (#847): dieselbe Sichtbarkeit wie das Senden
+describe("Definition und Liste für die App", () => {
+  const lies = (konto: PersonaKonto | null, pfad: string) =>
+    app.request(pfad, { headers: konto?.headers ?? {} });
+  const definition = (konto: PersonaKonto | null, formularId: string) =>
+    lies(konto, `/api/v1/formulare/${formularId}`);
+  const liste = async (konto: PersonaKonto) => {
+    const a = await lies(konto, "/api/v1/formulare");
+    expect(a.status).toBe(200);
+    return (await json(a)).formulare as {
+      id: string;
+      titel: string | null;
+      seitenTitel: string;
+      schliesstAm: string | null;
+      beantwortet: boolean;
+    }[];
+  };
+
+  test("öffentlich: die Definition zum Ausfüllen, ohne Aufbewahrung und Obergrenze", async () => {
+    const f = await seite("oeffentlich", { schliesstAm: "2099-12-31" });
+    const a = await definition(null, f.formularId);
+    expect(a.status).toBe(200);
+    expect(await json(a)).toEqual({
+      id: f.formularId,
+      titel: "Sommerlager",
+      einleitung: null,
+      felder: felder(),
+      datenschutz: "Wir planen das Lager. Die Leitung sieht die Antworten.",
+      absenden: "Antwort senden",
+      danke: "Danke. Deine Antwort ist angekommen.",
+      schliesstAm: "2099-12-31",
+      geschlossen: false,
+      eineProPerson: false,
+      beantwortet: false,
+    });
+  });
+
+  test("Sichtbarkeit wie beim Senden: Seite und Baustein, unbekannt und nicht sichtbar beide 404", async () => {
+    const ang = await seite("angemeldet");
+    expect((await definition(null, ang.formularId)).status).toBe(404);
+    expect((await definition(demoEltern, ang.formularId)).status).toBe(404);
+    expect((await definition(elternA, ang.formularId)).status).toBe(200);
+    const gruppe = await seite("tags");
+    expect((await definition(elternA, gruppe.formularId)).status).toBe(404);
+    expect((await definition(leitendeA, gruppe.formularId)).status).toBe(200);
+    expect((await definition(admin, gruppe.formularId)).status).toBe(200);
+    const baustein = await seite(
+      "oeffentlich",
+      {},
+      { art: "tags", tagIds: [tagId] },
+    );
+    expect((await definition(null, baustein.formularId)).status).toBe(404);
+    expect((await definition(elternA, baustein.formularId)).status).toBe(404);
+    expect((await definition(leitendeA, baustein.formularId)).status).toBe(200);
+    const entwurf = await seite(
+      "oeffentlich",
+      {},
+      undefined,
+      welt.testabteilungId,
+      false,
+    );
+    const nicht = await definition(elternA, entwurf.formularId);
+    const unbekannt = await definition(elternA, randomUUID());
+    expect(nicht.status).toBe(404);
+    expect(unbekannt.status).toBe(404);
+    expect(await nicht.text()).toBe(await unbekannt.text());
+    expect((await definition(elternA, ang.formularId + "x")).status).toBe(400);
+  });
+
+  test("geschlossen bleibt lesbar, mit geschlossen: true", async () => {
+    const f = await seite("oeffentlich", { schliesstAm: "2000-01-01" });
+    const a = await definition(null, f.formularId);
+    expect(a.status).toBe(200);
+    expect(await json(a)).toMatchObject({
+      schliesstAm: "2000-01-01",
+      geschlossen: true,
+    });
+  });
+
+  test("beantwortet: nur die eigene Antwort zählt, ohne Anmeldung immer false", async () => {
+    const f = await seite("angemeldet", { eineProPerson: true });
+    expect(
+      (await json(await definition(elternA, f.formularId))).beantwortet,
+    ).toBe(false);
+    expect((await sende(elternA, f.formularId, body(gueltig()))).status).toBe(
+      201,
+    );
+    expect(await json(await definition(elternA, f.formularId))).toMatchObject({
+      eineProPerson: true,
+      beantwortet: true,
+    });
+    expect((await json(await definition(slA, f.formularId))).beantwortet).toBe(
+      false,
+    );
+    const offen = await seite("oeffentlich");
+    await sende(null, offen.formularId, body(gueltig()));
+    expect(
+      (await json(await definition(null, offen.formularId))).beantwortet,
+    ).toBe(false);
+  });
+
+  test("Liste: nur angemeldet, nur offene und sichtbare Formulare der eigenen Abteilung", async () => {
+    expect((await lies(null, "/api/v1/formulare")).status).toBe(401);
+    const offen = await seite("angemeldet", { schliesstAm: "2099-12-31" });
+    const zu = await seite("angemeldet", { schliesstAm: "2000-01-01" });
+    const gruppe = await seite("tags");
+    const entwurf = await seite(
+      "angemeldet",
+      {},
+      undefined,
+      welt.testabteilungId,
+      false,
+    );
+    const demo = await seite(
+      "oeffentlich",
+      {},
+      undefined,
+      welt.demoAbteilungId,
+    );
+    await sende(elternA, offen.formularId, body(gueltig()));
+
+    const eltern = await liste(elternA);
+    const ids = eltern.map((f) => f.id);
+    expect(eltern).toContainEqual({
+      id: offen.formularId,
+      titel: "Sommerlager",
+      seitenTitel: expect.stringMatching(/^Seite f-/),
+      schliesstAm: "2099-12-31",
+      beantwortet: true,
+    });
+    for (const weg of [zu, gruppe, entwurf, demo]) {
+      expect(ids).not.toContain(weg.formularId);
+    }
+    // Nur die Felder der Liste, keine Definition
+    expect(Object.keys(eltern[0]!).sort()).toEqual([
+      "beantwortet",
+      "id",
+      "schliesstAm",
+      "seitenTitel",
+      "titel",
+    ]);
+    const leitende = await liste(leitendeA);
+    expect(leitende.map((f) => f.id)).toContain(gruppe.formularId);
+    expect(leitende.find((f) => f.id === offen.formularId)?.beantwortet).toBe(
+      false,
+    );
+    expect((await liste(demoEltern)).map((f) => f.id)).toContain(
+      demo.formularId,
+    );
+  });
+
+  test("Sperre der Website: 423 für Definition und Liste; Wartung lässt das Lesen zu", async () => {
+    const f = await seite("oeffentlich");
+    const schalter = (
+      await import("../src/bereichsschalter.js")
+    ).erstelleSchalterZustand();
+    const gesperrt = erstelleApp({
+      appMinVersion: "1.2.0",
+      sql,
+      db,
+      auth,
+      seiten: ladeSeiten(),
+      schalter,
+    });
+    const setze = (art: "sperre" | "wartung") =>
+      schalter.setze({
+        id: randomUUID(),
+        abteilungId: welt.testabteilungId,
+        bereich: "website",
+        art,
+        hinweis: null,
+        ende: null,
+        websiteOffline: false,
+        ausgeloestVon: "test",
+        ausgeloestAm: new Date(),
+      });
+    const hole = (pfad: string) =>
+      gesperrt.request(pfad, { headers: elternA.headers });
+    setze("sperre");
+    expect((await hole(`/api/v1/formulare/${f.formularId}`)).status).toBe(423);
+    expect((await hole("/api/v1/formulare")).status).toBe(423);
+    schalter.hebeAuf(welt.testabteilungId, "website", "sperre");
+    setze("wartung");
+    expect((await hole(`/api/v1/formulare/${f.formularId}`)).status).toBe(200);
+  });
+});
+
 describe("Antworten in der Verwaltung", () => {
   let f: Awaited<ReturnType<typeof seite>>;
   const url = (pfad = "") => `/api/v1/admin/formulare${pfad}`;

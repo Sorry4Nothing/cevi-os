@@ -19,7 +19,6 @@ body:
   content: |-
     {
       "programmId": "01a20640-4a08-79b4-a5f8-b1dd6daf9257",
-      "anmeldungFuer": "kind",
       "anmeldungOffen": true,
       "sichtbarkeit": {
         "art": "angemeldet"

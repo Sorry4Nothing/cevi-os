@@ -3,7 +3,7 @@ import { Hono } from "hono";
 import type { Db } from "../../db/client.js";
 import { seite } from "../../db/schema.js";
 import type { Person } from "../../rechte.js";
-import { ladeTagIds } from "../../sichtbarkeit.js";
+import { ladeGruppen } from "../../sichtbarkeit.js";
 import {
   DATENSCHUTZ_ADRESSE,
   IMPRESSUM_ADRESSE,
@@ -30,6 +30,7 @@ export function erstelleNavigationRoute({ db }: { db: Db }) {
           tagId: seite.tagId,
           sichtbarkeit: seite.sichtbarkeit,
           sichtbarkeitTags: seite.sichtbarkeitTags,
+          sichtbarkeitRollen: seite.sichtbarkeitRollen,
           veroeffentlichteVersionId: seite.veroeffentlichteVersionId,
         })
         .from(seite)
@@ -38,7 +39,7 @@ export function erstelleNavigationRoute({ db }: { db: Db }) {
       const eintraege = baueGeschuetzteNavigation(
         zeilen,
         person.abteilungId,
-        { ...person, tagIds: await ladeTagIds(db, person) },
+        { ...person, gruppen: await ladeGruppen(db, person) },
         (id) => ziel(knoten, id)?.pfad ?? null,
         new Set([`/${IMPRESSUM_ADRESSE}`, `/${DATENSCHUTZ_ADRESSE}`]),
       );
