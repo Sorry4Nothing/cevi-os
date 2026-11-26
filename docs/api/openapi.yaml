@@ -19571,6 +19571,68 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/diensttausch/{tauschId}/entscheid/zuruecknehmen:
+    post:
+      operationId: nimmLagerDiensttauschEntscheidZurueck
+      summary: Entscheid einer Tauschanfrage zurücknehmen
+      description: |
+        Braucht das Recht `diensttausch.entscheiden` (Standard: Lagerleitung und Leitung; die Abteilungsleitung gilt als Lagerleitung). Das «Rückgängig» nach «Annehmen» oder «Ablehnen» (#848): Die Anfrage ist danach wieder `offen` (`entschiedenVon` und `entschiedenAm` leer), mit der zuletzt gesehenen `version` (409 `VERSION_KONFLIKT`). Alles in einer Transaktion unter der Lagersperre.
+
+        Abgelehnt: Nur die Anfrage ändert sich. Angenommen: Die Schichten werden zurückgebucht (Personen zurück, bei einem Tausch im selben Abschnitt die Dienste zurück). Das geht nur, solange keine der Schichten seit dem Entscheid geändert wurde (sonst 409 `SCHICHT_GEAENDERT`). Wer zurückkommt, muss die Regeln des Schichtplans erfüllen (409 `ABWESEND`, `DOPPELBELEGT`, `PERSON_NICHT_VERFUEGBAR`). Gibt es für die Schicht schon eine neue offene Anfrage, ist es 409 `ANFRAGE_OFFEN`; eine offene oder zurückgezogene Anfrage ist 409 `NICHT_ENTSCHIEDEN`. Bei jedem Fehler ist nichts geändert. `mitPersonId` bleibt die beim Entscheid gewählte Person. Keine Benachrichtigung.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
+
+        Statuscodes: 200 bei Erfolg, mit der Anfrage im Stand `offen`. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung, ohne Mitgliedschaft oder unbekannter Anfrage. 409 bei abgeschlossenem Lager, `VERSION_KONFLIKT`, `NICHT_ENTSCHIEDEN`, `ANFRAGE_OFFEN`, `SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND` oder `DOPPELBELEGT`.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+        - name: tauschId
+          in: path
+          required: true
+          description: ID der Tauschanfrage (UUID).
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LagerDiensttauschZurueckziehen"
+      responses:
+        "200":
+          description: Die wieder offene Anfrage.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerDiensttausch"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "409":
+          description: |
+            Das Lager ist abgeschlossen (`LAGER_GESCHLOSSEN`), die `version` ist veraltet (`VERSION_KONFLIKT`), die Anfrage ist nicht entschieden (`NICHT_ENTSCHIEDEN`), für die Schicht wartet eine neue Anfrage (`ANFRAGE_OFFEN`) oder das Zurückbuchen verletzt eine Regel (`SCHICHT_GEAENDERT`, `PERSON_NICHT_VERFUEGBAR`, `ABWESEND`, `DOPPELBELEGT`). Dann ist nichts geändert.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/lager/{id}/diensttausch/{tauschId}/zurueckziehen:
     post:
       operationId: ziehLagerDiensttauschZurueck
@@ -22148,6 +22210,46 @@ paths:
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/lager/{id}/widget:
+    get:
+      operationId: holeLagerWidget
+      summary: Widget-Stand des Lagers
+      description: |
+        Kompakter Stand für die Widgets der Apps (#848): ein Aufruf statt `/lager`, `/heute`, `/meine-woche`, `/zeitplan` und Seiten der Aufgaben. Die Antwort enthält nur Zahlen und Daten, nie Namen, Titel oder freien Text. `tageBisBeginn` und `tageBisEnde` zählen ab heute (Zürcher Zeit), negativ, sobald das Datum vorbei ist; daraus folgt «Tag X von Y» (`1 - tageBisBeginn` von `tageBisEnde - tageBisBeginn + 1`). `eigeneDiensteHeute` zählt die eigenen Schichten am heutigen Lagertag (braucht `einteilung.lesen`), `wichtigHeute` die Blöcke «wichtig» der heutigen Tagesseite (braucht `tagesseiten.lesen`), `eigeneAufgaben` die eigenen nicht erledigten Aufgaben (die Person ist verantwortlich oder unterstützt; braucht `aufgaben.eigene` oder das Recht auf alle Aufgaben, zählt aber immer nur die eigenen). `ungelesen` sind die ungelesenen Benachrichtigungen der Person in diesem Lager. Fehlt das Recht eines Teils, ist er `null`. Tage und Benachrichtigungen gehören jedem Mitglied, darum gibt es kein 403.
+
+        Datenbanklast: vier Abfragen, parallel und unabhängig von der Datenmenge. Dazu kommen die Abfragen der Rechteprüfung.
+
+        Statuscodes: 200 bei Erfolg, auch im abgeschlossenen Lager. 400 bei ungültiger ID. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
+
+        Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), danach die Rechte je Teil.
+      tags:
+        - Lager
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: "Widget-Stand des Lagers."
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LagerWidget"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "426":
@@ -39362,6 +39464,74 @@ components:
                   - $ref: "#/components/schemas/LagerHoeckListeneintrag"
                   - $ref: "#/components/schemas/LagerHoeckTeam"
             - type: "null"
+    LagerWidget:
+      description: "Kompakter Stand für die Widgets: nur Zahlen und Daten, nie Namen oder Texte. Teile ohne Leserecht sind null."
+      type: object
+      additionalProperties: false
+      required:
+        - heute
+        - tageBisBeginn
+        - tageBisEnde
+        - eigeneDiensteHeute
+        - wichtigHeute
+        - eigeneAufgaben
+        - ungelesen
+      properties:
+        heute:
+          description: "Das heutige Datum in Zürcher Zeit."
+          type: string
+          format: date
+        tageBisBeginn:
+          description: "Tage von heute bis zum ersten Lagertag; negativ, sobald er vorbei ist."
+          type: integer
+        tageBisEnde:
+          description: "Tage von heute bis zum letzten Lagertag; negativ, sobald er vorbei ist."
+          type: integer
+        eigeneDiensteHeute:
+          description: "Eigene Schichten am heutigen Lagertag (einteilung.lesen), sonst null."
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        wichtigHeute:
+          description: "Blöcke «wichtig» der heutigen Tagesseite (tagesseiten.lesen), sonst null."
+          type:
+            - integer
+            - "null"
+          minimum: 0
+        eigeneAufgaben:
+          description: "Die eigenen nicht erledigten Aufgaben (verantwortlich oder unterstützend), mit einem Leserecht für Aufgaben; sonst null."
+          type:
+            - object
+            - "null"
+          additionalProperties: false
+          required:
+            - offen
+            - ueberfaellig
+            - heute
+            - naechsteFrist
+          properties:
+            offen:
+              type: integer
+              minimum: 0
+            ueberfaellig:
+              description: "Davon mit Frist vor heute."
+              type: integer
+              minimum: 0
+            heute:
+              description: "Davon mit Frist heute."
+              type: integer
+              minimum: 0
+            naechsteFrist:
+              description: "Die früheste Frist ab heute, sonst null."
+              type:
+                - string
+                - "null"
+              format: date
+        ungelesen:
+          description: "Ungelesene Benachrichtigungen der Person in diesem Lager."
+          type: integer
+          minimum: 0
     LagerStart:
       description: "Der Start der Lagerleitung: Countdown, Fortschritt, überfällige und eigene Aufgaben."
       type: object
