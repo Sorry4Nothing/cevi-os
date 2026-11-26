@@ -483,13 +483,12 @@ describe("Geschlecht (#817)", () => {
     expect(await geschlechtVon(mit.id)).toBe("m");
     await anfrage(admin, "PATCH", `/${mit.id}`, { name: "Neuer Name" });
     expect(await geschlechtVon(mit.id)).toBe("m");
-    await anfrage(admin, "PATCH", `/${mit.id}`, { geschlecht: "d" });
-    expect(await geschlechtVon(mit.id)).toBe("d");
     await anfrage(admin, "PATCH", `/${mit.id}`, { geschlecht: null });
     expect(await geschlechtVon(mit.id)).toBeNull();
   });
 
-  test.each([["x"], ["W"], [""], [1], [true]])(
+  // «d» gibt es seit #849 nicht mehr
+  test.each([["d"], ["x"], ["W"], [""], [1], [true]])(
     "der Wert %j ergibt 400 und ändert nichts",
     async (wert) => {
       const person = await legePersonAn({ geschlecht: "w" });
@@ -533,11 +532,13 @@ describe("Geschlecht (#817)", () => {
     expect(await vonHand(person.id)).toBe(true);
   });
 
-  test("die Datenbank lehnt einen anderen Wert ab", async () => {
+  test("die Datenbank lehnt einen anderen Wert ab, auch d (#849)", async () => {
     const person = await legePersonAn();
-    await expect(
-      sql`update "user" set geschlecht = 'x' where id = ${person.id}`,
-    ).rejects.toThrow(/user_geschlecht_check/);
+    for (const wert of ["x", "d"]) {
+      await expect(
+        sql`update "user" set geschlecht = ${wert} where id = ${person.id}`,
+      ).rejects.toThrow(/user_geschlecht_check/);
+    }
   });
 
   test("ohne das Recht Personen zu verwalten geht es nicht (403)", async () => {

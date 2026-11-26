@@ -81,7 +81,7 @@ export const user = pgTable(
     displayUsername: text("display_username"),
     // Freiwilliger Cevi-Name (Spitzname), höchstens 50 Zeichen; null = nicht gesetzt
     ceviName: text("cevi_name"),
-    // Freiwillige Angabe (#817): w, m oder d; null = keine Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt («Stufenleiterin», «Stufenleiter», sonst «Stufenleitung»)
+    // Freiwillige Angabe (#817): w oder m (seit #849 ohne d); null = keine Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt («Stufenleiterin», «Stufenleiter», sonst «Stufenleitung»)
     geschlecht: text("geschlecht"),
     // true, sobald jemand die Angabe im Blatt der Person gesetzt oder geändert hat (#843): Dann übernimmt Cevi OS sie nie mehr aus der Cevi-Datenbank
     geschlechtVonHand: boolean("geschlecht_von_hand").notNull().default(false),
@@ -121,7 +121,7 @@ export const user = pgTable(
     check("user_role_nur_user", sql`${t.role} is null or ${t.role} = 'user'`),
     check(
       "user_geschlecht_check",
-      sql`${t.geschlecht} is null or ${t.geschlecht} in ('w', 'm', 'd')`,
+      sql`${t.geschlecht} is null or ${t.geschlecht} in ('w', 'm')`,
     ),
   ],
 );

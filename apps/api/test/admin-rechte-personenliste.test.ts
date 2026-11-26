@@ -56,7 +56,7 @@ describe("Personenliste von «Was darf wer?»", () => {
     const mann = { ...lua2, geschlecht: "m" };
     expect(m.rolleText(frau, stufen)).toBe("Stufenleiterin Artemis");
     expect(m.rolleText(mann, stufen)).toBe("Gruppenleiter Exodus");
-    expect(m.rolleText({ ...frau, geschlecht: "d" }, stufen)).toBe(
+    expect(m.rolleText({ ...frau, geschlecht: null }, stufen)).toBe(
       "Stufenleitung Artemis",
     );
     const [z] = m.listenZeilen([frau], stufen);

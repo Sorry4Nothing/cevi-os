@@ -71,6 +71,7 @@ export const tauschEntscheiden = z
   })
   .refine((b) => b.entscheid === "angenommen" || b.mitPersonId === undefined);
 export const tauschZurueckziehen = z.strictObject({ version });
+export const tauschZuruecknehmen = z.strictObject({ version });
 export const tauschAbfrage = z.strictObject({
   status: z
     .enum(["offen", "angenommen", "abgelehnt", "zurueckgezogen"])
@@ -89,7 +90,8 @@ export type TauschFehler =
   | "SCHICHT_GEAENDERT"
   | "PERSON_NICHT_VERFUEGBAR"
   | "ABWESEND"
-  | "DOPPELBELEGT";
+  | "DOPPELBELEGT"
+  | "NICHT_ENTSCHIEDEN";
 type Fehler = { fehler: TauschFehler };
 type Akteur = { lagerId: string; personId: string };
 type Leser = Pick<Db, "select">;
@@ -100,6 +102,7 @@ async function ladeSchichten(tx: Leser, lagerId: string, ids: string[]) {
     .select({
       id: schicht.id,
       version: schicht.version,
+      lagerSeq: schicht.lagerSeq,
       personId: schicht.personId,
       lagertagId: schicht.lagertagId,
       tagesabschnittId: schicht.tagesabschnittId,
@@ -369,11 +372,7 @@ export async function entscheideTausch(
   });
 
   if (eigene) {
-    const gleicherPlatz =
-      andere !== undefined &&
-      andere.lagertagId === eigene.lagertagId &&
-      andere.tagesabschnittId === eigene.tagesabschnittId;
-    if (gleicherPlatz) {
+    if (gleicherPlatz(eigene, andere)) {
       await aendereZeile(tx, schicht, k, {
         id: eigene.id,
         version: eigene.version,
@@ -427,6 +426,123 @@ export async function entscheideTausch(
   }
   return { tausch: tauschAnsicht(neu), zustellungen };
 }
+
+// Den Entscheid zurücknehmen (#848), das «Rückgängig» der App nach «Annehmen» oder «Ablehnen»: Die Anfrage ist wieder offen. Unter der Lagersperre wie der Entscheid; eine offene oder zurückgezogene Anfrage ist 409 NICHT_ENTSCHIEDEN, eine veraltete Version 409 VERSION_KONFLIKT, eine neue offene Anfrage für dieselbe Schicht 409 ANFRAGE_OFFEN.
+// Angenommen: bucht zurück, nur solange die Schichten seit dem Entscheid unverändert sind. Der Entscheid schrieb unter derselben Sperre zuerst die Anfrage und gleich danach die Schichten, ihre Folgenummern folgen also direkt auf die der Anfrage; jede spätere Änderung hat eine höhere (sonst 409 SCHICHT_GEAENDERT). Wer zurückkommt, muss die Regeln des Schichtplans erfüllen (409 ABWESEND, DOPPELBELEGT, PERSON_NICHT_VERFUEGBAR).
+// shortcut: mit_person_id bleibt die beim Entscheid gewählte Person (die Anfrage speichert nicht, ob sie eine Wunschperson hatte); eine andere Person: ablehnen, neu anfragen lassen. Keine Benachrichtigung, die Apps sehen den Stand über den Feed; eine eigene Art, wenn Rückmeldungen kommen
+export async function nimmEntscheidZurueck(
+  tx: Tx,
+  k: Akteur,
+  abteilungId: string,
+  id: string,
+  version: number,
+): Promise<Fehler | { tausch: ReturnType<typeof tauschAnsicht> }> {
+  await sperreLager(tx, k.lagerId);
+  const t = await ladeTausch(tx, k.lagerId, id);
+  if (t.status !== "angenommen" && t.status !== "abgelehnt") {
+    return { fehler: "NICHT_ENTSCHIEDEN" };
+  }
+  const [offen] = await tx
+    .select({ id: diensttausch.id })
+    .from(diensttausch)
+    .where(
+      and(
+        eq(diensttausch.lagerId, k.lagerId),
+        eq(diensttausch.schichtId, t.schichtId),
+        eq(diensttausch.status, "offen"),
+      ),
+    );
+  if (offen) return { fehler: "ANFRAGE_OFFEN" };
+
+  let eigene: SchichtZeile | undefined;
+  let andere: SchichtZeile | undefined;
+  if (t.status === "angenommen") {
+    const schichten = await ladeSchichten(tx, k.lagerId, [
+      t.schichtId,
+      ...(t.mitSchichtId ? [t.mitSchichtId] : []),
+    ]);
+    eigene = schichten.get(t.schichtId);
+    andere = t.mitSchichtId ? schichten.get(t.mitSchichtId) : undefined;
+    const betroffen = [eigene, ...(t.mitSchichtId ? [andere] : [])];
+    if (
+      betroffen.some(
+        (s) =>
+          !s ||
+          s.lagerSeq <= t.lagerSeq ||
+          s.lagerSeq > t.lagerSeq + betroffen.length,
+      )
+    ) {
+      return { fehler: "SCHICHT_GEAENDERT" };
+    }
+    // Erst prüfen, dann schreiben: Ein Fehler kommt als Wert zurück, die Transaktion schreibt also alles bis dahin
+    if (!gleicherPlatz(eigene!, andere)) {
+      const zurueck = [t.vonPersonId, ...(andere ? [t.mitPersonId!] : [])];
+      if (
+        (await aktiveMitglieder(tx, k.lagerId, abteilungId, zurueck)).length <
+        zurueck.length
+      ) {
+        return { fehler: "PERSON_NICHT_VERFUEGBAR" };
+      }
+      const fehler = await pruefePlaetze(
+        tx,
+        k.lagerId,
+        [
+          { personId: t.vonPersonId, ...platz(eigene!) },
+          ...(andere ? [{ personId: t.mitPersonId!, ...platz(andere) }] : []),
+        ],
+        [eigene!.id, ...(andere ? [andere.id] : [])],
+      );
+      if (fehler) return { fehler };
+    }
+  }
+
+  const neu = await aendereZeile(tx, diensttausch, k, {
+    id,
+    version,
+    werte: { status: "offen", entschiedenVon: null, entschiedenAm: null },
+    ansicht: tauschAnsicht,
+  });
+
+  if (eigene) {
+    if (gleicherPlatz(eigene, andere)) {
+      // Der Tausch der Dienste ist sein eigenes Gegenstück
+      await aendereZeile(tx, schicht, k, {
+        id: eigene.id,
+        version: eigene.version,
+        werte: { dienstId: andere!.dienstId },
+        ansicht: schichtAnsicht,
+      });
+      await aendereZeile(tx, schicht, k, {
+        id: andere!.id,
+        version: andere!.version,
+        werte: { dienstId: eigene.dienstId },
+        ansicht: schichtAnsicht,
+      });
+    } else {
+      await aendereZeile(tx, schicht, k, {
+        id: eigene.id,
+        version: eigene.version,
+        werte: { personId: t.vonPersonId },
+        ansicht: schichtAnsicht,
+      });
+      if (andere) {
+        await aendereZeile(tx, schicht, k, {
+          id: andere.id,
+          version: andere.version,
+          werte: { personId: t.mitPersonId },
+          ansicht: schichtAnsicht,
+        });
+      }
+    }
+  }
+  return { tausch: tauschAnsicht(neu) };
+}
+
+// Beide Schichten im selben Abschnitt desselben Tages: Der Entscheid tauschte die Dienste statt der Personen
+const gleicherPlatz = (eigene: SchichtZeile, andere?: SchichtZeile) =>
+  andere !== undefined &&
+  andere.lagertagId === eigene.lagertagId &&
+  andere.tagesabschnittId === eigene.tagesabschnittId;
 
 const platz = (s: { lagertagId: string; tagesabschnittId: string }) => ({
   lagertagId: s.lagertagId,

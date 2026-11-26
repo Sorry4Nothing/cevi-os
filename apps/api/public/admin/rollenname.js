@@ -1,5 +1,5 @@
 // Wie die Verwaltung die Rolle einer bestimmten Person nennt (#817). Reine Logik ohne DOM.
-// geschlecht: «w», «m», «d» oder leer (keine Angabe), wie die API es liefert. Bei «d» und ohne Angabe gilt die neutrale Form.
+// geschlecht: «w», «m» oder leer (keine Angabe), wie die API es liefert. Ohne Angabe gilt die neutrale Form.
 // Nur dort verwenden, wo eine konkrete Person steht. Allgemeine Beschriftungen (Rechtekatalog, Auswahl, Mitteilungsziele) bleiben neutral, die öffentliche Website auch.
 const FORMEN = {
   leitung: {

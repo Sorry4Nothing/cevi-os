@@ -262,6 +262,8 @@ const woche = (l: Lager, p: LagerPersona) =>
   lies(konten[p], `/api/v1/lager/${l.id}/meine-woche`);
 const start = (l: Lager, p: LagerPersona) =>
   lies(konten[p], `/api/v1/lager/${l.id}/start`);
+const widget = (l: Lager, p: LagerPersona) =>
+  lies(konten[p], `/api/v1/lager/${l.id}/widget`);
 const titel = (liste: { titel: string }[]) => liste.map((x) => x.titel).sort();
 
 // Entzieht einer Rolle Rechte (Zeile in lager_rolle_recht)
@@ -626,5 +628,125 @@ describe("Datenbanklast", () => {
     expect(h).toBeLessThanOrEqual(13);
     expect(w).toBeLessThanOrEqual(8);
     expect(s).toBeLessThanOrEqual(10);
+  });
+});
+
+describe("Widget-Stand (#848)", () => {
+  test.each(LAGER_PERSONAS)("%s: Rechte wie das Lager selbst", async (p) => {
+    const l = await neuesLager();
+    const erwartet: Record<LagerPersona, number> = {
+      abteilungsleitung: 200,
+      lagerleitung: 200,
+      leitung: 200,
+      team: 200,
+      lesen: 200,
+      ohneMitgliedschaft: 404,
+      fremdeAbteilung: 404,
+      ohneLogin: 401,
+    };
+    expect((await widget(l, p)).status).toBe(erwartet[p]);
+  });
+
+  test("unbekanntes Lager ist 404, ein abgeschlossenes lässt sich lesen", async () => {
+    expect(
+      (
+        await lies(
+          konten.lagerleitung,
+          "/api/v1/lager/00000000-0000-4000-8000-000000000000/widget",
+        )
+      ).status,
+    ).toBe(404);
+    const l = await neuesLager({ status: "abgeschlossen" });
+    expect((await widget(l, "team")).status).toBe(200);
+  });
+
+  test("nur Zahlen und Daten, je Rolle mit dem Leserecht der Quelle", async () => {
+    const l = await neuesLager();
+    await db.insert(schema.lagerBenachrichtigung).values(
+      [null, null, new Date()].map((gelesenAm) => ({
+        lagerId: l.id,
+        personId: konten.team.id!,
+        art: "pinnwand",
+        objektTyp: "pinnwand",
+        objektId: l.id,
+        gelesenAm,
+      })),
+    );
+    const team = await widget(l, "team");
+    expect(team.body).toEqual({
+      heute: HEUTE,
+      tageBisBeginn: 8,
+      tageBisEnde: 22,
+      eigeneDiensteHeute: 1,
+      // Team liest keine Tagesseiten
+      wichtigHeute: null,
+      eigeneAufgaben: {
+        offen: 3,
+        ueberfaellig: 0,
+        heute: 0,
+        naechsteFrist: addiereTage(HEUTE, 3),
+      },
+      ungelesen: 2,
+    });
+    // Keine Namen, keine Texte: nur Zahlen, Daten und null
+    expect(JSON.stringify(team.body)).not.toMatch(
+      /Küche|Sonnencreme|Material|Tag 20|Aggregatelager/,
+    );
+
+    const leitung = await widget(l, "leitung");
+    expect(leitung.body).toMatchObject({
+      eigeneDiensteHeute: 1,
+      wichtigHeute: 1,
+      eigeneAufgaben: {
+        offen: 2,
+        ueberfaellig: 0,
+        heute: 1,
+        naechsteFrist: HEUTE,
+      },
+      ungelesen: 0,
+    });
+    const lagerleitung = await widget(l, "lagerleitung");
+    expect(lagerleitung.body).toMatchObject({
+      eigeneDiensteHeute: 0,
+      eigeneAufgaben: {
+        offen: 1,
+        ueberfaellig: 1,
+        heute: 0,
+        naechsteFrist: null,
+      },
+    });
+  });
+
+  test("ohne Leserecht der Quelle ist der Teil null", async () => {
+    const l = await neuesLager();
+    await entziehe(l, "team", ["einteilung.lesen", "aufgaben.eigene"]);
+    const a = await widget(l, "team");
+    expect(a.status).toBe(200);
+    expect(a.body).toMatchObject({
+      eigeneDiensteHeute: null,
+      wichtigHeute: null,
+      eigeneAufgaben: null,
+      ungelesen: 0,
+      tageBisBeginn: 8,
+    });
+  });
+
+  test("Datenbanklast: die Zahl der Abfragen hängt nicht von der Zahl der Zeilen ab", async () => {
+    const l = await neuesLager();
+    abfragen = 0;
+    await widget(l, "leitung");
+    const wenige = abfragen;
+    await db.insert(schema.aufgabe).values(
+      Array.from({ length: 30 }, (_, i) => ({
+        lagerId: l.id,
+        lagerSeq: 0,
+        titel: `Mehr ${i}`,
+        verantwortlichPersonId: konten.leitung.id!,
+        frist: addiereTage(HEUTE, i),
+      })),
+    );
+    abfragen = 0;
+    await widget(l, "leitung");
+    expect(abfragen).toBe(wenige);
   });
 });
