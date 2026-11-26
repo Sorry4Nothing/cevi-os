@@ -65,6 +65,7 @@ async function neuePerson(): Promise<string> {
     body: JSON.stringify({
       vorname: "Vreni",
       nachname: "Muster",
+      geschlecht: "w",
       benutzername: `person.${randomUUID().slice(0, 8)}`,
       abteilungsleitung: false,
       rollen: [],

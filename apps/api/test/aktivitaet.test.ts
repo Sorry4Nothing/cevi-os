@@ -523,6 +523,7 @@ describe("Änderungsprotokoll mit Datenbank", () => {
     const antwort = await anfrage(admin, "POST", "/api/v1/admin/personen", {
       vorname: "Geheimvorname",
       nachname: "Geheimnachname",
+      geschlecht: "w",
       benutzername,
       abteilungsleitung: false,
       rollen: [],
@@ -545,6 +546,7 @@ describe("Änderungsprotokoll mit Datenbank", () => {
         "abteilungsleitung",
         "benutzername",
         "elternteilVon",
+        "geschlecht",
         "nachname",
         "rollen",
         "vorname",

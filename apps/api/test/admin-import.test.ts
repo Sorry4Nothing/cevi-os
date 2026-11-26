@@ -218,6 +218,7 @@ describe("POST /api/v1/admin/import/vorschau", () => {
       body: JSON.stringify({
         vorname: "Anderer",
         nachname: "Name",
+        geschlecht: "m",
         benutzername: `${basis}.test`.toUpperCase(),
         abteilungsleitung: false,
         rollen: [],

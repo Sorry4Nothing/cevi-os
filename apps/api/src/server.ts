@@ -7,6 +7,7 @@ import {
   systemzeileAus,
 } from "./aktivitaet.js";
 import { erstelleApp } from "./app.js";
+import { gleicheAlleAb, starteCeviDbAbgleich } from "./cevi-db/abgleich.js";
 import { erstelleCeviDbClient } from "./cevi-db/client.js";
 import { erstelleCeviDbDienst } from "./cevi-db/dienst.js";
 import { uebernehmeGeschlecht } from "./cevi-db/geschlecht.js";
@@ -246,6 +247,8 @@ serve({ fetch: app.fetch, port: konfiguration.PORT });
 starteKalenderSync(kalenderLauf);
 if (outlook) starteOutlookLauf(() => verarbeiteOutlook(db, outlook));
 starteSitzungenAufraeumen(() => loescheAbgelaufeneSitzungen(db));
+// Konten mit der Cevi-Datenbank abgleichen (#857): Nummer und Geschlecht, eine Minute nach dem Start und dann täglich
+if (ceviDb) starteCeviDbAbgleich(() => gleicheAlleAb(db, ceviDb));
 // Abgelaufene Herausforderungen und Tickets des App-Nachweises (#785)
 if (appNachweis) {
   starteSitzungenAufraeumen(

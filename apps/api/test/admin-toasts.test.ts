@@ -92,7 +92,7 @@ const ERLAUBT: Record<string, [number, number, number, number, string]> = {
   "liste-hilfen.js": [1, 1, 0, 1, "zustand+absenden"],
   "mitteilungen.js": [2, 2, 0, 1, "ansage+zustand+absenden+feld"],
   "ort-suche.js": [1, 0, 1, 0, "ansage"],
-  "personen-blatt.js": [1, 1, 0, 1, "absenden+dauerhaft"],
+  "personen-blatt.js": [1, 1, 0, 2, "absenden+dauerhaft"],
   "personen-wahl.js": [3, 0, 0, 0, "dauerhaft+ansage"],
   "personen.js": [1, 1, 0, 1, "zustand+feld"],
   "plattform.js": [1, 1, 0, 1, "dauerhaft+feld"],

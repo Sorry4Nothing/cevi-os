@@ -429,6 +429,25 @@ describe("RechteSatz: die Standardmatrix als Literal", () => {
       ),
     ).toBe(true);
     expect((await satzVon("al")).braucht2Faktor("kinder.sehen")).toBe(true);
+    // Raumanfragen (#859): Gruppenrolle und Abteilungsleitung ohne zweiten Faktor, der Entwickler mit
+    expect(
+      (await satzVon("teamVerantwortlich")).braucht2Faktor(
+        "raum.anfrage_entscheiden",
+        O.raumTeam,
+      ),
+    ).toBe(false);
+    expect(
+      (await satzVon("al")).braucht2Faktor(
+        "raum.anfrage_entscheiden",
+        O.raumOhneTeam,
+      ),
+    ).toBe(false);
+    expect(
+      (await satzVon("entwickler")).braucht2Faktor(
+        "raum.anfrage_entscheiden",
+        O.raumOhneTeam,
+      ),
+    ).toBe(true);
     // Hat die Stufenleitung dieselbe Stufenseite auch über eine zweite Quelle, gilt die strengere
     expect((await satzVon("slA")).braucht2Faktor("mitteilung.senden")).toBe(
       true,

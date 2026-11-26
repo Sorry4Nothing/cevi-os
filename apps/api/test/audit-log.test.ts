@@ -66,6 +66,7 @@ async function legePersonAn(extra: Record<string, unknown> = {}) {
   const antwort = await anfrage("POST", "", {
     vorname: "Vreni",
     nachname: "Muster",
+    geschlecht: "w",
     benutzername: `person.${randomUUID().slice(0, 8)}`,
     abteilungsleitung: false,
     rollen: [],
