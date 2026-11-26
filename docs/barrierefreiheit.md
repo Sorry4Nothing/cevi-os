@@ -1899,3 +1899,23 @@ Ein Termin bekommt andere Tags («Tags ändern» im Kalender, im Monat und in de
 Geprüft im Quelltext und mit Tests (`test/admin-termine-tags-panel.test.ts`, `test/admin-termine-panel.test.ts`, `test/admin-toasts.test.ts`): die Texte der Zustände, die Zahl je Zustand der Sammelaktion, die Anzeige und das Zurücknehmen der Tags am Termin, dass die Bedienelemente nur mit dem Recht entstehen, dass die Namen der Kästchen und Knöpfe den Titel tragen, kein Polling, keine Inline-Stile, kein HTML aus Daten.
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (96.1 bis 96.13 als Verhalten: Fokusführung, Ansagen, gemischter Zustand des Kästchens, Zoom, 320 px, Hell und Dunkel, Kontrast 96.9), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt und die Route zum Zeitpunkt der Oberfläche noch nicht auf dem Dev-Server lief. Offen: Nach «Speichern» im Monat und in der Liste ist die Zeile des Auslösers neu gezeichnet; der Fokus landet dann auf der Überschrift der Ansicht statt auf dem Knopf (zu prüfen und gegebenenfalls anzupassen).
+
+## 97. Verwaltung: Zwischen Seite und Anlass oder Lager wechseln (#838)
+
+Im Website-Editor steht oben neben «Seiten» ein Link «Zum Anlass» oder «Zum Lager», wenn die Seite zu einem Anlass oder Lager gehört und die Person ihn in der Verwaltung öffnen darf (die API nennt ihn sonst nicht). In den Angaben eines Lagers steht die Fläche «Website»: «Seite anlegen», solange keine Seite verknüpft ist (nur mit dem Recht, Seiten anzulegen), sonst «Zur Seite». Module: `website-editor.js`, `lager-detail.js`.
+
+### Prüfpunkte
+
+- [ ] **97.1** «Zum Anlass» und «Zum Lager» sind echte Links (`<a href>`) mit sichtbarem Text, das Symbol davor ist `aria-hidden`. Sie öffnen mit Strg-Klick oder Mittelklick einen neuen Tab, und «Zurück» im Browser führt in den Editor zurück.
+- [ ] **97.2** Die Links stehen in der Zeile mit «Seiten», sind mindestens 44 px hoch und brechen bei 320 px Breite in eine neue Zeile um, ohne sich zu überlagern. Sie erscheinen nur, wenn die API `anlassId` oder `lagerId` nennt; ohne Recht fehlt der Link (er ist nicht ausgegraut).
+- [ ] **97.3** Die Fläche «Website» hat eine Überschrift (h2) und einen Satz, der den Zustand in Worten nennt («hat eine Seite» oder «hat noch keine Seite … erst sichtbar, wenn du sie veröffentlichst»). Ohne Recht auf die Website steht nur dieser Satz, ohne Knopf; ohne Seite und ohne Recht zum Anlegen fehlt die Fläche.
+- [ ] **97.4** «Seite anlegen» antwortet sofort: Ladezustand (`aria-busy`, `aria-disabled`), Text bleibt, ein zweiter Klick tut nichts. Danach öffnet der Editor der neuen Seite, und ein Toast sagt «Die Seite ist angelegt. Sie ist ein Entwurf und nur für Angemeldete sichtbar.».
+- [ ] **97.5** Scheitert das Anlegen, sagt ein Toast «Seite nicht angelegt.» mit dem Grund (`role="alert"`), und der Knopf ist wieder bedienbar. Ein zweiter Klick nach einem Erfolg legt keine zweite Seite an.
+- [ ] **97.6** «Zur Seite» ist ein Link im Stil eines Knopfs mit dem Symbol der Website; nach dem Löschen der Seite zeigt die Fläche wieder «Seite anlegen».
+- [ ] **97.7** Tastatur: Alle Links und der Knopf sind in der Tab-Reihenfolge erreichbar, Fokus sichtbar (mindestens 3 : 1) in Hell und Dunkel; 200 % Zoom ohne waagrechtes Scrollen.
+
+### Stand der Prüfung (#838)
+
+Geprüft im Quelltext und mit Tests (`test/rechte-website-lager-plattform.test.ts`, `test/redaktion-seiten.test.ts`, Matrix `test/lager/matrix/lager.ts`, `test/admin-lager-panel.test.ts`): welche Personen `anlassId` und `lagerId` bekommen, dass «Seite anlegen» nur mit beiden Rechten wirkt und beim zweiten Klick keine zweite Seite entsteht, dass das Löschen der Seite die Verknüpfung leert, keine Inline-Stile.
+
+**Nicht geprüft:** alles im Browser und mit Bildschirmleser (97.1 bis 97.7 als Verhalten: Umbruch bei 320 px, Fokus, Ansage des Ladezustands, Zoom, Hell und Dunkel), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
