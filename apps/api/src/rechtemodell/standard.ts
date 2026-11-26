@@ -41,7 +41,7 @@ export const OHNE_ZWEITEN_FAKTOR_STUFENARBEIT: ReadonlySet<RechtId> = new Set([
   "stufe.einblick",
 ]);
 
-// Rechte, die für Mitglieder eines Teams ohne Rolle ohne zweiten Faktor gelten, obwohl ihr Eintrag «erweitert» ist: Wer das Team eines Raums trägt, entscheidet über dessen Anfragen wie vor dem Rechtemodell (Annahme R2 der Termine). Eine Gruppenrolle mit diesem Recht braucht ihn
+// Rechte, die ohne zweiten Faktor gelten, obwohl ihr Eintrag «erweitert» ist, wenn jede Quelle das Team ohne Rolle, die Abteilungsleitung oder eine Gruppenrolle ist: Raumanfragen entscheiden. Das Team entscheidet wie vor dem Rechtemodell (Annahme R2 der Termine); Abteilungsleitung und Gruppenrollen entscheiden aus der App, die den Faktor nicht kennt (Entscheid vom 26.11.2026, #859). Plattformrolle und Entwickler brauchen ihn
 export const MITGLIED_OHNE_ZWEITEN_FAKTOR: ReadonlySet<RechtId> = new Set([
   "raum.anfrage_entscheiden",
 ]);

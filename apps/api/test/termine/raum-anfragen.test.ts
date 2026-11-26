@@ -451,14 +451,15 @@ describe("Ablauf: anfragen, entscheiden, Push", () => {
     expect((await entscheide(leitungB, id)).status).toBe(200);
   });
 
-  test("Raum ohne Team: nur die Abteilungsleitung mit zweitem Faktor entscheidet und bekommt den Push", async () => {
+  // Die Abteilungsleitung entscheidet auch ohne zweiten Faktor (aus der App, Entscheid vom 26.11.2026, #859)
+  test("Raum ohne Team: nur die Abteilungsleitung entscheidet, auch ohne zweiten Faktor, und bekommt den Push", async () => {
     const raum = await neuerRaum({ team: false });
     const tokenAdmin = await token(konten.admin);
     const tokenOhneFaktor = await token(konten.adminOhneZweitenFaktor);
     const tokenTeam = await token(leitungA);
     const { id } = await json(await anfragen(eltern, raum));
     expect(fcmAttrappe.nachrichten.map((n) => n.token)).toContain(tokenAdmin);
-    expect(fcmAttrappe.nachrichten.map((n) => n.token)).not.toContain(
+    expect(fcmAttrappe.nachrichten.map((n) => n.token)).toContain(
       tokenOhneFaktor,
     );
     expect(fcmAttrappe.nachrichten.map((n) => n.token)).not.toContain(
@@ -470,18 +471,15 @@ describe("Ablauf: anfragen, entscheiden, Push", () => {
         (a: { id: string }) => a.id,
       );
     expect(await offen(konten.admin)).toContain(id);
-    expect(await offen(konten.adminOhneZweitenFaktor)).not.toContain(id);
+    expect(await offen(konten.adminOhneZweitenFaktor)).toContain(id);
     expect(await offen(leitungA)).not.toContain(id);
 
-    for (const k of [
-      leitungA,
-      konten.adminOhneZweitenFaktor,
-      konten.slA,
-      eltern,
-    ]) {
+    for (const k of [leitungA, konten.slA, eltern]) {
       expect((await entscheide(k, id)).status).toBe(403);
     }
-    expect((await entscheide(konten.admin, id)).status).toBe(200);
+    expect((await entscheide(konten.adminOhneZweitenFaktor, id)).status).toBe(
+      200,
+    );
   });
 
   test("mit Team entscheidet die Abteilungsleitung nicht", async () => {
