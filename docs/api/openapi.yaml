@@ -29440,7 +29440,7 @@ components:
             - w
             - m
             - null
-          description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
+          description: Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` fehlt (Konto aus dem Import ohne Treffer in der Cevi-Datenbank; das Blatt der Person zeigt «Geschlecht fehlt»). Beim Anlegen Pflicht seit #857; der tägliche Abgleich übernimmt sie aus der Cevi-Datenbank (#843, #857). Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
         bildUrl:
           type:
             - string
@@ -29560,6 +29560,7 @@ components:
       required:
         - vorname
         - nachname
+        - geschlecht
         - benutzername
         - abteilungsleitung
         - rollen
@@ -29585,7 +29586,7 @@ components:
           enum:
             - w
             - m
-          description: Freiwillig (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`); ohne Angabe nennt die Verwaltung die Rolle neutral. Ein anderer Wert ergibt 400.
+          description: Pflicht seit #857 (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`). Fehlt sie oder ist sie ein anderer Wert, ergibt das 400. Der Import aus der Cevi-Datenbank (#257) legt Konten ohne Angabe an; der tägliche Abgleich mit der Cevi-Datenbank füllt sie nach.
         telefon:
           type: string
           description: Freiwillig, nur mit einer Rolle `stufenleitung` (sonst 400). Ziffern mit `+`, Leerzeichen, `()`, `/`, `.` und `-`, 6 bis 30 Zeichen; leer heisst nicht gesetzt.
@@ -29659,14 +29660,11 @@ components:
           maxLength: 50
           description: Leerraum am Rand wird entfernt; leer oder `null` löscht den Cevi-Namen.
         geschlecht:
-          type:
-            - string
-            - "null"
+          type: string
           enum:
             - w
             - m
-            - null
-          description: Freiwillige Angabe (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`); `null` entfernt sie. Ein anderer Wert ergibt 400. Es schreibt keinen Audit-Eintrag, wie `ceviName`.
+          description: Angabe zum Geschlecht (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`). Fehlen darf sie (die Angabe bleibt), entfernen lässt sie sich seit #857 nicht mehr; `null` oder ein anderer Wert ergibt 400. Ein anderer Wert als bisher gilt als von Hand gesetzt, danach übernimmt Cevi OS sie nicht mehr aus der Cevi-Datenbank (#843). Es schreibt keinen Audit-Eintrag, wie `ceviName`.
         telefon:
           type:
             - string
