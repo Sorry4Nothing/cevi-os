@@ -3,6 +3,7 @@
 // Vorlagen (nur Aufbau, Abstände, Zustände; eigenes HTML und CSS): «team-members» (Abschnittskopf mit Zahl, Kopfzeile der Liste, Zeile mit Bild, Name und Rolle), «profile-card» (Bild gross, Name, Kennzahlen unter einer Linie) und «view-toggle-toolbar» (Umschalter mit gleitendem Schieber).
 // Die Seiten bauen den Inhalt von Karte und Zeile selbst; hier steht, was sie teilen. Keine Abfragen: alles kommt aus den schon geladenen Daten.
 import {
+  STANDARD_LOGO,
   avatar,
   el,
   icon,
@@ -307,18 +308,13 @@ export function gliedere(treffer, gruppen, schluesselVon) {
   };
 }
 
-// Kennzeichen einer Stufe vor dem Abschnittstitel: das eigene Logo, sonst der Anfangsbuchstabe
+// Kennzeichen einer Stufe vor dem Abschnittstitel: das eigene Logo, sonst das Cevi-Logo wie überall
 export function stufenKennzeichen(stufe) {
-  return stufe.logoUrl
-    ? el("img", { class: "mg-kennzeichen", src: stufe.logoUrl, alt: "" })
-    : el(
-        "span",
-        {
-          class: "mg-kennzeichen mg-kennzeichen--buchstabe",
-          "aria-hidden": "true",
-        },
-        Array.from(stufe.name)[0]?.toLocaleUpperCase("de-CH") ?? "?",
-      );
+  return el("img", {
+    class: "mg-kennzeichen",
+    src: stufe.logoUrl ?? STANDARD_LOGO,
+    alt: "",
+  });
 }
 
 let ausblenden = 0;
