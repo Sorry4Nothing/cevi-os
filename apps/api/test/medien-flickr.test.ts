@@ -265,7 +265,7 @@ describe("Vorschläge", () => {
       titel: "",
       breite: 4,
       hoehe: 3,
-      groessen: ["klein"] as const,
+      groessen: {},
     });
     const quelle: FotoQuelle = {
       alben: async () => [
@@ -276,7 +276,7 @@ describe("Vorschläge", () => {
         bilder: [...fotos.keys()].map(bild),
       }),
       datei: async (b, groesse) => {
-        expect(groesse).toBe("klein");
+        expect(groesse).toBe("320");
         const daten = await sharp(fotos.get(b.id)!)
           .resize(320)
           .jpeg()

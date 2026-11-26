@@ -227,7 +227,7 @@ export async function vorschlaege({
   }
 
   const pruefe = async (b: QuellBild) => {
-    const datei = await quelle.datei(b, "klein");
+    const datei = await quelle.datei(b, "320");
     const g = await grau(
       new Uint8Array(await new Response(datei.body).arrayBuffer()),
     );
