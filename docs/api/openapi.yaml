@@ -4380,9 +4380,25 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
         - $ref: "#/components/parameters/MediumId"
+        - name: breite
+          in: query
+          required: false
+          description: |
+            Gewünschte Breite in Pixeln (#868). Der Server liefert die kleinste Variante, die mindestens so breit ist; gibt es
+            keine (Bild ohne Varianten, kleines Bild, Wert grösser als jede Variante), das Bild selbst. Nie etwas Grösseres als
+            das Bild selbst. Kein ganzzahliger positiver Wert zählt wie ohne Angabe.
+          schema:
+            type: integer
+            minimum: 1
+          example: 640
       description: |
         Liefert die Datei eines Mediums. Der Server liest sie aus dem Medienspeicher und gibt sie selbst aus; es gibt
         keine Adresse des Speichers und keinen öffentlichen Bucket.
+
+        **Varianten (#868).** Bilder liegen bis 4096 Pixel je Seite vor, dazu kleinere Fassungen mit 640, 1280, 1920, 2560 und
+        3840 Pixel Breite, soweit das Bild breiter ist (`varianten` in der Liste der Medien). Die Website nennt sie in `srcset`;
+        die Apps fragen mit `?breite=<n>` eine passende Grösse an (z. B. `?breite=512` für ein Artikelbild: die Variante mit
+        640 Pixel). Ohne `breite` kommt das Bild in voller Grösse («Original herunterladen» in der Verwaltung).
 
         **Sichtbarkeit.** Ein Medium mit Sichtbarkeit `oeffentlich` ist ohne Anmeldung abrufbar (auch ohne Sitzung, für
         gesperrte Konten und andere Abteilungen). Ein Medium mit Sichtbarkeit `angemeldet` liefert der Server nur mit
@@ -6607,15 +6623,17 @@ paths:
 
         **Body.** Die Datei selbst als Bytes, kein JSON und kein Multipart. Erlaubt sind JPEG, PNG und WebP; der Typ
         ergibt sich aus den ersten Bytes, nie aus Dateiendung, `Content-Type` oder Query. PDF, SVG, GIF und
-        alles andere sind 415: Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei» nur verknüpft (#428). Ein Bild darf höchstens 10 MiB gross sein (vor dem Verkleinern) und höchstens 16 Millionen
-        Pixel haben. Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
+        alles andere sind 415: Dateien zum Herunterladen liegen im SharePoint und werden im Baustein «Datei» nur verknüpft (#428). Ein Bild darf höchstens 25 MiB gross sein (vor dem Verkleinern) und höchstens 40 Millionen
+        Pixel haben (#868: ein Foto mit 24 MP und ein Original von Flickr gehen durch). Die Metadaten stehen in der Query; einen Dateinamen gibt es nicht.
 
         **Alt-Text.** Ein Bild braucht entweder `altText` (1 bis 500 Zeichen) oder `dekorativ=true`, nie beides und nie
         keines (400, code `ALT_TEXT`).
 
-        **Verarbeitung.** Ein Bild dreht der Server nach der EXIF-Angabe, verkleinert es auf höchstens 2048 Pixel je Seite
+        **Verarbeitung.** Ein Bild dreht der Server nach der EXIF-Angabe, verkleinert es auf höchstens 4096 Pixel je Seite
         (Seitenverhältnis und Transparenz bleiben, kleinere Bilder werden nicht vergrössert) und speichert es als WebP ohne
-        Metadaten (kein EXIF, kein Aufnahmeort). Das Original bleibt nicht erhalten.
+        Metadaten (kein EXIF, kein Aufnahmeort). Dazu legt er Varianten mit 640, 1280, 1920, 2560 und 3840 Pixel Breite an,
+        soweit das Bild breiter ist (`varianten`, abrufbar mit `?breite=` auf `GET /api/v1/medien/{id}`). Die hochgeladene Datei
+        selbst bleibt nicht erhalten.
 
         **Begrenzung.** Pro Person höchstens 10 Uploads in 10 Minuten (429); auch abgelehnte zählen.
 
@@ -6679,7 +6697,7 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB.
+          description: Ein Bild ist grösser als 25 MiB.
         "415":
           description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
@@ -10059,7 +10077,7 @@ paths:
         "403":
           $ref: "#/components/responses/KeineBerechtigung403"
         "413":
-          description: Ein Bild ist grösser als 10 MiB.
+          description: Ein Bild ist grösser als 25 MiB.
         "415":
           description: Kein JPEG, PNG oder WebP (auch kein PDF), kein lesbares Bild oder zu viele Pixel (code `MEDIEN_FORMAT`).
           content:
@@ -31683,6 +31701,7 @@ components:
         - groesse
         - breite
         - hoehe
+        - varianten
         - altText
         - dekorativ
         - sichtbarkeit
@@ -31711,6 +31730,17 @@ components:
             - integer
             - "null"
           description: Pixel, nur bei Bildern.
+        varianten:
+          type: array
+          items:
+            type: integer
+          description: |
+            Breiten der kleineren Fassungen in Pixeln, aufsteigend (#868); abrufbar mit `?breite=<n>` auf `url`. Leer bei
+            Bildern bis 640 Pixel Breite, bei PDF und bei Bildern, für die der Befehl `medien-varianten` noch nicht lief.
+          example:
+            - 640
+            - 1280
+            - 1920
         altText:
           type:
             - string

@@ -1967,3 +1967,24 @@ Beim Erfassen und Bearbeiten einer Person ist «Geschlecht» Pflicht: Die Auswah
 Geprüft im Quelltext und mit Tests: zwei Optionen und Pflichtprüfung mit Fehlertext im Blatt (`test/admin-rollenname.test.ts`), API verlangt die Angabe beim Anlegen und lehnt `null` beim Ändern ab (`test/admin-personen.test.ts`).
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (99.1 bis 99.5 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
+
+## 101. Website und Verwaltung: Bilder in Originalqualität mit Varianten, «Original herunterladen» (#868)
+
+Medienbilder liegen bis 4096 Pixel je Seite vor, dazu Varianten mit 640 bis 3840 Pixel Breite. Die Website gibt jedes Medienbild mit `srcset` und `sizes` aus (Kopfbereich und Titelbild über die ganze Breite, Bilder im Inhalt höchstens so breit wie der Inhalt, Logo nach seiner Höhe); die Verwaltung zeigt Vorschauen aus der Variante 640 (Alt-Text-Dialog 1280). In der Medienbibliothek steht bei jedem Bild unter den Pixelmassen der Link «Original herunterladen». Module: `src/website/rendern.ts` (`bildQuelle`), `handlung.ts`, `kopf.ts`, `kontakt.ts`, `fehlerseiten.ts`, `public/admin/website-medien.js`.
+
+### Prüfpunkte
+
+- [ ] **101.1** Jedes Medienbild behält seinen Alt-Text (oder `alt=""` bei dekorativen Bildern) und `width`/`height`: Der Platz steht fest, bevor die Variante geladen ist, nichts springt (CLS).
+- [ ] **101.2** Das Kopfbild lädt ohne `loading="lazy"` und mit `fetchpriority="high"`; es ist auf einem Bildschirm mit 1920 × 1080 und Pixeldichte 2, auf 4K und am Handy mit 390 px Breite scharf (die gewählte Variante ist mindestens so breit wie die angezeigte Fläche mal Pixeldichte).
+- [ ] **101.3** «Original herunterladen» ist ein echter Link (`<a href download>`) im Stil eines kleinen Knopfs mit sichtbarem Text, das Symbol ist `aria-hidden`; der zugängliche Name nennt das Bild («Original herunterladen: Name»). Der Dateiname nennt die Pixelmasse (`bild-4096x2731.webp`).
+- [ ] **101.4** Die Pixelmasse stehen als Text in der Karte («4096 × 2731 Pixel»), nicht nur im Dateinamen.
+- [ ] **101.5** «Alt-Text ändern» und «Original herunterladen» stehen nebeneinander und brechen bei wenig Platz um (Liste und Raster, 320 px Breite, 200 % Zoom) ohne waagrechtes Scrollen; beide mindestens 44 px hoch, Fokus sichtbar (mindestens 3 : 1) in Hell und Dunkel; Tab erreicht beide in dieser Reihenfolge.
+- [ ] **101.6** Hochladen: Hilfetext und Fehler nennen die neue Grenze («höchstens 25 MB»); der Zuschnitt verkleinert erst über 4096 Pixel.
+
+### Stand der Prüfung (#868)
+
+Geprüft mit Tests: Kodierung, Grenzen und Varianten (`test/bild-sharp.test.ts`), Auslieferung mit `?breite` und Löschen samt Varianten (`test/medien.test.ts`), `srcset` und `sizes` in Kopfbereich, Titelbild, Inhalt, Logo und Fehlerseite (`test/website-srcset.test.ts`), Ersatz aus Flickr und Bildabgleich (`test/medien-flickr.test.ts`).
+
+Im Browser (Chromium über Playwright, gerenderter Kopfbereich mit einem gezeichneten Demobild 4096 × 1229, ohne Stilvorlage): 1920 × 1080 mit Pixeldichte 2 lädt die Variante 3840 (vorher ein Bild mit 1920 Pixel, also doppelt hochskaliert), mit Pixeldichte 1 die Variante 1920; 2560 × 1440 mit Pixeldichte 1,5 (4K) die Variante 3840; 390 px mit Pixeldichte 3 die Variante 2560, mit Pixeldichte 1 die Variante 1280 (das Band füllt am Handy die Höhe von 15rem und steht darum rund 800 px breit). Prüfpunkt 101.2 damit für den Kopfbereich bestätigt.
+
+**Nicht geprüft:** die Verwaltung im Browser und mit Bildschirmleser (101.3 bis 101.6 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt; die ausgelieferte Website mit Stilvorlage auf dem Server.
