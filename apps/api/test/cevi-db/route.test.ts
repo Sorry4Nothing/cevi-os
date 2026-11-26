@@ -461,10 +461,7 @@ describe("Nummer merken", () => {
   });
 
   test("meldet sich eine Person selbst an, übernimmt ihr Konto mit der Nummer gleich das Geschlecht (#843)", async () => {
-    const id = await neuerAnlass(
-      [{ schluessel: "tel", quelle: "telefon" }],
-      "person",
-    );
+    const id = await neuerAnlass([{ schluessel: "tel", quelle: "telefon" }]);
     const [u] = await db
       .select({ name: schema.user.name, email: schema.user.email })
       .from(schema.user)
