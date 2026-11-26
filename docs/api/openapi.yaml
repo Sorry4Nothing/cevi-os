@@ -4091,7 +4091,7 @@ paths:
         Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
         andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
-        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet. Die Pushes des Lagers (`typ` `lager_*`) und ihre Schalter beschreibt `GET /api/v1/ich/lager-benachrichtigungen`.
+        **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet; alle Typen nennt das Schema `PushTyp`. Die Pushes des Lagers (`typ` `lager_*`) und ihre Schalter beschreibt `GET /api/v1/ich/lager-benachrichtigungen`.
 
         **Anmelde-Push.** `pushAnmeldungen` (Push an die Leitung bei An- und Abmeldung eines Kindes für ein Programm) ist ein Boolean und standardmässig an. `GET /api/v1/ich` gibt den Schalter nur Personen mit einer Stufenrolle zurück; setzen lässt er sich von jeder Person, ohne Wirkung ohne Stufenrolle.
 
@@ -4793,6 +4793,8 @@ paths:
         Der Body ist strikt: Fremde Felder (`userId`, `sessionId`), ein Token in falscher Form, eine andere
         Plattform oder ein leerer Body ergeben 400. Das Token ist ein FCM-Registrierungstoken: 20 bis 512 Zeichen aus Buchstaben, Ziffern
         und `_ : . -`. Die Form `ExponentPushToken[…]` aus der früheren Expo-Anbindung ergibt 400.
+
+        Was ein Push an das Gerät bringt (`data.typ`, `data.id`, Kanal) und alle Typen mit Auslöser, Empfänger und Schalter beschreiben die Schemas `PushNachricht` und `PushTyp`.
 
         **Rollen.** Alle angemeldeten Personen ausser bei offenem Pflichtwechsel des Passworts (403).
         Statuscodes: 204, 400, 401, 403, 426.
@@ -10487,7 +10489,7 @@ paths:
       operationId: holeLagerAenderungen
       summary: Änderungsfeed des Lagers
       description: |
-        Meldet, welche Einträge des Lagers seit einer Folgenummer neu, geändert oder gelöscht sind. Der Feed nennt nur Objekttyp, ID, Art, Version und Zeitpunkt, nie Inhalte; die App holt den Inhalt über die Route des Moduls. So gelten die Rechte der Rolle dort, und der Feed verrät höchstens, dass es einen Eintrag gibt, den die Rolle lesen darf.
+        Meldet, welche Einträge des Lagers seit einer Folgenummer neu, geändert oder gelöscht sind. Der Feed nennt nur Objekttyp (alle Typen mit Leserecht: Schema `LagerObjekttyp`), ID, Art, Version und Zeitpunkt, nie Inhalte; die App holt den Inhalt über die Route des Moduls. So gelten die Rechte der Rolle dort, und der Feed verrät höchstens, dass es einen Eintrag gibt, den die Rolle lesen darf.
 
         Filter: Es erscheinen nur Objekttypen, deren Leserecht die Rolle hat, und davon nur die Zeilen, die der Zeilenfilter der Rolle zulässt. Gelöscht ist endgültig: Der Eintrag `geloescht` (nur Objekttyp, ID und Version) geht an jede Rolle mit dem Leserecht des Typs, weil die Zeile nicht mehr zu filtern ist; er bleibt 30 Tage im Feed. Eine Seite, deren Einträge alle herausfallen, kommt leer zurück, `bis` rückt trotzdem vor.
 
@@ -32387,9 +32389,9 @@ components:
           description: Folgenummer, bis zu der es Neues gibt.
         objekttypen:
           type: array
-          description: Die Objekttypen, die sich geändert haben und die die Rolle lesen darf (nur bei `aenderung`).
+          description: Die Objekttypen, die sich geändert haben und die die Rolle lesen darf (nur bei `aenderung`). Typen ohne eigenes Leserecht (`lager_datei`, `pinnwand_datei`, `umfrage`, `umfrage_option`, `umfrage_stimme`, `reaktion`) meldet der Strom nie.
           items:
-            type: string
+            $ref: "#/components/schemas/LagerObjekttyp"
         grund:
           type: string
           description: Nur bei `ende`.
@@ -32492,10 +32494,69 @@ components:
         - diensttausch_entscheid
         - anwesenheit_anfrage
         - adressbuch_aufraeumen
+    PushNachricht:
+      type: object
+      description: |
+        Was ein Push der API über Firebase Cloud Messaging an das Gerät bringt (#872). Kein Endpunkt liefert dieses Objekt; es beschreibt die Nachricht, die die App empfängt. Die API sendet an alle Push-Tokens der Empfänger (`POST /api/v1/push-token`), Tokens, die FCM als abgemeldet meldet, löscht sie.
+
+        - `notification.title`: der Titel, `notification.body`: der Text (fehlt, wenn es keinen gibt). Beide nennen nie Inhalte von Chat-Nachrichten, Namen von Kindern oder Inhalte des Lagers; die Ausnahme sind Mitteilung und Zeitregel, deren Text die Abteilungsleitung selbst schreibt.
+        - `data`: genau `typ` und `id` (dieses Schema). Daraus öffnet die App das Ziel, auch beim Kaltstart; die API liefert keine URL.
+        - Android: Priorität `high`, Ton `default`, Kanal `android.notification.channelId` je `typ` (siehe `PushTyp`). Die App legt die Kanäle an.
+        - iOS: `aps.sound` `default`.
+
+        Ohne Schlüssel des Dienstkontos geht kein Push hinaus. Ein Fehler beim Push lässt die auslösende Anfrage nie scheitern.
+      required:
+        - typ
+        - id
+      properties:
+        typ:
+          $ref: "#/components/schemas/PushTyp"
+        id:
+          type: string
+          description: ID des Ziels, je `typ` (siehe `PushTyp`); eine UUID, nur bei `mitteilung` leer.
+    PushTyp:
+      type: string
+      description: |
+        Wert von `data.typ` eines Pushes (`PushNachricht`). Je Typ: Auslöser, Empfänger, Bedeutung von `data.id`, Android-Kanal und der Schalter, mit dem die Person ihn abschaltet. «Aktiv» heisst: Konto der Abteilung, nicht deaktiviert und nicht gesperrt. Wer den Push auslöst, bekommt ihn nie, ausser bei `mitteilung`.
+
+        - `chat`: neue Nachricht in einem Chat (`POST /api/v1/chats/{id}/nachrichten`). Empfänger: die anderen Mitglieder des Chats. `id`: Chat-ID. Kanal `chat`. Schalter `pushChat`. Titel «Neue Nachricht», Text «Chat <Stufe>» oder «Einzelchat <Stufe>».
+        - `programm`: zwei Auslöser, beide mit `id` = Programm-ID, Kanal `programme`. (1) An- oder Abmeldung eines Kindes (`PUT /api/v1/programme/{id}/teilnahmen/{kindId}`, nur bei geändertem Wert): an die aktiven Leitenden der Stufen des Programms, Schalter `pushAnmeldungen`; Titel «Neue Anmeldung» oder «Neue Abmeldung», Text «<Programm> am <Datum>». (2) Erinnerung einer Zeitregel (`/api/v1/admin/zeitregeln`, Lauf im Takt): an die aktiven Eltern aktiver Kinder der Stufe der Regel (ohne Stufe: der Stufen des Programms), für die noch keine Antwort steht, Schalter `pushProgramme`; Titel und Text aus der Regel.
+        - `mitteilung`: Mitteilung aus der Verwaltung (`POST /api/v1/admin/mitteilungen`). Empfänger: die gewählten aktiven Konten. `id`: leer. Kanal `mitteilungen`. Schalter `pushProgramme` (in der App «Mitteilungen»). Titel und Text aus der Mitteilung.
+        - `plattform`: Informationssperre ausgelöst (`PUT /api/v1/plattform/schalter`, `art: sperre`, nur beim Auslösen). Empfänger: die anderen Entwickler der Abteilung. `id`: ID des Schalters. Kanal `mitteilungen`. Kein Schalter. Titel «Informationssperre ausgelöst», Text «Bereich: <Bereich>».
+        - `lager_aufgabe`, `lager_erwaehnung`, `lager_pinnwand`, `lager_eingang`, `lager_einteilung`, `lager_anwesenheit`: Pushes des Lagers, siehe `LagerPushTyp`. Empfänger: aktive Mitglieder des Lagers. Schalter: je Art in `PUT /api/v1/ich/lager-benachrichtigungen`. Titel fest je Art, Text der Lagertitel.
+        - `termin_vorschlag`: neuer Terminvorschlag (`POST /api/v1/termin-vorschlaege`). Empfänger: die aktiven Konten der Abteilungsleitung. `id`: ID des Vorschlags. Kanal `termine`. Kein Schalter. Titel «Neuer Terminvorschlag», fester Text.
+        - `termin_entscheid`: Vorschlag freigegeben oder abgelehnt (`POST /api/v1/admin/termin-vorschlaege/{id}/entscheid`). Empfänger: die vorschlagende Person, wenn ihr Konto aktiv ist. `id`: ID des Vorschlags. Kanal `termine`. Schalter `pushTerminEntscheid`. Titel «Entscheid zu deinem Terminvorschlag», fester Text je Entscheid.
+        - `raum_anfrage`: neue Raumanfrage (`POST /api/v1/raeume/{id}/anfragen`). Empfänger: die aktiven Konten mit dem Team-Tag des Raums; hat der Raum kein Team, die aktiven Konten der Abteilungsleitung. `id`: ID der Anfrage. Kanal `raeume`. Kein Schalter. Titel «Neue Raumanfrage», fester Text, nie Raum, Name oder Zweck.
+        - `raum_entscheid`: Raumanfrage angenommen oder abgelehnt (`POST /api/v1/raeume/anfragen/{id}/entscheid`). Empfänger: die anfragende Person, wenn ihr Konto aktiv ist. `id`: ID der Anfrage. Kanal `raeume`. Schalter `pushRaumEntscheid`. Titel «Entscheid zu deiner Raumanfrage», fester Text je Entscheid.
+
+        Die Schalter `pushChat`, `pushProgramme`, `pushAnmeldungen`, `pushTerminEntscheid` und `pushRaumEntscheid` setzt die Person mit `PATCH /api/v1/ich`. Ein Test gleicht die Liste mit `PUSH_KANAL` in `apps/api/src/push.ts` ab.
+      enum:
+        - chat
+        - programm
+        - mitteilung
+        - plattform
+        - lager_aufgabe
+        - lager_erwaehnung
+        - lager_pinnwand
+        - lager_eingang
+        - lager_einteilung
+        - lager_anwesenheit
+        - termin_vorschlag
+        - termin_entscheid
+        - raum_anfrage
+        - raum_entscheid
     LagerPushTyp:
       type: string
       description: |
-        Wert von `data.typ` eines Lager-Pushes. `data.id` ist die ID des Objekts; die App löst Lager und Ziel mit `GET /api/v1/lager/aufloesen/{typ}/{id}` auf. Android-Kanäle: `lager_aufgaben` (`lager_aufgabe`), `lager_mitteilungen` (`lager_erwaehnung`, `lager_pinnwand`, `lager_eingang`), `lager_einteilung` (`lager_einteilung`, `lager_anwesenheit`).
+        Wert von `data.typ` eines Lager-Pushes (Teil von `PushTyp`). `data.id` ist die ID des Objekts; die App löst Lager und Ziel mit `GET /api/v1/lager/aufloesen/{typ}/{id}` auf. Android-Kanäle: `lager_aufgaben` (`lager_aufgabe`), `lager_mitteilungen` (`lager_erwaehnung`, `lager_pinnwand`, `lager_eingang`), `lager_einteilung` (`lager_einteilung`, `lager_anwesenheit`).
+
+        Je Typ die Arten (`LagerBenachrichtigungsArt`) und was `data.id` ist:
+        - `lager_aufgabe`: `aufgabe_zugeteilt`, `aufgabe_geaendert`, `frist`; ID der Aufgabe.
+        - `lager_erwaehnung`: `erwaehnung`; ID des Inhalts mit der Erwähnung.
+        - `lager_pinnwand`: `pinnwand_wichtig` (ID des Beitrags) und `adressbuch_aufraeumen` (ID des Lagers; `objektTyp` `adressbuch`).
+        - `lager_eingang`: `eingang_antwort`; ID der Meldung.
+        - `lager_einteilung`: `diensttausch_anfrage`, `diensttausch_entscheid`; ID der Diensttausch-Anfrage.
+        - `lager_anwesenheit`: `anwesenheit_anfrage`, `anwesenheit_entscheid`; ID einer Anwesenheits-Anfrage.
       enum:
         - lager_aufgabe
         - lager_erwaehnung
@@ -42819,6 +42880,79 @@ components:
         adresse:
           type: string
           description: Aus dem Titel gebildet, bei Kollision mit Zusatz (`-2`, `-3`).
+    LagerObjekttyp:
+      type: string
+      description: |
+        Objekttyp im Änderungsfeed (`GET /api/v1/lager/{id}/aenderungen`) und im Event-Stream: der Name der Tabelle des Moduls (#872). Je Typ das Leserecht (eines genügt) und, wo es einen gibt, der Zeilenfilter. Den Inhalt liest die App über die Route des Moduls.
+
+        - `ressort`, `ressort_link`, `ressort_notiz`: Ressort, seine Links und Notizen. `ressorts.lesen`.
+        - `meilenstein`, `lagertag`, `tagesabschnitt`: Zeitplan. `zeitplan.lesen`.
+        - `aufgabe`: Aufgabe. `aufgaben.lesen_alle`, `aufgaben.bearbeiten` oder `aufgaben.eigene`; mit nur `aufgaben.eigene` die Aufgaben, an denen die Person beteiligt ist.
+        - `aufgabe_checkpunkt`, `aufgabe_link`: Checkpunkt und Link einer Aufgabe. Rechte und Filter wie `aufgabe`.
+        - `lager_check_punkt`: eigener Punkt des Lager-Checks (`/api/v1/lager/{id}/check`), nicht der Checkpunkt einer Aufgabe. `check.lesen`.
+        - `hoeck`: Höck. `hoecks.lesen_alle`, `hoecks.bearbeiten` oder `hoecks.team_lesen`; mit nur `hoecks.team_lesen` die Höcks der Art `team`.
+        - `traktandum`: Traktandum eines Höcks. `hoecks.lesen_alle` oder `hoecks.bearbeiten`.
+        - `protokoll`, `beschluss`: Protokoll (Verknüpfung auf eine Datei) und Beschluss. `protokolle.lesen`; Einträge zu einem Höck der Art `lagerleitung` nur, wer alle Höcks liest.
+        - `pinnwand_beitrag`: Beitrag der Pinnwand. `pinnwand.lesen`; ohne `pinnwand.bearbeiten` nur Beiträge im Zeitfenster und für die Person.
+        - `dokument`: Dokument (Verweis). `dokumente.team_lesen`; das Team nur Dokumente, die für das Team sichtbar sind.
+        - `packliste_punkt`, `info_abschnitt`, `info_abschnitt_datei`: Packliste und Infos. `packliste.lesen` beziehungsweise `infos.lesen`; Einträge «nur Lagerleitung» nur mit `vertrauliches.lesen`.
+        - `notfall_kontakt`: Notfallkontakt. `notfall.lesen`.
+        - `tagesseite`, `tagesseite_block`: Tagesseite und ihre Blöcke. `tagesseiten.lesen`.
+        - `einkauf_artikel`: Artikel der Einkaufsliste. `einkauf.lesen`.
+        - `adressbuch_kontakt`: Kontakt im Adressbuch. `adressbuch.lesen`.
+        - `teilnehmer`, `abzaehlen`: Teilnehmende und Abzählliste. `teilnehmer.lesen`.
+        - `anwesenheit`: Feld der Anwesenheit. `anwesenheit.lesen_alle`.
+        - `anwesenheit_anfrage`: Anfrage zur Anwesenheit. `anwesenheit.bearbeiten`.
+        - `diensttausch`: Diensttausch-Anfrage. `diensttausch.entscheiden`.
+        - `dienst`, `schicht`, `zimmer`, `zimmer_zuordnung`, `fahrt`, `fahrt_mitfahrer`, `gruppe`, `gruppe_zuordnung`: Schichtplan, Zimmer, Fahrten und Gruppen. `einteilung.lesen`; Zimmer und Fahrten mit Zeilenfilter für Rollen, die nur das Eigene sehen.
+        - `lager_datei`: Verknüpfung auf eine Datei. Kein eigenes Leserecht; sichtbar, wenn ein lesbarer Eintrag sie einbindet.
+        - `pinnwand_datei`, `umfrage`, `umfrage_option`, `umfrage_stimme`, `reaktion`: Kein eigenes Leserecht. Der Feed meldet nur `geloescht`; neue und geänderte Einträge liest die App mit dem Beitrag der Pinnwand, an dem sie hängen.
+
+        Ein Test gleicht die Liste mit den angemeldeten Tabellen ab (`registriereLagerTabelle` in `apps/api/src/lager`).
+      enum:
+        - ressort
+        - ressort_link
+        - ressort_notiz
+        - meilenstein
+        - lagertag
+        - tagesabschnitt
+        - aufgabe
+        - aufgabe_checkpunkt
+        - aufgabe_link
+        - lager_check_punkt
+        - hoeck
+        - traktandum
+        - protokoll
+        - beschluss
+        - pinnwand_beitrag
+        - dokument
+        - packliste_punkt
+        - info_abschnitt
+        - info_abschnitt_datei
+        - notfall_kontakt
+        - tagesseite
+        - tagesseite_block
+        - einkauf_artikel
+        - adressbuch_kontakt
+        - teilnehmer
+        - abzaehlen
+        - anwesenheit
+        - anwesenheit_anfrage
+        - diensttausch
+        - dienst
+        - schicht
+        - zimmer
+        - zimmer_zuordnung
+        - fahrt
+        - fahrt_mitfahrer
+        - gruppe
+        - gruppe_zuordnung
+        - lager_datei
+        - pinnwand_datei
+        - umfrage
+        - umfrage_option
+        - umfrage_stimme
+        - reaktion
     LagerFeedEintrag:
       type: object
       description: Eine Änderung. Nur Verweis auf die Zeile, kein Inhalt.
@@ -42834,8 +42968,7 @@ components:
           type: integer
           description: Folgenummer des Schreibvorgangs im Lager.
         objekttyp:
-          type: string
-          description: Name der Tabelle des Moduls (zum Beispiel `aufgabe`).
+          $ref: "#/components/schemas/LagerObjekttyp"
         id:
           type: string
           format: uuid
@@ -42881,9 +43014,9 @@ components:
           description: Aktuelle Folgenummer des Lagers.
         objekttypen:
           type: array
-          description: Die Objekttypen, die die Rolle lesen darf.
+          description: Die Objekttypen, die die Rolle lesen darf, sortiert. Typen ohne eigenes Leserecht (`lager_datei`, `pinnwand_datei`, `umfrage`, `umfrage_option`, `umfrage_stimme`, `reaktion`) stehen für jede Rolle darin.
           items:
-            type: string
+            $ref: "#/components/schemas/LagerObjekttyp"
     LagerFeedNeuLaden:
       type: object
       description: Fehler mit Statuscode 410. Gleiche Form wie `Fehler`, dazu die aktuelle Folgenummer.
