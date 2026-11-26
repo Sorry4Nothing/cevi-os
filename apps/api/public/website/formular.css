@@ -48,12 +48,11 @@
   appearance: auto;
 }
 
-/* Datum (#887): Textfeld und Knopf «Kalender öffnen» nebeneinander, der Kalender klappt darunter auf (datum.js) */
+/* Datum (#887): Textfeld und Knopf «Kalender öffnen» nebeneinander, so breit wie die übrigen Felder (#891); der Kalender klappt darunter auf (datum.js) */
 .bf-datum {
   position: relative;
   display: flex;
   gap: 0.5rem;
-  max-width: 20rem;
 }
 
 .bf-datum .eingabe {
