@@ -88,7 +88,7 @@ Fokus heisst hier: das Element, das Screenreader oder Schalter gerade ausgewähl
 ## 8. Gesten und Zeit
 
 - [ ] **8.1** Jede Wisch-, Zieh- oder Mehrfingeraktion lässt sich auch mit einem Finger ohne Wischen und Ziehen auslösen, mit einem Knopf oder über ein Menü. Für Screenreader und Schalter gibt es sie zusätzlich als Aktion (`accessibilityActions` mit `onAccessibilityAction`).
-- [ ] **8.2** Ausser der App-Sperre gibt es kein Zeitlimit: Keine Eingabe läuft ab, keine Rückfrage und kein Fehler in einem Feld oder Formular verschwindet von selbst. Ausnahme in der Web-Verwaltung (Entscheid des Auftraggebers, #570, erweitert in #761): Rückmeldungen nach einer Aktion sind Toasts und gehen von selbst, Erfolg und Info nach 4 Sekunden, Warnung und Fehler nach 8 Sekunden, eine Meldung mit Aktion («Nochmals versuchen») bleibt bis zum Schliessen. Bedingungen: Der Toast steht sofort und ganz in einer Live-Region (höflich, Fehler `role="alert"`), die Zeit hält bei Zeiger und Fokus an und beginnt danach neu, «Hinweis schliessen» und Esc bleiben, mit «Bewegung reduzieren» ohne Übergang. Der Toast bestätigt nur, was auf der Seite ohnehin sichtbar ist, oder nennt einen Fehler, dessen Folge eine dauerhafte Marke zeigt («Nicht gespeichert»); er ist keine Voraussetzung, um weiterzuarbeiten (WCAG 2.2.1 betrifft Zeitlimits für Aufgaben, 2.2.3 ist AAA). Abschnitt 84.
+- [ ] **8.2** Ausser der App-Sperre gibt es kein Zeitlimit: Keine Eingabe läuft ab, keine Rückfrage und kein Fehler in einem Feld oder Formular verschwindet von selbst. Ausnahme in der Web-Verwaltung (Entscheid des Auftraggebers, #570, erweitert in #761, geändert in #869): Rückmeldungen nach einer Aktion sind Toasts; nur Bestätigungen (Erfolg, Info ohne Aktion) gehen von selbst, nach ihrer Lesedauer (mindestens 5 Sekunden). Warnung, Fehler und eine Meldung mit Aktion («Nochmals versuchen», «Rückgängig») bleiben bis zum Schliessen (Abschnitt 102). Bedingungen: Der Toast steht sofort und ganz in einer Live-Region (höflich, Fehler `role="alert"`), die Zeit hält bei Zeiger und Fokus an und beginnt danach neu, «Hinweis schliessen» und Esc bleiben, mit «Bewegung reduzieren» ohne Übergang. Der Toast bestätigt nur, was auf der Seite ohnehin sichtbar ist, oder nennt einen Fehler, dessen Folge eine dauerhafte Marke zeigt («Nicht gespeichert»); er ist keine Voraussetzung, um weiterzuarbeiten (WCAG 2.2.1 betrifft Zeitlimits für Aufgaben, 2.2.3 ist AAA). Abschnitt 84.
 
 ## 9. Textfelder und Login
 
@@ -1546,12 +1546,12 @@ Gilt für jede Ansicht unter `public/admin`: Das Ergebnis einer Aktion (Erfolg, 
 ### Prüfpunkte
 
 - [ ] **84.1** Jede Aktion, die etwas speichert, löscht, kopiert, hochlädt oder sendet, meldet ihr Ergebnis als Toast in derselben Region; es gibt keinen Absatz, Kasten oder Banner im Inhalt, der das Ergebnis zeigt und stehen bleibt. Die Texte sind kurz, im Perfekt oder Zustand («Gespeichert.», «Link kopiert.»), ohne Emoji.
-- [ ] **84.2** Erfolg und Info verschwinden nach 4 Sekunden, Warnung und Fehler nach 8 Sekunden; ein Toast mit Aktion («Nochmals versuchen») bleibt bis zum Schliessen. Zeiger auf dem Toast und Tastaturfokus darin halten die Zeit an, nach dem Verlassen läuft sie neu (WCAG 2.2.1).
+- [ ] **84.2** Geändert in #869, siehe Abschnitt 102: Erfolg und Info ohne Aktion verschwinden nach ihrer Lesedauer (mindestens 5 Sekunden); Warnung, Fehler und ein Toast mit Aktion bleiben bis zum Schliessen. Zeiger auf dem Toast und Tastaturfokus darin halten die Zeit an, nach dem Verlassen läuft sie neu (WCAG 2.2.1).
 - [ ] **84.3** Jeder Toast hat einen Schliessen-Knopf («Hinweis schliessen», mindestens 44 Pixel, sichtbarer Fokusring); Esc schliesst den Toast mit Fokus oder unter dem Zeiger; F6 setzt den Fokus auf den ersten Knopf der Region, Tab erreicht sie vor dem Inhalt.
 - [ ] **84.4** Ein Screenreader hört Erfolg, Info und Warnung höflich (`aria-live="polite"`) und nur einen Fehler sofort (`role="alert"`), genau einmal (WCAG 4.1.3). Der Toast stiehlt den Fokus nie.
 - [ ] **84.5** Höchstens drei Rückmeldungen sind zugleich sichtbar; dieselbe Meldung ersetzt sich, statt sich zu stapeln. Eine Meldung überlebt den Wechsel der Ansicht (Speichern, dann Weiterleitung).
-- [ ] **84.6** Mit «Bewegung reduzieren» gibt es kein Einblenden und kein Ausblenden. Am Handy (390 Pixel) steht der Toast über die ganze Breite im Fenster, ohne waagrechtes Scrollen und ohne den bedienten Inhalt dauerhaft zu verdecken (er geht von selbst oder per Esc). Tag und Nacht aus den Tokens; die Art zeigt ein Symbol (Haken, Info, Warndreieck), nie nur Farbe.
-- [ ] **84.7** Inline bleiben nur: Feldfehler am Feld (`aria-describedby`), Fehlerzusammenfassung eines offenen Formulars, Lade-, Leer- und Fehlerzustände der Ansicht, dauerhafte Zustände der Seite (Marke «Nicht gespeichert», Banner, Berechtigungshinweise, Verbindungsstatus, Fortschritt) und Meldungen, die eine Entscheidung verlangen (Konflikt, Rückfrage). Ein Fehler, der nach 8 Sekunden weg ist, hat eine dauerhafte Marke daneben, wenn Eingaben nicht gespeichert sind.
+- [ ] **84.6** Mit «Bewegung reduzieren» gibt es kein Einblenden und kein Ausblenden. Am Handy (390 Pixel) steht der Toast über die ganze Breite im Fenster, ohne waagrechtes Scrollen und ohne den bedienten Inhalt dauerhaft zu verdecken (eine Bestätigung geht von selbst, alles andere per «Hinweis schliessen» oder Esc). Tag und Nacht aus den Tokens; die Art zeigt ein Symbol (Haken, Info, Warndreieck), nie nur Farbe.
+- [ ] **84.7** Inline bleiben nur: Feldfehler am Feld (`aria-describedby`), Fehlerzusammenfassung eines offenen Formulars, Lade-, Leer- und Fehlerzustände der Ansicht, dauerhafte Zustände der Seite (Marke «Nicht gespeichert», Banner, Berechtigungshinweise, Verbindungsstatus, Fortschritt) und Meldungen, die eine Entscheidung verlangen (Konflikt, Rückfrage). Ein Fehler zu nicht gespeicherten Eingaben hat eine dauerhafte Marke daneben, weil sich der Toast schliessen lässt.
 
 ### Stand der Prüfung (#761)
 
@@ -1568,7 +1568,7 @@ Im Blatt einer Person (Bereich Personen, Abschnitt «Konto») löscht «Konto l�
 - [ ] **85.3** Der Fokus liegt auf dem Feld «Tippe «<Name>» zur Bestätigung». «Endgültig löschen» bleibt ausgeschaltet, bis der Name stimmt (Leerzeichen am Rand zählen nicht). Enter im Feld schickt das Formular der Person nie ab; es bestätigt nur bei richtigem Namen.
 - [ ] **85.4** Esc und «Abbrechen» schliessen die Karte, leeren das Feld und bringen den Fokus zum Knopf «Konto löschen». Tab erreicht Feld, «Abbrechen» und «Endgültig löschen» in dieser Reihenfolge.
 - [ ] **85.5** Ein Fehler (409 `LETZTE_ABTEILUNGSLEITUNG`, 403, 404, kein Netz) steht in der Karte (`role="alert"`), beginnt mit «Nicht gelöscht.», sagt, was zu tun ist, und lässt die Karte offen; der Name bleibt im Feld, «Endgültig löschen» ist wieder bedienbar. Kein Toast.
-- [ ] **85.6** Nach Erfolg schliesst das Blatt, die Liste lädt neu, der Fokus liegt auf der Überschrift, und der Toast «Konto von <Name> gelöscht.» steht 4 Sekunden (`aria-live="polite"`). Es gibt kein «Rückgängig».
+- [ ] **85.6** Nach Erfolg schliesst das Blatt, die Liste lädt neu, der Fokus liegt auf der Überschrift, und der Toast «Konto von <Name> gelöscht.» steht seine Lesedauer lang, mindestens 5 Sekunden (`aria-live="polite"`, Abschnitt 102). Es gibt kein «Rückgängig».
 - [ ] **85.7** Bei 390 und 1280 Pixel, hell und dunkel: Die Karte läuft nicht über, kein waagrechtes Scrollen, Text und Feld lesbar; der Fokusring des Felds ist sichtbar.
 
 ### Stand der Prüfung (#769)
@@ -1967,3 +1967,22 @@ Beim Erfassen und Bearbeiten einer Person ist «Geschlecht» Pflicht: Die Auswah
 Geprüft im Quelltext und mit Tests: zwei Optionen und Pflichtprüfung mit Fehlertext im Blatt (`test/admin-rollenname.test.ts`), API verlangt die Angabe beim Anlegen und lehnt `null` beim Ändern ab (`test/admin-personen.test.ts`).
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (99.1 bis 99.5 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
+
+## 102. Verwaltung: Bestätigungen gehen von selbst, Fehler und Warnungen bleiben (#869)
+
+Entscheid des Auftraggebers (#869), ändert 8.2 und 84.2: Nur Bestätigungen (Erfolg, Info ohne Aktion) blenden sich selbst aus. Warnungen, Fehler und Toasts mit Aktion («Rückgängig», «Nochmals versuchen», «Beheben») bleiben, bis man sie schliesst. Die Zeit hängt an der Länge des Texts. Bauteil: `erstelleToasts` und `dauerVon` in `rahmen.js`, `lesedauer` in `rueckgaengig.js`, Darstellung `toast.css`.
+
+### Prüfpunkte
+
+- [ ] **102.1** Eine Bestätigung steht so lange, wie man zum Lesen braucht: 2 Sekunden zum Bemerken plus 60 ms je Zeichen, mindestens 5 Sekunden («Gespeichert.» 5 s, ein Satz mit 100 Zeichen 8 s). «Erledigt.» nach einer Aktion mit «Rückgängig» gilt gleich.
+- [ ] **102.2** Warnung und Fehler (`art` `warn` oder `fehler`) und jeder Toast mit Aktion verschwinden nie von selbst; sie gehen mit «Hinweis schliessen», mit Esc (Fokus im Toast oder Zeiger darauf) oder mit ihrer Aktion.
+- [ ] **102.3** Zeiger auf dem Toast und Tastaturfokus darin halten die Zeit an; nach dem Verlassen läuft sie neu (WCAG 2.2.1).
+- [ ] **102.4** Die Ansage bleibt: Erfolg, Info und Warnung höflich über die Statusregion (`aria-live="polite"`), ein Fehler sofort (`role="alert"`), je genau einmal (WCAG 4.1.3). Der Toast stiehlt den Fokus nie.
+- [ ] **102.5** Sind mehr als drei Rückmeldungen offen, geht zuerst die älteste Bestätigung; eine Warnung oder ein Fehler geht nur, wenn keine Bestätigung mehr da ist.
+- [ ] **102.6** Mit «Bewegung reduzieren» erscheint und verschwindet der Toast ohne Gleiten und ohne Ausblenden.
+
+### Stand der Prüfung (#869)
+
+Ursache: kein defekter Zeitgeber. Die Regel aus #761 liess Fehler und Warnungen 8 Sekunden stehen und hielt jeden Toast mit Aktion bis zum Schliessen; Bestätigungen gingen nach 4 Sekunden. Geprüft mit Tests (`test/seiten.test.ts`: Dauer je Art, Aktion und Textlänge; `test/admin-rueckgaengig.test.ts`: «Erledigt.» nach 5 Sekunden; `test/admin-toasts.test.ts`) und im Browser (Chromium, Playwright) mit dem echten Bauteil (`rahmen.js`, `rueckgaengig.js`, `toast.css`) auf einer Probeseite: «Gespeichert.» weg nach 5 Sekunden; Fehler und Warnung nach 15 Sekunden noch da, Fehler mit `role="alert"`; Esc schliesst beide; Zeiger 7 Sekunden darauf hält an, danach weg nach 5 Sekunden; Fokus per F6 hält an; ein Satz mit 127 Zeichen (9,6 Sekunden) steht nach 6 Sekunden noch; vier Meldungen: die Bestätigung geht, drei Fehler bleiben; mit «Bewegung reduzieren» keine Animation und kein Ausblenden; «Erledigt.» nach «Rückgängig» geht nach 5 Sekunden.
+
+**Nicht geprüft:** in der angemeldeten Verwaltung selbst (die lokale Entwicklungsdatenbank liess sich nicht migrieren), mit Bildschirmleser (NVDA, VoiceOver) und am Handy.
