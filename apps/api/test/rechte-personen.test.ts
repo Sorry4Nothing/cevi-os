@@ -224,6 +224,7 @@ const neuerBenutzername = () => `person.${randomUUID().slice(0, 8)}`;
 const personBody = (extra: Record<string, unknown> = {}) => ({
   vorname: "Neu",
   nachname: "Person",
+  geschlecht: "w",
   benutzername: neuerBenutzername(),
   abteilungsleitung: false,
   rollen: [],
