@@ -1,5 +1,6 @@
 // Fotoalben (#690, #796): zeigt die Alben der Abteilung und ihre Bilder. Das HTML der Seite ist statisch und für alle gleich (nur der leere Behälter «.fotos»); dieses Skript fragt nach dem Laden unseren Server (GET /api/v1/fotos/alben, …/alben/<id>) und baut alles mit DOM-Knoten und setzt Text nur als Textknoten.
-// Bilder kommen von unserem Server, nie von Flickr (img-src 'self'): /api/v1/fotos/alben/<id>/titel und …/bilder/<bildId>?groesse=klein|mittel|gross. Ohne Sitzung antwortet der Server 401, dann steht «Nur angemeldet sichtbar» mit dem Link zur Anmeldung.
+// Bilder kommen von unserem Server, nie von Flickr (img-src 'self'): /api/v1/fotos/alben/<id>/titel und …/bilder/<bildId>?groesse=<Stufe> (lange Seite in Pixeln oder «original», #867). Ohne Sitzung antwortet der Server 401, dann steht «Nur angemeldet sichtbar» mit dem Link zur Anmeldung.
+// Schärfe (#867): Kacheln und Grossansicht nennen über srcset alle Stufen, die Flickr für das Bild liefert, mit der echten Breite; der Browser nimmt die passende für Anzeigegrösse mal Pixeldichte. Der Link jeder Kachel trägt für die Grossansicht die Stufen bis 4096 (data-srcset), die Masse der grössten (data-masse) und die Grössen zum Herunterladen (data-laden).
 // Übersicht: Karten mit Titelbild; ab VIELE_ALBEN Gruppen nach Jahr (ältere zugeklappt) und eine Suche nach Titel («/» fokussiert sie). Album: Kopf, Bilder in gleich hohen Zeilen nach ihrem Seitenverhältnis (fotos.css, ohne Stilattribut) und 48 Bilder je Schritt mit «Weitere Fotos anzeigen».
 // Ein Album hat eine teilbare Adresse: /fotos?album=<Kennung> (Ziffern). Der Wechsel zwischen Übersicht und Album setzt einen Eintrag im Verlauf, Zurück im Browser führt dorthin zurück.
 // Die Grossansicht ist lichtkasten.js (Pfeiltasten, Esc, Wischen): Die Bilder stehen in einem «.fotos-raster», jedes als Link «a.bildgross», auch die noch nicht gezeigten (versteckt, ohne Quelle): So kennt die Grossansicht alle Bilder des Albums und zählt «Bild 24 von 393».
@@ -9,13 +10,16 @@ import {
   SCHRITT_BILDER,
   VIELE_ALBEN,
   albenText,
-  bildBreiten,
   bildName,
   filtereAlben,
   fotosText,
+  groessteBis,
   gruppiereNachJahr,
+  herunterladeGroessen,
+  masseText,
   mengeBis,
   naechsteMenge,
+  srcsetAus,
   standardOffen,
   trefferText,
   verhaeltnisKlasse,
@@ -279,8 +283,8 @@ function start(wurzel) {
       const basis = `${API}/alben/${a.id}/titel`;
       bild = el("img");
       bild.sizes = GROESSEN_TITEL;
-      bild.srcset = `${basis}?groesse=klein 320w, ${basis}?groesse=mittel 640w`;
-      bild.src = `${basis}?groesse=mittel`;
+      bild.srcset = `${basis}?groesse=320 320w, ${basis}?groesse=640 640w, ${basis}?groesse=1024 1024w`;
+      bild.src = `${basis}?groesse=640`;
       bild.alt = "";
       bild.width = 640;
       bild.height = 480;
@@ -583,7 +587,21 @@ function start(wurzel) {
       bild.loading = "lazy";
       bild.decoding = "async";
       const link = el("a", "bildgross", bild);
-      link.href = bildAdresse(id, b.id, "gross");
+      const adresse = (stufe) => bildAdresse(id, b.id, stufe);
+      // Ohne Skript öffnet der Link eine Datei bis 1024
+      link.href = adresse(groessteBis(b.groessen, 1024)?.stufe ?? "1024");
+      const gross = groessteBis(b.groessen, 4096);
+      const srcset = srcsetAus(b.groessen, adresse, 0, 4096);
+      if (gross && srcset) {
+        link.dataset.srcset = srcset;
+        link.dataset.masse = `${gross.breite} ${gross.hoehe}`;
+      }
+      const laden = herunterladeGroessen(b.groessen).map((g) => ({
+        name: g.name,
+        masse: masseText(g.breite, g.hoehe),
+        href: `${adresse(g.stufe)}&herunterladen=1`,
+      }));
+      if (laden.length > 0) link.dataset.laden = JSON.stringify(laden);
       link.setAttribute("aria-label", bildName(i + 1, gesamt, b.titel));
       const li = el(
         "li",
@@ -591,7 +609,7 @@ function start(wurzel) {
         link,
       );
       li.hidden = true;
-      return { li, link, bild, id: b.id, breite, hoehe };
+      return { li, link, bild, id: b.id, groessen: b.groessen };
     });
     raster.append(...kacheln.map((k) => k.li));
 
@@ -613,11 +631,16 @@ function start(wurzel) {
     function zeigeBis(menge) {
       for (let i = gezeigt; i < menge; i++) {
         const k = kacheln[i];
-        const w = bildBreiten(k.breite, k.hoehe);
-        const klein = bildAdresse(id, k.id, "klein");
+        // Kacheln bis 1024: Bei doppelter Pixeldichte ist eine Kachel um 800 Pixel breit
+        const srcset = srcsetAus(
+          k.groessen,
+          (stufe) => bildAdresse(id, k.id, stufe),
+          0,
+          1024,
+        );
         k.bild.sizes = GROESSEN_RASTER;
-        k.bild.srcset = `${klein} ${w.klein}w, ${bildAdresse(id, k.id, "mittel")} ${w.mittel}w`;
-        k.bild.src = klein;
+        if (srcset) k.bild.srcset = srcset;
+        k.bild.src = bildAdresse(id, k.id, "320");
         k.li.hidden = false;
       }
       gezeigt = Math.max(gezeigt, menge);

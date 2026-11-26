@@ -1968,6 +1968,46 @@ Geprüft im Quelltext und mit Tests: zwei Optionen und Pflichtprüfung mit Fehle
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (99.1 bis 99.5 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
 
+## 100. Website: Fotos in voller Qualität und Herunterladen (#867)
+
+Gilt für die Grossansicht der Fotoalben (`public/website/lichtkasten.js`, `lichtkasten.css`) und das Raster (`fotos.js`, `fotos-logik.js`). Ergänzt 66 und 88. Das Bild in der Grossansicht füllt den freien Platz (Fenster minus Rand, Schliessen-Knopf und Leiste) mit seinem Seitenverhältnis, nie grösser als die grösste Datei in CSS-Pixeln. Raster und Grossansicht nennen über `srcset` alle Grössen, die Flickr für das Foto liefert; der Browser wählt die passende für Anzeigegrösse mal Pixeldichte (bis 4096 Pixel). Neu ist der Knopf «Herunterladen» in der Leiste der Grossansicht, mit einer Liste der Grössen (Klein, Mittel, Gross, Extragross, Original, je nur wenn Flickr sie liefert) und ihren Pixelmassen. Das Muster ist dasselbe wie im Konto-Menü der Website (`details` und `summary`, Links in einer Liste), kein neues.
+
+### Prüfpunkte
+
+- [ ] **100.1** Kein Layoutsprung: Beim Öffnen und Blättern steht die Grösse des Bildes fest, bevor eine Datei da ist. Zuerst steht die Datei der Kachel als Vorschau, die scharfe Datei ersetzt sie in derselben Grösse. Ohne Vorschau steht die ruhige Ladefläche; schlägt die scharfe Datei fehl, bleibt die Vorschau.
+- [ ] **100.2** Der Knopf «Herunterladen» ist ein `summary` mit sichtbarem Text und Symbol (das Symbol ist `aria-hidden`); unter 30em Breite steht nur das Symbol, der Text bleibt für Bildschirmleser. Zielgrösse mindestens 44 × 44 Pixel, Rand 3 : 1 auf dem dunklen Grund, Fokusring wie die übrigen Knöpfe der Grossansicht.
+- [ ] **100.3** Die Liste hat den Namen «Grösse wählen»; jeder Eintrag ist ein Link mit Name und Massen («Gross 2048 × 1365 Pixel», «Pixel» nur für Bildschirmleser). Enter oder Leertaste öffnet, Pfeil auf und ab gehen durch die Einträge, Pos1 und Ende springen, Esc schliesst die Liste und setzt den Fokus auf den Knopf (erst ein zweites Esc schliesst die Grossansicht). Tab aus der Liste hinaus und ein Klick daneben schliessen sie. Pfeil links und rechts blättern nicht, solange der Fokus in der Liste ist.
+- [ ] **100.4** Nach der Wahl lädt der Browser die Datei herunter (Name wie `Sommerlager-2026-024-2048.jpg`), die Liste schliesst, der Fokus steht auf dem Knopf. Der Fortschritt zeigt der Browser.
+- [ ] **100.5** Ohne Grössen (ein Bild ausserhalb der Fotoalben, etwa aus einem Bildraster) fehlt der Knopf; diese Bilder erscheinen wie bisher in der Grösse ihrer Datei.
+- [ ] **100.6** Erzwungene Farben: Knopf und Liste haben einen Rand in `ButtonText`. Bewegung: Die Grossansicht hat keine neue Bewegung; reduzierte Bewegung gilt wie in 66.7.
+
+### Stand der Prüfung (#867)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Attrappe von Flickr (eigener kleiner Server mit erfundenen Alben und erzeugten Karomustern, keine Verbindung zu Flickr, keine echten Fotos) bei 1920 × 1080 mit Pixeldichte 1 und 2 und bei 390 × 844 mit Pixeldichte 3 gesehen: 100.1 (gleiche Grösse vor und nach der scharfen Datei, auch mit gebremstem Netz), 100.3 (Pfeile, Ende, Esc zweistufig, Fokus zurück auf den Knopf), 100.4 (Download mit Dateiname, Liste schliesst), Namen im Barrierefreiheitsbaum. Logik der Grössen und des Menüs mit Tests (`test/website-fotoalben.test.ts`, `test/fotos-routen.test.ts`, `test/fotos-flickr.test.ts`).
+
+**Nicht geprüft:** Bildschirmleser (NVDA, VoiceOver, TalkBack), echtes Touch-Gerät, Safari und Firefox, echte Antworten von Flickr (keine Zugangsdaten in der Entwicklung), Kontrastwerte mit einem Messwerkzeug (gerechnet: Rand des Knopfs `#c6d4e4` auf `#0b1220` 12,4 : 1, Masse `#c6d4e4` auf der Liste `#1a2740` 9,9 : 1, Namen `#f3f3ef` darauf 13,4 : 1), 200 % Zoom am Gerät, erzwungene Farben am Gerät.
+
+## 101. Website und Verwaltung: Bilder in Originalqualität mit Varianten, «Original herunterladen» (#868)
+
+Medienbilder liegen bis 4096 Pixel je Seite vor, dazu Varianten mit 640 bis 3840 Pixel Breite. Die Website gibt jedes Medienbild mit `srcset` und `sizes` aus (Kopfbereich und Titelbild über die ganze Breite, Bilder im Inhalt höchstens so breit wie der Inhalt, Logo nach seiner Höhe); die Verwaltung zeigt Vorschauen aus der Variante 640 (Alt-Text-Dialog 1280). In der Medienbibliothek steht bei jedem Bild unter den Pixelmassen der Link «Original herunterladen». Module: `src/website/rendern.ts` (`bildQuelle`), `handlung.ts`, `kopf.ts`, `kontakt.ts`, `fehlerseiten.ts`, `public/admin/website-medien.js`.
+
+### Prüfpunkte
+
+- [ ] **101.1** Jedes Medienbild behält seinen Alt-Text (oder `alt=""` bei dekorativen Bildern) und `width`/`height`: Der Platz steht fest, bevor die Variante geladen ist, nichts springt (CLS).
+- [ ] **101.2** Das Kopfbild lädt ohne `loading="lazy"` und mit `fetchpriority="high"`; es ist auf einem Bildschirm mit 1920 × 1080 und Pixeldichte 2, auf 4K und am Handy mit 390 px Breite scharf (die gewählte Variante ist mindestens so breit wie die angezeigte Fläche mal Pixeldichte).
+- [ ] **101.3** «Original herunterladen» ist ein echter Link (`<a href download>`) im Stil eines kleinen Knopfs mit sichtbarem Text, das Symbol ist `aria-hidden`; der zugängliche Name nennt das Bild («Original herunterladen: Name»). Der Dateiname nennt die Pixelmasse (`bild-4096x2731.webp`).
+- [ ] **101.4** Die Pixelmasse stehen als Text in der Karte («4096 × 2731 Pixel»), nicht nur im Dateinamen.
+- [ ] **101.5** «Alt-Text ändern» und «Original herunterladen» stehen nebeneinander und brechen bei wenig Platz um (Liste und Raster, 320 px Breite, 200 % Zoom) ohne waagrechtes Scrollen; beide mindestens 44 px hoch, Fokus sichtbar (mindestens 3 : 1) in Hell und Dunkel; Tab erreicht beide in dieser Reihenfolge.
+- [ ] **101.6** Hochladen: Hilfetext und Fehler nennen die neue Grenze («höchstens 25 MB»); der Zuschnitt verkleinert erst über 4096 Pixel.
+
+### Stand der Prüfung (#868)
+
+Geprüft mit Tests: Kodierung, Grenzen und Varianten (`test/bild-sharp.test.ts`), Auslieferung mit `?breite` und Löschen samt Varianten (`test/medien.test.ts`), `srcset` und `sizes` in Kopfbereich, Titelbild, Inhalt, Logo und Fehlerseite (`test/website-srcset.test.ts`), Ersatz aus Flickr und Bildabgleich (`test/medien-flickr.test.ts`).
+
+Im Browser (Chromium über Playwright, gerenderter Kopfbereich mit einem gezeichneten Demobild 4096 × 1229, ohne Stilvorlage): 1920 × 1080 mit Pixeldichte 2 lädt die Variante 3840 (vorher ein Bild mit 1920 Pixel, also doppelt hochskaliert), mit Pixeldichte 1 die Variante 1920; 2560 × 1440 mit Pixeldichte 1,5 (4K) die Variante 3840; 390 px mit Pixeldichte 3 die Variante 2560, mit Pixeldichte 1 die Variante 1280 (das Band füllt am Handy die Höhe von 15rem und steht darum rund 800 px breit). Prüfpunkt 101.2 damit für den Kopfbereich bestätigt.
+
+**Nicht geprüft:** die Verwaltung im Browser und mit Bildschirmleser (101.3 bis 101.6 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt; die ausgelieferte Website mit Stilvorlage auf dem Server.
+
 ## 102. Verwaltung: Bestätigungen gehen von selbst, Fehler und Warnungen bleiben (#869)
 
 Entscheid des Auftraggebers (#869), ändert 8.2 und 84.2: Nur Bestätigungen (Erfolg, Info ohne Aktion) blenden sich selbst aus. Warnungen, Fehler und Toasts mit Aktion («Rückgängig», «Nochmals versuchen», «Beheben») bleiben, bis man sie schliesst. Die Zeit hängt an der Länge des Texts. Bauteil: `erstelleToasts` und `dauerVon` in `rahmen.js`, `lesedauer` in `rueckgaengig.js`, Darstellung `toast.css`.
