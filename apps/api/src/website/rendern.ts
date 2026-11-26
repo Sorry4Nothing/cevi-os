@@ -1637,6 +1637,9 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
   });
 }
 
+// Seite der Website mit der Abteilungsleitung (#882): Ziel des Hinweises «Passwort vergessen?» auf der Anmeldeseite
+export const PFAD_ABTEILUNGSLEITUNG = "/ueber-uns/al";
+
 // Anmeldeseite (#354, Design W9; seit #818 die einzige, auch für die Verwaltung). Die Felder haben kein name-Attribut und das Formular sendet nichts selbst (form-action 'none'): Ein Passwort gelangt nie in eine Adresse. Das Skript sendet es als JSON an /api/auth
 export function rendereAnmeldung(k: Kontext): string {
   return rahmen(k, {
@@ -1659,7 +1662,7 @@ export function rendereAnmeldung(k: Kontext): string {
 <div class="feld"><label for="benutzername">Benutzername</label><input class="eingabe" id="benutzername" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required></div>
 <div class="feld"><label for="passwort">Passwort</label><div class="pw"><input class="eingabe" id="passwort" type="password" autocomplete="current-password" required><button type="button" id="zeigen" aria-pressed="false" aria-label="Passwort anzeigen"><span class="auf">${serialisiere(symbol("auge"))}</span><span class="zu">${serialisiere(symbol("auge-zu"))}</span></button></div></div>
 <button type="submit" class="btn p gross voll">Anmelden</button>
-<p class="hilfe">Passwort vergessen? Wende dich an die Abteilungsleitung.</p>
+<p class="hilfe">Passwort vergessen? Wende dich an die <a href="${PFAD_ABTEILUNGSLEITUNG}">Abteilungsleitung</a>.</p>
 </form>
 <form id="faktor" class="formular" method="post" action="#" novalidate hidden>
 <div class="feld">

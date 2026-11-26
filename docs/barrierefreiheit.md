@@ -2026,3 +2026,18 @@ Entscheid des Auftraggebers (#869), ändert 8.2 und 84.2: Nur Bestätigungen (Er
 Ursache: kein defekter Zeitgeber. Die Regel aus #761 liess Fehler und Warnungen 8 Sekunden stehen und hielt jeden Toast mit Aktion bis zum Schliessen; Bestätigungen gingen nach 4 Sekunden. Geprüft mit Tests (`test/seiten.test.ts`: Dauer je Art, Aktion und Textlänge; `test/admin-rueckgaengig.test.ts`: «Erledigt.» nach 5 Sekunden; `test/admin-toasts.test.ts`) und im Browser (Chromium, Playwright) mit dem echten Bauteil (`rahmen.js`, `rueckgaengig.js`, `toast.css`) auf einer Probeseite: «Gespeichert.» weg nach 5 Sekunden; Fehler und Warnung nach 15 Sekunden noch da, Fehler mit `role="alert"`; Esc schliesst beide; Zeiger 7 Sekunden darauf hält an, danach weg nach 5 Sekunden; Fokus per F6 hält an; ein Satz mit 127 Zeichen (9,6 Sekunden) steht nach 6 Sekunden noch; vier Meldungen: die Bestätigung geht, drei Fehler bleiben; mit «Bewegung reduzieren» keine Animation und kein Ausblenden; «Erledigt.» nach «Rückgängig» geht nach 5 Sekunden.
 
 **Nicht geprüft:** in der angemeldeten Verwaltung selbst (die lokale Entwicklungsdatenbank liess sich nicht migrieren), mit Bildschirmleser (NVDA, VoiceOver) und am Handy.
+
+## 104. Anmeldeseite: «Abteilungsleitung» im Hinweis zum Passwort ist ein Link (#882)
+
+Im Satz «Passwort vergessen? Wende dich an die Abteilungsleitung.» unter «Anmelden» (`rendereAnmeldung` in `apps/api/src/website/rendern.ts`) ist das Wort «Abteilungsleitung» ein Link auf die Seite der Abteilungsleitung der Website. Der Pfad steht an einer Stelle (`PFAD_ABTEILUNGSLEITUNG`, `/ueber-uns/al`). Gilt für Website und Verwaltung (gemeinsame Anmeldeseite, Abschnitt 93). Massstab WCAG 2.4.4, 2.1.1, 2.4.7, 1.4.1.
+
+### Prüfpunkte
+
+- [ ] **104.1** Der Link ist ein echter Link (`a href`, relativ, gleicher Tab, kein `target`). Sein Text «Abteilungsleitung» sagt im Satz, wohin er führt.
+- [ ] **104.2** Er hat das Linkbild der Website (blau, unterstrichen, nie nur Farbe), Tab erreicht ihn nach «Anmelden», der Fokusring ist sichtbar, Enter folgt ihm.
+
+### Stand der Prüfung (#882)
+
+Test: `apps/api/test/website-design.test.ts` (Satz mit Link und Pfad). Im Browser (Chromium, Playwright, Attrappe, die `rendereAnmeldung` und `public/website/*` liefert): Tab von «Passwort anzeigen» über «Anmelden» auf den Link, `:focus-visible` mit Rahmen 2,67 Pixel in `--accent`, unterstrichen, Enter öffnet `/ueber-uns/al` im selben Tab.
+
+**Nicht geprüft:** Dunkel und erzwungene Farben (es gilt das bestehende Linkbild, #555), Bildschirmleser, ob die Seite `/ueber-uns/al` auf jeder Website besteht (der Pfad ist fest, eine Abteilung ohne diese Seite zeigt die Fehlerseite).
