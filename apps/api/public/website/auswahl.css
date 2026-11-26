@@ -50,6 +50,11 @@ select.aw-nativ {
   outline: 3px solid var(--focus);
   outline-offset: 2px;
 }
+/* Fehler wie beim Textfeld (website.css «.feld.fehler .eingabe»): formular.js setzt aria-invalid am <select>, auswahl.js spiegelt es (#887) */
+.aw-knopf[aria-invalid="true"] {
+  padding-left: 0.9375rem;
+  border: 2px solid var(--on-error-container);
+}
 .aw-knopf:disabled {
   background: var(--surface-container);
   color: var(--on-surface-variant);
