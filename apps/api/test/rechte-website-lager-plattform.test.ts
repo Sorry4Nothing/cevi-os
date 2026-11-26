@@ -27,6 +27,7 @@ import {
   type PersonaKonto,
   type Welt,
 } from "./hilfen/personas.js";
+import { legeProgrammAn } from "./hilfen/programme.js";
 import { macheWebmaster } from "./hilfen/webmaster.js";
 
 // Paket P3 der Rechte-Umstellung (#648): Website, Lager, Lädeli und Plattform prüfen ihre Rechte über das Rechtemodell. Je Route: Abteilungsleitung, Plattformrolle mit dem Recht, Gruppenrolle mit dem Recht, Rolle mit einem anderen Recht, ohne Recht, ohne zweiten Faktor. Antwortreihenfolge: 404, 403, zweiter Faktor, 409.
@@ -626,4 +627,187 @@ describe("Modus «neu»: dieselben Antworten", () => {
     "Wartung: nur der Entwickler, die Sperre bleibt bei der Abteilungsleitung",
     pruefeWartungNurEntwickler,
   );
+});
+
+// Seite eines Lagers (#838): «Seite anlegen» nur mit «lager.verwalten» und «seiten.anlegen_loeschen», idempotent, fremd 404; der Editor nennt Anlass und Lager nur, wer sie in der Verwaltung öffnen darf
+describe("Seite eines Lagers und Bezug im Editor (#838)", () => {
+  const legeLager = async (titel = "Sommerlager") =>
+    (
+      await db
+        .insert(schema.lager)
+        .values({
+          abteilungId: welt.testabteilungId,
+          titel,
+          von: "2027-07-10",
+          bis: "2027-07-24",
+        })
+        .returning({ id: schema.lager.id })
+    )[0].id;
+  const seiteVon = async (lagerId: string) =>
+    (
+      await db
+        .select({ seiteId: schema.lager.seiteId })
+        .from(schema.lager)
+        .where(eq(schema.lager.id, lagerId))
+    )[0].seiteId;
+  const pfad = (lagerId: string) => `/api/v1/admin/lager/${lagerId}/seite`;
+  const bezug = async (konto: PersonaKonto, seiteId: string) => {
+    const antwort = await anfrage(
+      konto,
+      "GET",
+      `/api/v1/redaktion/seiten/${seiteId}`,
+    );
+    expect(antwort.status).toBe(200);
+    const { anlassId, lagerId } = (await antwort.json()) as {
+      anlassId: string | null;
+      lagerId: string | null;
+    };
+    return { anlassId, lagerId };
+  };
+
+  test("legt die Seite als Entwurf für Angemeldete an, verknüpft sie und legt beim zweiten Klick keine zweite an", async () => {
+    const lagerId = await legeLager("Sommerlager 2027");
+    const erst = await anfrage(admin, "POST", pfad(lagerId));
+    expect(erst.status).toBe(201);
+    const { seiteId } = (await erst.json()) as { seiteId: string };
+    expect(await seiteVon(lagerId)).toBe(seiteId);
+    const [seite] = await db
+      .select()
+      .from(schema.seite)
+      .where(eq(schema.seite.id, seiteId));
+    expect(seite).toMatchObject({
+      titel: "Sommerlager 2027",
+      sichtbarkeit: "angemeldet",
+      veroeffentlichteVersionId: null,
+      elternId: null,
+    });
+    const [eintrag] = await db
+      .select()
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.zielId, lagerId));
+    expect(eintrag).toMatchObject({
+      aktion: "lager_seite_angelegt",
+      details: { seiteId },
+    });
+
+    const zweit = await anfrage(admin, "POST", pfad(lagerId));
+    expect(zweit.status).toBe(200);
+    expect(await zweit.json()).toEqual({ seiteId });
+    const anzahl = await db
+      .select({ id: schema.seite.id })
+      .from(schema.seite)
+      .where(eq(schema.seite.titel, "Sommerlager 2027"));
+    expect(anzahl).toHaveLength(1);
+    // Die Verwaltung des Lagers kennt die Seite
+    const lager = await anfrage(admin, "GET", `/api/v1/admin/lager/${lagerId}`);
+    expect(((await lager.json()) as { seiteId: string }).seiteId).toBe(seiteId);
+  });
+
+  test("Rechte: beide Rechte nötig, ohne zweiten Faktor 403; unbekannt und fremd 404", async () => {
+    const lagerId = await legeLager();
+    for (const rechte of [
+      ["lager.verwalten"],
+      ["seiten.anlegen_loeschen"],
+      [],
+    ]) {
+      const konto = await mitPlattformrolle(rechte);
+      expect(
+        (await anfrage(konto, "POST", pfad(lagerId))).status,
+        rechte.join(),
+      ).toBe(403);
+    }
+    expect(await seiteVon(lagerId)).toBeNull();
+    const ohneFaktor = await mitPlattformrolle(
+      ["lager.verwalten", "seiten.anlegen_loeschen"],
+      false,
+    );
+    const gesperrt = await anfrage(ohneFaktor, "POST", pfad(lagerId));
+    expect(gesperrt.status).toBe(403);
+    expect(await gesperrt.json()).toMatchObject({
+      code: "ZWEITER_FAKTOR_FEHLT",
+    });
+    const beide = await mitPlattformrolle([
+      "lager.verwalten",
+      "seiten.anlegen_loeschen",
+    ]);
+    expect((await anfrage(beide, "POST", pfad(lagerId))).status).toBe(201);
+    expect((await anfrage(admin, "POST", pfad(randomUUID()))).status).toBe(404);
+    const fremd = await legePersonaAn(welt, "demoAdmin");
+    expect((await anfrage(fremd, "POST", pfad(lagerId))).status).toBe(404);
+  });
+
+  test("wird die Seite gelöscht, ist die Verknüpfung leer und «Seite anlegen» legt eine neue an", async () => {
+    const lagerId = await legeLager("Herbstlager");
+    const { seiteId } = (await (
+      await anfrage(admin, "POST", pfad(lagerId))
+    ).json()) as { seiteId: string };
+    expect(
+      (await anfrage(admin, "DELETE", `/api/v1/redaktion/seiten/${seiteId}`))
+        .status,
+    ).toBe(204);
+    expect(await seiteVon(lagerId)).toBeNull();
+    const neu = await anfrage(admin, "POST", pfad(lagerId));
+    expect(neu.status).toBe(201);
+    const { seiteId: zweite } = (await neu.json()) as { seiteId: string };
+    expect(zweite).not.toBe(seiteId);
+    expect(await seiteVon(lagerId)).toBe(zweite);
+  });
+
+  test("der Editor nennt Lager und Anlass nur, wer sie öffnen darf; eine andere Seite hat keinen Bezug", async () => {
+    const lagerId = await legeLager("Pfingstlager");
+    const { seiteId: lagerSeite } = (await (
+      await anfrage(admin, "POST", pfad(lagerId))
+    ).json()) as { seiteId: string };
+    const programm = await legeProgrammAn(db, {
+      abteilungId: welt.testabteilungId,
+      titel: "Waldweihnacht",
+      beginn: new Date("2027-12-11T13:00:00Z"),
+    });
+    const angelegt = await anfrage(admin, "POST", "/api/v1/admin/anlaesse", {
+      programmId: programm.id,
+      anmeldungFuer: "person",
+      anmeldungOffen: true,
+      sichtbarkeit: { art: "angemeldet" },
+      felder: [],
+    });
+    expect(angelegt.status).toBe(201);
+    const anlass = (await angelegt.json()) as { id: string; seiteId: string };
+
+    expect(await bezug(admin, lagerSeite)).toEqual({
+      anlassId: null,
+      lagerId,
+    });
+    expect(await bezug(admin, anlass.seiteId)).toEqual({
+      anlassId: anlass.id,
+      lagerId: null,
+    });
+    // Der Webmaster bearbeitet die Seiten, öffnet aber weder Lager noch Anlass
+    const webmaster = await legePersonaMitFaktorAn(welt, "elternA");
+    await macheWebmaster(db, welt.testabteilungId, webmaster.id!);
+    expect(await bezug(webmaster, lagerSeite)).toEqual({
+      anlassId: null,
+      lagerId: null,
+    });
+    expect(await bezug(webmaster, anlass.seiteId)).toEqual({
+      anlassId: null,
+      lagerId: null,
+    });
+    // Mit «lager.verwalten» dazu nennt der Editor das Lager
+    const beide = await mitPlattformrolle([
+      "seiten.bearbeiten",
+      "lager.verwalten",
+    ]);
+    expect((await bezug(beide, lagerSeite)).lagerId).toBe(lagerId);
+    const andere = (await (
+      await anfrage(admin, "POST", "/api/v1/redaktion/seiten", {
+        titel: "Kontakt",
+        adresse: `kontakt-${randomUUID().slice(0, 8)}`,
+        sichtbarkeit: { art: "angemeldet" },
+      })
+    ).json()) as { id: string };
+    expect(await bezug(admin, andere.id)).toEqual({
+      anlassId: null,
+      lagerId: null,
+    });
+  });
 });
