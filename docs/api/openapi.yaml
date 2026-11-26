@@ -26438,7 +26438,7 @@ paths:
       operationId: holeFotoAlbum
       summary: Fotoalbum mit seinen Bildern
       description: |
-        Für jede angemeldete Person der Abteilung ausser dem Konto eines Kindes: Titel, Datum und die Bilder des Albums (höchstens 2000) mit Kennung, Titel und den Massen der mittleren Grösse. Server und Secret der Bilder bei Flickr stehen nie in der Antwort. `flickrUrl` steht nur, wenn die Abteilung den Link zu Flickr eingeschaltet hat.
+        Für jede angemeldete Person der Abteilung ausser dem Konto eines Kindes: Titel, Datum und die Bilder des Albums (höchstens 2000) mit Kennung, Titel, Seitenverhältnis (`breite`, `hoehe` einer kleinen Grösse) und je Grössenstufe, die Flickr für das Bild liefert, Breite und Höhe der Datei (`groessen`, #867; das Original nur, wenn Flickr es für das Konto freigibt). Die Website baut daraus `srcset` und die Liste zum Herunterladen. Server und Secrets der Bilder bei Flickr stehen nie in der Antwort. `flickrUrl` steht nur, wenn die Abteilung den Link zu Flickr eingeschaltet hat.
 
         Statuscodes: 200 bei Erfolg. 404, wenn die Kennung kein sichtbares Album der eigenen Abteilung ist (auch bei Alben, die es bei Flickr gibt). 401, 403, 429, 502, 503 wie bei der Liste.
 
@@ -26488,11 +26488,11 @@ paths:
       operationId: holeFotoAlbumTitelbild
       summary: Titelbild eines Fotoalbums
       description: |
-        Das Titelbild eines sichtbaren Albums als Bilddatei (JPEG, PNG, GIF oder WebP), die der Server bei Flickr holt und durchreicht. Nur der feste Bild-Host von Flickr kommt in Frage; eine Adresse oder eine Pixelzahl vom Client gibt es nicht. `Cache-Control: private, no-cache` mit ETag (der Browser fragt jedes Mal nach, die Antwort kommt erst nach der Sitzungsprüfung; unverändert 304).
+        Das Titelbild eines sichtbaren Albums als Bilddatei (JPEG, PNG, GIF oder WebP), die der Server bei Flickr holt und durchreicht. Nur der feste Bild-Host von Flickr kommt in Frage; eine Adresse vom Client gibt es nicht, nur eine der festen Grössenstufen. Beim Titelbild kennt der Server die Grössen nicht: Er liefert höchstens 1024. `Cache-Control: private, no-cache` mit ETag (der Browser fragt jedes Mal nach, die Antwort kommt erst nach der Sitzungsprüfung; unverändert 304).
 
-        Statuscodes: 200 mit der Datei, 304. 404, wenn das Album nicht sichtbar ist oder kein Titelbild hat. 401, 403 (Konto eines Kindes), 429 (höchstens 1500 Bilder je Konto und Minute), 502, 503.
+        Statuscodes: 200 mit der Datei, 304. 404, wenn das Album nicht sichtbar ist oder kein Titelbild hat. 401, 403 (Konto eines Kindes), 429 (höchstens 1500 Bilder je Konto und Minute, davon höchstens 120 ab 3072 und Original), 502, 503.
 
-        Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Datei fliesst als Strom durch (höchstens 20 MiB), ohne sie im Speicher zu sammeln.
+        Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Datei fliesst als Strom durch (höchstens 40 MiB), ohne sie im Speicher zu sammeln.
       tags:
         - Fotos
       parameters:
@@ -26504,17 +26504,7 @@ paths:
           schema:
             type: string
             pattern: "^[0-9]{1,20}$"
-        - name: groesse
-          in: query
-          required: false
-          description: Feste Grössenstufe; ohne Angabe `mittel`. Eine Pixelzahl gibt es nicht.
-          schema:
-            type: string
-            enum:
-              - klein
-              - mittel
-              - gross
-            default: mittel
+        - $ref: "#/components/parameters/FotoGroesse"
       responses:
         "200":
           description: Bilddatei.
@@ -26552,9 +26542,13 @@ paths:
       operationId: holeFotoBild
       summary: Bild eines Fotoalbums
       description: |
-        Ein Bild eines sichtbaren Albums als Datei, die der Server bei Flickr holt und durchreicht. Das Bild muss im Album stehen: Eine beliebige Kennung öffnet nichts (404). Sonst wie das Titelbild: feste Grössenstufen, nur der Bild-Host von Flickr, `private, no-cache` mit ETag, Strom ohne Zwischenspeichern, höchstens 20 MiB.
+        Ein Bild eines sichtbaren Albums als Datei, die der Server bei Flickr holt und durchreicht. Das Bild muss im Album stehen: Eine beliebige Kennung öffnet nichts (404). Sonst wie das Titelbild: feste Grössenstufen, nur der Bild-Host von Flickr, `private, no-cache` mit ETag, Strom ohne Zwischenspeichern, höchstens 40 MiB (Original 200 MiB).
 
-        Statuscodes: 200, 304, 404, 401, 403 (Konto eines Kindes), 429, 502, 503.
+        Grössen (#867): Fehlt eine Stufe bei Flickr, kommt die grösste kleinere (beim Original die grösste vorhandene). Ab 1600 und beim Original hat jede Grösse bei Flickr ein eigenes Secret; auch das bleibt beim Server.
+
+        Herunterladen (#867): Mit `herunterladen=1` kommt dieselbe Datei als Anhang (`Content-Disposition: attachment`) mit dem Namen `<Album>-<Nummer>-<Stufe>.<Endung>`, z. B. `Sommerlager-2026-024-2048.jpg` (nur Buchstaben ohne Akzent, Ziffern und `-`). Wer das Album sehen darf, darf seine Bilder herunterladen.
+
+        Statuscodes: 200, 304, 404, 401, 403 (Konto eines Kindes), 429 (höchstens 1500 Bilder je Konto und Minute, davon höchstens 120 ab 3072 und Original), 502, 503.
 
         Datenbanklast: eine Abfrage für die Einstellung, eine für die Zeile des Albums; die Bildliste kommt aus dem Speicher des Servers.
       tags:
@@ -26575,17 +26569,15 @@ paths:
           schema:
             type: string
             pattern: "^[0-9]{1,20}$"
-        - name: groesse
+        - $ref: "#/components/parameters/FotoGroesse"
+        - name: herunterladen
           in: query
           required: false
-          description: Feste Grössenstufe; ohne Angabe `mittel`. Eine Pixelzahl gibt es nicht.
+          description: "`1`: als Anhang mit Dateinamen statt zum Anzeigen."
           schema:
             type: string
             enum:
-              - klein
-              - mittel
-              - gross
-            default: mittel
+              - "1"
       responses:
         "200":
           description: Bilddatei.
@@ -44832,6 +44824,7 @@ components:
         - titel
         - breite
         - hoehe
+        - groessen
       properties:
         id:
           type: string
@@ -44841,6 +44834,30 @@ components:
           type: integer
         hoehe:
           type: integer
+        groessen:
+          type: object
+          description: Je Grössenstufe, die Flickr für das Bild liefert, Breite und Höhe der Datei in Pixeln (#867). Fehlende Stufen fehlen; `original` nur, wenn Flickr es für das Konto freigibt.
+          propertyNames:
+            enum:
+              - "320"
+              - "400"
+              - "640"
+              - "800"
+              - "1024"
+              - "1600"
+              - "2048"
+              - "3072"
+              - "4096"
+              - "5120"
+              - "6144"
+              - original
+          additionalProperties:
+            type: array
+            items:
+              type: integer
+              minimum: 1
+            minItems: 2
+            maxItems: 2
     FotoAlbumAnsicht:
       type: object
       required:
@@ -45064,6 +45081,30 @@ components:
             - nicht_gefunden
             - nicht_erreichbar
   parameters:
+    FotoGroesse:
+      name: groesse
+      in: query
+      required: false
+      description: Feste Grössenstufe nach der langen Seite in Pixeln, wie Flickr sie anbietet, oder `original` (#867); ohne Angabe 640. `klein`, `mittel` und `gross` (320, 640, 1024) gelten noch für Seiten von vorher. Eine andere Zahl oder eine Adresse gibt es nicht.
+      schema:
+        type: string
+        enum:
+          - "320"
+          - "400"
+          - "640"
+          - "800"
+          - "1024"
+          - "1600"
+          - "2048"
+          - "3072"
+          - "4096"
+          - "5120"
+          - "6144"
+          - original
+          - klein
+          - mittel
+          - gross
+        default: "640"
     MedienLimit:
       name: limit
       in: query
