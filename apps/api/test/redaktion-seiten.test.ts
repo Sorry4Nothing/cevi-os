@@ -473,6 +473,9 @@ describe("Lesen", () => {
       tagId: welt.stufeAId,
       veroeffentlicht: false,
       geaendertAm: expect.any(String),
+      // Ohne Anlass und Lager (#838)
+      anlassId: null,
+      lagerId: null,
     });
   });
 

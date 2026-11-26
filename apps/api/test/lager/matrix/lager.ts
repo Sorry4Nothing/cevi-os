@@ -63,6 +63,11 @@ export const ZEILEN: LagerMatrix = {
       abgeschlossen: verwaltungObjekt(409),
     },
   },
+  "POST /api/v1/admin/lager/:id/seite": {
+    url: (w, z) => `/api/v1/admin/lager/${w.lagerId(z)}/seite`,
+    // Die Abteilungsleitung legt die Seite an (jedes Matrix-Lager einmal, darum 201); auch ein geschlossenes Lager darf eine Seite bekommen (Rückblick). Den zweiten Klick (200) prüft test/rechte-website-lager-plattform.test.ts
+    erwartet: gleich(verwaltungObjekt(201)),
+  },
   "GET /api/v1/admin/lager/:id/mitglieder": {
     url: (w, z) => `/api/v1/admin/lager/${w.lagerId(z)}/mitglieder`,
     erwartet: gleich(verwaltungObjekt(200)),

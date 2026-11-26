@@ -4,7 +4,14 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import { bearbeitbar, darfSeite } from "../../bearbeiten.js";
 import type { Db } from "../../db/client.js";
-import { auditLog, bearbeiter, seite, tag } from "../../db/schema.js";
+import {
+  anlass,
+  auditLog,
+  bearbeiter,
+  lager,
+  seite,
+  tag,
+} from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
 import type { Person } from "../../rechte.js";
 import { darf as darfRecht, verlange } from "../../rechtemodell/darf.js";
@@ -15,6 +22,8 @@ import {
   tagsGehoerenZurAbteilung,
   type Sichtbarkeit,
 } from "../../sichtbarkeit.js";
+import { darfMitFaktor } from "../../termine/rechte.js";
+import { LESEN as ANLASS_LESEN } from "../termine/admin-anlaesse.js";
 import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 import {
   adresseSchema,
@@ -161,6 +170,46 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
     z: { id: string; abteilungId?: string; tagId: string | null },
   ) => darfSeite(d, person, z);
 
+  // Zu welchem Anlass und welchem Lager die Seite gehört (#838), damit der Editor dorthin führt. Nur, was die Person in der Verwaltung öffnen darf, sonst null: den Anlass mit einem Recht zum Lesen, das Lager mit «Lager anlegen und verwalten»
+  async function ladeBezug(person: Person, seiteId: string) {
+    const [[a], [l]] = await Promise.all([
+      db
+        .select({ id: anlass.id })
+        .from(anlass)
+        .where(
+          and(
+            eq(anlass.seiteId, seiteId),
+            eq(anlass.abteilungId, person.abteilungId),
+          ),
+        )
+        .limit(1),
+      db
+        .select({ id: lager.id })
+        .from(lager)
+        .where(
+          and(
+            eq(lager.seiteId, seiteId),
+            eq(lager.abteilungId, person.abteilungId),
+          ),
+        ),
+    ]);
+    let anlassId: string | null = null;
+    for (const recht of a ? ANLASS_LESEN : []) {
+      if (
+        await darfMitFaktor(db, person, recht, {
+          abteilungId: person.abteilungId,
+          anlassId: a.id,
+        })
+      ) {
+        anlassId = a.id;
+        break;
+      }
+    }
+    const lagerId =
+      l && (await darfMitFaktor(db, person, "lager.verwalten")) ? l.id : null;
+    return { anlassId, lagerId };
+  }
+
   // Reservierte Adresse, Zyklus und Tiefe; die Eindeutigkeit der Adresse sichert zusätzlich die Datenbank
   function pruefeAdresseUndLage(
     knoten: Knoten,
@@ -291,7 +340,11 @@ export function erstelleSeitenRouten({ db }: { db: Db }) {
       const person = c.get("person");
       const zeile = await ladeSeite(db, person, c.req.valid("param").id);
       if (!(await darf(db, person, zeile))) throw new HTTPException(403);
-      return c.json(antwort(zeile, await ladeKnoten(db, person.abteilungId)));
+      const [knoten, bezug] = await Promise.all([
+        ladeKnoten(db, person.abteilungId),
+        ladeBezug(person, zeile.id),
+      ]);
+      return c.json({ ...antwort(zeile, knoten), ...bezug });
     })
     .patch(
       "/:id",

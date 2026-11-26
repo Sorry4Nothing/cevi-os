@@ -69,7 +69,7 @@ function freieAdresse(
 }
 
 // Strukturänderungen laufen je Abteilung nacheinander (wie in routes/redaktion/seiten.ts); innerhalb einer Transaktion darf die Sperre mehrfach genommen werden
-const sperre = (tx: Tx, abteilungId: string) =>
+export const sperre = (tx: Tx, abteilungId: string) =>
   tx.execute(
     sql`select pg_advisory_xact_lock(hashtextextended(${`seite:${abteilungId}`}, 0))`,
   );

@@ -43,8 +43,8 @@ import type { Person } from "../../rechte.js";
 import type { TermineEnv } from "./index.js";
 
 // Anlässe verwalten (#442, Epic #430): Ein Anlass ist ein Termin mit Anmeldung. Die Rechte «Anlässe anlegen und löschen» und «Anlässe verwalten» (rechtemodell/katalog.ts) prüft verlange(); standardmässig hat sie nur die Abteilungsleitung, «verwalten» kann zusätzlich eine Gruppenrolle des OK für den eigenen Anlass haben (#649). Die Pfade tragen /api/v1/admin und erben den zweiten Faktor der Abteilungsleitung; für alle anderen verlangt ihn verlange().
-// Den Anlass lesen (Liste und Detail): wer ihn verwaltet oder seine Anmeldungen sieht oder exportiert; Ändern verlangt «anlass.verwalten»
-const LESEN = [
+// Den Anlass lesen (Liste und Detail): wer ihn verwaltet oder seine Anmeldungen sieht oder exportiert; Ändern verlangt «anlass.verwalten». Auch der Website-Editor zeigt «Zum Anlass» nur damit (#838)
+export const LESEN = [
   "anlass.verwalten",
   "anlass.anmeldungen_sehen",
   "anlass.anmeldungen_exportieren",
