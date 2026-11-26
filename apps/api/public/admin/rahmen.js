@@ -1,6 +1,7 @@
 // Rahmen der Verwaltung nach dem Design (A1, G4): Logozeile mit Konto, blaue Bereichsleiste, darunter die Unterleiste des aktiven Bereichs mit Zählern; dazu die Rückmeldungen.
 import { adresseVon } from "./navigation.js";
 import { avatar, el, icon, leere } from "./dom.js";
+import { lesedauer } from "./rueckgaengig.js";
 
 // Marke im Kopf wie auf der Website (#578): das Logo der Abteilung (hell und, falls gesetzt, dunkel) oder die Wortmarke «CEVI» mit dem Namen.
 // Name und Logo kommen aus den Einstellungen der Website (GET /api/v1/redaktion/website) und stehen nie im Code; ohne sie (kein Recht auf die Einstellungen, nichts gesetzt) bleibt die Wortmarke «CEVI» allein.
@@ -573,19 +574,17 @@ export function seitenkopf({ titel, untertitel }) {
   return { wurzel, h1, unter, aktion };
 }
 
-// Rückmeldungen nach einer Aktion sind Toasts (#761): eine feste Stelle, überall gleich, sie gehen von selbst (erstelleToasts unten).
-// art: «ok», «info», «warn» oder «fehler»; aktion: { text, onclick } für «Beheben», «Nochmals versuchen» u. ä.
-// Erfolg und Info bleiben 4 Sekunden, Warnung und Fehler 8 Sekunden (länger zum Lesen); Zeiger und Fokus halten die Zeit an (WCAG 2.2.1).
-// Mit einer Aktion bleibt die Meldung, bis man sie schliesst: Dort gibt es etwas zu entscheiden
-export const OK_MS = 4000;
-export const FEHLER_MS = 8000;
-// So viele Rückmeldungen sind höchstens zugleich sichtbar; die älteste geht zuerst (die Statusregion hat sie schon angesagt)
+// Rückmeldungen nach einer Aktion sind Toasts (#761): eine feste Stelle, überall gleich (erstelleToasts unten).
+// art: «ok», «info», «warn» oder «fehler»; aktion: { text, onclick } für «Beheben», «Nochmals versuchen», «Rückgängig» u. ä.
+// Entscheid des Auftraggebers (#869): Bestätigungen (Erfolg, Info ohne Aktion) gehen von selbst nach der Lesedauer ihres Texts (lesedauer, mindestens 5 Sekunden); Zeiger und Fokus halten die Zeit an (WCAG 2.2.1).
+// Warnungen, Fehler und Meldungen mit Aktion bleiben, bis man sie schliesst: Dort gibt es etwas zu lesen, zu beheben oder zu entscheiden
+// So viele Rückmeldungen sind höchstens zugleich sichtbar; zuerst geht die älteste Bestätigung, erst dann eine, die bleiben soll (die Statusregion hat sie schon angesagt)
 export const TOAST_MAX = 3;
 // So lange blendet der Toast aus (toast.css, nur bei erlaubter Bewegung sichtbar)
 const AUSBLENDEN_MS = 200;
 // Wie lange die Meldung steht; 0 = bis man sie schliesst
-export const dauerVon = (art, aktion) =>
-  aktion ? 0 : art === "fehler" || art === "warn" ? FEHLER_MS : OK_MS;
+export const dauerVon = (art, aktion, text = "") =>
+  aktion || art === "fehler" || art === "warn" ? 0 : lesedauer(text);
 
 // Toasts (#578, #761): eine Region unten links, gestapelt. Sie trägt zwei Arten: Toasts mit «Rückgängig» (Logik in rueckgaengig.js) und die Rückmeldungen nach Aktionen (melde, ersetzt die Meldungen im Inhalt). Der Toast bekommt nie den Fokus. Erreichbar sind sie auf drei Wegen: «Rückgängig» ist ein Knopf im Seitenaufbau (die Region steht gleich nach dem Kopf, vor dem Inhalt),
 // Strg oder Cmd + Z nimmt die jüngste Aktion zurück (ausser in Eingabefeldern, dort gilt das Rückgängig des Feldes), F6 setzt den Fokus auf den ersten Knopf «Rückgängig». Die Statusregion sagt jede Aktion und die Möglichkeit zum Rückgängigmachen an.
@@ -620,7 +619,7 @@ export function erstelleToasts(steuerung) {
     wurzel.hidden = knoten.size === 0 && meldungen.length === 0;
   };
 
-  // Rückmeldung nach einer Aktion: erscheint hier statt im Inhalt, geht von selbst (dauerVon), Zeiger und Fokus halten die Zeit an
+  // Rückmeldung nach einer Aktion: erscheint hier statt im Inhalt; eine Bestätigung geht von selbst (dauerVon), Zeiger und Fokus halten die Zeit an
   function melde(text, art = "ok", aktion) {
     if (!text) {
       for (const m of [...meldungen]) m.entferne();
@@ -629,7 +628,7 @@ export function erstelleToasts(steuerung) {
     if (!wurzel.isConnected) return;
     // Gleicher Text: ersetzen statt stapeln
     for (const alt of meldungen.filter((m) => m.text === text)) alt.entferne();
-    const dauer = dauerVon(art, aktion);
+    const dauer = dauerVon(art, aktion, text);
     const zu = el(
       "button",
       {
@@ -693,6 +692,7 @@ export function erstelleToasts(steuerung) {
     const m = {
       text,
       li,
+      dauer,
       haelt: false,
       entferne() {
         halte();
@@ -713,7 +713,8 @@ export function erstelleToasts(steuerung) {
     li.addEventListener("focusin", () => ((fokus = true), pruefe()));
     li.addEventListener("focusout", () => ((fokus = false), pruefe()));
     meldungen.push(m);
-    while (meldungen.length > TOAST_MAX) meldungen[0].entferne();
+    while (meldungen.length > TOAST_MAX)
+      (meldungen.find((x) => x.dauer) ?? meldungen[0]).entferne();
     liste.append(li);
     aktualisiere();
     starte();

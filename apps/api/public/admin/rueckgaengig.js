@@ -3,8 +3,11 @@
 // Reine Logik ohne DOM: Zeitgeber sind einsetzbar (Tests); die Darstellung steht in rahmen.js, die Verdrahtung in admin.js.
 
 export const FRIST_MS = 8000;
-// So lange bleibt «Erledigt» stehen (wie jede Erfolgsmeldung: 4 Sekunden, #761)
-export const ERLEDIGT_MS = 4000;
+// Wie lange eine Bestätigung steht (#869): lang genug zum Lesen, mindestens 5 Sekunden (Handbuch 2.7); 2 Sekunden zum Bemerken, dazu 60 ms je Zeichen (rund 170 Wörter in der Minute).
+// Hier statt in rahmen.js, weil diese Datei ohne DOM läuft; rahmen.js nimmt sie für alle Rückmeldungen
+export const LESE_MIN_MS = 5000;
+export const lesedauer = (text = "") =>
+  Math.max(LESE_MIN_MS, 2000 + String(text).length * 60);
 // So lange bleibt die zweite Stufe einer zweistufigen Aktion scharf
 export const SCHARF_MS = 6000;
 
@@ -16,7 +19,8 @@ export function erstelleRueckgaengig({
     jetzt: () => Date.now(),
   },
   frist = FRIST_MS,
-  erledigtNach = ERLEDIGT_MS,
+  // Vorgabe: die Lesedauer des Texts «Erledigt»
+  erledigtNach,
   beiAenderung = () => {},
   ansage = () => {},
   beimVerlassen = () => {},
@@ -54,7 +58,7 @@ export function erstelleRueckgaengig({
       ansage(a.erledigtText);
       a.danach?.(ergebnis);
       // «Erledigt» bleibt kurz stehen und geht dann von selbst; Zeigen und Fokus halten die Zeit an
-      laufeAus(a, erledigtNach);
+      laufeAus(a, erledigtNach ?? lesedauer(a.erledigtText));
     } catch (fehler) {
       a.phase = "fehler";
       a.fehlerText = a.fehlertext(fehler);
