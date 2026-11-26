@@ -59,7 +59,7 @@ const ENTSCHEID_TEXT = {
   abgelehnt: "Dein Vorschlag ist abgelehnt.",
 } as const;
 
-// Push «termin_entscheid» an die vorschlagende Person, nur wenn ihr Konto noch aktiv ist. Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für das Konto, dann die von sendePush
+// Push «termin_entscheid» an die vorschlagende Person, nur wenn ihr Konto noch aktiv ist und sie den Schalter pushTerminEntscheid nicht ausgeschaltet hat (#847). Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für das Konto, dann die von sendePush
 export async function pushEntscheid(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   {
@@ -79,7 +79,13 @@ export async function pushEntscheid(
     const [konto] = await db
       .select({ id: user.id })
       .from(user)
-      .where(and(aktivesKonto(abteilungId), eq(user.id, vonId)));
+      .where(
+        and(
+          aktivesKonto(abteilungId),
+          eq(user.id, vonId),
+          eq(user.pushTerminEntscheid, true),
+        ),
+      );
     if (!konto) return;
     await sendePush({ db, fcm, c }, [konto.id], {
       typ: "termin_entscheid",

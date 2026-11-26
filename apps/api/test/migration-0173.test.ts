@@ -15,14 +15,14 @@ import postgres from "postgres";
 import { afterAll, beforeAll, expect, test } from "vitest";
 import { SUPERUSER_URL } from "./hilfen/datenbank.js";
 
-// 0171 (ohne «Wer meldet sich an?») und 0172 (Rollen in der Sichtbarkeit) mit ihren Rückwegen gegen eine eigene Datenbank mit Daten (#844)
+// 0172 (ohne «Wer meldet sich an?») und 0173 (Rollen in der Sichtbarkeit) mit ihren Rückwegen gegen eine eigene Datenbank mit Daten (#844)
 const dbName = `cevi_os_mig844_${randomUUID().replace(/-/g, "").slice(0, 12)}`;
 const url = (benutzer: string) =>
   `postgres://${benutzer}@localhost:5432/${dbName}`;
 const drizzleOrdner = new URL("../drizzle/", import.meta.url);
 const temp = mkdtempSync(join(tmpdir(), "mig844-"));
-const bis170 = join(temp, "bis170");
 const bis171 = join(temp, "bis171");
+const bis172 = join(temp, "bis172");
 const komplett = join(temp, "komplett");
 
 const superuser = postgres(SUPERUSER_URL, { max: 1, onnotice: () => {} });
@@ -46,9 +46,9 @@ function ordnerBauen(ziel: string, bis: number) {
 beforeAll(async () => {
   await superuser.unsafe(`create database ${dbName} owner cevi_os_besitzer`);
   besitzer = postgres(url("cevi_os_besitzer"), { max: 1, onnotice: () => {} });
-  ordnerBauen(bis170, 170);
   ordnerBauen(bis171, 171);
-  ordnerBauen(komplett, 172);
+  ordnerBauen(bis172, 172);
+  ordnerBauen(komplett, 173);
 });
 
 afterAll(async () => {
@@ -74,8 +74,8 @@ const rueckweg = (datei: string) =>
     ),
   );
 
-test("0171: Anlässe und Anmeldungen bleiben, die Spalte fällt weg; der Rückweg leitet «kind» oder «person» aus den Anmeldungen ab", async () => {
-  await migrate(drizzle(besitzer), { migrationsFolder: bis170 });
+test("0172: Anlässe und Anmeldungen bleiben, die Spalte fällt weg; der Rückweg leitet «kind» oder «person» aus den Anmeldungen ab", async () => {
+  await migrate(drizzle(besitzer), { migrationsFolder: bis171 });
   const vorher = await anzahlMigrationen();
   const abteilung = (
     await besitzer`insert into abteilung (name) values ('Eins') returning id`
@@ -94,7 +94,7 @@ test("0171: Anlässe und Anmeldungen bleiben, die Spalte fällt weg; der Rückwe
   const selbst = await anlass("Selbst", "person");
   await besitzer`insert into anlass_anmeldung (anlass_id, user_id, status) values (${selbst}, ${person}, 'angemeldet')`;
 
-  await migrate(drizzle(besitzer), { migrationsFolder: bis171 });
+  await migrate(drizzle(besitzer), { migrationsFolder: bis172 });
   expect(await anzahlMigrationen()).toBe(vorher + 1);
   expect(await spalte("anlass", "anmeldung_fuer")).toBe(false);
   expect(
@@ -105,7 +105,7 @@ test("0171: Anlässe und Anmeldungen bleiben, die Spalte fällt weg; der Rückwe
     await besitzer`insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis) values (${abteilung}, 'g-neu', 'Neu', true, '2027-06-01', '2027-06-01') returning id`;
   await besitzer`insert into anlass (abteilung_id, programm_id, sichtbarkeit) values (${abteilung}, ${p.id}, 'angemeldet')`;
 
-  await rueckweg("0171_anlass_ohne_anmeldung_fuer.sql");
+  await rueckweg("0172_anlass_ohne_anmeldung_fuer.sql");
   expect(await anzahlMigrationen()).toBe(vorher);
   const werte = Object.fromEntries(
     (await besitzer`select id, anmeldung_fuer from anlass`).map((z) => [
@@ -120,7 +120,7 @@ test("0171: Anlässe und Anmeldungen bleiben, die Spalte fällt weg; der Rückwe
   ).rejects.toThrow(/anlass_anmeldung_fuer_check/);
 }, 120_000);
 
-test("0172: bestehende Seiten und Anlässe bleiben ohne Einschränkung; der Rückweg nimmt eingeschränkte Tags aus der Menge (fail-closed), auch in Bausteinen", async () => {
+test("0173: bestehende Seiten und Anlässe bleiben ohne Einschränkung; der Rückweg nimmt eingeschränkte Tags aus der Menge (fail-closed), auch in Bausteinen", async () => {
   await migrate(drizzle(besitzer), { migrationsFolder: komplett });
   const vorher = await anzahlMigrationen();
   expect(await spalte("seite", "sichtbarkeit_rollen")).toBe(true);
@@ -160,7 +160,7 @@ test("0172: bestehende Seiten und Anlässe bleiben ohne Einschränkung; der Rüc
   const [anlass] = await besitzer`select id from anlass limit 1`;
   await besitzer`update anlass set sichtbarkeit = 'tags', sichtbarkeit_tags = ${`{${a}}`}::uuid[], sichtbarkeit_rollen = ${JSON.stringify(rollen)}::jsonb where id = ${anlass.id}`;
 
-  await rueckweg("0172_sichtbarkeit_rollen.sql");
+  await rueckweg("0173_sichtbarkeit_rollen.sql");
   expect(await anzahlMigrationen()).toBe(vorher - 1);
   expect(await spalte("seite", "sichtbarkeit_rollen")).toBe(false);
   const [s] =

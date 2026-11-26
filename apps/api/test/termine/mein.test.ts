@@ -398,6 +398,107 @@ describe("Mein Kalender: wer welche Termine sieht", () => {
     });
   });
 
+  // Ein Termin als Kalenderdatei (#847): dieselbe Sicht wie das Detail
+  describe("Kalenderdatei", () => {
+    const datei = (persona: TerminePersona, id: string) =>
+      hole(persona, `/api/v1/termine/${id}.ics`);
+
+    test("sichtbar: RFC 5545 mit einem Termin in UTC, als Anhang, ohne Personendaten", async () => {
+      // 23:30 Uhr in Zürich am 4. Mai ist in UTC noch derselbe Tag; der Dateiname nennt den Zürcher Tag
+      const { id } = await legeProgrammAn(db, {
+        abteilungId: welt.testabteilungId,
+        stufen: [welt.stufeAId],
+        titel: "Abendprogramm",
+        beginn: new Date("2029-05-04T21:30:00Z"),
+        ende: new Date("2029-05-04T23:00:00Z"),
+      });
+      await db
+        .update(schema.programm)
+        .set({ ort: "Kirchgemeindehaus, Saal" })
+        .where(eq(schema.programm.id, id));
+      const antwort = await datei("elternA", id);
+      expect(antwort.status).toBe(200);
+      expect(antwort.headers.get("content-type")).toBe(
+        "text/calendar; charset=utf-8",
+      );
+      expect(antwort.headers.get("content-disposition")).toBe(
+        'attachment; filename="termin-2029-05-04.ics"',
+      );
+      expect(antwort.headers.get("cache-control")).toBe("private, no-store");
+      const text = await antwort.text();
+      expect(text.endsWith("END:VCALENDAR\r\n")).toBe(true);
+      expect(text.split("\r\n")).toEqual(
+        expect.arrayContaining([
+          "BEGIN:VCALENDAR",
+          "VERSION:2.0",
+          "BEGIN:VEVENT",
+          `UID:${id}@cevi-os`,
+          "DTSTART:20290504T213000Z",
+          "DTEND:20290504T230000Z",
+          "SUMMARY:Abendprogramm",
+          "LOCATION:Kirchgemeindehaus\\, Saal",
+          "STATUS:CONFIRMED",
+          "END:VEVENT",
+        ]),
+      );
+      expect(text.match(/BEGIN:VEVENT/g)).toHaveLength(1);
+      // Kein Kalendername (sonst legte mancher Kalender einen eigenen an), keine Beschreibung, keine Kinder
+      expect(text).not.toMatch(/X-WR-CALNAME|DESCRIPTION|Kind/);
+    });
+
+    test("ganztägig: DATE-Werte, das Ende ist der Tag nach dem letzten", async () => {
+      const id = await termin({
+        titel: "Lager",
+        tags: [welt.stufeAId],
+        tagVon: "2029-07-10",
+        tagBis: "2029-07-17",
+      });
+      await db
+        .update(schema.programm)
+        .set({ ganztaegig: true })
+        .where(eq(schema.programm.id, id));
+      const antwort = await datei("elternA", id);
+      expect(antwort.status).toBe(200);
+      expect(antwort.headers.get("content-disposition")).toBe(
+        'attachment; filename="termin-2029-07-10.ics"',
+      );
+      const zeilen = (await antwort.text()).split("\r\n");
+      expect(zeilen).toContain("DTSTART;VALUE=DATE:20290710");
+      expect(zeilen).toContain("DTEND;VALUE=DATE:20290718");
+    });
+
+    test("ein abgesagter Termin trägt STATUS:CANCELLED", async () => {
+      const text = await (await datei("elternA", ids["A abgesagt"])).text();
+      expect(text).toContain("STATUS:CANCELLED");
+    });
+
+    test("Unsichtbares, Unbekanntes und Fremdes ist 404, wie beim Detail", async () => {
+      for (const [persona, name] of [
+        ["elternA", "ohne Tag"],
+        ["elternA", "B"],
+        ["abteilungsleitung", "A"],
+        ["fremdeEltern", "A"],
+        ["fremdeAbteilungsleitung", "A"],
+      ] as [TerminePersona, string][]) {
+        expect(
+          (await datei(persona, ids[name])).status,
+          `${persona} ${name}`,
+        ).toBe(404);
+      }
+      expect((await datei("elternA", randomUUID())).status).toBe(404);
+      expect((await datei("elternA", "kein-uuid")).status).toBe(404);
+      // Das Detail bleibt erreichbar: Ohne «.ics» geht die Anfrage weiter
+      expect(
+        (await hole("elternA", `/api/v1/termine/${ids["A"]}`)).status,
+      ).toBe(200);
+    });
+
+    test("ohne Anmeldung 401, mit Passwortpflicht 403", async () => {
+      expect((await datei("ohneLogin", ids["A"])).status).toBe(401);
+      expect((await datei("passwortPflicht", ids["A"])).status).toBe(403);
+    });
+  });
+
   describe("Zwischenspeicher", () => {
     test("Liste und Detail: private, ETag, bei gleichem Stand 304 ohne Inhalt", async () => {
       for (const pfad of [

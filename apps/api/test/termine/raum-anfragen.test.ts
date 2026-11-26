@@ -514,6 +514,23 @@ describe("Ablauf: anfragen, entscheiden, Push", () => {
     expect(fcmAttrappe.nachrichten).toEqual([]);
   });
 
+  test("Schalter pushRaumEntscheid aus (#847): kein Push, Entscheid geht", async () => {
+    const person = await legePersonaAn(welt, "elternB");
+    const raum = await neuerRaum();
+    await token(person);
+    const { id } = await json(await anfragen(person, raum));
+    expect(
+      (
+        await aufruf(person, "PATCH", "/api/v1/ich", {
+          pushRaumEntscheid: false,
+        })
+      ).status,
+    ).toBe(204);
+    fcmAttrappe.zuruecksetzen();
+    expect((await entscheide(leitungA, id)).status).toBe(200);
+    expect(fcmAttrappe.nachrichten).toEqual([]);
+  });
+
   test("ein Ausfall von FCM ändert den Entscheid nicht", async () => {
     const raum = await neuerRaum();
     await token(eltern);

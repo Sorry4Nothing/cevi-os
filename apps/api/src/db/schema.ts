@@ -110,6 +110,11 @@ export const user = pgTable(
     pushChat: boolean("push_chat").notNull().default(true),
     pushProgramme: boolean("push_programme").notNull().default(true),
     pushAnmeldungen: boolean("push_anmeldungen").notNull().default(true),
+    // Entscheid zum eigenen Terminvorschlag und zur eigenen Raumanfrage (#847)
+    pushTerminEntscheid: boolean("push_termin_entscheid")
+      .notNull()
+      .default(true),
+    pushRaumEntscheid: boolean("push_raum_entscheid").notNull().default(true),
     datenschutzGelesenAm: zeitpunkt("datenschutz_gelesen_am"),
   },
   (t) => [

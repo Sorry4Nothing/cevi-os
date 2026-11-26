@@ -1,6 +1,6 @@
--- Rückweg zu 0171_anlass_ohne_anmeldung_fuer (#844), als Besitzer der Datenbank in einer Transaktion ausführen:
---   psql -1 -f rueckweg/0171_anlass_ohne_anmeldung_fuer.sql
--- Danach den Code auf den Stand vor 0171 zurückstellen. Die Anmeldungen bleiben. Der alte Wert lässt sich nur ableiten: «person», wenn der Anlass nur Anmeldungen ohne Kind hat, sonst «kind» (auch ohne Anmeldungen). Ein Anlass mit beiden Arten wird «kind»; seine Anmeldungen ohne Kind sieht die Person dann nicht mehr in ihrem Formular, die Verwaltung schon.
+-- Rückweg zu 0172_anlass_ohne_anmeldung_fuer (#844), als Besitzer der Datenbank in einer Transaktion ausführen:
+--   psql -1 -f rueckweg/0172_anlass_ohne_anmeldung_fuer.sql
+-- Danach den Code auf den Stand vor 0172 zurückstellen. Die Anmeldungen bleiben. Der alte Wert lässt sich nur ableiten: «person», wenn der Anlass nur Anmeldungen ohne Kind hat, sonst «kind» (auch ohne Anmeldungen). Ein Anlass mit beiden Arten wird «kind»; seine Anmeldungen ohne Kind sieht die Person dann nicht mehr in ihrem Formular, die Verwaltung schon.
 ALTER TABLE "anlass" ADD COLUMN "anmeldung_fuer" text;--> statement-breakpoint
 UPDATE "anlass" a SET "anmeldung_fuer" = CASE
   WHEN EXISTS (SELECT 1 FROM "anlass_anmeldung" m WHERE m."anlass_id" = a."id" AND m."kind_id" IS NULL)
