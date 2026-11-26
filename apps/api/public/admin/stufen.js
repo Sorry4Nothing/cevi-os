@@ -247,15 +247,13 @@ function leitungsListe(stufe, sl, ctx) {
   });
 }
 
-// Ohne eigenes Logo steht der Anfangsbuchstabe im Kasten; das Cevi-Logo gilt für die Stufe weiter überall dort, wo sie angezeigt wird, nur sechsmal dasselbe Zeichen untereinander sagt in der Verwaltung nichts
+// Ohne eigenes Logo gilt das Cevi-Logo, wie in den Auswahllisten (#845; vorher der Anfangsbuchstabe)
 function kennzeichen(stufe) {
-  return stufe.logoUrl
-    ? el("img", { class: "st-logo", src: stufe.logoUrl, alt: "" })
-    : el(
-        "span",
-        { class: "st-logo st-logo--buchstabe", "aria-hidden": "true" },
-        Array.from(stufe.name)[0]?.toLocaleUpperCase("de-CH") ?? "?",
-      );
+  return el("img", {
+    class: "st-logo",
+    src: stufe.logoUrl ?? STANDARD_LOGO,
+    alt: "",
+  });
 }
 
 function karte(stufe, anzahl, sl, ctx, neu, titelbild) {
