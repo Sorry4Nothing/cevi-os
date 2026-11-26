@@ -17,7 +17,12 @@ import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import { loescheAlteFormularAntworten } from "../src/formular/formular.js";
 import { ladeSeiten } from "../src/seiten.js";
-import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
+import {
+  bereiteAuthTestsVor,
+  cookiesAus,
+  erstelleTestAuth,
+  zufallsIp,
+} from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
 import {
   erstelleWelt,
@@ -346,6 +351,39 @@ describe("öffentliches Formular", () => {
     });
     expect(a.status).toBe(403);
     expect(await anzahl(f.formularId)).toBe(0);
+  });
+
+  test("aus der App (#858): Sitzung der App ohne Origin wie jede Schreib-Route, die Antwort gehört dem Konto", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    // Anmeldung wie die App: expo-origin mit dem Schema der App (auth.ts), also eine Sitzung «app_ungeprueft»
+    const anmeldung = await app.request("/api/auth/sign-in/username", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "expo-origin": "cevi-os://",
+        "x-forwarded-for": zufallsIp(),
+      },
+      body: JSON.stringify({
+        username: konto.benutzername,
+        password: konto.passwort,
+      }),
+    });
+    expect(anmeldung.status).toBe(200);
+    // Danach nur das Cookie: kein Origin, kein Bearer-Token
+    const headers = { cookie: cookiesAus(anmeldung) };
+    const profil = await app.request("/api/v1/ich", { headers });
+    expect(await json(profil)).toMatchObject({ clientArt: "app_ungeprueft" });
+    const f = await seite("angemeldet", { eineProPerson: true });
+    const a = await sende(null, f.formularId, body(gueltig()), headers);
+    expect(a.status).toBe(201);
+    const [z] = await db
+      .select({ userId: schema.formularAntwort.userId })
+      .from(schema.formularAntwort)
+      .where(eq(schema.formularAntwort.formularId, f.formularId));
+    expect(z!.userId).toBe(konto.id);
+    // Eine zweite Antwort derselben Sitzung zählt als dieselbe Person
+    const zweite = await sende(null, f.formularId, body(gueltig()), headers);
+    expect((await json(zweite)).code).toBe("BEREITS_BEANTWORTET");
   });
 });
 

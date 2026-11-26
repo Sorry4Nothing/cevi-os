@@ -4060,6 +4060,9 @@ paths:
         `stufen` enthält die Stufen der Rollen und der aktiven Kinder (ohne Doppelte), nach Name.
         Inaktive Kinder und Kinder anderer Abteilungen fehlen.
 
+        `raumAnfragenEntscheiden` und `tags` (#858) sind neu: ob die Person über Raumanfragen entscheidet (dieselbe Sicht wie
+        `GET /api/v1/raeume/anfragen/offen`) und ihre eigenen Gruppen vom Typ «Team» und «Lager», nach Name.
+
         **Einzige Route unter `/api/v1`, die bei offenem Pflichtwechsel des Passworts (`mussPasswortAendern: true`)
         erreichbar bleibt.** Alle anderen antworten dann mit 403.
 
@@ -27200,6 +27203,8 @@ paths:
       description: |
         Die einzige Route unter `/api/v1`, die ohne Anmeldung schreibt (#819). Eine vorhandene Sitzung liest sie mit: Wer angemeldet ist, sendet mit dem eigenen Konto, alle anderen anonym (ohne Person, ohne IP-Adresse). Nur POST mit JSON; eine fremde `Origin` ist 403.
 
+        Aus der App gilt sie wie jede Schreib-Route der App (#858): die Sitzung im Cookie, ohne `Origin` (nur ein Browser sendet ihn), mit jeder `clientArt` (`web`, `app_nachgewiesen`, `app_ungeprueft`); die Antwort gehört dann dem Konto. `clientArt` ändert nichts. Ein Bearer-Token gibt es nicht. Auch die App sendet `homepage: ""` und `dauerMs` (Zeit seit dem Öffnen des Formulars).
+
         `id` ist die ID des Bausteins «Formular» im Dokument einer veröffentlichten Seite. Der Server prüft jede Antwort gegen die veröffentlichte Definition aus der Datenbank, nie gegen etwas aus der Anfrage; jede unbekannte Feld-ID ist ein Fehler. Wer ausfüllen darf, bestimmt die Sichtbarkeit der Seite und des Bausteins (öffentlich, angemeldet, bestimmte Gruppen). Ein Formular, das es nicht gibt, nicht veröffentlicht ist oder das die Person nicht sehen darf, antwortet gleich: 404 `NICHT_GEFUNDEN`.
 
         Schutz vor Missbrauch ohne Dienst von Dritten: `homepage` ist eine Falle und muss leer sein (gefüllt antwortet der Server 201, speichert aber nichts); `dauerMs` ist die Zeit seit dem Laden der Seite, unter 2000 ms ist 422 `ZU_SCHNELL`; Zähler im Arbeitsspeicher (30 Versuche je Adresse in 10 Minuten, 10 je Adresse und Formular, 10 je Person und Formular, 300 anonyme je Formular, danach 429 `ZU_OFT`); je Formular eine Obergrenze der Antworten (409 `FORMULAR_VOLL`). Mit `eineProPerson` ist die zweite Antwort einer angemeldeten Person 409 `BEREITS_BEANTWORTET`. Nach dem letzten Tag (`schliesstAm`, Zürcher Zeit) ist 410 `FORMULAR_GESCHLOSSEN`. Die Sperre der Website ist 423, die Wartung 503. Höchstens 64 KB Body (413).
@@ -28269,6 +28274,25 @@ components:
         kuerzel:
           type: string
           example: A
+    IchTag:
+      type: object
+      required:
+        - id
+        - name
+        - art
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Hausteam
+        art:
+          type: string
+          enum:
+            - team
+            - lager
+          description: Der Typ der Gruppe.
     IchKind:
       type: object
       required:
@@ -28324,8 +28348,10 @@ components:
         - clientArt
         - rollen
         - rechte
+        - raumAnfragenEntscheiden
         - stufen
         - kinder
+        - tags
       properties:
         id:
           type: string
@@ -28416,6 +28442,9 @@ components:
           description: Die Rechte der Person aus dem Rechtekatalog (#650), die sich vergeben lassen oder fest sind (nicht, was jede Person darf). Die Verwaltung zeigt damit nur, was der Server erlaubt; die Prüfung bleibt auf dem Server. Nur Kennungen. Eine Abfrage.
           items:
             $ref: "#/components/schemas/IchRecht"
+        raumAnfragenEntscheiden:
+          type: boolean
+          description: Ob die Person über Raumanfragen entscheidet (#858), auch wenn gerade keine offen ist. `true` für Mitglieder des Teams eines Raums, für Gruppenrollen eines solchen Teams mit dem Recht `raum.anfrage_entscheiden` und, für Räume ohne Team, für die Abteilungsleitung. Dieselbe Sicht wie `GET /api/v1/raeume/anfragen/offen`; ein Recht, das den zweiten Faktor verlangt, zählt in einer Sitzung ohne Code nicht. Nur Anzeige, `POST /api/v1/raeume/anfragen/{id}/entscheid` prüft selbst.
         stufen:
           type: array
           description: Die Stufen der Rollen und der aktiven Kinder, nach Name, ohne Doppelte.
@@ -28426,6 +28455,11 @@ components:
           description: Die aktiven Kinder der Person (Eltern; beim eigenen Konto eines Kindes nur dieses Kind), nach `id` sortiert.
           items:
             $ref: "#/components/schemas/IchKind"
+        tags:
+          type: array
+          description: Die eigenen Gruppen vom Typ «Team» und «Lager» (#858) für «Meine Gruppen», nach Name. Nur Gruppen, denen die Person selbst angehört, mit oder ohne Rolle; Stufen stehen in `stufen`, Funktionen und Anlass-Gruppen fehlen. Ohne Gruppe leer.
+          items:
+            $ref: "#/components/schemas/IchTag"
         teilnehmer:
           type: object
           description: Nur beim eigenen Konto eines Kindes (Teilnehmer); fehlt für alle anderen. Das Konto hat nie eine Rolle, nie die Abteilungsleitung und nie Zugang zur Verwaltung.

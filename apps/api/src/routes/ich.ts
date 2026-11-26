@@ -3,13 +3,22 @@ import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../db/client.js";
-import { kind, kindZugang, profilbild, stufe, user } from "../db/schema.js";
+import {
+  kind,
+  kindZugang,
+  personTag,
+  profilbild,
+  stufe,
+  tag,
+  user,
+} from "../db/schema.js";
 import { bildUrl } from "../bild.js";
 import { eingabe } from "../eingabe.js";
 import { ladeKindKontoEinstellung } from "../kind-konto.js";
 import type { Person } from "../rechte.js";
 import { eintragVon, RECHT_IDS } from "../rechtemodell/katalog.js";
 import { ladeRechteSatz } from "../rechtemodell/satz.js";
+import { hatRaeume, raeumeMit } from "../termine/rechte.js";
 import { erstelleLagerBenachrichtigungEinstellungRouten } from "./lager/benachrichtigungen.js";
 import { telefonSchema } from "../telefon.js";
 
@@ -141,6 +150,23 @@ export function erstelleIchRouten({ db }: { db: Db }) {
                 },
               ];
         });
+        // Dieselbe Sicht wie GET /raeume/anfragen/offen (#858): Die App zeigt den Einstieg auch bei leerer Liste. Nur Anzeige, der Entscheid prüft selbst
+        const raumAnfragenEntscheiden = hatRaeume(
+          await raeumeMit(db, person, ["raum.anfrage_entscheiden"]),
+        );
+        // Die eigenen Gruppen «Team» und «Lager» für «Meine Gruppen» (#858); Stufen stehen in stufen
+        const tags = await db
+          .select({ id: tag.id, name: tag.name, art: tag.typ })
+          .from(personTag)
+          .innerJoin(tag, eq(tag.id, personTag.tagId))
+          .where(
+            and(
+              eq(personTag.userId, person.id),
+              eq(tag.abteilungId, person.abteilungId),
+              inArray(tag.typ, ["team", "lager"]),
+            ),
+          )
+          .orderBy(asc(tag.name), asc(tag.id));
         // Der Anmelde-Push gilt nur Leitenden: Allen anderen zeigt die API den Schalter nicht
         const { pushAnmeldungen, ...rest } = profil;
         return c.json({
@@ -155,8 +181,10 @@ export function erstelleIchRouten({ db }: { db: Db }) {
           clientArt: person.clientArt ?? ("web" as const),
           rollen: person.rollen,
           rechte,
+          raumAnfragenEntscheiden,
           stufen,
           kinder,
+          tags,
           // Nur beim eigenen Konto eines Kindes; für alle anderen bleibt die Antwort, wie sie war
           ...(teilnehmer && { teilnehmer }),
         });

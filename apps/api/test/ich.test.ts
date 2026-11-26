@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
@@ -107,6 +108,8 @@ describe("GET /api/v1/ich", () => {
         { recht: "anwesenheit.fuehren", geltung: "eigene" },
         { recht: "stufe.einblick", geltung: "eigene" },
       ],
+      // Kein Raum-Team, kein Recht (#858)
+      raumAnfragenEntscheiden: false,
       // Die Stufen der Rollen und der Kinder, nach Name
       stufen: [
         { id: welt.stufeAId, name: "Stufe A", kuerzel: "A" },
@@ -120,6 +123,60 @@ describe("GET /api/v1/ich", () => {
           stufeId: welt.stufeBId,
         },
       ],
+      tags: [],
+    });
+  });
+
+  test("Raumanfragen entscheiden und eigene Gruppen (#858): Team des Raums ohne Rolle, nur Team und Lager", async () => {
+    const konto = await legePersonaAn(welt, "elternA");
+    const andere = await legePersonaAn(welt, "leitendeA");
+    const zusatz = randomUUID().slice(0, 8);
+    const gruppe = (typ: "team" | "lager" | "funktion", name: string) =>
+      db
+        .insert(schema.tag)
+        .values({
+          abteilungId: welt.testabteilungId,
+          typ,
+          name: `${name} ${zusatz}`,
+          kuerzel: name.slice(0, 2),
+        })
+        .returning({ id: schema.tag.id })
+        .then(([t]) => t!.id);
+    const [team, lager, funktion] = await Promise.all([
+      gruppe("team", "Hausteam"),
+      gruppe("lager", "Auffahrtslager"),
+      gruppe("funktion", "Kasse"),
+    ]);
+    await db.insert(schema.raum).values({
+      abteilungId: welt.testabteilungId,
+      name: `Saal ${zusatz}`,
+      teamTagId: team,
+    });
+    await db.insert(schema.personTag).values(
+      [team, lager, funktion].map((tagId) => ({
+        userId: konto.id!,
+        tagId,
+      })),
+    );
+    expect(await (await ich(konto)).json()).toMatchObject({
+      raumAnfragenEntscheiden: true,
+      // Nach Name; die Funktion fehlt
+      tags: [
+        { id: lager, name: `Auffahrtslager ${zusatz}`, art: "lager" },
+        { id: team, name: `Hausteam ${zusatz}`, art: "team" },
+      ],
+    });
+    // Wer nicht im Team ist, sieht weder den Einstieg noch fremde Gruppen
+    expect(await (await ich(andere)).json()).toMatchObject({
+      raumAnfragenEntscheiden: false,
+      tags: [],
+    });
+  });
+
+  test("Raumanfragen entscheiden: die Abteilungsleitung entscheidet für Räume ohne Team", async () => {
+    const konto = await legePersonaAn(welt, "admin");
+    expect(await (await ich(konto)).json()).toMatchObject({
+      raumAnfragenEntscheiden: true,
     });
   });
 
