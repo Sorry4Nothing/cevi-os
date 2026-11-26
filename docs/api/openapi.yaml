@@ -27906,9 +27906,8 @@ components:
           enum:
             - w
             - m
-            - d
             - null
-          description: Eigene Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die eigene Rolle nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung). Ändern lässt sie sich nur in der Verwaltung unter Personen (#817).
+          description: Eigene Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die eigene Rolle nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung). Ändern lässt sie sich nur in der Verwaltung unter Personen (#817).
         benutzername:
           type:
             - string
@@ -28257,9 +28256,8 @@ components:
               enum:
                 - w
                 - m
-                - d
                 - null
-              description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
+              description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
             rolle:
               type: string
               enum:
@@ -28992,9 +28990,8 @@ components:
           enum:
             - w
             - m
-            - d
             - null
-          description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich, `d` andere), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
+          description: Freiwillige Angabe zum Geschlecht (`w` weiblich, `m` männlich), `null` ohne Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt (Stufenleiterin, Stufenleiter, sonst Stufenleitung); (#817). Nie auf der öffentlichen Website, im Kalender, in Mitteilungen oder in der Antwort an Eltern.
         bildUrl:
           type:
             - string
@@ -29139,8 +29136,7 @@ components:
           enum:
             - w
             - m
-            - d
-          description: Freiwillig (#817). `w` weiblich, `m` männlich, `d` andere; ohne Angabe nennt die Verwaltung die Rolle neutral. Ein anderer Wert ergibt 400.
+          description: Freiwillig (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`); ohne Angabe nennt die Verwaltung die Rolle neutral. Ein anderer Wert ergibt 400.
         telefon:
           type: string
           description: Freiwillig, nur mit einer Rolle `stufenleitung` (sonst 400). Ziffern mit `+`, Leerzeichen, `()`, `/`, `.` und `-`, 6 bis 30 Zeichen; leer heisst nicht gesetzt.
@@ -29220,9 +29216,8 @@ components:
           enum:
             - w
             - m
-            - d
             - null
-          description: Freiwillige Angabe (#817). `w` weiblich, `m` männlich, `d` andere; `null` entfernt sie. Ein anderer Wert ergibt 400. Es schreibt keinen Audit-Eintrag, wie `ceviName`.
+          description: Freiwillige Angabe (#817). `w` weiblich, `m` männlich (seit #849 ohne `d`); `null` entfernt sie. Ein anderer Wert ergibt 400. Es schreibt keinen Audit-Eintrag, wie `ceviName`.
         telefon:
           type:
             - string
