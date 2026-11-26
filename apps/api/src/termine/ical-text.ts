@@ -110,6 +110,22 @@ export function baueIcs(termine: IcsTermin[], jetzt: Date) {
   return zeilen.map(falte).join(ZEILENENDE) + ZEILENENDE;
 }
 
+// Ein einzelner Termin als Datei zum Importieren (#847): ohne Kalendername und Abo-Intervall, sonst legte mancher Kalender beim Öffnen einen eigenen Kalender an. null, wenn der Termin keine gültige Zeit hat
+export function baueEinzelIcs(t: IcsTermin, jetzt: Date) {
+  const vevent = ereignis(t, utcZeit(jetzt));
+  if (!vevent) return null;
+  const zeilen = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Cevi OS//Termine//DE",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    ...vevent,
+    "END:VCALENDAR",
+  ];
+  return zeilen.map(falte).join(ZEILENENDE) + ZEILENENDE;
+}
+
 // Der Stempel ändert sich mit jedem Bau; für den ETag zählt nur der Inhalt, sonst wäre jeder Abruf nach dem Zwischenspeicher ein neuer Stand
 export const ohneStempel = (ics: string) =>
   ics.replace(/^DTSTAMP:.*\r\n/gm, "");

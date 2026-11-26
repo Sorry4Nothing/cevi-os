@@ -86,8 +86,42 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       ),
     );
 
+  // Fremde, sichtbare Nachrichten nach gelesen_bis; ohne Zeile ist alles ungelesen, was die Person sehen darf. Nur Chats, in denen die Person Mitglied ist (sichtbareNachrichten)
+  // shortcut: Der Zähler wird bei jedem Abruf neu gezählt und die App fragt per Polling nach (Liste alle 30 s, offener Chat alle 5 s); auf SSE oder WebSocket umstellen, erst wenn Polling spürbar stört
+  const ungeleseneJeChat = (person: Person) => {
+    const n = sichtbareNachrichten(db, person);
+    return db
+      .select({ chatId: n.chatId, anzahl: count() })
+      .from(n)
+      .leftJoin(
+        chatStatus,
+        and(eq(chatStatus.chatId, n.chatId), eq(chatStatus.userId, person.id)),
+      )
+      .where(
+        and(
+          ne(n.autorId, person.id),
+          or(
+            isNull(chatStatus.gelesenBis),
+            gt(n.erstelltAm, chatStatus.gelesenBis),
+          ),
+        ),
+      )
+      .groupBy(n.chatId)
+      .orderBy(n.chatId);
+  };
+
   return (
     new Hono<{ Variables: { person: Person } }>()
+      // Nur Zahlen für Zähler und Widget (#847): keine Vorschau, kein Name; Chats ohne ungelesene Nachricht fehlen
+      .get("/ungelesen", async (c) => {
+        const chats = (await ungeleseneJeChat(c.get("person"))).map(
+          ({ chatId, anzahl }) => ({ id: chatId, ungelesen: anzahl }),
+        );
+        return c.json({
+          anzahl: chats.reduce((summe, k) => summe + k.ungelesen, 0),
+          chats,
+        });
+      })
       .get("/", async (c) => {
         const person = c.get("person");
         const mitglieder = chatMitglieder(db, person.abteilungId);
@@ -110,29 +144,8 @@ export function erstelleChatRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           .where(eq(mitglieder.userId, person.id))
           // Gruppenchats vor Einzelchats («stufe» sortiert nach «direkt»), dann nach Stufe und Elternteil
           .orderBy(desc(chat.typ), stufe.name, eltern.name, chat.id);
-        // Fremde, sichtbare Nachrichten nach gelesen_bis; ohne Zeile ist alles ungelesen, was die Person sehen darf
-        // shortcut: Der Zähler wird bei jedem Abruf der Chatliste neu gezählt und die App fragt per Polling nach (Liste alle 30 s, offener Chat alle 5 s); auf SSE oder WebSocket umstellen, erst wenn Polling spürbar stört
+        const ungelesen = await ungeleseneJeChat(person);
         const n = sichtbareNachrichten(db, person);
-        const ungelesen = await db
-          .select({ chatId: n.chatId, anzahl: count() })
-          .from(n)
-          .leftJoin(
-            chatStatus,
-            and(
-              eq(chatStatus.chatId, n.chatId),
-              eq(chatStatus.userId, person.id),
-            ),
-          )
-          .where(
-            and(
-              ne(n.autorId, person.id),
-              or(
-                isNull(chatStatus.gelesenBis),
-                gt(n.erstelltAm, chatStatus.gelesenBis),
-              ),
-            ),
-          )
-          .groupBy(n.chatId);
         // Je Chat die neueste Nachricht, die die Person sieht (UUIDv7 ordnet nach Zeit). Der Text wird in der Datenbank gekürzt, nie ganz geladen
         const letzte = await db
           .selectDistinctOn([n.chatId], {

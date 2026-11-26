@@ -287,6 +287,8 @@ describe("Zusatzfelder mit input: false", () => {
     pushChat: true,
     pushProgramme: true,
     pushAnmeldungen: true,
+    pushTerminEntscheid: true,
+    pushRaumEntscheid: true,
     datenschutzGelesenAm: new Date(Date.now() - 3_600_000),
   };
 
@@ -309,6 +311,8 @@ describe("Zusatzfelder mit input: false", () => {
     ["pushChat", true],
     ["pushProgramme", true],
     ["pushAnmeldungen", true],
+    ["pushTerminEntscheid", true],
+    ["pushRaumEntscheid", true],
     ["datenschutzGelesenAm", new Date().toISOString()],
   ])(
     "update-user mit %s liefert 400 FIELD_NOT_ALLOWED, direkt über auth.handler und über auth.api.updateUser",
@@ -353,6 +357,8 @@ describe("Zusatzfelder mit input: false", () => {
       pushChat: false,
       pushProgramme: false,
       pushAnmeldungen: false,
+      pushTerminEntscheid: false,
+      pushRaumEntscheid: false,
       datenschutzGelesenAm: null,
     };
 

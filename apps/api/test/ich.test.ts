@@ -97,6 +97,8 @@ describe("GET /api/v1/ich", () => {
       pushChat: true,
       pushProgramme: true,
       pushAnmeldungen: true,
+      pushTerminEntscheid: true,
+      pushRaumEntscheid: true,
       rollen: [{ stufeId: welt.stufeAId, typ: "leitung" }],
       // Die Rechte der Leitung: Standard der Stufenrolle, ohne zweiten Faktor sichtbar (#650)
       rechte: [
@@ -315,6 +317,43 @@ describe("PATCH /api/v1/ich", () => {
       pushProgramme: true,
     });
   });
+});
+
+describe("Schalter pushTerminEntscheid und pushRaumEntscheid (#847)", () => {
+  test.each(["elternA", "leitendeA", "admin"] as const)(
+    "%s sieht beide, standardmässig an, und schaltet jeden für sich",
+    async (persona) => {
+      const konto = await legePersonaAn(welt, persona);
+      const stand = async () => {
+        const p = await (await ich(konto)).json();
+        return {
+          pushTerminEntscheid: p.pushTerminEntscheid,
+          pushRaumEntscheid: p.pushRaumEntscheid,
+        };
+      };
+      const patchen = (body: object) =>
+        app.request("/api/v1/ich", {
+          method: "PATCH",
+          headers: { ...konto.headers, "content-type": "application/json" },
+          body: JSON.stringify(body),
+        });
+      expect(await stand()).toEqual({
+        pushTerminEntscheid: true,
+        pushRaumEntscheid: true,
+      });
+      expect((await patchen({ pushRaumEntscheid: false })).status).toBe(204);
+      expect(await stand()).toEqual({
+        pushTerminEntscheid: true,
+        pushRaumEntscheid: false,
+      });
+      expect((await patchen({ pushTerminEntscheid: false })).status).toBe(204);
+      expect(await stand()).toEqual({
+        pushTerminEntscheid: false,
+        pushRaumEntscheid: false,
+      });
+      expect((await patchen({ pushTerminEntscheid: "ja" })).status).toBe(400);
+    },
+  );
 });
 
 describe("Schalter pushAnmeldungen", () => {

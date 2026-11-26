@@ -18,6 +18,7 @@ import { eingabe } from "../../eingabe.js";
 import type { Fcm } from "../../push.js";
 import { darfLeitungAnmelden, siehtAlles, type Person } from "../../rechte.js";
 import { ladeAnlassInfos } from "../../termine/anlass-sicht.js";
+import { baueEinzelIcs } from "../../termine/ical-text.js";
 import {
   alleSichtTags,
   alleTermine,
@@ -202,94 +203,133 @@ export const kopf = (c: { header: (n: string, w: string) => void }) =>
 export function erstelleMeinRouten({ db }: { db: Db; fcm?: Fcm }) {
   const zwischenspeicher = etag();
 
-  return new Hono<TermineEnv>()
-    .get(
-      "/termine/mein",
-      zwischenspeicher,
-      eingabe("query", listeSchema),
-      async (c) => {
-        kopf(c);
-        return c.json(
-          await ladeTerminListe(
-            db,
-            c.get("person"),
-            c.req.valid("query"),
-            "mein",
-          ),
+  return (
+    new Hono<TermineEnv>()
+      .get(
+        "/termine/mein",
+        zwischenspeicher,
+        eingabe("query", listeSchema),
+        async (c) => {
+          kopf(c);
+          return c.json(
+            await ladeTerminListe(
+              db,
+              c.get("person"),
+              c.req.valid("query"),
+              "mein",
+            ),
+          );
+        },
+      )
+      // Vor «/termine/:id». Ein Termin als Kalenderdatei (#847): dieselbe Sicht wie das Detail (unsichtbar, unbekannt und fremd sind 404), nur Titel, Zeit, Ort und Status (termine/ical-text.ts). Hono kennt «:id.ics» nur als Namen eines Pfadteils (wie bei den Höcks, routes/lager/hoecks.ts): Was nicht auf «.ics» endet, geht mit next() an das Detail
+      .get("/termine/:id.ics", async (c, next) => {
+        const teil = (c.req.param as (name: string) => string | undefined)(
+          "id.ics",
         );
-      },
-    )
-    .get(
-      "/termine/:id",
-      zwischenspeicher,
-      eingabe("param", pfadSchema),
-      async (c) => {
+        if (!teil?.endsWith(".ics")) return next();
+        const id = z.uuid().safeParse(teil.slice(0, -4));
+        if (!id.success) throw new HTTPException(404);
         const person = c.get("person");
-        const { id } = c.req.valid("param");
         const sichtTags = await ladeSichtTags(db, person);
-        const sichtbar = alleSichtTags(sichtTags);
-        // Unsichtbar, unbekannt und fremd sind alle 404
         const [zeile] = await db
           .select({
-            ...terminFelder(inArray(sql`programm_tag.tag_id`, sichtbar)),
-            teilnahmeOffen: sql<boolean>`(programm.status = 'aktiv' and ${TERMIN_BEGINN} > now())`,
+            id: programm.id,
+            titel: programm.titel,
+            status: programm.status,
+            ganztaegig: programm.ganztaegig,
+            beginn: programm.beginn,
+            ende: programm.ende,
+            tagVon: programm.tagVon,
+            tagBis: programm.tagBis,
+            ort: programm.ort,
             tag: sql<
               string | null
             >`coalesce(programm.tag_von, (programm.beginn at time zone 'Europe/Zurich')::date)::text`,
           })
           .from(programm)
-          .where(and(eq(programm.id, id), meineTermine(person, sichtTags)));
-        if (!zeile) throw new HTTPException(404);
-        const { tag: terminTag, ...felder } = zeile;
-        const tagIds = felder.tags.map((t) => t.id);
-        const [kinderKarte, anlaesse] = await Promise.all([
-          eigeneKinder(db, person, [id]),
-          ladeAnlassInfos(db, person, [id]),
-        ]);
-        const kinder = kinderKarte.get(id) ?? [];
-        // Eckdaten der Stufenseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Name
-        const [eckdaten] = await db
-          .select({
-            treffpunkt: programmEckdaten.treffpunkt,
-            schlussOrt: programmEckdaten.schlussOrt,
-            schlussZeit: programmEckdaten.schlussZeit,
-            mitnehmen: programmEckdaten.mitnehmen,
-          })
-          .from(programmEckdaten)
-          .innerJoin(tag, eq(tag.id, programmEckdaten.stufeId))
           .where(
-            and(
-              eq(programmEckdaten.tag, terminTag ?? ""),
-              inArray(programmEckdaten.stufeId, tagIds),
-            ),
-          )
-          .orderBy(tag.name, tag.id)
-          .limit(1);
-        // Nur wer sich anmelden dürfte, bekommt den Schlüssel; undefined fällt aus dem JSON
-        let eigeneAnmeldung: "ja" | "nein" | "offen" | undefined;
-        if (darfLeitungAnmelden(person, tagIds)) {
-          const [anmeldung] = await db
-            .select({ status: leitungAnmeldung.status })
-            .from(leitungAnmeldung)
+            and(eq(programm.id, id.data), meineTermine(person, sichtTags)),
+          );
+        const text = zeile && baueEinzelIcs(zeile, new Date());
+        if (!text) throw new HTTPException(404);
+        return c.body(text, 200, {
+          "Content-Type": "text/calendar; charset=utf-8",
+          "Content-Disposition": `attachment; filename="termin-${zeile.tag}.ics"`,
+          "Cache-Control": "private, no-store",
+        });
+      })
+      .get(
+        "/termine/:id",
+        zwischenspeicher,
+        eingabe("param", pfadSchema),
+        async (c) => {
+          const person = c.get("person");
+          const { id } = c.req.valid("param");
+          const sichtTags = await ladeSichtTags(db, person);
+          const sichtbar = alleSichtTags(sichtTags);
+          // Unsichtbar, unbekannt und fremd sind alle 404
+          const [zeile] = await db
+            .select({
+              ...terminFelder(inArray(sql`programm_tag.tag_id`, sichtbar)),
+              teilnahmeOffen: sql<boolean>`(programm.status = 'aktiv' and ${TERMIN_BEGINN} > now())`,
+              tag: sql<
+                string | null
+              >`coalesce(programm.tag_von, (programm.beginn at time zone 'Europe/Zurich')::date)::text`,
+            })
+            .from(programm)
+            .where(and(eq(programm.id, id), meineTermine(person, sichtTags)));
+          if (!zeile) throw new HTTPException(404);
+          const { tag: terminTag, ...felder } = zeile;
+          const tagIds = felder.tags.map((t) => t.id);
+          const [kinderKarte, anlaesse] = await Promise.all([
+            eigeneKinder(db, person, [id]),
+            ladeAnlassInfos(db, person, [id]),
+          ]);
+          const kinder = kinderKarte.get(id) ?? [];
+          // Eckdaten der Stufenseite: Tag und Stufe müssen passen; bei mehreren Stufen gewinnt die erste nach Name
+          const [eckdaten] = await db
+            .select({
+              treffpunkt: programmEckdaten.treffpunkt,
+              schlussOrt: programmEckdaten.schlussOrt,
+              schlussZeit: programmEckdaten.schlussZeit,
+              mitnehmen: programmEckdaten.mitnehmen,
+            })
+            .from(programmEckdaten)
+            .innerJoin(tag, eq(tag.id, programmEckdaten.stufeId))
             .where(
               and(
-                eq(leitungAnmeldung.programmId, id),
-                eq(leitungAnmeldung.userId, person.id),
+                eq(programmEckdaten.tag, terminTag ?? ""),
+                inArray(programmEckdaten.stufeId, tagIds),
               ),
-            );
-          eigeneAnmeldung = anmeldung?.status ?? "offen";
-        }
-        kopf(c);
-        return c.json({
-          ...felder,
-          treffpunkt: eckdaten?.treffpunkt ?? null,
-          schlussOrt: eckdaten?.schlussOrt ?? null,
-          schlussZeit: eckdaten?.schlussZeit ?? null,
-          mitnehmen: eckdaten?.mitnehmen ?? null,
-          anlass: anlaesse.get(id) ?? null,
-          kinder,
-          eigeneAnmeldung,
-        });
-      },
-    );
+            )
+            .orderBy(tag.name, tag.id)
+            .limit(1);
+          // Nur wer sich anmelden dürfte, bekommt den Schlüssel; undefined fällt aus dem JSON
+          let eigeneAnmeldung: "ja" | "nein" | "offen" | undefined;
+          if (darfLeitungAnmelden(person, tagIds)) {
+            const [anmeldung] = await db
+              .select({ status: leitungAnmeldung.status })
+              .from(leitungAnmeldung)
+              .where(
+                and(
+                  eq(leitungAnmeldung.programmId, id),
+                  eq(leitungAnmeldung.userId, person.id),
+                ),
+              );
+            eigeneAnmeldung = anmeldung?.status ?? "offen";
+          }
+          kopf(c);
+          return c.json({
+            ...felder,
+            treffpunkt: eckdaten?.treffpunkt ?? null,
+            schlussOrt: eckdaten?.schlussOrt ?? null,
+            schlussZeit: eckdaten?.schlussZeit ?? null,
+            mitnehmen: eckdaten?.mitnehmen ?? null,
+            anlass: anlaesse.get(id) ?? null,
+            kinder,
+            eigeneAnmeldung,
+          });
+        },
+      )
+  );
 }

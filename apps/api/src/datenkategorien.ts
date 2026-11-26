@@ -1683,7 +1683,13 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     telefon: ["telefon"],
     geschlecht: ["geschlecht", "geschlecht_von_hand"],
     cevi_db: ["cevi_db_id"],
-    benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
+    benachrichtigungen: [
+      "push_chat",
+      "push_programme",
+      "push_anmeldungen",
+      "push_termin_entscheid",
+      "push_raum_entscheid",
+    ],
   },
   verification: {
     technik: [

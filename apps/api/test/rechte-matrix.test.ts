@@ -2611,6 +2611,15 @@ const MATRIX: Record<string, Zeile> = {
       ohneLogin: 401,
     },
   },
+  // Ungelesene Nachrichten (#847): nur Zahlen, aus den Chats, in denen die Person Mitglied ist; ohne Chat eine leere Liste. Details in test/chat-ungelesen.test.ts
+  "GET /api/v1/chats/ungelesen": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
   // Einzelchat (#50): Ein Elternteil nennt nur die Stufe, die SL zusätzlich das Elternteil. Wer in der Stufe weder SL noch Elternteil mit aktivem Kind ist, bekommt 404, auch andere Eltern, Leitende, die Abteilungsleitung und andere Abteilungen
   "POST /api/v1/chats/direkt": {
     body: (konto) => ({
@@ -2680,6 +2689,20 @@ const MATRIX: Record<string, Zeile> = {
     ohnePostman: true,
     oeffentlich: true,
     erwartet: { ...alle(201), mussPasswortAendern: 403 },
+  },
+  // Lesen für die Apps (#847). Die Liste braucht eine Anmeldung und nennt nur die offenen Formulare, die die Person sieht (die Demo-Abteilung ihre eigenen). Die Definition liegt auf einer öffentlichen Seite: Jede Persona sieht sie, ein deaktiviertes Konto und eine fremde Abteilung wie eine Person ohne Anmeldung; Sichtbarkeit und Inhalt prüft test/formular-route.test.ts
+  "GET /api/v1/formulare": {
+    erwartet: {
+      ...alle(200),
+      mussPasswortAendern: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+    },
+  },
+  "GET /api/v1/formulare/:id": {
+    url: () => `/api/v1/formulare/${formularId}`,
+    oeffentlich: true,
+    erwartet: { ...alle(200), mussPasswortAendern: 403 },
   },
   // Antworten in der Verwaltung (#819): eigene Rechte, die nur die Abteilungsleitung und der Entwickler tragen; die Redaktion nicht
   "GET /api/v1/admin/formulare": {
@@ -3443,6 +3466,8 @@ describe.runIf(process.env.POSTMAN_EXPORT)("Postman-Export", () => {
       seiteId,
       weiterleitungId,
       mediumId,
+      // Formular auf einer öffentlichen Seite (#847, GET /api/v1/formulare/:id)
+      formularId,
       elternAUserId: standard.elternA.id!,
     };
     const ersetze = (text: string) =>

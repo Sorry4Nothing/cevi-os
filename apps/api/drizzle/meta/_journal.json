@@ -855,6 +855,13 @@
       "when": 1793645200000,
       "tag": "0169_user_geschlecht_von_hand",
       "breakpoints": true
+    },
+    {
+      "idx": 171,
+      "version": "7",
+      "when": 1793645400000,
+      "tag": "0171_push_entscheide",
+      "breakpoints": true
     }
   ]
 }
