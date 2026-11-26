@@ -1967,3 +1967,22 @@ Beim Erfassen und Bearbeiten einer Person ist «Geschlecht» Pflicht: Die Auswah
 Geprüft im Quelltext und mit Tests: zwei Optionen und Pflichtprüfung mit Fehlertext im Blatt (`test/admin-rollenname.test.ts`), API verlangt die Angabe beim Anlegen und lehnt `null` beim Ändern ab (`test/admin-personen.test.ts`).
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (99.1 bis 99.5 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
+
+## 100. Website: Fotos in voller Qualität und Herunterladen (#867)
+
+Gilt für die Grossansicht der Fotoalben (`public/website/lichtkasten.js`, `lichtkasten.css`) und das Raster (`fotos.js`, `fotos-logik.js`). Ergänzt 66 und 88. Das Bild in der Grossansicht füllt den freien Platz (Fenster minus Rand, Schliessen-Knopf und Leiste) mit seinem Seitenverhältnis, nie grösser als die grösste Datei in CSS-Pixeln. Raster und Grossansicht nennen über `srcset` alle Grössen, die Flickr für das Foto liefert; der Browser wählt die passende für Anzeigegrösse mal Pixeldichte (bis 4096 Pixel). Neu ist der Knopf «Herunterladen» in der Leiste der Grossansicht, mit einer Liste der Grössen (Klein, Mittel, Gross, Extragross, Original, je nur wenn Flickr sie liefert) und ihren Pixelmassen. Das Muster ist dasselbe wie im Konto-Menü der Website (`details` und `summary`, Links in einer Liste), kein neues.
+
+### Prüfpunkte
+
+- [ ] **100.1** Kein Layoutsprung: Beim Öffnen und Blättern steht die Grösse des Bildes fest, bevor eine Datei da ist. Zuerst steht die Datei der Kachel als Vorschau, die scharfe Datei ersetzt sie in derselben Grösse. Ohne Vorschau steht die ruhige Ladefläche; schlägt die scharfe Datei fehl, bleibt die Vorschau.
+- [ ] **100.2** Der Knopf «Herunterladen» ist ein `summary` mit sichtbarem Text und Symbol (das Symbol ist `aria-hidden`); unter 30em Breite steht nur das Symbol, der Text bleibt für Bildschirmleser. Zielgrösse mindestens 44 × 44 Pixel, Rand 3 : 1 auf dem dunklen Grund, Fokusring wie die übrigen Knöpfe der Grossansicht.
+- [ ] **100.3** Die Liste hat den Namen «Grösse wählen»; jeder Eintrag ist ein Link mit Name und Massen («Gross 2048 × 1365 Pixel», «Pixel» nur für Bildschirmleser). Enter oder Leertaste öffnet, Pfeil auf und ab gehen durch die Einträge, Pos1 und Ende springen, Esc schliesst die Liste und setzt den Fokus auf den Knopf (erst ein zweites Esc schliesst die Grossansicht). Tab aus der Liste hinaus und ein Klick daneben schliessen sie. Pfeil links und rechts blättern nicht, solange der Fokus in der Liste ist.
+- [ ] **100.4** Nach der Wahl lädt der Browser die Datei herunter (Name wie `Sommerlager-2026-024-2048.jpg`), die Liste schliesst, der Fokus steht auf dem Knopf. Der Fortschritt zeigt der Browser.
+- [ ] **100.5** Ohne Grössen (ein Bild ausserhalb der Fotoalben, etwa aus einem Bildraster) fehlt der Knopf; diese Bilder erscheinen wie bisher in der Grösse ihrer Datei.
+- [ ] **100.6** Erzwungene Farben: Knopf und Liste haben einen Rand in `ButtonText`. Bewegung: Die Grossansicht hat keine neue Bewegung; reduzierte Bewegung gilt wie in 66.7.
+
+### Stand der Prüfung (#867)
+
+Im Browser (Chromium, headless, Playwright) gegen eine Attrappe von Flickr (eigener kleiner Server mit erfundenen Alben und erzeugten Karomustern, keine Verbindung zu Flickr, keine echten Fotos) bei 1920 × 1080 mit Pixeldichte 1 und 2 und bei 390 × 844 mit Pixeldichte 3 gesehen: 100.1 (gleiche Grösse vor und nach der scharfen Datei, auch mit gebremstem Netz), 100.3 (Pfeile, Ende, Esc zweistufig, Fokus zurück auf den Knopf), 100.4 (Download mit Dateiname, Liste schliesst), Namen im Barrierefreiheitsbaum. Logik der Grössen und des Menüs mit Tests (`test/website-fotoalben.test.ts`, `test/fotos-routen.test.ts`, `test/fotos-flickr.test.ts`).
+
+**Nicht geprüft:** Bildschirmleser (NVDA, VoiceOver, TalkBack), echtes Touch-Gerät, Safari und Firefox, echte Antworten von Flickr (keine Zugangsdaten in der Entwicklung), Kontrastwerte mit einem Messwerkzeug (gerechnet: Rand des Knopfs `#c6d4e4` auf `#0b1220` 12,4 : 1, Masse `#c6d4e4` auf der Liste `#1a2740` 9,9 : 1, Namen `#f3f3ef` darauf 13,4 : 1), 200 % Zoom am Gerät, erzwungene Farben am Gerät.
