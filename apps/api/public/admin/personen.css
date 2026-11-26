@@ -552,15 +552,6 @@ a.pe-bearbeiten:hover {
   border-radius: var(--r-sm);
 }
 
-.st-logo--buchstabe {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--on-secondary-container);
-  background: var(--secondary-container);
-  font-size: 1.375rem;
-  font-weight: 800;
-}
 
 .st-leitung {
   display: flex;
@@ -1219,15 +1210,6 @@ a.pe-bearbeiten:hover {
   object-fit: contain;
 }
 
-.mg-kennzeichen--buchstabe {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--on-stufe-container);
-  background: var(--stufe-container);
-  font-size: 1rem;
-  font-weight: 800;
-}
 
 /* Karten (Muster «profile-card»: Bild gross, Name, Kennzeichen unter einer Linie) */
 .mg-raster {
