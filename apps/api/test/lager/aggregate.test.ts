@@ -1,3 +1,4 @@
+import { eq } from "drizzle-orm";
 import postgres from "postgres";
 import {
   afterAll,
@@ -15,12 +16,14 @@ import {
   addiereTage,
   datumInZuerich,
   tageBis,
+  widgetTitel,
 } from "../../src/lager/aggregate.js";
 import type { WetterTag } from "../../src/lager/wetter-openmeteo.js";
 import { aufgeloest, dienst } from "./wetter-hilfen.js";
 import { ladeSeiten } from "../../src/seiten.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "../hilfen/auth.js";
 import { API_URL } from "../hilfen/datenbank.js";
+import { antwortVerletzungen } from "../hilfen/vertrag.js";
 import {
   erstelleWelt,
   legePersonaAn,
@@ -672,31 +675,73 @@ describe("Widget-Stand (#848)", () => {
         gelesenAm,
       })),
     );
+    // Ein Kind im selben Dienst heute: Es zählt nicht und sein Name erscheint nie
+    const [kind] = await db
+      .insert(schema.teilnehmer)
+      .values({
+        lagerId: l.id,
+        lagerSeq: 0,
+        vorname: "Widgetkind",
+        nachname: "Geheimname",
+      })
+      .returning({ id: schema.teilnehmer.id });
+    const [kueche] = await db
+      .select({ id: schema.dienst.id })
+      .from(schema.dienst)
+      .where(eq(schema.dienst.lagerId, l.id));
+    await db.insert(schema.schicht).values({
+      lagerId: l.id,
+      lagerSeq: 0,
+      lagertagId: l.tag(HEUTE),
+      tagesabschnittId: l.abschnittId,
+      dienstId: kueche!.id,
+      teilnehmerId: kind!.id,
+    });
     const team = await widget(l, "team");
     expect(team.body).toEqual({
       heute: HEUTE,
       tageBisBeginn: 8,
       tageBisEnde: 22,
       eigeneDiensteHeute: 1,
+      eigeneDienste: [{ dienst: "Küche", abschnitt: "Tag", zeit: null }],
       // Team liest keine Tagesseiten
       wichtigHeute: null,
+      wichtigTitel: null,
       eigeneAufgaben: {
         offen: 3,
         ueberfaellig: 0,
         heute: 0,
         naechsteFrist: addiereTage(HEUTE, 3),
       },
+      // Nach Frist, ohne Frist zuletzt; erledigte fehlen
+      naechsteAufgaben: [
+        {
+          id: expect.any(String),
+          titel: "Material",
+          frist: addiereTage(HEUTE, 3),
+        },
+        {
+          id: expect.any(String),
+          titel: "Wasser",
+          frist: addiereTage(HEUTE, 20),
+        },
+        { id: expect.any(String), titel: "Ohne Frist", frist: null },
+      ],
       ungelesen: 2,
     });
-    // Keine Namen, keine Texte: nur Zahlen, Daten und null
+    expect(
+      antwortVerletzungen("/api/v1/lager/{id}/widget", "get", 200, team.body),
+    ).toEqual([]);
+    // Keine Namen von Personen, keine Texte ausser denen von W3 und W4
     expect(JSON.stringify(team.body)).not.toMatch(
-      /Küche|Sonnencreme|Material|Tag 20|Aggregatelager/,
+      /Widgetkind|Geheimname|Küchenplan|Tag 20|Aggregatelager|Ausflugstag|personId|teilnehmer/,
     );
 
     const leitung = await widget(l, "leitung");
     expect(leitung.body).toMatchObject({
       eigeneDiensteHeute: 1,
       wichtigHeute: 1,
+      wichtigTitel: ["Sonnencreme"],
       eigeneAufgaben: {
         offen: 2,
         ueberfaellig: 0,
@@ -705,15 +750,27 @@ describe("Widget-Stand (#848)", () => {
       },
       ungelesen: 0,
     });
+    // Nur die eigenen Aufgaben, obwohl die Leitung alle liest
+    expect(
+      leitung.body.naechsteAufgaben.map((a: { titel: string }) => a.titel),
+    ).toEqual(["Heutiges", "Elternbrief"]);
     const lagerleitung = await widget(l, "lagerleitung");
     expect(lagerleitung.body).toMatchObject({
       eigeneDiensteHeute: 0,
+      eigeneDienste: [],
       eigeneAufgaben: {
         offen: 1,
         ueberfaellig: 1,
         heute: 0,
         naechsteFrist: null,
       },
+      naechsteAufgaben: [{ titel: "Zelte", frist: addiereTage(HEUTE, -2) }],
+    });
+    const lesen = await widget(l, "lesen");
+    expect(lesen.body).toMatchObject({
+      eigeneDienste: [],
+      wichtigTitel: ["Sonnencreme"],
+      naechsteAufgaben: [],
     });
   });
 
@@ -724,11 +781,112 @@ describe("Widget-Stand (#848)", () => {
     expect(a.status).toBe(200);
     expect(a.body).toMatchObject({
       eigeneDiensteHeute: null,
+      eigeneDienste: null,
       wichtigHeute: null,
+      wichtigTitel: null,
       eigeneAufgaben: null,
+      naechsteAufgaben: null,
       ungelesen: 0,
       tageBisBeginn: 8,
     });
+
+    // Ohne Tagesseiten fehlt «Wichtig heute» auch der Leitung, der Rest bleibt
+    await entziehe(l, "leitung", ["tagesseiten.lesen"]);
+    const b = await widget(l, "leitung");
+    expect(b.body).toMatchObject({
+      wichtigHeute: null,
+      wichtigTitel: null,
+      eigeneDiensteHeute: 1,
+    });
+    expect(b.body.naechsteAufgaben).toHaveLength(2);
+  });
+
+  test("Grenzen: höchstens zwei Titel «Wichtig», drei Aufgaben, Dienste nach Abschnitt", async () => {
+    const l = await neuesLager();
+    const [seite] = await db
+      .select({ id: schema.tagesseite.id })
+      .from(schema.tagesseite)
+      .where(eq(schema.tagesseite.lagerId, l.id));
+    await db.insert(schema.tagesseiteBlock).values(
+      ["\n  Zweite Zeile zuerst  \nRest", "x".repeat(70), "Dritter"].map(
+        (text, i) => ({
+          lagerId: l.id,
+          lagerSeq: 0,
+          seiteId: seite!.id,
+          art: "wichtig" as const,
+          text,
+          reihenfolge: i + 1,
+        }),
+      ),
+    );
+    await db.insert(schema.aufgabe).values(
+      ["B", "a", "C"].map((t, i) => ({
+        lagerId: l.id,
+        lagerSeq: 0,
+        titel: t,
+        verantwortlichPersonId: konten.leitung.id!,
+        frist: addiereTage(HEUTE, -1),
+        reihenfolge: i === 2 ? 0 : 5,
+      })),
+    );
+    // Ein zweiter Abschnitt vor dem ersten, mit Zeit
+    const [frueh] = await db
+      .insert(schema.tagesabschnitt)
+      .values({
+        lagerId: l.id,
+        lagerSeq: 0,
+        name: "Morgen",
+        zeit: "07:30",
+        reihenfolge: 0,
+      })
+      .returning({ id: schema.tagesabschnitt.id });
+    await db
+      .update(schema.tagesabschnitt)
+      .set({ reihenfolge: 1 })
+      .where(eq(schema.tagesabschnitt.id, l.abschnittId));
+    const [zmorge] = await db
+      .insert(schema.dienst)
+      .values({
+        lagerId: l.id,
+        lagerSeq: 0,
+        name: "Zmorge",
+        tagesabschnittId: frueh!.id,
+      })
+      .returning({ id: schema.dienst.id });
+    await db.insert(schema.schicht).values({
+      lagerId: l.id,
+      lagerSeq: 0,
+      lagertagId: l.tag(HEUTE),
+      tagesabschnittId: frueh!.id,
+      dienstId: zmorge!.id,
+      personId: konten.leitung.id!,
+    });
+
+    const { body } = await widget(l, "leitung");
+    expect(body.wichtigHeute).toBe(4);
+    // Reihenfolge der Tagesseite: «Sonnencreme» steht zuerst
+    expect(body.wichtigTitel).toEqual(["Sonnencreme", "Zweite Zeile zuerst"]);
+    expect(body.eigeneDiensteHeute).toBe(2);
+    expect(body.eigeneDienste).toEqual([
+      { dienst: "Zmorge", abschnitt: "Morgen", zeit: "07:30" },
+      { dienst: "Küche", abschnitt: "Tag", zeit: null },
+    ]);
+    expect(body.eigeneAufgaben.offen).toBe(5);
+    // Gleiche Frist: zuerst die Reihenfolge, dann der Titel ohne Gross- und Kleinschreibung
+    expect(
+      body.naechsteAufgaben.map((a: { titel: string }) => a.titel),
+    ).toEqual(["C", "a", "B"]);
+    expect(
+      antwortVerletzungen("/api/v1/lager/{id}/widget", "get", 200, body),
+    ).toEqual([]);
+  });
+
+  test("Titel fürs Widget: erste nicht leere Zeile, höchstens 60 Zeichen", () => {
+    expect(widgetTitel("  \n Zelte  \nmehr")).toBe("Zelte");
+    expect(widgetTitel(" \n  ")).toBeNull();
+    expect(widgetTitel("x".repeat(60))).toBe("x".repeat(60));
+    expect(widgetTitel(`${"x".repeat(58)} yyy`)).toBe(`${"x".repeat(58)}…`);
+    expect(Array.from(widgetTitel("😀".repeat(70))!)).toHaveLength(60);
   });
 
   test("Datenbanklast: die Zahl der Abfragen hängt nicht von der Zahl der Zeilen ab", async () => {

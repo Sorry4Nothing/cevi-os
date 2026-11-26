@@ -48,7 +48,7 @@ export function erstelleAggregateRouten({
         if (!darfStart(c.get("lager"))) throw new HTTPException(403);
         return c.json(await ladeStart(db, c.get("lager"), jetzt()));
       })
-      // Kompakter Stand für die Widgets (#848): nur Zahlen, jeder Teil mit dem Leserecht seiner Quelle
+      // Kompakter Stand für die Widgets (#848, #871): Zahlen und genau die Texte von W3 und W4, jeder Teil mit dem Leserecht seiner Quelle
       .get("/:id/widget", zugriff, eingabe("param", lagerPfad), async (c) =>
         c.json(await ladeWidget(db, c.get("lager"), jetzt())),
       )

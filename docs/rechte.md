@@ -300,6 +300,8 @@ Im Lager entscheidet die Lager-Rolle (`lager_mitglied`), nicht die Stufenrolle. 
 
 Die Standardwerte können abweichen, sobald die Lagerleitung sie ändert; die Tabelle zeigt den Auslieferungszustand. Welches Recht genau gilt, steht in Anhang A.
 
+Widget-Stand (`GET /api/v1/lager/{id}/widget`, #848, #871): jedes Mitglied bekommt 200 mit den Tagen bis Beginn und Ende und den eigenen ungelesenen Benachrichtigungen. Die übrigen Felder folgen dem Recht ihrer Quelle und sind sonst `null`: eigene Dienste heute (Zahl und Dienst, Tagesabschnitt, Zeit) mit `einteilung.lesen`, «Wichtig heute» (Zahl und höchstens zwei Titel) mit `tagesseiten.lesen`, eigene offene Aufgaben (Zahlen und die nächsten drei mit ID, Titel, Frist) mit `aufgaben.eigene`, `aufgaben.lesen_alle` oder `aufgaben.bearbeiten`, auch dann nur die eigenen. Namen von Personen stehen nie darin.
+
 ### 4.6 Lädeli
 
 Das Lädeli (#566) hängt im Stack 563. Bestellen und eigene Bestellungen lesen und stornieren darf jede angemeldete Person der Abteilung (Annahme, vom Nutzer zu bestätigen). Die Verwaltung unter `/api/v1/admin/laden/*` verlangt je Route ein Recht des Katalogs (Abschnitt 4.8): Artikel lesen `laden.ansehen` oder `laden.artikel_pflegen`, Artikel anlegen, ändern, ordnen und löschen `laden.artikel_pflegen`, Bestellungen lesen `laden.ansehen` oder `laden.bestellungen_bearbeiten`, ihren Stand setzen `laden.bestellungen_bearbeiten`, die Übergabearten lesen und ändern `laden.einstellungen`. Die Abteilungsleitung hat alle vier; eine Rolle wie «Webmaster» bekommt sie von der Abteilungsleitung (zweiter Faktor wie überall).
