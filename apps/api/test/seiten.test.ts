@@ -172,8 +172,8 @@ describe("Verwaltung unter /admin", () => {
     expect(String(admin["rahmen.js"])).toContain('"aria-pressed"');
   });
 
-  // Entscheid des Auftraggebers (#570, #761): Rückmeldungen sind Toasts; Erfolg und Info 4 s, Warnung und Fehler 8 s, mit Aktion bleiben sie (docs/barrierefreiheit.md 84)
-  test("Rückmeldungen: Erfolg und Info 4 Sekunden, Warnung und Fehler 8, mit Aktion bis zum Schliessen", async () => {
+  // Entscheid des Auftraggebers (#570, #761, #869): Rückmeldungen sind Toasts; Erfolg und Info gehen nach ihrer Lesedauer, Warnung, Fehler und Meldungen mit Aktion bleiben (docs/barrierefreiheit.md 84, 102)
+  test("Rückmeldungen: Erfolg und Info nach der Lesedauer, Warnung, Fehler und mit Aktion bis zum Schliessen", async () => {
     // dom.js hängt beim Laden einen Klick-Zuhörer an document: Ohne Browser genügt eine Attrappe
     vi.stubGlobal("document", { addEventListener: () => {} });
     // fluss.js hört auf popstate und pagehide (#578)
@@ -181,15 +181,22 @@ describe("Verwaltung unter /admin", () => {
     // Als Text, damit tsc die Browserdatei nicht als Modul des Programms prüft
     const rahmenPfad = "../public/admin/rahmen.js";
     const { dauerVon } = (await import(/* @vite-ignore */ rahmenPfad)) as {
-      dauerVon: (art: string, aktion?: object) => number;
+      dauerVon: (art: string, aktion?: object, text?: string) => number;
     };
     vi.unstubAllGlobals();
-    expect(dauerVon("ok", undefined)).toBe(4000);
-    expect(dauerVon("info", undefined)).toBe(4000);
+    // Kurze Bestätigung: mindestens 5 Sekunden (Handbuch 2.7)
+    expect(dauerVon("ok", undefined, "Gespeichert.")).toBe(5000);
+    expect(dauerVon("info", undefined, "Nichts geändert.")).toBe(5000);
+    // Langer Text: länger, damit man ihn lesen kann (2 s plus 60 ms je Zeichen)
+    const lang =
+      "Die Seite ist angelegt. Sie ist ein Entwurf und nur für Angemeldete sichtbar, bis du sie veröffentlichst.";
+    expect(dauerVon("ok", undefined, lang)).toBe(2000 + lang.length * 60);
+    expect(dauerVon("ok", undefined, lang)).toBeGreaterThan(8000);
+    // 0 heisst: bleibt, bis man sie schliesst
     for (const art of ["warn", "fehler"])
-      expect(dauerVon(art, undefined)).toBe(8000);
+      expect(dauerVon(art, undefined, "Nicht gespeichert.")).toBe(0);
     for (const art of ["ok", "info", "warn", "fehler"])
-      expect(dauerVon(art, { text: "Beheben" })).toBe(0);
+      expect(dauerVon(art, { text: "Rückgängig" }, "Gespeichert.")).toBe(0);
   });
 
   test("Rückmeldungen: Zeiger und Fokus halten die Zeit an, Esc und Knopf schliessen, mit «Bewegung reduzieren» ohne Übergang", () => {

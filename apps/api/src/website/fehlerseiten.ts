@@ -2,7 +2,8 @@ import type { Seitendokument } from "./dokument.js";
 import {
   esc,
   istOeffentlich,
-  medienUrl,
+  bildQuelleAttr,
+  vollbildGroesse,
   rahmen,
   serialisiere,
   symbol,
@@ -77,6 +78,7 @@ export type FehlerBild = {
   id: string;
   breite: number | null;
   hoehe: number | null;
+  varianten?: readonly number[];
 };
 
 // Rückfall für das Bild der 404-Seite, wenn die Einstellungen keines nennen: das Titelbild der Startseite (ihr erster Baustein, wenn er ein öffentliches Bild ist). Sonst steht der Wegweiser auf der Fläche der Bühne
@@ -91,7 +93,7 @@ export function stimmungsbild(
   const id = erster.daten.mediumId;
   const m = daten.medien.get(id);
   return m?.mimeTyp.startsWith("image/")
-    ? { id, breite: m.breite, hoehe: m.hoehe }
+    ? { id, breite: m.breite, hoehe: m.hoehe, varianten: m.varianten }
     : undefined;
 }
 
@@ -140,7 +142,7 @@ export function rendereFehlerseite(k: Kontext, bild?: FehlerBild): string {
       code: "Fehler 404",
       ort: ["Nirgendwo", "404 m ü. M."],
       ...(bild && {
-        bild: `<img class="irr-bild" src="${medienUrl(bild.id)}" alt=""${bild.breite && bild.hoehe ? ` width="${bild.breite}" height="${bild.hoehe}"` : ""} decoding="async">`,
+        bild: `<img class="irr-bild"${bildQuelleAttr(bild.id, bild, vollbildGroesse(bild.breite, bild.hoehe, "100vh"))} alt=""${bild.breite && bild.hoehe ? ` width="${bild.breite}" height="${bild.hoehe}"` : ""} decoding="async">`,
       }),
     }),
   });

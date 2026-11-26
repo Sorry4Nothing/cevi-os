@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { todoPrivat } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { idempotenzSchluessel } from "../../idempotenz.js";
 import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 
 const lagerPfad = z.strictObject({ id: z.uuid() });
@@ -52,6 +53,7 @@ export function erstelleTodoRouten({ db }: { db: Db }) {
     .post(
       "/:id/todos",
       zugriff,
+      idempotenzSchluessel(db),
       eingabe("param", lagerPfad),
       eingabe("json", anlegen),
       async (c) => {

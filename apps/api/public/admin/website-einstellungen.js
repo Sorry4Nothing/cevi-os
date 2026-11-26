@@ -62,7 +62,7 @@ const BILDER = [
   },
 ];
 
-const bildUrl = (id) => `/api/v1/medien/${id}`;
+const bildUrl = (id) => `/api/v1/medien/${id}?breite=640`;
 
 // Zwei Spalten wie das Formular: Felder links, Vorschau rechts
 function skeletonEinstellungen() {

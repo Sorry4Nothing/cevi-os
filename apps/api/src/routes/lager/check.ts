@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
+import { idempotenzSchluessel } from "../../idempotenz.js";
 import {
   aenderePunkt,
   ladeCheck,
@@ -42,6 +43,7 @@ export function erstelleCheckRouten({
     .post(
       "/:id/check/punkte",
       bearbeiten,
+      idempotenzSchluessel(db),
       eingabe("param", lagerPfad),
       eingabe("json", punktAnlegen),
       async (c) => {

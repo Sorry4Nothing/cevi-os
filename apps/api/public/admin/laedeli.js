@@ -840,7 +840,7 @@ function zeigeArtikel(bereich, ctx) {
             a.mediumId
               ? el("img", {
                   class: "ld-bild",
-                  src: `/api/v1/medien/${a.mediumId}`,
+                  src: `/api/v1/medien/${a.mediumId}?breite=640`,
                   alt: "",
                   loading: "lazy",
                 })
@@ -981,7 +981,7 @@ async function artikelBlatt({ artikel, ctx, neu }) {
       mediumId
         ? bildMitLader(
             el("img", {
-              src: `/api/v1/medien/${mediumId}`,
+              src: `/api/v1/medien/${mediumId}?breite=640`,
               alt: "",
               decoding: "async",
             }),

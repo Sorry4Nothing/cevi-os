@@ -1,4 +1,4 @@
-/* Toasts (#578, #761): «Rückgängig» (Logik: rueckgaengig.js) und alle Rückmeldungen nach Aktionen (ctx.melde), Darstellung: rahmen.js. Eine feste Stelle unten links, gestapelt, am Handy über die ganze Breite. Erfolg und Info 4 s, Warnung und Fehler 8 s, Zeiger und Fokus halten die Zeit an. Farben aus tokens.css: Fläche --inverse-surface, Text --inverse-on-surface (Tag 10.4:1, Nacht 16.6:1), Fehler in --error-container mit --on-error-container (6.8:1 und 7.5:1). «Rückgängig» ist ein fetter, unterstrichener Textknopf in der Textfarbe: Zustand nie nur über Farbe. */
+/* Toasts (#578, #761): «Rückgängig» (Logik: rueckgaengig.js) und alle Rückmeldungen nach Aktionen (ctx.melde), Darstellung: rahmen.js. Eine feste Stelle unten links, gestapelt, am Handy über die ganze Breite. Erfolg und Info gehen nach ihrer Lesedauer (mindestens 5 s, #869), Warnung, Fehler und Meldungen mit Aktion bleiben bis zum Schliessen; Zeiger und Fokus halten die Zeit an. Farben aus tokens.css: Fläche --inverse-surface, Text --inverse-on-surface (Tag 10.4:1, Nacht 16.6:1), Fehler in --error-container mit --on-error-container (6.8:1 und 7.5:1). «Rückgängig» ist ein fetter, unterstrichener Textknopf in der Textfarbe: Zustand nie nur über Farbe. */
 
 .toasts {
   position: fixed;
@@ -134,7 +134,7 @@
   padding: 0.5rem 0;
 }
 
-/* Fehler und Warnung: länger sichtbar (8 s), schliessbar */
+/* Fehler und Warnung: bleiben, bis man sie schliesst (#869) */
 .toast--fehler,
 .toast--warn {
   border: 1px solid var(--on-error-container);

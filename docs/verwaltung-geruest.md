@@ -391,9 +391,9 @@ Für Fehler ohne eigenen Fall (500 und andere) kann eine Ansicht den Titel nenne
 **Regel:** Das Ergebnis einer Aktion ist ein **Toast**: Erfolg («Gespeichert.»), ein Fehler, der nichts blockiert («Speichern hat nicht geklappt.»), eine Info nach einer Aktion («Link kopiert.»), eine Warnung nach einer Aktion. Es gibt genau eine Stelle (unten links, am Handy über die ganze Breite) und ein Bauteil (`erstelleToasts` in `rahmen.js`, `toast.css`).
 
 - In Modulen: `ctx.melde(text, art, aktion)`. In Dateien ohne `ctx` (Hilfen, Bauteile): `import { melde } from "./melden.js"`. `art` ist `ok`, `info`, `warn` oder `fehler`; `aktion` ist `{ text, onclick }` («Beheben», «Nochmals versuchen»).
-- **Zeit:** Erfolg und Info 4 Sekunden, Warnung und Fehler 8 Sekunden. Mit `aktion` bleibt der Toast, bis man ihn schliesst: Dort gibt es etwas zu entscheiden. Zeiger und Tastaturfokus halten die Zeit an (WCAG 2.2.1), nach dem Verlassen beginnt sie neu. Jeder Toast hat «Hinweis schliessen»; Esc schliesst den Toast mit Fokus oder unter dem Zeiger; F6 setzt den Fokus auf den ersten Knopf der Region.
+- **Zeit (#869):** Erfolg und Info ohne `aktion` gehen nach ihrer Lesedauer von selbst: 2 Sekunden plus 60 ms je Zeichen, mindestens 5 Sekunden (`lesedauer` in `rueckgaengig.js`). Warnung, Fehler und jeder Toast mit `aktion` bleiben, bis man sie schliesst: Dort gibt es etwas zu lesen, zu beheben oder zu entscheiden. Zeiger und Tastaturfokus halten die Zeit an (WCAG 2.2.1), nach dem Verlassen beginnt sie neu. Jeder Toast hat «Hinweis schliessen»; Esc schliesst den Toast mit Fokus oder unter dem Zeiger; F6 setzt den Fokus auf den ersten Knopf der Region.
 - **Ansage (4.1.3):** Erfolg, Info und Warnung sagt die höfliche Statusregion (`aria-live="polite"`) an, nur ein Fehler ist `role="alert"`. Der Toast bekommt den Fokus nie von selbst.
-- **Stapel:** höchstens drei Rückmeldungen zugleich, die älteste geht zuerst; dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle. Der Router leert die Toasts nicht: Eine Meldung nach dem Speichern bleibt, wenn die Ansicht wechselt.
+- **Stapel:** höchstens drei Rückmeldungen zugleich; zuerst geht die älteste Bestätigung, erst wenn keine mehr da ist die älteste übrige; dieselbe Meldung ersetzt sich, statt sich zu stapeln. `melde("")` leert alle. Der Router leert die Toasts nicht: Eine Meldung nach dem Speichern bleibt, wenn die Ansicht wechselt.
 - **Bewegung:** Mit «Bewegung reduzieren» kein Gleiten, kein Ausblenden. Farben aus den Tokens (Tag und Nacht), Symbol vor dem Text (Haken, Info, Warndreieck), bei erzwungenen Farben ein Rand.
 - **Text:** kurz, im Perfekt oder Zustand, ohne Emoji: «Gespeichert.», «Link kopiert.», «Nicht gespeichert. Deine Eingaben sind noch da.».
 
@@ -408,7 +408,7 @@ Für Fehler ohne eigenen Fall (500 und andere) kann eine Ansicht den Titel nenne
 | `entscheidung` | Versionskonflikt mit «Meine Änderung übernehmen», «Änderungen verwerfen?»                                                             | verlangt eine Entscheidung (dann im Inhalt oder als Dialog, nie als Toast) |
 | `ansage`       | Live-Region nur für Screenreader (neue Position nach dem Verschieben)                                                                 | sagt etwas, das kein Toast sagt                                            |
 
-Ein Fehler, der nach 8 Sekunden weg wäre, obwohl er der einzige Hinweis auf nicht gespeicherte Eingaben ist, braucht eine dauerhafte Marke («Nicht gespeichert», Speicherleiste) oder bleibt inline. Wer ein neues `role="status"`, `role="alert"`, `aria-live` oder `class="hinweis"` einbaut, erweitert die Liste im Test und nennt den Grund; ist es das Ergebnis einer Aktion, ruft er `ctx.melde` auf.
+Ein Fehler, der einzige Hinweis auf nicht gespeicherte Eingaben ist, braucht trotzdem eine dauerhafte Marke («Nicht gespeichert», Speicherleiste) oder bleibt inline: Ein Toast lässt sich schliessen. Wer ein neues `role="status"`, `role="alert"`, `aria-live` oder `class="hinweis"` einbaut, erweitert die Liste im Test und nennt den Grund; ist es das Ergebnis einer Aktion, ruft er `ctx.melde` auf.
 
 ### Aktionen mit «Rückgängig» statt Rückfrage (#578)
 
@@ -428,7 +428,7 @@ ctx.mitRueckgaengig({
 
 - Der Toast (unten links, am Handy volle Breite) trägt den Text, «Rückgängig», einen Schliessen-Knopf und einen Balken, der in 8 Sekunden abläuft (nur bei erlaubter Bewegung). Zeiger und Fokus halten die Frist an. «Schliessen» heisst in der Frist «jetzt ausführen» (Beschriftung «Jetzt ausführen und schliessen»), nie «verwerfen».
 - «Rückgängig» geht per Knopf, mit Strg oder Cmd + Z (ausser in Eingabefeldern, dort gilt das Rückgängig des Feldes) und über F6, das den Fokus auf den ersten Knopf setzt. Der Toast bekommt den Fokus nie von selbst; die Region steht im Seitenaufbau gleich nach dem Kopf, und die Statusregion sagt die Aktion mit der Möglichkeit zum Rückgängigmachen an («… Rückgängig mit dem Knopf oder mit Strg Z.»).
-- Nach der Frist läuft die Anfrage; der Toast wechselt zu «Erledigt.» und geht nach 4 Sekunden von selbst. Ein Fehler stellt die Ansicht wieder her und bleibt als Toast (`role="alert"`) stehen, bis man ihn schliesst.
+- Nach der Frist läuft die Anfrage; der Toast wechselt zu «Erledigt.» und geht nach seiner Lesedauer (5 Sekunden) von selbst. Ein Fehler stellt die Ansicht wieder her und bleibt als Toast (`role="alert"`) stehen, bis man ihn schliesst.
 - Verlässt die Person die Seite oder den Tab vor Ablauf (`pagehide`) oder meldet sie sich ab, laufen alle offenen Aktionen sofort (mit `keepalive`), nie still verworfen. Mehrere Aktionen stapeln sich.
 - Die Logik steht rein in `rueckgaengig.js` (Zeitgeber einsetzbar, Test `admin-rueckgaengig.test.ts`), die Darstellung in `rahmen.js` (`erstelleToasts`) und `toast.css`.
 

@@ -2,7 +2,7 @@ import type { Baustein } from "./bausteine.js";
 import {
   anker,
   el,
-  medienUrl,
+  bildQuelle,
   textBlock,
   verlinke,
   type Daten,
@@ -55,7 +55,7 @@ function bildKnoten(
   const alt = (m.altText ?? "").trim();
   return el("img", {
     class: klasse,
-    src: medienUrl(id),
+    ...bildQuelle(id, m),
     alt: alt.toLowerCase() === nebenText.trim().toLowerCase() ? "" : alt,
     ...(m.breite &&
       m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),

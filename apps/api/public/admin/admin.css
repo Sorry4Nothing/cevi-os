@@ -669,6 +669,8 @@ th.zahl {
 
 .seg {
   display: inline-flex;
+  /* In der Flex-Spalte von .feld nicht auf volle Breite strecken (#865) */
+  align-self: flex-start;
   flex-wrap: wrap;
   gap: 4px;
   padding: 4px;

@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { eingabe } from "../../eingabe.js";
+import { idempotenzSchluessel } from "../../idempotenz.js";
 import type { Fcm } from "../../push.js";
 import { lagerZugriff, type LagerEnv } from "../../lager/policy.js";
 import {
@@ -64,6 +65,7 @@ export function erstellePinnwandRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       .post(
         "/:id/pinnwand",
         bearbeiten,
+        idempotenzSchluessel(db),
         eingabe("param", lagerPfad),
         eingabe("json", beitragAnlegen),
         async (c) => {

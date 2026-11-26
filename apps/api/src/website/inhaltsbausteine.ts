@@ -2,7 +2,7 @@ import type { Baustein } from "./bausteine.js";
 import {
   el,
   initialen,
-  medienUrl,
+  bildQuelle,
   verlinke,
   type Daten,
   type HtmlKnoten,
@@ -29,7 +29,7 @@ function foto(
   if (!id || !m || !m.mimeTyp.startsWith("image/")) return null;
   const alt = (m.altText ?? "").trim();
   return el("img", {
-    src: medienUrl(id),
+    ...bildQuelle(id, m),
     alt: alt.toLowerCase() === nebenText.trim().toLowerCase() ? "" : alt,
     ...(m.breite &&
       m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),
