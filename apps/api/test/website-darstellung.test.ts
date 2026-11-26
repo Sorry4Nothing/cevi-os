@@ -697,7 +697,6 @@ describe("Abgleich", () => {
       await db.insert(schema.anlass).values({
         abteilungId,
         programmId: p!.id,
-        anmeldungFuer: "kind",
         sichtbarkeit: opt.anlass,
       });
     }
@@ -792,7 +791,6 @@ describe("Abgleich", () => {
     await db.insert(schema.anlass).values({
       abteilungId,
       programmId: p!.id,
-      anmeldungFuer: "kind",
       sichtbarkeit: "oeffentlich",
     });
     const lager = b("terminliste", { anzahl: 3 });

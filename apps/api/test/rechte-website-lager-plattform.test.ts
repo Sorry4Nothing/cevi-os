@@ -765,7 +765,6 @@ describe("Seite eines Lagers und Bezug im Editor (#838)", () => {
     });
     const angelegt = await anfrage(admin, "POST", "/api/v1/admin/anlaesse", {
       programmId: programm.id,
-      anmeldungFuer: "person",
       anmeldungOffen: true,
       sichtbarkeit: { art: "angemeldet" },
       felder: [],

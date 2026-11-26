@@ -2,6 +2,8 @@ import {
   sichtbarFuer,
   sichtbarkeitAusSpalten,
   type SichtPerson,
+  type SichtRollen,
+  type Gruppe,
 } from "../sichtbarkeit.js";
 import type { Sichtbarkeit } from "../sichtbarkeit.js";
 
@@ -17,6 +19,7 @@ export type NavZeile = {
   reihenfolge: number;
   sichtbarkeit: Sichtbarkeit["art"];
   sichtbarkeitTags: string[];
+  sichtbarkeitRollen: SichtRollen;
   veroeffentlichteVersionId: string | null;
 };
 
@@ -39,7 +42,7 @@ const vergleiche = (a: NavZeile, b: NavZeile) =>
 export function baueGeschuetzteNavigation(
   zeilen: NavZeile[],
   abteilungId: string,
-  person: SichtPerson & { tagIds: readonly string[] },
+  person: SichtPerson & { gruppen: readonly Gruppe[] },
   pfadVon: (id: string) => string | null,
   nichtImMenue: ReadonlySet<string> = new Set(),
 ): NavEintrag[] {

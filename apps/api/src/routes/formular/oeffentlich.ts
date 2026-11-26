@@ -18,7 +18,7 @@ import {
 } from "../../formular/formular.js";
 import { log } from "../../log.js";
 import type { Person } from "../../rechte.js";
-import { ladeTagIds, sichtbarFuer } from "../../sichtbarkeit.js";
+import { ladeGruppen, sichtbarFuer } from "../../sichtbarkeit.js";
 import {
   MAX_FELDER,
   pruefeAntworten,
@@ -154,7 +154,7 @@ export function erstelleFormularOeffentlichRoute({
           ? c.get("person")!
           : null;
       const sicht = person
-        ? { ...person, tagIds: await ladeTagIds(db, person) }
+        ? { ...person, gruppen: await ladeGruppen(db, person) }
         : null;
       // Die Seite und der Baustein müssen beide für diese Person sichtbar sein
       const darf =

@@ -7,6 +7,7 @@ import {
   baueGeschuetzteNavigation,
   type NavZeile,
 } from "../src/website/navigation-angemeldet.js";
+import type { Gruppe } from "../src/sichtbarkeit.js";
 
 const { ausPlan, pfadVon, plane, pruefeAntwort } = skript as {
   ausPlan: (plan: Plan[], aktuell: string) => boolean;
@@ -33,7 +34,7 @@ const person = (
   abteilungId: ABT,
   abteilungsleitung: false,
   entwickler: false,
-  tagIds: [] as string[],
+  gruppen: [] as Gruppe[],
   ...extra,
 });
 
@@ -46,6 +47,7 @@ const z = (adresse: string, extra: Partial<NavZeile> = {}): NavZeile => ({
   reihenfolge: ++n,
   sichtbarkeit: "oeffentlich",
   sichtbarkeitTags: [],
+  sichtbarkeitRollen: {},
   veroeffentlichteVersionId: "v",
   ...extra,
 });
@@ -98,7 +100,9 @@ describe("Auswahl der Seiten", () => {
 
   test("Gruppe: nur wer den Tag trägt; die Seite steht in der Elternseite, in der Reihenfolge der Seitenliste", () => {
     const { zeilen } = baum();
-    expect(lauf(zeilen, person({ tagIds: [T] }))).toEqual([
+    expect(
+      lauf(zeilen, person({ gruppen: [{ tagId: T, rolle: "teilnehmende" }] })),
+    ).toEqual([
       { pfad: "/fotos", titel: "Fotos", eltern: null, davor: "/kontakt" },
       {
         pfad: "/stufen/intern",
@@ -111,7 +115,10 @@ describe("Auswahl der Seiten", () => {
 
   test("eine Seite unter einer Seite, die die Person nicht sieht, hängt an der nächsten sichtbaren Elternseite; nichts verrät die unsichtbare", () => {
     const { zeilen } = baum();
-    const e = lauf(zeilen, person({ tagIds: [X] }));
+    const e = lauf(
+      zeilen,
+      person({ gruppen: [{ tagId: X, rolle: "teilnehmende" }] }),
+    );
     expect(e.find((s) => s.pfad === "/stufen/intern/leitung")).toEqual({
       pfad: "/stufen/intern/leitung",
       titel: "LEITUNG",

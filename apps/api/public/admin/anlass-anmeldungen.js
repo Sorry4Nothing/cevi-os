@@ -51,7 +51,6 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
   let naechste = erste.naechste;
   let summe = erste.summe;
   let begriff = "";
-  const fuerKind = anlass.anmeldungFuer === "kind";
 
   const gesamt = () => summe.angemeldet + summe.abgemeldet;
   // Der Export ist eine Zeile auf der Seite (Download-Muster), kein Fenster; sie kennt den gewählten Stand
@@ -66,7 +65,7 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
     onclick: () => lade(false),
   });
   const suche = suchfeld({
-    label: fuerKind ? "Name des Kindes suchen" : "Name suchen",
+    label: "Name suchen",
     beiAenderung: (wert) => {
       begriff = wert;
       zeichneListe();
@@ -104,37 +103,33 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
       el(
         "th",
         { scope: "row" },
-        fuerKind
-          ? e.kind
-            ? [
-                el(
-                  "span",
-                  { class: "name" },
-                  `${e.kind.vorname} ${e.kind.nachname}`,
-                ),
-                e.kind.ceviName &&
-                  el("span", { class: "klein leise tm-zeit" }, e.kind.ceviName),
-              ]
-            : "–"
+        // Ein Kind oder die Person selbst (#844); «Angemeldet von» ist bei der Person sie selbst
+        e.kind
+          ? [
+              el(
+                "span",
+                { class: "name" },
+                `${e.kind.vorname} ${e.kind.nachname}`,
+              ),
+              e.kind.ceviName &&
+                el("span", { class: "klein leise tm-zeit" }, e.kind.ceviName),
+            ]
           : el("span", { class: "name" }, e.person.name),
       ),
-      fuerKind
-        ? el(
-            "td",
-            {},
-            e.kind
-              ? el("ul", { class: "chips" }, chip(e.kind.stufe, "stufe", "tag"))
-              : "–",
-          )
-        : el("td", {}, e.person.telefon ?? "–"),
-      fuerKind &&
-        el(
-          "td",
-          {},
-          el("span", {}, e.person.name),
-          e.person.telefon &&
-            el("span", { class: "klein leise tm-zeit" }, e.person.telefon),
-        ),
+      el(
+        "td",
+        {},
+        e.kind
+          ? el("ul", { class: "chips" }, chip(e.kind.stufe, "stufe", "tag"))
+          : "–",
+      ),
+      el(
+        "td",
+        {},
+        el("span", {}, e.person.name),
+        e.person.telefon &&
+          el("span", { class: "klein leise tm-zeit" }, e.person.telefon),
+      ),
       el("td", { class: "tm-ziffern" }, stempel(e.geaendertAm)),
       anlass.felder.map((f) => el("td", {}, antwort(e, f))),
       el(
@@ -201,9 +196,9 @@ function zeichne(bereich, ctx, pfad, anlass, erste) {
     const t = termineTabelle({
       beschriftung: "Anmeldungen, die zuletzt geänderten zuerst",
       spalten: [
-        fuerKind ? "Name Kind" : "Name",
-        fuerKind ? "Stufe" : "Telefon",
-        ...(fuerKind ? ["Angemeldet von"] : []),
+        "Name",
+        "Stufe",
+        "Angemeldet von",
         "Geändert am",
         ...anlass.felder.map((f) => f.beschriftung),
         "Status",

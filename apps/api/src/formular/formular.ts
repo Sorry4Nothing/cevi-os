@@ -58,6 +58,7 @@ export async function ladeVeroeffentlichtes(
       abteilungId: seite.abteilungId,
       sichtbarkeit: seite.sichtbarkeit,
       sichtbarkeitTags: seite.sichtbarkeitTags,
+      sichtbarkeitRollen: seite.sichtbarkeitRollen,
       versionId: seiteVersion.id,
       inhalt: seiteVersion.inhalt,
     })

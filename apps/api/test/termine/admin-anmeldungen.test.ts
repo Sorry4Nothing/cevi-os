@@ -124,7 +124,6 @@ const STANDARD_FELDER: FeldSpez[] = [
   },
 ];
 async function neuerAnlass(
-  fuer: "kind" | "person" = "kind",
   felder: FeldSpez[] = STANDARD_FELDER,
   abteilungId = welt.testabteilungId,
 ) {
@@ -134,7 +133,6 @@ async function neuerAnlass(
     .values({
       abteilungId,
       programmId: termin.id,
-      anmeldungFuer: fuer,
       anmeldungOffen: true,
       sichtbarkeit: "angemeldet",
     })
@@ -256,7 +254,7 @@ describe("Anmeldungen ansehen", () => {
   });
 
   test("bei «person» ist kind null", async () => {
-    const anlassId = await neuerAnlass("person");
+    const anlassId = await neuerAnlass();
     await melde(anlassId, { userId: konten.slA.id! });
     const a = await liste(anlassId);
     expect(a.body.eintraege).toHaveLength(1);
@@ -264,7 +262,7 @@ describe("Anmeldungen ansehen", () => {
   });
 
   test("Seitenwechsel: jede Anmeldung genau einmal, neueste zuerst, auch bei gleicher Zeit", async () => {
-    const anlassId = await neuerAnlass("person");
+    const anlassId = await neuerAnlass();
     const gleich = new Date("2027-01-02T10:00:00.123456Z");
     const werte = [
       ["admin", new Date("2027-01-01T10:00:00Z")],
@@ -311,7 +309,7 @@ describe("Anmeldungen ansehen", () => {
   });
 
   test("Filter nach Status; die Summe zählt beide Status unabhängig vom Filter", async () => {
-    const anlassId = await neuerAnlass("person");
+    const anlassId = await neuerAnlass();
     await melde(anlassId, { userId: konten.slA.id! });
     await melde(anlassId, { userId: konten.slB.id! });
     await melde(anlassId, {
@@ -371,7 +369,7 @@ describe("Anmeldungen ansehen", () => {
   });
 
   test("Liste: höchstens 3 Abfragen (Anlass, Seite, Rechte der Person), unabhängig von der Seitengrösse", async () => {
-    const anlassId = await neuerAnlass("person");
+    const anlassId = await neuerAnlass();
     for (const p of [
       "slA",
       "slB",
@@ -431,7 +429,7 @@ describe("Rechte", () => {
   });
 
   test("ein Anlass der anderen Abteilung ist für die Leitung 404, ein unbekannter auch", async () => {
-    const fremd = await neuerAnlass("kind", [], welt.demoAbteilungId);
+    const fremd = await neuerAnlass([], welt.demoAbteilungId);
     for (const id of [fremd, randomUUID()]) {
       expect((await anfrage("abteilungsleitung", BASIS(id))).status).toBe(404);
       expect(
@@ -445,7 +443,7 @@ describe("Rechte", () => {
   });
 
   test("ein Export einer fremden Abteilung schreibt kein Protokoll", async () => {
-    const fremd = await neuerAnlass("kind", [], welt.demoAbteilungId);
+    const fremd = await neuerAnlass([], welt.demoAbteilungId);
     await anfrage("abteilungsleitung", `${BASIS(fremd)}.csv`);
     const zeilen = await db
       .select()
@@ -506,7 +504,7 @@ describe("Export als CSV", () => {
   });
 
   test("entschärft Formeln in Zellen und Kopfzeile; Trenner, Anführungszeichen und Zeilenumbruch bleiben Text", async () => {
-    const anlassId = await neuerAnlass("person", [
+    const anlassId = await neuerAnlass([
       { schluessel: "a", beschriftung: "=Bemerkung" },
       { schluessel: "b", beschriftung: "Zweite" },
       { schluessel: "c", beschriftung: "Dritte" },
@@ -535,7 +533,7 @@ describe("Export als CSV", () => {
   });
 
   test("Filter «alle» nimmt die Abgemeldeten mit, die Vorgabe nicht", async () => {
-    const anlassId = await neuerAnlass("person");
+    const anlassId = await neuerAnlass();
     await melde(anlassId, {
       userId: konten.slA.id!,
       antworten: { bemerkung: "x" },
@@ -563,7 +561,7 @@ describe("Export als CSV", () => {
   });
 
   test("mehr als ein Block: vollständig, ohne Doppelte, in vier Abfragen und mit Protokoll ohne Inhalt", async () => {
-    const anlassId = await neuerAnlass("kind", [
+    const anlassId = await neuerAnlass([
       { schluessel: "bemerkung", beschriftung: "Bemerkung" },
     ]);
     const anzahl = BLOCKGROESSE * 2 + 100;
@@ -633,7 +631,7 @@ describe("Export als CSV", () => {
   });
 
   test("der Export sortiert nach ID: Eine Änderung verschiebt nur die Liste, nie den Export", async () => {
-    const anlassId = await neuerAnlass("person", []);
+    const anlassId = await neuerAnlass([]);
     const ids = [
       await melde(anlassId, { userId: konten.slA.id! }),
       await melde(anlassId, { userId: konten.slB.id! }),

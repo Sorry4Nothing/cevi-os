@@ -116,11 +116,12 @@ type FeldSpez = {
 const STANDARD_FELDER: FeldSpez[] = [{ schluessel: "bemerkung" }];
 
 interface AnlassSpez {
-  fuer?: "kind" | "person";
   offen?: boolean;
   frist?: Date | null;
   sichtbarkeit?: "oeffentlich" | "angemeldet" | "tags";
   tags?: string[];
+  // Untergruppen je Tag (#844)
+  rollen?: Record<string, ("teilnehmende" | "leitung" | "stufenleitung")[]>;
   felder?: FeldSpez[];
   abteilungId?: string;
   beginn?: Date;
@@ -157,11 +158,11 @@ async function neuerAnlass(spez: AnlassSpez = {}) {
       abteilungId,
       programmId: termin.id,
       art: spez.art ?? "anlass",
-      anmeldungFuer: spez.fuer ?? "kind",
       anmeldungOffen: spez.offen ?? true,
       frist: spez.frist ?? null,
       sichtbarkeit: spez.sichtbarkeit ?? "angemeldet",
       sichtbarkeitTags: spez.tags ?? [],
+      sichtbarkeitRollen: spez.rollen ?? {},
     })
     .returning({ id: schema.anlass.id });
   const felder = spez.felder ?? STANDARD_FELDER;
@@ -180,6 +181,13 @@ async function neuerAnlass(spez: AnlassSpez = {}) {
   }
   return { id: zeile.id, programmId: termin.id };
 }
+// Ein Anlass für die Stufen A und B: Eltern melden nur ihre Kinder an, die Leitenden der Stufen auch sich selbst (#844)
+const kinderAnlass = (spez: AnlassSpez = {}) =>
+  neuerAnlass({
+    sichtbarkeit: "tags",
+    tags: [welt.stufeAId, welt.stufeBId],
+    ...spez,
+  });
 const anmeldungen = (anlassId: string) =>
   db
     .select()
@@ -198,7 +206,7 @@ const audit = (aktion: string, zielId: string) =>
 
 describe("Anlass lesen (Vorlage)", () => {
   test("Eltern sehen ihre aktiven Kinder mit den Angaben aus dem Konto", async () => {
-    const a = await neuerAnlass();
+    const a = await kinderAnlass();
     const antwort = await lies("elternA", a.id);
     expect(antwort.status).toBe(200);
     const b: Json = await antwort.json();
@@ -233,16 +241,16 @@ describe("Anlass lesen (Vorlage)", () => {
     expect(JSON.stringify(b)).not.toMatch(/@|telefon|email|gesundheit/i);
   });
 
-  test("jede Familie sieht nur die eigenen Kinder; ohne Kind ist die Liste leer", async () => {
-    const a = await neuerAnlass();
+  test("jede Familie sieht nur die eigenen Kinder; Leitende der Stufe sich selbst, die Abteilungsleitung niemanden", async () => {
+    const a = await kinderAnlass();
     const ids = async (p: TerminePersona) =>
       ((await (await lies(p, a.id)).json()) as Json).teilnehmende.map(
         (t: Json) => t.kindId,
       );
     expect(await ids("elternA")).toEqual([welt.kindAId]);
     expect(await ids("elternB")).toEqual([welt.kindBId]);
-    expect(await ids("leitungAElternB")).toEqual([welt.kindBId]);
-    expect(await ids("leitungA")).toEqual([]);
+    expect(await ids("leitungAElternB")).toEqual([null, welt.kindBId]);
+    expect(await ids("leitungA")).toEqual([null]);
     expect(await ids("abteilungsleitung")).toEqual([]);
   });
 
@@ -260,7 +268,7 @@ describe("Anlass lesen (Vorlage)", () => {
     await db
       .insert(schema.kindEltern)
       .values({ kindId: k.id, userId: id("elternA") });
-    const a = await neuerAnlass();
+    const a = await kinderAnlass();
     const b: Json = await (await lies("elternA", a.id)).json();
     expect(b.teilnehmende.map((t: Json) => t.kindId)).toEqual([welt.kindAId]);
   });
@@ -270,7 +278,7 @@ describe("Anlass lesen (Vorlage)", () => {
       .update(schema.user)
       .set({ ceviName: "Blitz" })
       .where(eq(schema.user.id, id("leitungA")));
-    const a = await neuerAnlass({ fuer: "person" });
+    const a = await neuerAnlass();
     const b: Json = await (await lies("leitungA", a.id)).json();
     expect(b.anmeldungFuer).toBe("person");
     expect(b.teilnehmende).toEqual([
@@ -344,12 +352,80 @@ describe("Anlass lesen (Vorlage)", () => {
   });
 });
 
+describe("Untergruppen (#844): Rollen je Stufe entscheiden über Sicht und Zielgruppe", () => {
+  const status = async (p: TerminePersona, id: string) =>
+    (await lies(p, id)).status;
+
+  test("nur Gruppenleitung: Gruppenleitung und Stufenleitung sehen und melden sich an, Eltern und Kinder nicht", async () => {
+    const a = await neuerAnlass({
+      sichtbarkeit: "tags",
+      tags: [welt.stufeAId],
+      rollen: { [welt.stufeAId]: ["leitung"] },
+    });
+    expect(await status("leitungA", a.id)).toBe(200);
+    expect(await status("stufenleitungA", a.id)).toBe(200);
+    expect(await status("elternA", a.id)).toBe(404);
+    expect(await status("leitungB", a.id)).toBe(404);
+    expect(await status("abteilungsleitung", a.id)).toBe(200);
+    expect(
+      (await melde("stufenleitungA", a.id, { antworten: {} })).status,
+    ).toBe(200);
+    // Eltern sehen den Anlass nicht: auch ihr Kind lässt sich nicht anmelden
+    expect(
+      (await melde("elternA", a.id, { kindId: welt.kindAId, antworten: {} }))
+        .status,
+    ).toBe(404);
+    // Die Leitung A ist auch Elternteil von Kind B: sie selbst ja, das Kind nicht
+    const b: Json = await (await lies("leitungAElternB", a.id)).json();
+    expect(b.teilnehmende.map((t: Json) => t.kindId)).toEqual([null]);
+  });
+
+  test("nur Stufenleitung: die Gruppenleitung sieht nichts", async () => {
+    const a = await neuerAnlass({
+      sichtbarkeit: "tags",
+      tags: [welt.stufeAId],
+      rollen: { [welt.stufeAId]: ["stufenleitung"] },
+    });
+    expect(await status("stufenleitungA", a.id)).toBe(200);
+    expect(await status("leitungA", a.id)).toBe(404);
+    expect(await status("elternA", a.id)).toBe(404);
+  });
+
+  test("nur Teilnehmende: Eltern melden ihr Kind an, die Leitung sieht den Anlass nicht", async () => {
+    const a = await neuerAnlass({
+      sichtbarkeit: "tags",
+      tags: [welt.stufeAId],
+      rollen: { [welt.stufeAId]: ["teilnehmende"] },
+    });
+    expect(await status("elternA", a.id)).toBe(200);
+    expect(await status("leitungA", a.id)).toBe(404);
+    expect(await status("stufenleitungA", a.id)).toBe(404);
+    const b: Json = await (await lies("elternA", a.id)).json();
+    expect(b.teilnehmende.map((t: Json) => t.kindId)).toEqual([welt.kindAId]);
+    expect(
+      (await melde("elternA", a.id, { kindId: welt.kindAId, antworten: {} }))
+        .status,
+    ).toBe(200);
+  });
+
+  test("ohne Einschränkung wie bisher: die ganze Stufe samt Eltern", async () => {
+    const a = await neuerAnlass({
+      sichtbarkeit: "tags",
+      tags: [welt.stufeAId],
+      rollen: {},
+    });
+    for (const p of ["leitungA", "stufenleitungA", "elternA"] as const) {
+      expect(await status(p, a.id), p).toBe(200);
+    }
+    expect(await status("elternB", a.id)).toBe(404);
+  });
+});
+
 describe("Sichtbarkeit: wer den Anlass sehen darf, darf sich anmelden", () => {
   test("«tags»: nur Personen mit einem der Tags, Eltern über die Stufe ihres Kindes, die Abteilungsleitung immer", async () => {
     const a = await neuerAnlass({
       sichtbarkeit: "tags",
       tags: [welt.stufeAId],
-      fuer: "person",
     });
     const status = async (p: TerminePersona) => (await lies(p, a.id)).status;
     // Stufe A: Stufenleitung und Leitung der Stufe A, Eltern eines Kindes der Stufe A
@@ -388,7 +464,7 @@ describe("Sichtbarkeit: wer den Anlass sehen darf, darf sich anmelden", () => {
 
 describe("Anmelden", () => {
   test("Eltern melden ihr Kind an, die Antwort ist die Bestätigung, die Vorlage zeigt sie", async () => {
-    const a = await neuerAnlass({
+    const a = await kinderAnlass({
       felder: [
         { schluessel: "bemerkung", pflicht: true },
         { schluessel: "mitfahrt", typ: "ja_nein" },
@@ -458,7 +534,7 @@ describe("Anmelden", () => {
 
   test("gleichzeitige Aufrufe ergeben eine Zeile (Kind und Person)", async () => {
     const kind = await neuerAnlass();
-    const person = await neuerAnlass({ fuer: "person" });
+    const person = await neuerAnlass();
     const ergebnisse = await Promise.all([
       ...Array.from({ length: 6 }, () =>
         melde("elternA", kind.id, {
@@ -480,7 +556,7 @@ describe("Anmelden", () => {
     await db
       .insert(schema.kindEltern)
       .values({ kindId: welt.kindAId, userId: id("leitungB") });
-    const a = await neuerAnlass();
+    const a = await kinderAnlass();
     const erste: Json = await (
       await melde("elternA", a.id, {
         kindId: welt.kindAId,
@@ -543,26 +619,101 @@ describe("Anmelden", () => {
     expect(await anmeldungen(a.id)).toHaveLength(0);
   });
 
-  test("kindId ist bei «kind» Pflicht und bei «person» verboten (400)", async () => {
-    const kind = await neuerAnlass();
-    const person = await neuerAnlass({ fuer: "person" });
-    const ohne = await melde("elternA", kind.id, { antworten: {} });
-    expect(ohne.status).toBe(400);
-    expect(((await ohne.json()) as Json).code).toBe("KIND_ID_PFLICHT");
-    const mit = await melde("elternA", person.id, {
-      kindId: welt.kindAId,
-      antworten: {},
+  test("Zielgruppe (#844): sich selbst nur mit eigenem Tag, das eigene Kind nur mit seiner Stufe, sonst 403", async () => {
+    const a = await neuerAnlass({
+      sichtbarkeit: "tags",
+      tags: [welt.stufeAId],
     });
-    expect(mit.status).toBe(400);
-    expect(((await mit.json()) as Json).code).toBe("KIND_ID_VERBOTEN");
-    expect((await abmelden("elternA", kind.id)).status).toBe(400);
-    expect((await abmelden("elternA", person.id, welt.kindAId)).status).toBe(
-      400,
+    const ids = async (p: TerminePersona) =>
+      ((await (await lies(p, a.id)).json()) as Json).teilnehmende.map(
+        (t: Json) => t.kindId,
+      );
+    // Eltern A tragen den Tag nicht selbst, ihr Kind ist in Stufe A; die Leitung A trägt ihn, ihr Kind B ist in Stufe B
+    expect(await ids("elternA")).toEqual([welt.kindAId]);
+    expect(await ids("leitungA")).toEqual([null]);
+    expect(await ids("leitungAElternB")).toEqual([null]);
+    // Die Abteilungsleitung sieht den Anlass, gehört aber nicht zur Zielgruppe
+    expect(await ids("abteilungsleitung")).toEqual([]);
+    for (const [p, kindId] of [
+      ["elternA", undefined],
+      ["abteilungsleitung", undefined],
+      ["leitungAElternB", welt.kindBId],
+    ] as const) {
+      const r = await melde(p, a.id, {
+        ...(kindId && { kindId }),
+        antworten: {},
+      });
+      expect(r.status, p).toBe(403);
+      expect(((await r.json()) as Json).code).toBe("NICHT_IN_ZIELGRUPPE");
+    }
+    expect(
+      (await melde("elternA", a.id, { kindId: welt.kindAId, antworten: {} }))
+        .status,
+    ).toBe(200);
+    expect(
+      (await melde("leitungAElternB", a.id, { antworten: {} })).status,
+    ).toBe(200);
+    expect(await anmeldungen(a.id)).toHaveLength(2);
+    // Abmelden fragt nicht nach der Zielgruppe (wer drin ist, kommt wieder heraus); ein fremdes Kind bleibt 404
+    expect((await abmelden("leitungAElternB", a.id, welt.kindBId)).status).toBe(
+      204,
+    );
+    expect((await abmelden("elternA", a.id, welt.kindBId)).status).toBe(404);
+  });
+
+  test("«angemeldet»: jede Person für sich selbst und ihre Kinder, die Person zuerst; «anmeldungFuer» nur noch abgeleitet", async () => {
+    const a = await neuerAnlass();
+    const b = async (p: TerminePersona) =>
+      (await (await lies(p, a.id)).json()) as Json;
+    const eltern = await b("elternA");
+    expect(eltern.teilnehmende.map((t: Json) => t.kindId)).toEqual([
+      null,
+      welt.kindAId,
+    ]);
+    expect(eltern.anmeldungFuer).toBe("kind");
+    const leitung = await b("leitungA");
+    expect(leitung.teilnehmende.map((t: Json) => t.kindId)).toEqual([null]);
+    expect(leitung.anmeldungFuer).toBe("person");
+    // Beide Anmeldungen derselben Person sind getrennt
+    await melde("elternA", a.id, { antworten: { bemerkung: "selbst" } });
+    await melde("elternA", a.id, {
+      kindId: welt.kindAId,
+      antworten: { bemerkung: "kind" },
+    });
+    const zeilen = await anmeldungen(a.id);
+    expect(zeilen.map((z) => z.kindId).sort()).toEqual(
+      [null, welt.kindAId].sort(),
     );
   });
 
+  test("ein Kind mit eigenem Konto meldet sich als Kind an, nie als Person", async () => {
+    // Die Leitung B bekommt für diesen Test das Konto eines Kindes der Stufe A
+    const [k] = await db
+      .insert(schema.kind)
+      .values({
+        abteilungId: welt.testabteilungId,
+        vorname: "Eigen",
+        nachname: "Konto",
+        stufeId: welt.stufeAId,
+        userId: id("leitungB"),
+      })
+      .returning({ id: schema.kind.id });
+    try {
+      const a = await neuerAnlass();
+      const b: Json = await (await lies("leitungB", a.id)).json();
+      expect(b.teilnehmende.map((t: Json) => t.kindId)).toEqual([k.id]);
+      const selbst = await melde("leitungB", a.id, { antworten: {} });
+      expect(selbst.status).toBe(403);
+      expect(
+        (await melde("leitungB", a.id, { kindId: k.id, antworten: {} })).status,
+      ).toBe(200);
+    } finally {
+      await db.delete(schema.kind).where(eq(schema.kind.id, k.id));
+    }
+  });
+
   test("Personen melden sich selbst an: Leitende, Eltern und die Abteilungsleitung", async () => {
-    const a = await neuerAnlass({ fuer: "person" });
+    const a = await neuerAnlass();
     for (const p of [
       "leitungA",
       "elternA",
@@ -840,7 +991,7 @@ describe("Antworten werden gegen die Felder geprüft", () => {
 
 describe("Abmelden", () => {
   test("Abmelden setzt den Status und löscht die Antworten, die Zeile bleibt", async () => {
-    const a = await neuerAnlass();
+    const a = await kinderAnlass();
     const angemeldet: Json = await (
       await melde("elternA", a.id, {
         kindId: welt.kindAId,
@@ -877,7 +1028,7 @@ describe("Abmelden", () => {
   });
 
   test("wer sich abgemeldet hat, meldet sich mit demselben PUT wieder an (gleiche ID)", async () => {
-    const a = await neuerAnlass({ fuer: "person" });
+    const a = await neuerAnlass();
     const erste: Json = await (
       await melde("leitungA", a.id, { antworten: { bemerkung: "eins" } })
     ).json();
@@ -894,7 +1045,7 @@ describe("Abmelden", () => {
   });
 
   test("eine Person meldet nur sich selbst ab, nicht andere", async () => {
-    const a = await neuerAnlass({ fuer: "person" });
+    const a = await neuerAnlass();
     await melde("leitungA", a.id, { antworten: {} });
     await melde("leitungB", a.id, { antworten: {} });
     expect((await abmelden("leitungA", a.id)).status).toBe(204);
@@ -954,7 +1105,7 @@ describe("Audit und Datenschutz", () => {
 
   test("Ratenbegrenzung je Person: nach 30 Anfragen in der Minute 429", async () => {
     // Eigene Person (eigene Zählung): die Leitung B
-    const a = await neuerAnlass({ fuer: "person" });
+    const a = await neuerAnlass();
     let letzter = 0;
     for (let i = 0; i < ANFRAGEN_PRO_MINUTE + 1; i++) {
       letzter = (await melde("leitungB", a.id, { antworten: {} })).status;
@@ -994,7 +1145,7 @@ describe("Verwaltung der Anlässe kennt die Anmeldungen (Rümpfe aus #442)", () 
     expect(await zaehleAnmeldungen(db, leer.id)).toBe(0);
   });
 
-  test("mit Anmeldungen: Löschen, «anmeldungFuer» ändern und Felder festhalten sind 409", async () => {
+  test("mit Anmeldungen: Löschen und Felder festhalten sind 409", async () => {
     const a = await neuerAnlass({
       felder: [{ schluessel: "eins" }, { schluessel: "zwei" }],
     });
@@ -1018,11 +1169,6 @@ describe("Verwaltung der Anlässe kennt die Anmeldungen (Rümpfe aus #442)", () 
     const loeschen = await admin("DELETE", "");
     expect(loeschen.status).toBe(409);
     expect(await loeschen.json()).toMatchObject({
-      code: "ANMELDUNGEN_VORHANDEN",
-    });
-    const aendern = await admin("PATCH", "", { anmeldungFuer: "person" });
-    expect(aendern.status).toBe(409);
-    expect(await aendern.json()).toMatchObject({
       code: "ANMELDUNGEN_VORHANDEN",
     });
     // Das Feld mit Antworten behält Schlüssel und Typ, das ohne Antworten darf sich ändern
@@ -1261,7 +1407,6 @@ describe("Mein Kalender nennt den Anlass", () => {
 
   test("der Anlass einer Person-Anmeldung zählt als angemeldet für die Person selbst", async () => {
     const a = await neuerAnlass({
-      fuer: "person",
       terminTags: [welt.stufeAId],
     });
     await melde("leitungA", a.id, { antworten: {} });
@@ -1283,7 +1428,7 @@ describe("Abfragen je Aufruf", () => {
     }) as unknown as Db;
     const zaehlApp = erstelleApp({ ...optionen, db: zaehlend });
     const betrifft = (q: string) => /anlass|"kind"|"user"/.test(q);
-    const a = await neuerAnlass();
+    const a = await kinderAnlass();
     const mit = async (
       methode: "GET" | "PUT" | "DELETE",
       pfad: string,

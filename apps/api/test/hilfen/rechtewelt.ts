@@ -82,7 +82,7 @@ export async function legeRechtewelt(
     >`insert into programm (abteilung_id, google_event_id, titel, ganztaegig, tag_von, tag_bis) values (${abt}, ${`g-${randomUUID()}`}, ${titel}, true, '2027-05-01', '2027-05-01') returning id`;
     const [a] = await sql<
       { id: string }[]
-    >`insert into anlass (abteilung_id, programm_id, anmeldung_fuer, sichtbarkeit) values (${abt}, ${p.id}, 'person', 'angemeldet') returning id`;
+    >`insert into anlass (abteilung_id, programm_id, sichtbarkeit) values (${abt}, ${p.id}, 'angemeldet') returning id`;
     return a.id;
   };
   const anlassOk = await anlass("Kirmes");

@@ -4,6 +4,7 @@ import { band, beschaeftigt, bei } from "./website-dialoge.js";
 import { sk } from "./lader.js";
 import { schliesseOffenePanels, unteransicht } from "./website-unteransicht.js";
 import { nochmals, zustandsDaten, zustandsKarte } from "./zustaende.js";
+import { hatRollen, rollenWahl, rollenWert } from "./sicht-rollen.js";
 
 // Sichtbarkeit einer Seite oder eines Bausteins (Boards E5): Seitenblatt mit den Wahlkarten «Öffentlich», «Nur angemeldet» und
 // «Bestimmte Gruppen», den Gruppen als Pillen und (nur bei einer Seite) der Liste «Wer darf bearbeiten».
@@ -16,7 +17,7 @@ const ARTEN = [
 ];
 
 // opt: { typ: "seite" | "baustein", titel, untertitel, start, erbtText?, ladeTags, tagNamen, speichere(wert) → Promise, rechte? }
-// start: { art, tagIds? } oder «erbt» (nur bei einem Baustein); wert() in speichere hat dieselbe Form
+// start: { art, tagIds?, rollen? } oder «erbt» (nur bei einem Baustein); wert() in speichere hat dieselbe Form. rollen: je gewählter Stufe die Rollen (#844)
 export function sichtbarkeitBlatt(opt) {
   if (!opt.in && !schliesseOffenePanels()) return null;
   const { start, erbtText, ladeTags, tagNamen } = opt;
@@ -24,6 +25,30 @@ export function sichtbarkeitBlatt(opt) {
   const gewaehlt = new Set(
     start !== "erbt" && start.art === "tags" ? start.tagIds : [],
   );
+  const startRollen =
+    start !== "erbt" && start.art === "tags" ? (start.rollen ?? {}) : {};
+  // Je Stufe eine Rollenwahl; sie bleibt erhalten, wenn die Stufe ab- und wieder angewählt wird
+  const rollen = new Map();
+  const rollenFuer = (t) => {
+    if (!rollen.has(t.id)) {
+      rollen.set(
+        t.id,
+        rollenWahl(
+          t.name,
+          startRollen[t.id],
+          "Teilnehmende sind alle in der Stufe ohne Leitungsrolle.",
+        ),
+      );
+    }
+    return rollen.get(t.id);
+  };
+  const rollenPlatz = el("div", { class: "ws-rollen" });
+  const zeichneRollen = () =>
+    rollenPlatz.replaceChildren(
+      ...(tags ?? [])
+        .filter((t) => hatRollen(t) && gewaehlt.has(t.id))
+        .map((t) => rollenFuer(t).wurzel),
+    );
   const gruppeId = neueId("gruppen");
   const artName = neueId("art");
 
@@ -118,6 +143,7 @@ export function sichtbarkeitBlatt(opt) {
               "aria-pressed",
               String(gewaehlt.has(t.id)),
             );
+            zeichneRollen();
             pruefeWarnung();
           },
         },
@@ -138,7 +164,9 @@ export function sichtbarkeitBlatt(opt) {
         { class: "hilfe" },
         "Sichtbar, wenn die Person mindestens eine der gewählten Gruppen hat.",
       ),
+      rollenPlatz,
     );
+    zeichneRollen();
     pruefeWarnung();
   }
 
@@ -190,10 +218,17 @@ export function sichtbarkeitBlatt(opt) {
       art === "erbt"
         ? "erbt"
         : art === "tags"
-          ? {
-              art,
-              tagIds: tags.filter((t) => gewaehlt.has(t.id)).map((t) => t.id),
-            }
+          ? (() => {
+              const an = tags.filter((t) => gewaehlt.has(t.id));
+              const r = rollenWert(
+                an.filter(hatRollen).map((t) => [t.id, rollenFuer(t)]),
+              );
+              return {
+                art,
+                tagIds: an.map((t) => t.id),
+                ...(r && { rollen: r }),
+              };
+            })()
           : { art };
     beschaeftigt(speichern, true);
     abbrechen.disabled = true;

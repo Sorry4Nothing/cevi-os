@@ -584,10 +584,7 @@ export function zeichneFelder(bereich, ctx, pfad, anlass, id) {
       el(
         "ul",
         { class: "chips" },
-        (anlass.anmeldungFuer === "kind"
-          ? ["Name", "Kind", "Stufe", "Telefon"]
-          : ["Name", "Telefon"]
-        ).map((t) => chip(t, "ok")),
+        ["Name", "Kind", "Stufe", "Telefon"].map((t) => chip(t, "ok")),
       ),
     ),
     liste,

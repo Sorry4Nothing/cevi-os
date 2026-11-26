@@ -162,7 +162,6 @@ async function neuerAnlass(
     quelle: string | null;
     typ?: "text" | "ja_nein";
   }[],
-  fuer: "kind" | "person" = "kind",
 ) {
   const termin = await legeProgrammAn(db, {
     abteilungId: welt.testabteilungId,
@@ -172,7 +171,6 @@ async function neuerAnlass(
     .values({
       abteilungId: welt.testabteilungId,
       programmId: termin.id,
-      anmeldungFuer: fuer,
       anmeldungOffen: true,
       sichtbarkeit: "angemeldet",
     })
@@ -258,13 +256,6 @@ describe("Vorschlag", () => {
     expect((await vorschlag("elternB", id, welt.kindAId)).status).toBe(404);
     expect((await vorschlag("admin", id, welt.kindAId)).status).toBe(404);
     expect((await vorschlag("demoEltern", id, welt.kindAId)).status).toBe(404);
-    // ohne Kind bei «kind» und mit Kind bei «person» sind 400
-    expect((await vorschlag("elternA", id)).status).toBe(400);
-    const person = await neuerAnlass(
-      [{ schluessel: "geb", quelle: "geburtsdatum" }],
-      "person",
-    );
-    expect((await vorschlag("elternA", person, welt.kindAId)).status).toBe(400);
     // kein Abruf bei der Cevi-Datenbank für Fremde
     expect(abrufe).not.toHaveBeenCalled();
   });
@@ -396,10 +387,7 @@ describe("Vorschlag", () => {
   });
 
   test("eine Person meldet sich selbst an: Zuordnung über ihre E-Mail und ihren Vornamen", async () => {
-    const id = await neuerAnlass(
-      [{ schluessel: "tel", quelle: "telefon" }],
-      "person",
-    );
+    const id = await neuerAnlass([{ schluessel: "tel", quelle: "telefon" }]);
     const [u] = await db
       .select({ name: schema.user.name, email: schema.user.email })
       .from(schema.user)
@@ -499,7 +487,6 @@ describe("Zusatzfelder mit Quelle", () => {
       .values({
         abteilungId: welt.testabteilungId,
         programmId: termin.id,
-        anmeldungFuer: "kind",
         anmeldungOffen: true,
         sichtbarkeit: "angemeldet",
       })

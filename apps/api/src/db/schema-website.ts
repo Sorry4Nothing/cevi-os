@@ -44,6 +44,18 @@ export const seite = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'`),
+    // Je Tag die Rollen, die das Objekt sehen (#844, sichtbarkeit.ts); ohne Schlüssel die ganze Gruppe
+    sichtbarkeitRollen: jsonb("sichtbarkeit_rollen")
+      .$type<
+        Partial<
+          Record<
+            string,
+            readonly ("teilnehmende" | "leitung" | "stufenleitung")[]
+          >
+        >
+      >()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // Gruppenseite (Stufe, Team, ...); fällt der Tag weg, bleibt die Seite
     tagId: uuid("tag_id").references(() => tag.id, { onDelete: "set null" }),
     // Alte Adresse auf der bisherigen Website, nur für den Umzug
@@ -80,6 +92,10 @@ export const seite = pgTable(
     check(
       "seite_sichtbarkeit_check",
       sql`${t.sichtbarkeit} in ('oeffentlich', 'angemeldet', 'tags')`,
+    ),
+    check(
+      "seite_sichtbarkeit_rollen_check",
+      sql`jsonb_typeof(${t.sichtbarkeitRollen}) = 'object'`,
     ),
   ],
 );

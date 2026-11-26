@@ -609,7 +609,6 @@ describe("Anlass (W3)", () => {
     tagBis: "2027-07-24",
     anmeldungOffen: true,
     frist: "2027-03-15T22:59:00.000Z",
-    anmeldungFuer: "kind",
     felder: [],
     teilnehmende: [
       {
@@ -682,6 +681,34 @@ describe("Anlass (W3)", () => {
     const h = html(anlass.anmeldungInhalt(da, "2027-02-01"));
     expect(h).toContain("Nils ist angemeldet.");
     expect(h).toContain("Anmeldung ansehen");
+  });
+  test("die Person selbst und ein Kind angemeldet (#844): «Du und Nils»", () => {
+    const angemeldet = {
+      id: "x",
+      status: "angemeldet",
+      antworten: {},
+      geaendertAm: "2027-01-12T17:40:00.000Z",
+    };
+    const beide = a({
+      teilnehmende: [
+        { kindId: null, name: "Pat", konto: [], anmeldung: angemeldet },
+        {
+          kindId: "k",
+          name: "Nils Muster",
+          konto: [
+            { schluessel: "vorname", beschriftung: "Vorname", wert: "Nils" },
+          ],
+          anmeldung: angemeldet,
+        },
+      ],
+    });
+    expect(html(anlass.anmeldungInhalt(beide, "2027-02-01"))).toContain(
+      "Du und Nils sind angemeldet.",
+    );
+    const selbst = a({ teilnehmende: [beide.teilnehmende[0]] });
+    expect(html(anlass.anmeldungInhalt(selbst, "2027-02-01"))).toContain(
+      "Du bist angemeldet.",
+    );
   });
   test("Laden, nicht angemeldet, nicht gefunden, Fehler", () => {
     expect(html(anlass.ladeKasten())).toContain('aria-busy="true"');
@@ -778,7 +805,6 @@ describe("Anlass-Anmeldung (W8)", () => {
     a: {
       id: ID,
       titel: "Sommerlager 2027",
-      anmeldungFuer: "kind",
       anmeldungOffen: true,
       frist: null,
       felder,
@@ -848,9 +874,9 @@ describe("Anlass-Anmeldung (W8)", () => {
     expect(h).toContain("Lea");
     expect(anmeldung.wahlView(z())).toBeNull();
   });
-  test("Sperren: Kein Kind, schon angemeldet, geschlossen, sonst Formular", () => {
+  test("Sperren: niemand in der Zielgruppe, schon angemeldet, geschlossen, sonst Formular", () => {
     expect(text(anmeldung.sperreView(z({}, []), "2027-02-01"))).toContain(
-      "Zu deinem Konto gehört noch kein Kind.",
+      "Für diesen Anlass kannst du niemanden anmelden.",
     );
     const da = teilnehmer({
       id: "x",

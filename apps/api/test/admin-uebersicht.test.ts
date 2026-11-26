@@ -120,7 +120,6 @@ beforeAll(async () => {
         { programmId: pv.id, frist: tage(-30), anmeldungOffen: false },
       ].map((x) => ({
         abteilungId: a,
-        anmeldungFuer: "person" as const,
         sichtbarkeit: "oeffentlich" as const,
         ...x,
       })),

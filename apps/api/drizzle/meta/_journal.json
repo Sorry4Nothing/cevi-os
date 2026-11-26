@@ -848,6 +848,20 @@
       "when": 1793558800000,
       "tag": "0168_lager_seite",
       "breakpoints": true
+    },
+    {
+      "idx": 169,
+      "version": "7",
+      "when": 1793558900000,
+      "tag": "0169_anlass_ohne_anmeldung_fuer",
+      "breakpoints": true
+    },
+    {
+      "idx": 170,
+      "version": "7",
+      "when": 1793559000000,
+      "tag": "0170_sichtbarkeit_rollen",
+      "breakpoints": true
     }
   ]
 }
