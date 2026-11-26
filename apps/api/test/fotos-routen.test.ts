@@ -42,6 +42,8 @@ const ALBUM_B = "72157000000000002";
 const ALBUM_C = "72157000000000003";
 const GEHEIM_SERVER = "4321";
 const GEHEIM_SECRET = "0a1b2c3d4e";
+// Ab 1600 hat jede Grösse bei Flickr ihr eigenes Secret
+const GEHEIM_SECRET_K = "fe12dc34ba";
 
 const bild = (id: string): QuellBild => ({
   id,
@@ -50,7 +52,15 @@ const bild = (id: string): QuellBild => ({
   titel: `Bild ${id}`,
   breite: 4,
   hoehe: 3,
-  groessen: ["klein", "mittel", "gross"],
+  groessen: {
+    "640": { secret: GEHEIM_SECRET, breite: 640, hoehe: 480, endung: "jpg" },
+    "2048": {
+      secret: GEHEIM_SECRET_K,
+      breite: 2048,
+      hoehe: 1536,
+      endung: "jpg",
+    },
+  },
 });
 const alben: QuellAlbum[] = [
   {
@@ -342,12 +352,27 @@ describe("Lesen", () => {
     expect(r.status).toBe(200);
     const text = await r.text();
     expect(text).not.toContain(GEHEIM_SECRET);
+    expect(text).not.toContain(GEHEIM_SECRET_K);
     expect(text).not.toContain(GEHEIM_SERVER);
     expect(text).not.toContain("staticflickr");
     const d = JSON.parse(text);
+    // Je Stufe, die Flickr liefert, nur die Masse (#867)
+    const groessen = { "640": [640, 480], "2048": [2048, 1536] };
     expect(d.bilder).toEqual([
-      { id: "6000000001", titel: "Bild 6000000001", breite: 4, hoehe: 3 },
-      { id: "6000000002", titel: "Bild 6000000002", breite: 4, hoehe: 3 },
+      {
+        id: "6000000001",
+        titel: "Bild 6000000001",
+        breite: 4,
+        hoehe: 3,
+        groessen,
+      },
+      {
+        id: "6000000002",
+        titel: "Bild 6000000002",
+        breite: 4,
+        hoehe: 3,
+        groessen,
+      },
     ]);
     expect(d.flickrUrl).toBeUndefined();
     await raeume();
@@ -366,9 +391,11 @@ describe("Lesen", () => {
       "/fotos/alben/abc",
       "/fotos/alben/1..2",
       `/fotos/alben/${ALBUM_A}/bilder/x`,
-      `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=1024`,
+      `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=1000`,
       `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=gross&url=http://evil.example.org/`,
+      `/fotos/alben/${ALBUM_A}/bilder/6000000001?herunterladen=ja`,
       `/fotos/alben/${ALBUM_A}/titel?groesse=riesig`,
+      `/fotos/alben/${ALBUM_A}/titel?herunterladen=1`,
     ]) {
       expect((await aufruf(eltern, "GET", pfad)).status, pfad).toBe(400);
     }
@@ -382,7 +409,7 @@ describe("Bilder", () => {
     const r = await aufruf(
       eltern,
       "GET",
-      `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=gross`,
+      `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=2048`,
     );
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("image/jpeg");
@@ -390,20 +417,72 @@ describe("Bilder", () => {
     expect(r.headers.get("vary")).toContain("Cookie");
     expect(r.headers.get("content-security-policy")).toContain("sandbox");
     expect(r.headers.get("x-content-type-options")).toBe("nosniff");
-    expect(r.headers.get("etag")).toBe(`"6000000001-${GEHEIM_SECRET}-gross"`);
+    expect(r.headers.get("content-disposition")).toBe("inline");
+    // Der Stand ist das Secret der Grösse
+    expect(r.headers.get("etag")).toBe(`"6000000001-${GEHEIM_SECRET_K}-2048"`);
     expect(new Uint8Array(await r.arrayBuffer())).toEqual(
       new Uint8Array([0xff, 0xd8, 0xff, 0xd9]),
     );
-    expect(q.z.dateien).toEqual([{ id: "6000000001", groesse: "gross" }]);
-    // Ohne Angabe gilt «mittel»
+    expect(q.z.dateien).toEqual([{ id: "6000000001", groesse: "2048" }]);
+    // Ohne Angabe gilt 640; die Namen von vor #867 gelten weiter
     await aufruf(eltern, "GET", `/fotos/alben/${ALBUM_A}/bilder/6000000002`);
-    expect(q.z.dateien[1]).toEqual({ id: "6000000002", groesse: "mittel" });
+    await aufruf(
+      eltern,
+      "GET",
+      `/fotos/alben/${ALBUM_A}/bilder/6000000002?groesse=gross`,
+    );
+    expect(q.z.dateien.slice(1)).toEqual([
+      { id: "6000000002", groesse: "640" },
+      { id: "6000000002", groesse: "1024" },
+    ]);
+  });
+
+  test("Herunterladen: dieselbe Datei als Anhang, Name aus Album, Nummer und Stufe, nur Buchstaben und Ziffern", async () => {
+    await richteEin();
+    const r = await aufruf(
+      eltern,
+      "GET",
+      `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=2048&herunterladen=1`,
+    );
+    expect(r.status).toBe(200);
+    expect(r.headers.get("content-disposition")).toBe(
+      'attachment; filename="Album-A-bei-Flickr-001-2048.jpg"',
+    );
+    expect(r.headers.get("etag")).toBe(
+      `"6000000001-${GEHEIM_SECRET_K}-2048-d"`,
+    );
+    expect(r.headers.get("content-security-policy")).toContain("sandbox");
+    await db
+      .update(schema.fotoAlbum)
+      .set({ titel: 'Sommerlager 2026 «Hörnli» "x"/../Straße' })
+      .where(eq(schema.fotoAlbum.flickrAlbumId, ALBUM_A));
+    const r2 = await aufruf(
+      eltern,
+      "GET",
+      `/fotos/alben/${ALBUM_A}/bilder/6000000002?groesse=original&herunterladen=1`,
+    );
+    expect(r2.headers.get("content-disposition")).toBe(
+      'attachment; filename="Sommerlager-2026-Hornli-x-Strasse-002-original.jpg"',
+    );
+    // Nur angemeldet, nie das Konto eines Kindes, nur Bilder aus dem Album
+    const pfad = `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=original&herunterladen=1`;
+    expect((await aufruf(ohneLogin, "GET", pfad)).status).toBe(401);
+    expect((await aufruf(kindKonto, "GET", pfad)).status).toBe(403);
+    expect(
+      (
+        await aufruf(
+          eltern,
+          "GET",
+          `/fotos/alben/${ALBUM_A}/bilder/6000000003?groesse=original&herunterladen=1`,
+        )
+      ).status,
+    ).toBe(404);
   });
 
   test("mit dem ETag antwortet der Server 304, ohne Flickr zu fragen, aber erst nach der Sitzungsprüfung", async () => {
     await richteEin();
-    const url = `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=klein`;
-    const etag = `"6000000001-${GEHEIM_SECRET}-klein"`;
+    const url = `/fotos/alben/${ALBUM_A}/bilder/6000000001?groesse=320`;
+    const etag = `"6000000001-${GEHEIM_SECRET}-320"`;
     const kopf = { ...eltern.headers, "if-none-match": etag };
     const r = await app.request(`/api/v1${url}`, { headers: kopf });
     expect(r.status).toBe(304);
@@ -432,10 +511,10 @@ describe("Bilder", () => {
     const r = await aufruf(
       eltern,
       "GET",
-      `/fotos/alben/${ALBUM_A}/titel?groesse=klein`,
+      `/fotos/alben/${ALBUM_A}/titel?groesse=320`,
     );
     expect(r.status).toBe(200);
-    expect(q.z.dateien).toEqual([{ id: "5000000001", groesse: "klein" }]);
+    expect(q.z.dateien).toEqual([{ id: "5000000001", groesse: "320" }]);
     expect(
       (await aufruf(eltern, "GET", `/fotos/alben/${ALBUM_B}/titel`)).status,
     ).toBe(404);
@@ -458,7 +537,7 @@ describe("Bilder", () => {
     const routen = erstelleFotoRouten({
       db,
       quelle: q.q,
-      grenzen: { listen: 2, bilder: 3 },
+      grenzen: { listen: 2, bilder: 5, grosse: 2 },
     });
     const person = (id: string) => ({
       id,
@@ -477,8 +556,11 @@ describe("Bilder", () => {
     const a = eng("konto-a");
     const bild = `/alben/${ALBUM_A}/bilder/6000000001`;
     const stati: number[] = [];
-    for (let i = 0; i < 4; i++) stati.push((await a.request(bild)).status);
-    expect(stati).toEqual([200, 200, 200, 429]);
+    // Grosse Dateien (ab 3072 und das Original) haben eine eigene, tiefere Grenze und zählen auch bei allen Bildern
+    for (const g of ["4096", "original", "3072", "640", "640", "640"]) {
+      stati.push((await a.request(`${bild}?groesse=${g}`)).status);
+    }
+    expect(stati).toEqual([200, 200, 429, 200, 200, 429]);
     // Die Listen zählen für sich: zwei erlaubt, die dritte nicht
     const liste: number[] = [];
     for (let i = 0; i < 3; i++)

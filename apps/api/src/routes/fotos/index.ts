@@ -14,6 +14,7 @@ import { erstelleBegrenzung } from "../../fotos/begrenzung.js";
 import {
   GROESSEN,
   QuellFehler,
+  istGrosseStufe,
   type FotoQuelle,
   type Groesse,
   type QuellBild,
@@ -31,13 +32,51 @@ import { erstelleAdminFotoRouten } from "./admin.js";
 // Was die Person sieht, bestimmt die Abteilung (Verwaltung «Fotos»): nur Alben, die sie sichtbar gestellt hat. Eine Kennung, die nicht zu einem sichtbaren Album gehört, ist 404; eine Adresse oder ein Host kommt von nirgends als aus dem Code.
 export type FotoEnv = { Variables: { person: Person } };
 
-// Listen sind selten, Bilder kommen zu Dutzenden mit einer Seite: Die Grenzen je Konto und Minute gehen darauf ein
+// Listen sind selten, Bilder kommen zu Dutzenden mit einer Seite: Die Grenzen je Konto und Minute gehen darauf ein. Grosse Dateien (ab 3072 und das Original, mehrere MB) haben eine eigene, tiefere Grenze (#867): Wer in der Grossansicht blättert, holt eine je Bild und eine im Voraus
 const LISTEN_PRO_MINUTE = 120;
 const BILDER_PRO_MINUTE = 1500;
+const GROSSE_PRO_MINUTE = 120;
 
-const groesseQuery = z.strictObject({
-  groesse: z.enum(GROESSEN).default("mittel"),
+// Die Namen von vor #867; eine Seite, die noch im Browser offen ist, fragt so
+const ALT: Record<string, Groesse> = {
+  klein: "320",
+  mittel: "640",
+  gross: "1024",
+};
+const groesse = z
+  .enum([...GROESSEN, "klein", "mittel", "gross"])
+  .default("640")
+  .transform((g): Groesse => ALT[g] ?? (g as Groesse));
+const groesseQuery = z.strictObject({ groesse });
+// «herunterladen=1»: dieselbe Datei als Anhang mit einem Dateinamen aus Album, Nummer und Stufe
+const bildQuery = z.strictObject({
+  groesse,
+  herunterladen: z.literal("1").optional(),
 });
+
+// «Sommerlager 2026» wird «Sommerlager-2026»: nur Buchstaben und Ziffern ohne Akzent, damit der Name in jedem System gilt
+export const dateiName = (
+  titel: string,
+  nr: number,
+  g: Groesse,
+  endung: string,
+) =>
+  `${
+    titel
+      .normalize("NFD")
+      .replace(/[̀-ͯ]/g, "")
+      .replace(/ß/g, "ss")
+      .replace(/[^A-Za-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 60)
+      .replace(/-+$/, "") || "Foto"
+  }-${String(nr).padStart(3, "0")}-${g}.${endung}`;
+const ENDUNG: Record<string, string> = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/gif": "gif",
+  "image/webp": "webp",
+};
 
 const FEHLER = {
   zugang: {
@@ -70,7 +109,7 @@ export type FotoRoutenOptionen = {
   // Für Tests: eigener Zwischenspeicher, Uhr und Grenzen
   zwischenspeicher?: Zwischenspeicher;
   jetzt?: () => number;
-  grenzen?: { listen?: number; bilder?: number };
+  grenzen?: { listen?: number; bilder?: number; grosse?: number };
 };
 
 export function erstelleFotoRouten({
@@ -92,6 +131,14 @@ export function erstelleFotoRouten({
     fensterMs: 60_000,
     jetzt,
   });
+  const grosseLimit = erstelleBegrenzung({
+    max: grenzen?.grosse ?? GROSSE_PRO_MINUTE,
+    fensterMs: 60_000,
+    jetzt,
+  });
+  // Eine grosse Datei zählt bei beiden Grenzen
+  const bildLimit = (g: Groesse) => (k: string) =>
+    bilderLimit(k) && (!istGrosseStufe(g) || grosseLimit(k));
 
   // Gemeinsame Tür: Konto eines Kindes 403, danach die Grenze je Konto (429)
   function tuer(person: Person, limit: (k: string) => boolean) {
@@ -112,9 +159,11 @@ export function erstelleFotoRouten({
     bild: QuellBild,
     groesse: Groesse,
     sp: Zwischenspeicher,
+    // Ohne Namen «inline»; mit Namen ein Anhang (Name ohne Endung, die kommt aus dem Typ der Datei)
+    herunterladen?: (endung: string) => string,
   ) {
-    // Das Secret ändert sich, wenn Flickr das Bild ersetzt: Es ist der Stand des Bildes. Der Browser fragt jedes Mal mit dem Tag nach, und die Antwort kommt erst nach der Sitzungsprüfung
-    const etag = `"${bild.id}-${bild.secret}-${groesse}"`;
+    // Das Secret ändert sich, wenn Flickr das Bild ersetzt: Es ist der Stand des Bildes (ab 1600 hat jede Grösse ihr eigenes). Der Browser fragt jedes Mal mit dem Tag nach, und die Antwort kommt erst nach der Sitzungsprüfung
+    const etag = `"${bild.id}-${bild.groessen[groesse]?.secret ?? bild.secret}-${groesse}${herunterladen ? "-d" : ""}"`;
     const kopf = {
       ETag: etag,
       "Cache-Control": "private, no-cache",
@@ -133,6 +182,10 @@ export function erstelleFotoRouten({
         status: 200,
         headers: {
           ...kopf,
+          // Der Name besteht nur aus Buchstaben, Ziffern und «-» (dateiName): Er braucht keine Kodierung
+          ...(herunterladen && {
+            "Content-Disposition": `attachment; filename="${herunterladen(ENDUNG[a.typ] ?? "jpg")}"`,
+          }),
           "Content-Type": a.typ,
           ...(a.laenge !== null && { "Content-Length": String(a.laenge) }),
         },
@@ -207,12 +260,18 @@ export function erstelleFotoRouten({
           ...(r.linkZeigen && {
             flickrUrl: `https://www.flickr.com/photos/${r.konto}/albums/${album.id}`,
           }),
-          // Secret und Server bleiben beim Server: Die Seite kennt nur die Kennung des Bildes
+          // Secret und Server bleiben beim Server: Die Seite kennt nur die Kennung des Bildes und je Stufe, die Flickr liefert, die Masse (#867)
           bilder: bilder.map((b) => ({
             id: b.id,
             titel: b.titel,
             breite: b.breite,
             hoehe: b.hoehe,
+            groessen: Object.fromEntries(
+              GROESSEN.flatMap((g) => {
+                const d = b.groessen[g];
+                return d ? [[g, [d.breite, d.hoehe]]] : [];
+              }),
+            ),
           })),
         });
       } catch (f) {
@@ -225,9 +284,9 @@ export function erstelleFotoRouten({
       eingabe("query", groesseQuery),
       async (c) => {
         const person = c.get("person");
-        tuer(person, bilderLimit);
         const { id } = c.req.valid("param");
         const { groesse } = c.req.valid("query");
+        tuer(person, bildLimit(groesse));
         const r = await einrichtung(person.abteilungId);
         if (!r || !(await ladeSichtbaresAlbum(db, person.abteilungId, id))) {
           throw new HTTPException(404);
@@ -247,27 +306,40 @@ export function erstelleFotoRouten({
     .get(
       "/alben/:id/bilder/:bildId",
       eingabe("param", bildParam),
-      eingabe("query", groesseQuery),
+      eingabe("query", bildQuery),
       async (c) => {
         const person = c.get("person");
-        tuer(person, bilderLimit);
         const { id, bildId } = c.req.valid("param");
-        const { groesse } = c.req.valid("query");
+        const { groesse, herunterladen } = c.req.valid("query");
+        tuer(person, bildLimit(groesse));
         const r = await einrichtung(person.abteilungId);
-        if (!r || !(await ladeSichtbaresAlbum(db, person.abteilungId, id))) {
-          throw new HTTPException(404);
-        }
-        let bild: QuellBild | undefined;
+        const zeile =
+          r && (await ladeSichtbaresAlbum(db, person.abteilungId, id));
+        if (!r || !zeile) throw new HTTPException(404);
+        let album: Awaited<ReturnType<Zwischenspeicher["album"]>>;
         try {
-          // Das Bild muss im Album stehen: Eine beliebige Kennung öffnet nichts
-          bild = (await r.speicher.album(r.konto, id)).bilder.find(
-            (b) => b.id === bildId,
-          );
+          album = await r.speicher.album(r.konto, id);
         } catch (f) {
           return antwortAufQuellFehler(c, f);
         }
+        // Das Bild muss im Album stehen: Eine beliebige Kennung öffnet nichts
+        const nr = album.bilder.findIndex((b) => b.id === bildId);
+        const bild = album.bilder[nr];
         if (!bild) throw new HTTPException(404);
-        return dateiAntwort(c, bild, groesse, r.speicher);
+        return dateiAntwort(
+          c,
+          bild,
+          groesse,
+          r.speicher,
+          herunterladen &&
+            ((endung) =>
+              dateiName(
+                zeile.titel ?? album.album.titel,
+                nr + 1,
+                groesse,
+                endung,
+              )),
+        );
       },
     );
 
