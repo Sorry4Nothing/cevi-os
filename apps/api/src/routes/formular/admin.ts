@@ -5,6 +5,10 @@ import { z } from "zod";
 import { meldeAenderung } from "../../aktivitaet-middleware.js";
 import type { Db } from "../../db/client.js";
 import { auditLog, formularAntwort, user } from "../../db/schema.js";
+import {
+  FORMULAR_STAENDE,
+  type FormularStand,
+} from "../../db/schema-formular.js";
 import { eingabe } from "../../eingabe.js";
 import {
   antwortenVon,
@@ -25,7 +29,7 @@ import {
   type FormularBaustein,
 } from "../../website/bausteine-formular.js";
 
-// Antworten auf Formulare der Website in der Verwaltung (#819): Liste der Formulare, Antworten ansehen, als CSV exportieren, löschen. Die Pfade tragen /api/v1/admin/formulare und erben den zweiten Faktor.
+// Antworten auf Formulare der Website in der Verwaltung (#819): Liste der Formulare, Antworten ansehen, als CSV exportieren, löschen. Seit #881 trägt jede Antwort einen Stand (neu, in Bearbeitung, erledigt), den formular.antworten_bearbeiten setzt; die Liste filtert danach. Die Pfade tragen /api/v1/admin/formulare und erben den zweiten Faktor.
 // Eigene Rechte (formular.antworten_sehen, …_exportieren, …_loeschen): Die Redaktion sieht Antworten nicht automatisch, denn sie enthalten Personendaten. Ein Formular einer anderen Abteilung oder ein unbekanntes ist 404, erst danach das Recht (403).
 // Eine Antwort wird mit den Beschriftungen angezeigt, mit denen sie entstand (Version der Seite): Spätere Änderungen am Formular machen sie nicht kaputt. Text kommt nur als Text in die Antwort; die Oberfläche setzt ihn nie als HTML ein.
 const pfad = z.strictObject({ id: z.string().refine(istFormularId) });
@@ -36,7 +40,15 @@ const pfadAntwort = z.strictObject({
 const listeSchema = z.strictObject({
   limit: z.coerce.number().int().min(1).max(100).default(25),
   nach: z.uuid().optional(),
+  // Nur Antworten mit diesem Stand (#881)
+  stand: z.enum(FORMULAR_STAENDE).optional(),
 });
+const standSchema = z.strictObject({ stand: z.enum(FORMULAR_STAENDE) });
+export const STAND_TEXT: Record<FormularStand, string> = {
+  neu: "Neu",
+  in_bearbeitung: "In Bearbeitung",
+  erledigt: "Erledigt",
+};
 const BLOCK = 500;
 // Je Person ein Export in so kurzer Zeit: ein Schutz vor Dauerabrufen, die den Server und das Netz belasten (SR-71)
 const EXPORTE = 10;
@@ -110,6 +122,7 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
               "formular.antworten_exportieren",
             ),
             loeschen: await darf(db, person, "formular.antworten_loeschen"),
+            bearbeiten: await darf(db, person, "formular.antworten_bearbeiten"),
           },
           felder: (b?.daten.felder ?? []).map((f) => ({
             id: f.id,
@@ -130,11 +143,12 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
             c.req.valid("param").id,
             "formular.antworten_sehen",
           );
-          const { limit, nach } = c.req.valid("query");
+          const { limit, nach, stand } = c.req.valid("query");
           const zeilen = await db
             .select({
               id: formularAntwort.id,
               erstelltAm: formularAntwort.erstelltAm,
+              stand: formularAntwort.stand,
               versionId: formularAntwort.versionId,
               antworten: formularAntwort.antworten,
               userId: formularAntwort.userId,
@@ -147,6 +161,7 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
               and(
                 antwortenVon(person.abteilungId, z.formularId),
                 nach ? lt(formularAntwort.id, nach) : undefined,
+                stand ? eq(formularAntwort.stand, stand) : undefined,
               ),
             )
             .orderBy(desc(formularAntwort.id))
@@ -163,6 +178,7 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
               return {
                 id: s.id,
                 erstelltAm: s.erstelltAm,
+                stand: s.stand,
                 // Anonym, wenn die Person nicht angemeldet war oder ihr Konto inzwischen gelöscht ist
                 person: s.userId ? rufname(s.name, s.ceviName) : null,
                 eintraege: felder
@@ -236,6 +252,7 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
                     BOM +
                       csvZeile([
                         "Eingang",
+                        "Stand",
                         "Person",
                         ...felder.map((f) => f.beschriftung),
                       ]),
@@ -247,6 +264,7 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
                 .select({
                   id: formularAntwort.id,
                   erstelltAm: formularAntwort.erstelltAm,
+                  stand: formularAntwort.stand,
                   antworten: formularAntwort.antworten,
                   userId: formularAntwort.userId,
                   name: user.name,
@@ -270,6 +288,7 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
                         const werte = s.antworten as Antworten;
                         return csvZeile([
                           zeit.format(s.erstelltAm),
+                          STAND_TEXT[s.stand],
                           s.userId ? rufname(s.name, s.ceviName) : "",
                           ...felder.map((f) => antwortText(f, werte[f.id])),
                         ]);
@@ -298,6 +317,50 @@ export function erstelleAdminFormularRouten({ db }: { db: Db }) {
           },
         });
       })
+      // Den Stand einer Antwort setzen (#881). Der Stand ist kein Inhalt: Er steht mit der Kennung im Audit-Log, die Antwort nie
+      .patch(
+        "/:id/antworten/:antwortId",
+        eingabe("param", pfadAntwort),
+        eingabe("json", standSchema),
+        async (c) => {
+          const person = c.get("person");
+          const { id, antwortId } = c.req.valid("param");
+          const { stand } = c.req.valid("json");
+          const z = await lade(person, id, "formular.antworten_bearbeiten");
+          const ergebnis = await db.transaction(async (tx) => {
+            const [vorher] = await tx
+              .select({ stand: formularAntwort.stand })
+              .from(formularAntwort)
+              .where(
+                and(
+                  antwortenVon(person.abteilungId, z.formularId),
+                  eq(formularAntwort.id, antwortId),
+                ),
+              )
+              .for("update");
+            if (!vorher) return null;
+            if (vorher.stand === stand) return vorher.stand;
+            await tx
+              .update(formularAntwort)
+              .set({ stand })
+              .where(eq(formularAntwort.id, antwortId));
+            await tx.insert(auditLog).values({
+              abteilungId: person.abteilungId,
+              akteurId: person.id,
+              aktion: "formular_antwort_stand",
+              zielTyp: "formular",
+              zielId: z.formularId,
+              details: { antwortId, vorher: vorher.stand, stand },
+            });
+            return stand;
+          });
+          if (ergebnis === null) throw new HTTPException(404);
+          meldeAenderung(c, {
+            text: `Antwort auf «${STAND_TEXT[stand]}» gesetzt`,
+          });
+          return c.json({ id: antwortId, stand: ergebnis });
+        },
+      )
       // Eine Antwort löschen (endgültig)
       .delete(
         "/:id/antworten/:antwortId",

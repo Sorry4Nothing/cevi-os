@@ -158,6 +158,7 @@ describe("GET /vorlagen", () => {
         "stufenseite",
         "anlass",
         "textseite",
+        "anmeldung",
         "leer",
       ]);
       expect(vorlagen[0]!.brauchtTag).toBe(true);

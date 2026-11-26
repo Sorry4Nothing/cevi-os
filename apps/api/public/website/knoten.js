@@ -125,7 +125,19 @@ const ATTRIBUTE = {
   inputmode: (tag, w) =>
     tag === "input" && ["numeric", "decimal", "email", "tel"].includes(w),
   autocomplete: (tag, w) =>
-    tag === "input" && ["off", "email", "tel"].includes(w),
+    tag === "input" &&
+    [
+      "off",
+      "email",
+      "tel",
+      "name",
+      "given-name",
+      "family-name",
+      "bday",
+      "street-address",
+      "postal-code",
+      "address-level2",
+    ].includes(w),
   spellcheck: (tag, w) => tag === "input" && w === "false",
   "aria-describedby": (_tag, w) =>
     typeof w === "string" && w.split(" ").every(idOk),

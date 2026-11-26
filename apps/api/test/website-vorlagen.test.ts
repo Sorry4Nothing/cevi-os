@@ -106,3 +106,54 @@ describe("Adresse aus dem Namen", () => {
     }
   });
 });
+
+describe("Vorlage «Anmeldung» (#881)", () => {
+  const formular = () => {
+    const b = dokumentAusVorlage("anmeldung", "Anmeldung").bausteine[1]!;
+    if (b.typ !== "formular") throw new Error("kein Formular");
+    return b;
+  };
+
+  test("Überschrift und Formular mit den Feldern der früheren Anleitung", () => {
+    const dok = dokumentAusVorlage("anmeldung", "Anmeldung");
+    expect(dok.bausteine.map((b) => b.typ)).toEqual([
+      "ueberschrift",
+      "formular",
+    ]);
+    const felder = formular().daten.felder;
+    expect(felder.map((f) => [f.beschriftung, f.typ, f.pflicht])).toEqual([
+      ["Vorname", "text", true],
+      ["Nachname", "text", true],
+      ["Geburtsdatum", "datum", true],
+      ["Strasse und Nummer", "text", true],
+      ["Postleitzahl", "text", true],
+      ["Ort", "text", true],
+      ["E-Mail-Adresse", "email", true],
+      ["Aktuelle Schulklasse", "auswahl", true],
+      ["Notfallkontakt: Name", "text", true],
+      ["Notfallkontakt: Telefonnummer", "telefon", true],
+      ["Cevi-Name", "text", false],
+    ]);
+    expect(felder.map((f) => "autocomplete" in f && f.autocomplete)).toEqual([
+      "given-name",
+      "family-name",
+      "bday",
+      "street-address",
+      "postal-code",
+      "address-level2",
+      false,
+      false,
+      false,
+      false,
+      false,
+    ]);
+    expect(formular().daten.datenschutz.length).toBeGreaterThan(20);
+  });
+
+  test("jeder Aufruf hat neue Feld-IDs", () => {
+    const a = formular().daten.felder.map((f) => f.id);
+    const b = formular().daten.felder.map((f) => f.id);
+    expect(a.filter((x) => b.includes(x))).toEqual([]);
+    expect(new Set(a).size).toBe(a.length);
+  });
+});

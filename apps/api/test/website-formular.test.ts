@@ -299,7 +299,11 @@ describe("Antworten prüfen", () => {
 
 describe("Renderer", () => {
   const felder: Feld[] = [
-    text({ beschriftung: "Wie heisst du?", hilfe: "Vorname genügt" }),
+    text({
+      beschriftung: "Wie heisst du?",
+      hilfe: "Vorname genügt",
+      autocomplete: "given-name",
+    }),
     { id: id(), typ: "textbereich", beschriftung: "Was noch?", pflicht: false },
     {
       id: id(),
@@ -310,7 +314,13 @@ describe("Renderer", () => {
       min: 1,
       max: 5,
     },
-    { id: id(), typ: "datum", beschriftung: "Wann?", pflicht: false },
+    {
+      id: id(),
+      typ: "datum",
+      beschriftung: "Wann?",
+      pflicht: false,
+      autocomplete: "bday",
+    },
     { id: id(), typ: "email", beschriftung: "E-Mail", pflicht: false },
     { id: id(), typ: "telefon", beschriftung: "Telefon", pflicht: false },
     {
@@ -399,6 +409,39 @@ describe("Renderer", () => {
     expect(h).not.toContain("<script>");
     expect(h).not.toContain("<img src=x");
     expect(h).toContain("&lt;script&gt;");
+  });
+
+  test("Automatisch ausfüllen (#881): Wert aus dem Feld, sonst off; E-Mail und Telefon fest", () => {
+    const h = html();
+    expect(h).toContain('autocomplete="given-name"');
+    expect(h).toContain('autocomplete="bday"');
+    expect(h).toContain('autocomplete="email"');
+    expect(h).toContain('autocomplete="tel"');
+    expect(h).toContain('autocomplete="off"');
+  });
+
+  test("Automatisch ausfüllen: nur bekannte Werte und nur bei Text und Datum", () => {
+    expect(
+      pruefeDokument(dok(formular([text({ autocomplete: "cc-number" })]))).ok,
+    ).toBe(false);
+    expect(
+      pruefeDokument(
+        dok(
+          formular([
+            {
+              id: id(),
+              typ: "zahl",
+              beschriftung: "Anzahl",
+              pflicht: false,
+              autocomplete: "bday",
+            },
+          ]),
+        ),
+      ).ok,
+    ).toBe(false);
+    expect(
+      pruefeDokument(dok(formular([text({ autocomplete: "postal-code" })]))).ok,
+    ).toBe(true);
   });
 
   test("beim Nachladen kennt knoten.js jedes Element und Attribut des Formulars", () => {

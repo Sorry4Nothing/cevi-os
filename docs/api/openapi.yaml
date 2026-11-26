@@ -10367,7 +10367,7 @@ paths:
       operationId: listeRedaktionVorlagen
       summary: Vorlagen für neue Seiten
       description: |
-        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite` und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Nur mit dem Plattformrecht `vorlagen.nutzen`.
+        Die Startvorlagen, aus denen eine neue Seite entsteht: `stufenseite`, `anlass`, `textseite`, `anmeldung` (Überschrift «So meldest du dich an» und ein Anmeldeformular, #881) und `leer`. Die Vorlagen stehen im Code, nicht in der Datenbank. Die Liste nennt nur Schlüssel, Name, Beschreibung und ob die Vorlage eine Gruppe (`tagId`) braucht, nie den Inhalt der Dokumente. Nur mit dem Plattformrecht `vorlagen.nutzen`.
 
         Statuscodes: 200 bei Erfolg. 403 ohne dieses Recht.
       tags:
@@ -27188,7 +27188,9 @@ paths:
 
         Die Sperre der Website ist 423; die Wartung sperrt nur das Senden, nicht das Lesen.
 
-        Statuscodes: 200, 400 ID ist keine UUID, 403 mit Passwortpflicht, 404, 423.
+        Je Adresse höchstens 120 Abrufe in 10 Minuten (#881, SR-71), gezählt vor der Datenbank und auch für unbekannte IDs; danach 429 `ZU_OFT`.
+
+        Statuscodes: 200, 400 ID ist keine UUID, 403 mit Passwortpflicht, 404, 423, 429.
 
         Datenbanklast: eine Abfrage für die veröffentlichte Definition; bei Sitzung die Abfragen der Person, eine für die Tags und eine für die eigene Antwort.
       tags:
@@ -27224,6 +27226,8 @@ paths:
                 $ref: "#/components/schemas/Fehler"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/formulare/{id}/antworten:
     post:
       operationId: sendeFormularAntwort
@@ -27319,7 +27323,7 @@ paths:
       operationId: listeAdminFormulare
       summary: Formulare der Website mit der Zahl ihrer Antworten
       description: |
-        Nur mit dem Recht `formular.antworten_sehen` (Abteilungsleitung und Entwickler, dazu vergebbar an Rollen; die Redaktion hat es nicht automatisch, denn Antworten enthalten Personendaten). Alle Formulare der veröffentlichten Seiten der Abteilung und alle mit Antworten, auch wenn der Baustein inzwischen fehlt (`veroeffentlicht` falsch).
+        Nur mit dem Recht `formular.antworten_sehen` (Abteilungsleitung und Entwickler, dazu vergebbar an Rollen; die Redaktion hat es nicht automatisch, denn Antworten enthalten Personendaten). Alle Formulare der veröffentlichten Seiten der Abteilung und alle mit Antworten, auch wenn der Baustein inzwischen fehlt (`veroeffentlicht` falsch). `neu` zählt die Antworten mit dem Stand `neu` (#881).
 
         Statuscodes: 200. 401, 403 (auch `ZWEITER_FAKTOR_FEHLT`).
 
@@ -27353,7 +27357,7 @@ paths:
       operationId: getAdminFormular
       summary: Ein Formular mit seinen Feldern und den Rechten der Person
       description: |
-        Nur mit dem Recht `formular.antworten_sehen`. Ein Formular einer anderen Abteilung oder ein unbekanntes ist 404 (erst das Objekt, dann das Recht). `rechte` sagt, ob die Person die Antworten auch exportieren und löschen darf; die Oberfläche blendet Knöpfe ohne das Recht aus.
+        Nur mit dem Recht `formular.antworten_sehen`. Ein Formular einer anderen Abteilung oder ein unbekanntes ist 404 (erst das Objekt, dann das Recht). `rechte` sagt, ob die Person die Antworten auch exportieren, löschen und ihren Stand setzen darf; die Oberfläche blendet Knöpfe ohne das Recht aus.
 
         Statuscodes: 200. 400, 401, 403, 404.
       tags:
@@ -27389,7 +27393,7 @@ paths:
       operationId: listeAdminFormularAntworten
       summary: Antworten eines Formulars, neueste zuerst
       description: |
-        Nur mit dem Recht `formular.antworten_sehen`. Je Antwort die Beschriftungen der Version der Seite, mit der sie entstand (spätere Änderungen am Formular machen sie nicht kaputt), und die Person (Cevi-Name, sonst Vorname) oder `null` für eine anonyme Antwort. Seitenweise: `limit` (1 bis 100, vorgegeben 25) und `nach` (ID der letzten Antwort der Vorseite).
+        Nur mit dem Recht `formular.antworten_sehen`. Je Antwort die Beschriftungen der Version der Seite, mit der sie entstand (spätere Änderungen am Formular machen sie nicht kaputt), und die Person (Cevi-Name, sonst Vorname) oder `null` für eine anonyme Antwort. Seitenweise: `limit` (1 bis 100, vorgegeben 25) und `nach` (ID der letzten Antwort der Vorseite). `stand` zeigt nur Antworten mit diesem Stand (#881); jede Antwort nennt ihren `stand`.
 
         Statuscodes: 200. 400, 401, 403, 404.
 
@@ -27417,6 +27421,11 @@ paths:
           schema:
             type: string
             format: uuid
+        - name: stand
+          in: query
+          description: Nur Antworten mit diesem Stand.
+          schema:
+            $ref: "#/components/schemas/FormularStand"
       responses:
         "200":
           description: Eine Seite Antworten.
@@ -27479,7 +27488,7 @@ paths:
       operationId: exportiereAdminFormularAntworten
       summary: Antworten eines Formulars als CSV
       description: |
-        Nur mit dem Recht `formular.antworten_exportieren`. UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF, in Blöcken zu 500 Zeilen. Die Spalten sind «Eingang», «Person» und die Felder (die aktuelle Definition zuerst, dann Felder älterer Versionen). Jede Zelle, die mit `=`, `+`, `-`, `@`, Tabulator oder Zeilenumbruch beginnt, bekommt ein führendes Hochkomma (Schutz vor Formeln in Tabellenprogrammen). Je Person höchstens 10 Exporte in 10 Minuten (429). Im Audit-Protokoll steht eine Zeile mit der Zahl.
+        Nur mit dem Recht `formular.antworten_exportieren`. UTF-8 mit BOM, Semikolon als Trenner, Zeilenende CRLF, in Blöcken zu 500 Zeilen. Die Spalten sind «Eingang», «Stand» (#881), «Person» und die Felder (die aktuelle Definition zuerst, dann Felder älterer Versionen). Jede Zelle, die mit `=`, `+`, `-`, `@`, Tabulator oder Zeilenumbruch beginnt, bekommt ein führendes Hochkomma (Schutz vor Formeln in Tabellenprogrammen). Je Person höchstens 10 Exporte in 10 Minuten (429). Im Audit-Protokoll steht eine Zeile mit der Zahl.
 
         Statuscodes: 200. 400, 401, 403, 404, 429.
       tags:
@@ -27513,6 +27522,70 @@ paths:
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
   /api/v1/admin/formulare/{id}/antworten/{antwortId}:
+    patch:
+      operationId: setzeAdminFormularAntwortStand
+      summary: Stand einer Antwort setzen
+      description: |
+        Nur mit dem Recht `formular.antworten_bearbeiten` (#881; Abteilungsleitung und Entwickler, dazu vergebbar an Rollen). Setzt den Stand einer Antwort: `neu`, `in_bearbeitung` oder `erledigt`, damit die Abteilungsleitung zum Beispiel Anmeldungen nachverfolgt. Ein Formular einer anderen Abteilung oder ein unbekanntes ist 404 (erst das Objekt, dann das Recht), ebenso eine unbekannte Antwort oder die eines anderen Formulars. Derselbe Stand noch einmal ändert nichts.
+
+        Eine Änderung schreibt eine Zeile ins Audit-Protokoll (Kennung der Antwort, alter und neuer Stand, nie Inhalte).
+
+        Statuscodes: 200. 400, 401, 403 (auch `ZWEITER_FAKTOR_FEHLT`), 404.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+        - name: antwortId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required:
+                - stand
+              properties:
+                stand:
+                  $ref: "#/components/schemas/FormularStand"
+      responses:
+        "200":
+          description: Der Stand der Antwort.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - id
+                  - stand
+                properties:
+                  id:
+                    type: string
+                    format: uuid
+                  stand:
+                    $ref: "#/components/schemas/FormularStand"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
     delete:
       operationId: loescheAdminFormularAntwort
       summary: Antwort eines Formulars löschen
@@ -27728,7 +27801,7 @@ components:
           type: boolean
     FormularFeld:
       type: object
-      description: Ein Feld wie im Baustein. Die Grenzen gibt es nur beim passenden Typ (`minLaenge`, `maxLaenge` bei `text` und `textbereich`; `min`, `max`, `ganzzahl` bei `zahl`; `von`, `bis` bei `datum`; `optionen` bei `auswahl`, `optionsfelder`, `mehrfachwahl`; `minAuswahl`, `maxAuswahl` bei `mehrfachwahl`). Bei `zustimmung` ist `pflicht` immer `true`.
+      description: Ein Feld wie im Baustein. Die Grenzen gibt es nur beim passenden Typ (`minLaenge`, `maxLaenge` bei `text` und `textbereich`; `min`, `max`, `ganzzahl` bei `zahl`; `von`, `bis` bei `datum`; `optionen` bei `auswahl`, `optionsfelder`, `mehrfachwahl`; `minAuswahl`, `maxAuswahl` bei `mehrfachwahl`; `autocomplete` bei `text` und `datum`, #881). Bei `zustimmung` ist `pflicht` immer `true`.
       required:
         - id
         - typ
@@ -27782,6 +27855,17 @@ components:
           type: integer
         maxAuswahl:
           type: integer
+        autocomplete:
+          type: string
+          description: Wert für das HTML-Attribut `autocomplete` (WCAG 1.3.5), nur bei `text` und `datum`; fehlt er, schlägt der Browser nichts vor. Die App kann daraus den passenden Inhaltstyp ableiten.
+          enum:
+            - name
+            - given-name
+            - family-name
+            - bday
+            - street-address
+            - postal-code
+            - address-level2
     FormularZeile:
       type: object
       required:
@@ -27793,6 +27877,7 @@ components:
         - schliesstAm
         - aufbewahrenTage
         - anzahl
+        - neu
         - letzteAm
       properties:
         formularId:
@@ -27817,6 +27902,9 @@ components:
           type: integer
         anzahl:
           type: integer
+        neu:
+          type: integer
+          description: Antworten mit dem Stand `neu` (#881).
         letzteAm:
           type: string
           format: date-time
@@ -27835,11 +27923,15 @@ components:
           required:
             - exportieren
             - loeschen
+            - bearbeiten
           properties:
             exportieren:
               type: boolean
             loeschen:
               type: boolean
+            bearbeiten:
+              type: boolean
+              description: Darf den Stand der Antworten setzen (`formular.antworten_bearbeiten`, #881).
         felder:
           type: array
           items:
@@ -27856,6 +27948,13 @@ components:
                 type: string
               typ:
                 type: string
+    FormularStand:
+      type: string
+      description: Wie weit die Verwaltung eine Antwort bearbeitet hat (#881). Jede neue Antwort ist `neu`.
+      enum:
+        - neu
+        - in_bearbeitung
+        - erledigt
     FormularAntwortenSeite:
       type: object
       required:
@@ -27870,6 +27969,7 @@ components:
             required:
               - id
               - erstelltAm
+              - stand
               - person
               - eintraege
             properties:
@@ -27879,6 +27979,8 @@ components:
               erstelltAm:
                 type: string
                 format: date-time
+              stand:
+                $ref: "#/components/schemas/FormularStand"
               person:
                 type: string
                 nullable: true
@@ -42932,6 +43034,7 @@ components:
                   - stufenseite
                   - anlass
                   - textseite
+                  - anmeldung
                   - leer
               name:
                 type: string
@@ -42954,6 +43057,7 @@ components:
             - stufenseite
             - anlass
             - textseite
+            - anmeldung
             - leer
         titel:
           type: string

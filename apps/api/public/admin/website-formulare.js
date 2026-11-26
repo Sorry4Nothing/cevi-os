@@ -1,10 +1,11 @@
 import { anfrage, fehlertext } from "./api.js";
-import { el, knopf } from "./dom.js";
+import { auswahl, el, knopf } from "./dom.js";
 import { beschaeftigt, fenster } from "./website-dialoge.js";
 import { skeletonListe } from "./lader.js";
 import { leerKarte } from "./zustaende.js";
 
-// Formulare (#819): die Antworten auf die Formulare der Website ansehen, als CSV exportieren und löschen. Adresse: #website/formulare, ein Formular: #website/formulare/<Kennung>.
+// Formulare (#819): die Antworten auf die Formulare der Website ansehen, als CSV exportieren und löschen. Adresse: #website/formulare, ein Formular: #website/formulare/<Kennung>, gefiltert nach Stand: #website/formulare/<Kennung>/<stand>.
+// Seit #881 trägt jede Antwort einen Stand (neu, in Bearbeitung, erledigt); wer das Recht hat, setzt ihn in der aufgeklappten Antwort.
 // Datenbanklast: eine Anfrage für die Liste, je geöffnetes Formular eine für Kopf und eine für 25 Antworten, «Weitere laden» holt die nächsten 25. Kein Polling.
 // Text aus Antworten kommt nur als Textknoten in die Seite (nie als HTML). Wer das Recht nicht hat, bekommt den Knopf nicht (die Route sagt es in «rechte»); jede Route prüft selbst.
 const BASIS = "/api/v1/admin/formulare";
@@ -18,6 +19,12 @@ const ZEIT = new Intl.DateTimeFormat("de-CH", {
 });
 const zeit = (iso) => ZEIT.format(new Date(iso));
 const anzahlText = (n) => (n === 1 ? "1 Antwort" : `${n} Antworten`);
+const STAENDE = [
+  ["neu", "Neu"],
+  ["in_bearbeitung", "In Bearbeitung"],
+  ["erledigt", "Erledigt"],
+];
+const standText = (s) => STAENDE.find(([w]) => w === s)?.[1] ?? s;
 const status = (f) =>
   !f.veroeffentlicht
     ? "Nicht mehr auf der Seite"
@@ -26,10 +33,15 @@ const status = (f) =>
       : f.schliesstAm
         ? `Offen bis ${DATUM.format(new Date(`${f.schliesstAm}T12:00:00`))}`
         : "Offen";
-const name = (f) => f.titel ?? "Formular ohne Titel";
+const name = (f) =>
+  f.titel ??
+  (f.seitenTitel ? `Formular auf «${f.seitenTitel}»` : "Formular ohne Titel");
 
 export function zeige(bereich, ctx) {
-  if (ctx.pfad.length > 0) return zeigeFormular(bereich, ctx, ctx.pfad[0]);
+  if (ctx.pfad.length > 0) {
+    const stand = STAENDE.some(([w]) => w === ctx.pfad[1]) ? ctx.pfad[1] : "";
+    return zeigeFormular(bereich, ctx, ctx.pfad[0], stand);
+  }
   ctx.lade(
     () => anfrage("GET", BASIS),
     (daten) => zeichneListe(bereich, daten.formulare),
@@ -73,16 +85,27 @@ function zeichneListe(bereich, formulare) {
             {},
             `${anzahlText(f.anzahl)}${f.letzteAm ? `, die letzte am ${zeit(f.letzteAm)}` : ""}`,
           ),
+          f.neu > 0
+            ? el(
+                "p",
+                { class: "fm-neu" },
+                el(
+                  "a",
+                  { href: `#website/formulare/${f.formularId}/neu` },
+                  f.neu === 1 ? "1 neue Antwort" : `${f.neu} neue Antworten`,
+                ),
+              )
+            : null,
         ),
       ),
     ),
   );
 }
 
-function zeigeFormular(bereich, ctx, id) {
+function zeigeFormular(bereich, ctx, id, stand) {
   ctx.lade(
     () => anfrage("GET", `${BASIS}/${id}`),
-    (kopf) => zeichneFormular(bereich, ctx, id, kopf),
+    (kopf) => zeichneFormular(bereich, ctx, id, kopf, stand),
     {
       skeleton: skeletonListe,
       fehlerTitel: "Das Formular konnte nicht geladen werden.",
@@ -90,11 +113,12 @@ function zeigeFormular(bereich, ctx, id) {
   );
 }
 
-function zeichneFormular(bereich, ctx, id, kopf) {
+function zeichneFormular(bereich, ctx, id, kopf, stand) {
   const f = kopf.formular;
   ctx.titel(name(f), `Seite «${f.seitenTitel}» · ${status(f)}`);
   bereich.replaceChildren();
   let anzahl = f.anzahl;
+  let neu = f.neu;
   const zurueck = el(
     "a",
     { class: "knopf knopf--klein", href: "#website/formulare" },
@@ -102,7 +126,7 @@ function zeichneFormular(bereich, ctx, id, kopf) {
   );
   const zaehlerP = el("p", { "aria-live": "polite" });
   const setzeZahl = () => {
-    zaehlerP.textContent = `${anzahlText(anzahl)}. Wir löschen sie nach ${f.aufbewahrenTage} Tagen.`;
+    zaehlerP.textContent = `${anzahlText(anzahl)}, davon ${neu} neu. Wir löschen sie nach ${f.aufbewahrenTage} Tagen.`;
   };
   setzeZahl();
   const werkzeuge = el("div", { class: "knopfreihe" }, zurueck);
@@ -112,6 +136,23 @@ function zeichneFormular(bereich, ctx, id, kopf) {
     "Noch keine Antworten. Sie erscheinen hier, sobald jemand das Formular absendet.",
   );
   leer.hidden = anzahl > 0;
+  // Leer nach dem Filter: sagt, welcher Stand fehlt, und führt zu allen zurück
+  const leerFilter = el(
+    "div",
+    { class: "fm-leer-filter", hidden: true },
+    el("p", {}, `Keine Antworten mit dem Stand «${standText(stand)}».`),
+    el("a", { href: `#website/formulare/${id}` }, "Alle Antworten zeigen"),
+  );
+  // Filter nach Stand: Der Wert steht in der Adresse, Zurück und Neuladen behalten ihn
+  const filter = auswahl({
+    label: "Stand",
+    optionen: [["", "Alle"], ...STAENDE],
+    wert: stand,
+  });
+  filter.eingabe.addEventListener("change", () => {
+    location.hash = `#website/formulare/${id}${filter.eingabe.value ? `/${filter.eingabe.value}` : ""}`;
+  });
+  filter.wurzel.classList.add("fm-filter");
 
   if (kopf.rechte.exportieren) {
     // Ein Link lädt die Datei mit der Sitzung (Cookie); der Server setzt den Dateinamen
@@ -171,6 +212,7 @@ function zeichneFormular(bereich, ctx, id, kopf) {
         liste.replaceChildren();
         mehrPlatz.replaceChildren();
         anzahl = 0;
+        neu = 0;
         setzeZahl();
         leer.hidden = false;
         alleLoeschen.disabled = true;
@@ -197,6 +239,7 @@ function zeichneFormular(bereich, ctx, id, kopf) {
                   li.previousElementSibling?.querySelector("summary");
                 li.remove();
                 anzahl -= 1;
+                if (a.stand === "neu") neu -= 1;
                 setzeZahl();
                 leer.hidden = anzahl > 0;
                 (nachfolger ?? zurueck).focus();
@@ -205,7 +248,14 @@ function zeichneFormular(bereich, ctx, id, kopf) {
             }),
         })
       : null;
-    // Die Zusammenfassung nennt Zeit, Person und die erste Antwort, der Rest steht aufgeklappt
+    // Der Stand als Text in der Zusammenfassung (nicht nur Farbe); ändern in der aufgeklappten Antwort
+    const standMarke = el(
+      "span",
+      { class: `fm-stand fm-stand--${a.stand}` },
+      standText(a.stand),
+    );
+    const standWahl = kopf.rechte.bearbeiten ? standFeld(a, standMarke) : null;
+    // Die Zusammenfassung nennt Zeit, Stand, Person und die erste Antwort, der Rest steht aufgeklappt
     const erste = a.eintraege[0];
     const li = el(
       "li",
@@ -217,6 +267,7 @@ function zeichneFormular(bereich, ctx, id, kopf) {
           "summary",
           {},
           el("span", { class: "fm-zeit" }, zeit(a.erstelltAm)),
+          standMarke,
           el("span", { class: "fm-person" }, a.person ?? "Anonym"),
           erste
             ? el(
@@ -234,10 +285,62 @@ function zeichneFormular(bereich, ctx, id, kopf) {
             el("dd", {}, e.wert),
           ]),
         ),
-        loeschen,
+        standWahl || loeschen
+          ? el("div", { class: "fm-aktionen" }, standWahl, loeschen)
+          : null,
       ),
     );
     return li;
+  }
+
+  // Stand ändern: sofort speichern, während des Speicherns gesperrt; bei einem Fehler zurück auf den alten Wert
+  function standFeld(a, marke) {
+    const hilfeId = `fm-stand-${a.id}-h`;
+    // aria-describedby vor dem Verbessern: auswahl.js übernimmt es auf die Schaltfläche
+    const wahl = auswahl({
+      label: "Stand ändern",
+      optionen: STAENDE,
+      wert: a.stand,
+      "aria-describedby": hilfeId,
+    });
+    wahl.wurzel.append(
+      el(
+        "p",
+        { class: "hilfe", id: hilfeId },
+        `Antwort vom ${zeit(a.erstelltAm)}. Speichert sofort.`,
+      ),
+    );
+    // Änderungen nacheinander senden: Ein zweiter Wechsel während des Speicherns überholt den ersten nicht. Das Feld bleibt bedienbar (kein Fokusverlust), aria-busy sagt, dass gespeichert wird
+    let kette = Promise.resolve();
+    const speichere = async (ziel) => {
+      const vorher = a.stand;
+      if (ziel === vorher) return;
+      wahl.wurzel.setAttribute("aria-busy", "true");
+      try {
+        const r = await anfrage("PATCH", `${BASIS}/${id}/antworten/${a.id}`, {
+          stand: ziel,
+        });
+        a.stand = r.stand;
+        if (vorher === "neu" && a.stand !== "neu") neu -= 1;
+        if (vorher !== "neu" && a.stand === "neu") neu += 1;
+        setzeZahl();
+        marke.textContent = standText(a.stand);
+        marke.className = `fm-stand fm-stand--${a.stand}`;
+        ctx.melde(`Stand auf «${standText(a.stand)}» gesetzt.`, "ok");
+      } catch (fehler) {
+        wahl.eingabe.value = a.stand;
+        // change zeichnet die Schaltfläche neu; der Handler sieht denselben Stand und sendet nichts
+        wahl.eingabe.dispatchEvent(new Event("change"));
+        ctx.melde(fehlertext(fehler), "fehler");
+      } finally {
+        wahl.wurzel.removeAttribute("aria-busy");
+      }
+    };
+    wahl.eingabe.addEventListener("change", () => {
+      const ziel = wahl.eingabe.value;
+      kette = kette.then(() => speichere(ziel));
+    });
+    return wahl.wurzel;
   }
 
   let naechste = null;
@@ -257,9 +360,10 @@ function zeichneFormular(bereich, ctx, id, kopf) {
   async function ladeSeite(nach) {
     const r = await anfrage(
       "GET",
-      `${BASIS}/${id}/antworten?limit=${SEITE}${nach ? `&nach=${nach}` : ""}`,
+      `${BASIS}/${id}/antworten?limit=${SEITE}${nach ? `&nach=${nach}` : ""}${stand ? `&stand=${stand}` : ""}`,
     );
     liste.append(...r.antworten.map(zeichneAntwort));
+    leerFilter.hidden = !(stand && !nach && r.antworten.length === 0);
     naechste = r.naechste;
     mehrPlatz.replaceChildren(...(r.weitere ? [weiter] : []));
   }
@@ -272,7 +376,9 @@ function zeichneFormular(bereich, ctx, id, kopf) {
     ),
     zaehlerP,
     werkzeuge,
+    ...(anzahl > 0 ? [filter.wurzel] : []),
     leer,
+    leerFilter,
     liste,
     mehrPlatz,
   );
