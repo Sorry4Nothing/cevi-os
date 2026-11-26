@@ -21,7 +21,11 @@ import {
   STIL_LICHTKASTEN,
 } from "./karussell.js";
 import { rendereFotoalben, SKRIPT_FOTOS, STIL_FOTOS } from "./fotoalben.js";
-import { rendereFormular, SKRIPT_FORMULAR, STIL_FORMULAR } from "./formular.js";
+import {
+  rendereFormular,
+  SKRIPT_FORMULAR,
+  STILE_FORMULAR,
+} from "./formular.js";
 import { istDynamisch } from "./bausteine-dynamisch.js";
 import type { DynamischErgebnis } from "./dynamisch-daten.js";
 import {
@@ -1429,7 +1433,8 @@ export function rahmen(
   const zusatz = zusatzSkripte
     .map((s) => `\n<script src="${esc(s)}" defer></script>`)
     .join("");
-  const stileHtml = stile
+  // Jeder Stil nur einmal: Formular und Laden bringen beide auswahl.css mit
+  const stileHtml = [...new Set(stile)]
     .map(
       (s) => `
 <link rel="stylesheet" href="${esc(s)}">`,
@@ -1558,7 +1563,7 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
         ...(mitFotos || medien.lichtkasten ? [STIL_LICHTKASTEN] : []),
       ]),
       ...(mitFotos ? [STIL_FOTOS] : []),
-      ...(mitFormular ? [STIL_FORMULAR] : []),
+      ...(mitFormular ? STILE_FORMULAR : []),
       ...medien.stile,
       // Das Leitungsteam einer Stufe zeigt Porträts (#610) und braucht denselben Stil
       ...(s.dokument.bausteine.some(
@@ -1625,7 +1630,7 @@ export function rendereHuelle(pfad: string, k: Kontext): string {
       STIL_KARUSSELL,
       STIL_FOTOS,
       STIL_MEDIEN,
-      STIL_FORMULAR,
+      ...STILE_FORMULAR,
     ],
     inhalt: `<div class="seitenkopf"><h1>Geschützte Seite</h1></div>
 <div class="schutzblock">

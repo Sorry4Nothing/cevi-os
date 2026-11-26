@@ -37,6 +37,17 @@ function symbol(doc, klasse, pfad, gefuellt) {
   return svg;
 }
 
+// Zustand des <select>, den Hilfstechnik an der Schaltfläche hören muss. Ein Formular setzt und löscht aria-invalid und aria-describedby bei Fehlern (formular.js, #887): Die Schaltfläche übernimmt jede Änderung
+const GESPIEGELT = ["aria-describedby", "aria-invalid", "aria-required"];
+export function spiegle(select, knopf) {
+  for (const n of GESPIEGELT) {
+    if (select.hasAttribute(n)) knopf.setAttribute(n, select.getAttribute(n));
+    else knopf.removeAttribute(n);
+  }
+  if (select.required) knopf.setAttribute("aria-required", "true");
+  knopf.disabled = select.disabled;
+}
+
 export function verbessere(select) {
   if (select.multiple || select.dataset.auswahl !== undefined) return;
   select.dataset.auswahl = "";
@@ -79,11 +90,7 @@ export function verbessere(select) {
     knopf.setAttribute("aria-label", select.getAttribute("aria-label"));
     liste.setAttribute("aria-label", select.getAttribute("aria-label"));
   }
-  for (const n of ["aria-describedby", "aria-invalid", "aria-required"]) {
-    if (select.hasAttribute(n)) knopf.setAttribute(n, select.getAttribute(n));
-  }
-  if (select.required) knopf.setAttribute("aria-required", "true");
-  knopf.disabled = select.disabled;
+  spiegle(select, knopf);
 
   let aktiv = -1;
   let getippt = "";
@@ -267,16 +274,23 @@ export function verbessere(select) {
   select.addEventListener("focus", () => knopf.focus());
   select.addEventListener("change", zeige);
   select.form?.addEventListener("reset", () => fenster.setTimeout(zeige));
-  // Ändert ein Skript die Optionen oder sperrt das Feld (disabled, #578), folgt die Schaltfläche
-  new fenster.MutationObserver(() => {
-    knopf.disabled = select.disabled;
-    baueListe();
+  // Ändert ein Skript die Optionen, sperrt das Feld (disabled, #578) oder meldet einen Fehler (aria-invalid, #887), folgt die Schaltfläche
+  new fenster.MutationObserver((aenderungen) => {
+    spiegle(select, knopf);
+    // Die Liste nur neu bauen, wenn sich die Optionen ändern (auch eine gesperrte Option): Ein Fehler kommt auch bei offener Liste nicht dazwischen
+    if (
+      aenderungen.some(
+        (m) => m.type !== "attributes" || m.attributeName === "disabled",
+      )
+    ) {
+      baueListe();
+    }
   }).observe(select, {
     childList: true,
     subtree: true,
     characterData: true,
     attributes: true,
-    attributeFilter: ["disabled"],
+    attributeFilter: ["disabled", "required", ...GESPIEGELT],
   });
 
   baueListe();

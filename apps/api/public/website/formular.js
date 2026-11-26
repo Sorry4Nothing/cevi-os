@@ -4,6 +4,10 @@
 // Formulare, die später dazukommen (geschützte Bausteine, die geschuetzt.js nachlädt), rüstet ein MutationObserver aus. Text kommt nur als Textknoten ins Dokument, nie als HTML.
 import { band, el, holeMitFrist, symbol } from "./ui.js";
 import { toast } from "./toast.js";
+// «datumVon» liest das Datum, der Kalender steht daneben (#887)
+import { datumVon, verbessereDatum } from "./datum.js";
+// Eigenes Auswahlfeld der Website (#887): stellt jedes <select> um, auch in Formularen, die geschuetzt.js nachlädt
+import "./auswahl.js";
 
 const API = "/api/v1/formulare";
 const zuerichHeute = () =>
@@ -30,19 +34,6 @@ const PFLICHT_TEXT = {
   mehrfachwahl: "Wähle mindestens eine Antwort.",
   janein: "Wähle Ja oder Nein.",
   zustimmung: "Stimme zu, um die Antwort zu senden.",
-};
-
-// «31.12.2026» (auch «1.2.2026» und «2026-12-31») als «2026-12-31»; null, wenn es den Tag nicht gibt
-const datumVon = (text) => {
-  const m = /^(\d{1,2})\.(\d{1,2})\.(\d{4})$/.exec(text);
-  const iso = m
-    ? `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`
-    : text;
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return null;
-  const d = new Date(`${iso}T12:00:00Z`);
-  return Number.isNaN(d.getTime()) || d.toISOString().slice(0, 10) !== iso
-    ? null
-    : iso;
 };
 
 const zahlVon = (text) => {
@@ -94,6 +85,9 @@ function startFormular(wurzel) {
   if (wurzel.dataset.schliesst && zuerichHeute() > wurzel.dataset.schliesst) {
     geschlossen();
     return;
+  }
+  for (const f of felder) {
+    if (f.typ === "datum") verbessereDatum(f.eingabe, beschriftung(f));
   }
 
   // Wert für den Server und ein Fehlercode (oder null), nur was sich ohne den Server prüfen lässt
