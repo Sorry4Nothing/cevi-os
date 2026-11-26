@@ -22291,9 +22291,9 @@ paths:
       operationId: holeLagerWidget
       summary: Widget-Stand des Lagers
       description: |
-        Kompakter Stand für die Widgets der Apps (#848): ein Aufruf statt `/lager`, `/heute`, `/meine-woche`, `/zeitplan` und Seiten der Aufgaben. Die Antwort enthält nur Zahlen und Daten, nie Namen, Titel oder freien Text. `tageBisBeginn` und `tageBisEnde` zählen ab heute (Zürcher Zeit), negativ, sobald das Datum vorbei ist; daraus folgt «Tag X von Y» (`1 - tageBisBeginn` von `tageBisEnde - tageBisBeginn + 1`). `eigeneDiensteHeute` zählt die eigenen Schichten am heutigen Lagertag (braucht `einteilung.lesen`), `wichtigHeute` die Blöcke «wichtig» der heutigen Tagesseite (braucht `tagesseiten.lesen`), `eigeneAufgaben` die eigenen nicht erledigten Aufgaben (die Person ist verantwortlich oder unterstützt; braucht `aufgaben.eigene` oder das Recht auf alle Aufgaben, zählt aber immer nur die eigenen). `ungelesen` sind die ungelesenen Benachrichtigungen der Person in diesem Lager. Fehlt das Recht eines Teils, ist er `null`. Tage und Benachrichtigungen gehören jedem Mitglied, darum gibt es kein 403.
+        Kompakter Stand für die Widgets der Apps (#848, #871): ein Aufruf statt `/lager`, `/heute`, `/meine-woche`, `/zeitplan` und Seiten der Aufgaben. Die Antwort enthält Zahlen und Daten und nur die Texte, die die Widgets W3 («Lager heute») und W4 («Meine Aufgaben») zeigen; nie Namen von Personen. `tageBisBeginn` und `tageBisEnde` zählen ab heute (Zürcher Zeit), negativ, sobald das Datum vorbei ist; daraus folgt «Tag X von Y» (`1 - tageBisBeginn` von `tageBisEnde - tageBisBeginn + 1`). `eigeneDiensteHeute` zählt die eigenen Schichten am heutigen Lagertag, `eigeneDienste` nennt sie mit Dienst, Tagesabschnitt und Zeit (beide brauchen `einteilung.lesen`). `wichtigHeute` zählt die Blöcke «wichtig» der heutigen Tagesseite, `wichtigTitel` gibt die ersten zwei als Titel (erste nicht leere Zeile, höchstens 60 Zeichen, sonst mit «…» gekürzt; beide brauchen `tagesseiten.lesen`). `eigeneAufgaben` zählt die eigenen nicht erledigten Aufgaben (die Person ist verantwortlich oder unterstützt), `naechsteAufgaben` nennt die ersten drei davon mit ID, Titel und Frist, sortiert nach Frist (ohne Frist zuletzt), Reihenfolge und Titel; die Dringlichkeit leitet die App aus Frist und `heute` ab (beide brauchen `aufgaben.eigene` oder das Recht auf alle Aufgaben, zeigen aber immer nur die eigenen). `ungelesen` sind die ungelesenen Benachrichtigungen der Person in diesem Lager. Fehlt das Recht eines Teils, ist er `null`. Tage und Benachrichtigungen gehören jedem Mitglied, darum gibt es kein 403. Die Felder aus #871 sind neu; ältere Apps lesen die Antwort wie bisher.
 
-        Datenbanklast: vier Abfragen, parallel und unabhängig von der Datenmenge. Dazu kommen die Abfragen der Rechteprüfung.
+        Datenbanklast: fünf Abfragen, parallel und unabhängig von der Datenmenge. Dazu kommen die Abfragen der Rechteprüfung.
 
         Statuscodes: 200 bei Erfolg, auch im abgeschlossenen Lager. 400 bei ungültiger ID. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft.
 
@@ -39858,7 +39858,7 @@ components:
                   - $ref: "#/components/schemas/LagerHoeckTeam"
             - type: "null"
     LagerWidget:
-      description: "Kompakter Stand für die Widgets: nur Zahlen und Daten, nie Namen oder Texte. Teile ohne Leserecht sind null."
+      description: "Kompakter Stand für die Widgets: Zahlen, Daten und nur die Texte, die W3 und W4 zeigen, nie Namen von Personen. Teile ohne Leserecht sind null."
       type: object
       additionalProperties: false
       required:
@@ -39866,8 +39866,11 @@ components:
         - tageBisBeginn
         - tageBisEnde
         - eigeneDiensteHeute
+        - eigeneDienste
         - wichtigHeute
+        - wichtigTitel
         - eigeneAufgaben
+        - naechsteAufgaben
         - ungelesen
       properties:
         heute:
@@ -39886,12 +39889,49 @@ components:
             - integer
             - "null"
           minimum: 0
+        eigeneDienste:
+          description: "Die eigenen Schichten am heutigen Lagertag nach der Reihenfolge der Tagesabschnitte (einteilung.lesen), sonst null. Höchstens eine je Tagesabschnitt."
+          type:
+            - array
+            - "null"
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - dienst
+              - abschnitt
+              - zeit
+            properties:
+              dienst:
+                description: "Name des Dienstes."
+                type: string
+                maxLength: 100
+              abschnitt:
+                description: "Name des Tagesabschnitts."
+                type: string
+                maxLength: 50
+              zeit:
+                description: "Beginn des Tagesabschnitts (HH:MM), sonst null."
+                type:
+                  - string
+                  - "null"
+                pattern: "^([01][0-9]|2[0-3]):[0-5][0-9]$"
         wichtigHeute:
           description: "Blöcke «wichtig» der heutigen Tagesseite (tagesseiten.lesen), sonst null."
           type:
             - integer
             - "null"
           minimum: 0
+        wichtigTitel:
+          description: "Titel der ersten zwei Blöcke «wichtig» der heutigen Tagesseite (tagesseiten.lesen), sonst null: die erste nicht leere Zeile, höchstens 60 Zeichen, sonst mit «…» gekürzt. Ein Block ohne Text fehlt."
+          type:
+            - array
+            - "null"
+          maxItems: 2
+          items:
+            type: string
+            minLength: 1
+            maxLength: 60
         eigeneAufgaben:
           description: "Die eigenen nicht erledigten Aufgaben (verantwortlich oder unterstützend), mit einem Leserecht für Aufgaben; sonst null."
           type:
@@ -39921,6 +39961,31 @@ components:
                 - string
                 - "null"
               format: date
+        naechsteAufgaben:
+          description: "Die ersten drei eigenen nicht erledigten Aufgaben nach Frist (ohne Frist zuletzt), Reihenfolge und Titel, mit einem Leserecht für Aufgaben; sonst null. Ohne Personen, Ressort und Notiz."
+          type:
+            - array
+            - "null"
+          maxItems: 3
+          items:
+            type: object
+            additionalProperties: false
+            required:
+              - id
+              - titel
+              - frist
+            properties:
+              id:
+                type: string
+                format: uuid
+              titel:
+                type: string
+                maxLength: 200
+              frist:
+                type:
+                  - string
+                  - "null"
+                format: date
         ungelesen:
           description: "Ungelesene Benachrichtigungen der Person in diesem Lager."
           type: integer
