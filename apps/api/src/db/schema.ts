@@ -83,6 +83,8 @@ export const user = pgTable(
     ceviName: text("cevi_name"),
     // Freiwillige Angabe (#817): w, m oder d; null = keine Angabe. Bestimmt nur, wie die Verwaltung die Rolle der Person nennt («Stufenleiterin», «Stufenleiter», sonst «Stufenleitung»)
     geschlecht: text("geschlecht"),
+    // true, sobald jemand die Angabe im Blatt der Person gesetzt oder geändert hat (#843): Dann übernimmt Cevi OS sie nie mehr aus der Cevi-Datenbank
+    geschlechtVonHand: boolean("geschlecht_von_hand").notNull().default(false),
     // Nummer der Person in der Cevi-Datenbank (#691), vom Server nach einem eindeutigen Treffer gemerkt; null = unbekannt
     ceviDbId: text("cevi_db_id"),
     // Nur noch die Spalte, die das admin-Plugin von better-auth in seinem Schema verlangt: immer «user» (CHECK), nirgends gelesen. Die Rollen stehen in abteilungsleitung_person und plattform_entwickler (#784)

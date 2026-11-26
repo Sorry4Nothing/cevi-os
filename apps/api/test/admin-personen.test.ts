@@ -505,6 +505,34 @@ describe("Geschlecht (#817)", () => {
     },
   );
 
+  test("von Hand (#843): Anlegen mit Angabe und jede Änderung markieren, Speichern mit gleichem Wert nicht", async () => {
+    const vonHand = async (id: string) =>
+      (
+        await sql<
+          { v: boolean }[]
+        >`select geschlecht_von_hand as v from "user" where id = ${id}`
+      )[0]!.v;
+    expect(await vonHand((await legePersonAn({ geschlecht: "m" })).id)).toBe(
+      true,
+    );
+    const person = await legePersonAn();
+    expect(await vonHand(person.id)).toBe(false);
+    // Das Blatt sendet die Angabe bei jedem Speichern mit: gleicher Wert ist keine Wahl
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: null });
+    expect(await vonHand(person.id)).toBe(false);
+    // Aus der Cevi-Datenbank übernommen, im Blatt unverändert gespeichert: bleibt übernommen
+    await sql`update "user" set geschlecht = 'w' where id = ${person.id}`;
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: "w" });
+    expect(await vonHand(person.id)).toBe(false);
+    // Auf «keine Angabe» geändert: von Hand, auch ohne Wert
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: null });
+    expect(await vonHand(person.id)).toBe(true);
+    expect(await geschlechtVon(person.id)).toBeNull();
+    // Einmal von Hand, immer von Hand
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: null });
+    expect(await vonHand(person.id)).toBe(true);
+  });
+
   test("die Datenbank lehnt einen anderen Wert ab", async () => {
     const person = await legePersonAn();
     await expect(

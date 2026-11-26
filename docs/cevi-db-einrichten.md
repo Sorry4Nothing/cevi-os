@@ -41,6 +41,10 @@ Neues Token wie oben erstellen, in `deploy/.env` ersetzen, API neu starten, Verb
 
 Cevi OS lädt die Personen der eigenen Ebene (höchstens 15 Minuten im Arbeitsspeicher, nie in der Datenbank) und ordnet nur bei **genau einem** Treffer zu: über die gemerkte Nummer, sonst über E-Mail (beim Kind die der Eltern) plus Vornamen, sonst über Vorname, Nachname und Geburtsdatum. Ein Name allein genügt nie. Bei keinem oder mehreren Treffern gibt es keinen Vorschlag. Nach dem Absenden einer Anmeldung mit einem Feld aus der Cevi-Datenbank merkt sich Cevi OS die Nummer des Eintrags, damit die nächste Zuordnung eindeutig ist.
 
+## Geschlecht
+
+Ist die Nummer eines Kontos gemerkt, übernimmt Cevi OS das Geschlecht aus der Cevi-Datenbank (`m` oder `w`, sonst keine Angabe) in das Konto, damit die Verwaltung den Rollennamen richtig bildet (#843). Das geschieht nach jedem Abruf der Personen und gleich nach dem Merken der Nummer. Nie bei Kindern oder dem Konto eines Kindes, und nie, wenn jemand die Angabe im Blatt der Person gewählt hat: Die Wahl in der Verwaltung hat immer Vorrang. Das Token braucht dafür das Recht, die Details der Personen zu sehen; sonst liefert die Cevi-Datenbank kein Geschlecht.
+
 ## Offen bis zur ersten Prüfung mit dem echten Token
 
 Die Pfade und Feldnamen stammen aus der Dokumentation von hitobito (JSON:API), nicht aus der Instanz der Cevi. Sie stehen als `ANNAHMEN` in `apps/api/src/cevi-db/client.ts`: Pfad der Personen (`/api/people`), Pfad einer Gruppe, Kopf `X-TOKEN`, Seitengrösse, `include` für Telefonnummern. Stimmt etwas nicht (zum Beispiel «die Antwort hat ein unerwartetes Format» oder keine Telefonnummer), wird nur diese Stelle angepasst. Ob ein Token auf «nur lesen» festgelegt werden kann, sagt die Dokumentation nicht; Cevi OS schreibt in jedem Fall nie.
