@@ -6,6 +6,7 @@ import {
   sichtbarFuer,
   sichtbarkeitAusSpalten,
   type Sichtbarkeit,
+  type SichtRollen,
 } from "../sichtbarkeit.js";
 import {
   formularBausteine,
@@ -144,9 +145,10 @@ export async function listeSichtbareFormulare(
     titel: string;
     sichtbarkeit: Sichtbarkeit["art"];
     sichtbarkeit_tags: string[];
+    sichtbarkeit_rollen: SichtRollen;
     baustein: unknown;
   }>(sql`
-    select s.titel, s.sichtbarkeit, s.sichtbarkeit_tags::text[] as sichtbarkeit_tags, b as baustein
+    select s.titel, s.sichtbarkeit, s.sichtbarkeit_tags::text[] as sichtbarkeit_tags, s.sichtbarkeit_rollen, b as baustein
     from seite s
     join seite_version v on v.id = s.veroeffentlichte_version_id
     cross join lateral jsonb_array_elements(v.inhalt -> 'bausteine') b
@@ -158,6 +160,7 @@ export async function listeSichtbareFormulare(
     const seiteSicht = sichtbarkeitAusSpalten({
       sichtbarkeit: z.sichtbarkeit,
       sichtbarkeitTags: z.sichtbarkeit_tags,
+      sichtbarkeitRollen: z.sichtbarkeit_rollen,
     });
     if (!darfFormularSehen(sicht, sicht.abteilungId, seiteSicht, b.data))
       return [];
