@@ -403,16 +403,65 @@ describe("Raumanfragen entscheiden (Team des Raums)", () => {
     expect((await aufruf(fremdAl, "POST", ent(a1), body)).status).toBe(404);
   });
 
-  test("eine Gruppenrolle mit dem Recht braucht den zweiten Faktor", async () => {
+  // Entscheid vom 26.11.2026 (#859): Gruppenrolle und Abteilungsleitung entscheiden aus der App ohne zweiten Faktor; ihre anderen erweiterten Rechte brauchen ihn weiter
+  test("eine Gruppenrolle entscheidet ohne zweiten Faktor, verwaltet den Raum aber nicht", async () => {
     const a = await neueAnfrage(raumT, anfragerin.id!);
+    const liste = await aufruf(
+      materialwartOhneFaktor,
+      "GET",
+      "/api/v1/raeume/anfragen/offen",
+    );
+    expect(liste.body.anfragen.map((x: Json) => x.id)).toContain(a);
     const r = await aufruf(
       materialwartOhneFaktor,
       "POST",
       `/api/v1/raeume/anfragen/${a}/entscheid`,
       { entscheid: "ablehnen", begruendung: "Nein." },
     );
-    expect(r.status).toBe(403);
-    expect(r.body.code).toBe(ZF);
+    expect(r.status).toBe(200);
+    const verwalten = await aufruf(
+      materialwartOhneFaktor,
+      "PATCH",
+      `/api/v1/admin/raeume/${raumT}`,
+      { beschreibung: "Nein" },
+    );
+    expect(verwalten.status).toBe(403);
+    expect(verwalten.body.code).toBe(ZF);
+  });
+
+  test("die Abteilungsleitung entscheidet ohne zweiten Faktor, die Verwaltung bleibt gesperrt", async () => {
+    const alOhneFaktor = await legePersonaAn(welt, "adminOhneZweitenFaktor");
+    const a = await neueAnfrage(raumOhne, anfragerin.id!);
+    const liste = await aufruf(
+      alOhneFaktor,
+      "GET",
+      "/api/v1/raeume/anfragen/offen",
+    );
+    expect(liste.body.anfragen.map((x: Json) => x.id)).toContain(a);
+    const r = await aufruf(
+      alOhneFaktor,
+      "POST",
+      `/api/v1/raeume/anfragen/${a}/entscheid`,
+      { entscheid: "ablehnen", begruendung: "Nein." },
+    );
+    expect(r.status).toBe(200);
+    // Ein Raum mit Team: kein Recht, auch ohne Faktor 403 ohne den Code des Faktors
+    const b = await neueAnfrage(raumT, anfragerin.id!);
+    const fremd = await aufruf(
+      alOhneFaktor,
+      "POST",
+      `/api/v1/raeume/anfragen/${b}/entscheid`,
+      { entscheid: "ablehnen", begruendung: "Nein." },
+    );
+    expect(fremd.status).toBe(403);
+    expect(fremd.body?.code).not.toBe(ZF);
+    const verwaltung = await aufruf(
+      alOhneFaktor,
+      "GET",
+      "/api/v1/admin/raeume",
+    );
+    expect(verwaltung.status).toBe(403);
+    expect(verwaltung.body.code).toBe(ZF);
   });
 
   test("über die eigene Anfrage entscheidet nie dieselbe Person", async () => {

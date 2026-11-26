@@ -314,7 +314,7 @@ export class RechteSatz {
     );
   }
 
-  // Braucht die Person für dieses Recht den zweiten Faktor? Jedes «erweiterte» und «feste» Recht, ausser die Arbeit der Stufenleitung an der eigenen Stufenseite (Entscheid vom 22.11.2026): Das gilt nur, wenn die Stufenrolle das Recht allein gibt
+  // Braucht die Person für dieses Recht den zweiten Faktor? Jedes «erweiterte» und «feste» Recht, ausser die Arbeit der Stufenleitung an der eigenen Stufenseite (Entscheid vom 22.11.2026; nur, wenn die Stufenrolle das Recht allein gibt), die Stufenarbeit und die Raumanfragen (#859), je nach Quelle des Rechts
   braucht2Faktor(recht: string, objekt?: Objekt) {
     if (!istRecht(recht)) return true;
     if (eintragVon(recht).risiko === "normal") return false;
@@ -325,10 +325,13 @@ export class RechteSatz {
         (x) => x.art === "stufenrolle" || x.art === "abteilungsleitung",
       );
     }
-    // Nur Mitglieder ohne Rolle (oder allein der alte Weg im Schattenbetrieb): ohne zweiten Faktor wie bisher
+    // Raumanfragen: Team ohne Rolle, Abteilungsleitung und Gruppenrolle (oder allein der alte Weg im Schattenbetrieb) ohne zweiten Faktor (#859); jede andere Quelle braucht ihn
     if (MITGLIED_OHNE_ZWEITEN_FAKTOR.has(recht)) {
       return !this.herkuenfte(recht, objekt).every(
-        (x) => x.art === "mitgliedschaft",
+        (x) =>
+          x.art === "mitgliedschaft" ||
+          x.art === "abteilungsleitung" ||
+          x.art === "gruppenrolle",
       );
     }
     if (!OHNE_ZWEITEN_FAKTOR.has(recht)) return true;

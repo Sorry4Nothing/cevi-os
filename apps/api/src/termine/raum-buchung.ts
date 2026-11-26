@@ -77,7 +77,7 @@ const ENTSCHEID_TEXT = {
   abgelehnt: "Deine Raumanfrage ist abgelehnt.",
 } as const;
 
-// Push «raum_anfrage» an die Entscheidenden: die aktiven Konten mit dem Team-Tag des Raums, ohne die anfragende Person; ohne Team die aktiven Konten der Abteilungsleitung mit zweitem Faktor. Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für die Empfänger, dann die von sendePush
+// Push «raum_anfrage» an die Entscheidenden: die aktiven Konten mit dem Team-Tag des Raums, ohne die anfragende Person; ohne Team die aktiven Konten der Abteilungsleitung, auch ohne zweiten Faktor (sie entscheidet aus der App ohne ihn, #859). Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für die Empfänger, dann die von sendePush
 export async function pushNeueAnfrage(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   opt: {
@@ -98,7 +98,6 @@ export async function pushNeueAnfrage(
               and(
                 aktivesKonto(opt.abteilungId),
                 istAbteilungsleitungSql(user.id),
-                eq(user.twoFactorEnabled, true),
                 ne(user.id, opt.vonId),
               ),
             )

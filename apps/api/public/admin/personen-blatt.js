@@ -519,14 +519,13 @@ export function funktionenFelder(person, funktionen, ich) {
   };
 }
 
-// Geschlecht (#817): freiwillig, bestimmt nur, wie die Rolle dieser Person heisst. Eine Wahl «Weiblich | Männlich | Keine Angabe» (seit #849 ohne «andere»), die Wahl gilt mit «Speichern»
-// wert() ist, was die API erwartet: «w», «m» oder null (keine Angabe, neutrale Form)
+// Geschlecht (#817): bestimmt nur, wie die Rolle dieser Person heisst. Eine Wahl «Weiblich | Männlich» (seit #849 ohne «andere», seit #857 Pflicht und ohne «Keine Angabe»), die Wahl gilt mit «Speichern»
+// wert() ist, was die API erwartet: «w», «m» oder null (noch nichts gewählt; Speichern verlangt eine Wahl). Ohne Angabe (Import, Cevi-Datenbank kennt es nicht) zeigt das Blatt «Geschlecht fehlt»
 export const GESCHLECHT_WAHL = [
   ["w", "Weiblich"],
   ["m", "Männlich"],
-  ["", "Keine Angabe"],
 ];
-export function geschlechtFeld(gewaehlt) {
+export function geschlechtFeld(gewaehlt, { fehlt = false } = {}) {
   const name = neueId("geschlecht");
   const legendeId = neueId("geschlecht-legende");
   const hilfeId = neueId("geschlecht-hilfe");
@@ -544,29 +543,46 @@ export function geschlechtFeld(gewaehlt) {
       el("label", { for: id }, icon("haken"), text),
     ];
   });
+  // Die Gruppe trägt Fehler und Fokus (liste-hilfen.js feldFehler): Die Zusammenfassung springt zu ihr, «change» der Knöpfe erreicht sie
+  const gruppe = el(
+    "div",
+    {
+      class: "seg",
+      id: neueId("geschlecht-gruppe"),
+      role: "radiogroup",
+      tabindex: "-1",
+      "aria-labelledby": legendeId,
+      "aria-describedby": hilfeId,
+      "aria-required": "true",
+    },
+    optionen.flat(),
+  );
   const wurzel = el(
     "div",
     { class: "feld" },
-    el("span", { class: "legende", id: legendeId }, "Geschlecht (optional)"),
-    el(
-      "div",
-      {
-        class: "seg",
-        role: "radiogroup",
-        "aria-labelledby": legendeId,
-        "aria-describedby": hilfeId,
-      },
-      optionen.flat(),
-    ),
+    el("span", { class: "legende", id: legendeId }, "Geschlecht"),
+    fehlt &&
+      !aktuell &&
+      el(
+        "p",
+        { class: "hinweis hinweis--info", role: "note" },
+        el(
+          "span",
+          {},
+          "Geschlecht fehlt. Bis du es wählst, heisst die Rolle neutral, z. B. Stufenleitung.",
+        ),
+      ),
+    gruppe,
     el(
       "p",
       { class: "hilfe", id: hilfeId },
-      "Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin. Ohne Angabe heisst sie neutral, z. B. Stufenleitung.",
+      "Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin oder Stufenleiter. Steht die Person in der Cevi-Datenbank, kommt die Angabe von dort, bis du sie hier änderst.",
     ),
   );
   return {
     wurzel,
-    wert: () => wurzel.querySelector("input:checked").value || null,
+    eingabe: gruppe,
+    wert: () => wurzel.querySelector("input:checked")?.value ?? null,
   };
 }
 
@@ -1037,7 +1053,9 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
         required: true,
       });
   const telefon = telefonFeld(person?.telefon);
-  const geschlecht = geschlechtFeld(person?.geschlecht);
+  const geschlecht = geschlechtFeld(person?.geschlecht, {
+    fehlt: Boolean(person),
+  });
   const abteilungsleitung = abteilungFeld({
     gewaehlt: person?.abteilungsleitung ?? false,
     personName: person?.name ?? "neue Person",
@@ -1230,6 +1248,12 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
       fehlt.push({ name: "Telefon", ...telefon });
       tel = null;
     }
+    // Pflicht seit #857, beim Erfassen und Bearbeiten
+    entferneFehler(geschlecht);
+    if (!geschlecht.wert()) {
+      feldFehler(geschlecht, "Wähle Weiblich oder Männlich.");
+      fehlt.push({ name: "Geschlecht", ...geschlecht });
+    }
     if (fehlt.length > 0) {
       const hinweis = pruefHinweis(fehlt);
       fehler.append(hinweis);
@@ -1243,7 +1267,7 @@ export function oeffnePerson({ person, daten, ctx, neu, beiFokus, tr }) {
           vorname: vorname.eingabe.value.trim(),
           nachname: nachname.eingabe.value.trim(),
           ceviName: ceviName.eingabe.value,
-          geschlecht: geschlecht.wert() ?? undefined,
+          geschlecht: geschlecht.wert(),
           telefon: tel,
           benutzername: benutzername.eingabe.value.trim(),
           abteilungsleitung: abteilungsleitung.wert(),

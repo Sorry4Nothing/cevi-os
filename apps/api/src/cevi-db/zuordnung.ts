@@ -1,7 +1,8 @@
 import type { CeviPerson } from "./felder.js";
 
 // Welche Person der Cevi-Datenbank ist diese Person oder dieses Kind? (#691) Nur ein einziger eindeutiger Treffer zählt. Bei keinem oder mehreren gibt es keine Vorbefüllung, und nichts davon verrät etwas über Dritte: Das Ergebnis trägt nie Namen oder Nummern anderer Personen.
-// Rangfolge: 1. die gemerkte Nummer, 2. E-Mail plus Vorname, 3. Vorname plus Nachname plus Geburtsdatum. Ein Name allein ist nie ein Treffer.
+// Rangfolge: 1. die gemerkte Nummer, 2. E-Mail plus Vorname, 3. Vorname plus Nachname plus Geburtsdatum. Ein Name allein ist bei der Anmeldung nie ein Treffer.
+// 4. Nur im täglichen Abgleich der Konten (#857, Entscheid des Auftraggebers, Abweichung von #691): Vorname plus Nachname, wenn genau eine Person der Cevi-Datenbank und genau ein Konto der Abteilung so heissen. Die zweite Bedingung kennt nur der Abgleich (cevi-db/abgleich.ts), darum gilt die Regel bei der Anmeldung nicht. Ein Treffer nach Regel 4 übernimmt nur das Geschlecht und merkt keine Nummer, damit die Anmeldung nie Angaben einer gleichnamigen anderen Person vorfüllt.
 
 export type Anfrage = {
   // Nummer, die der Server nach einem früheren eindeutigen Treffer gemerkt hat
@@ -39,6 +40,8 @@ function einzig(treffer: readonly CeviPerson[]): Zuordnung | null {
 export function ordneZu(
   personen: readonly CeviPerson[],
   anfrage: Anfrage,
+  // Nur der Abgleich (#857): wie viele Konten der Abteilung so heissen wie die Anfrage (Vorname und Nachname, normal)
+  kontenGleichenNamens?: number,
 ): Zuordnung {
   const vorname = normal(anfrage.vorname);
   // Ohne Vornamen gibt es keinen Vergleich über Name und E-Mail
@@ -73,5 +76,10 @@ export function ordneZu(
           ),
         )
       : null;
-  return perDatum ?? perEmail ?? KEINER;
+  // Regel 4 (#857): ein Name allein, nur wenn er auf beiden Seiten genau einmal vorkommt
+  const perName =
+    nachname && kontenGleichenNamens === 1
+      ? einzig(gleicherVorname.filter((p) => normal(p.nachname) === nachname))
+      : null;
+  return perDatum ?? perEmail ?? perName ?? KEINER;
 }

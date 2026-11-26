@@ -1750,7 +1750,7 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vors
 
 ## 92. Verwaltung: Rollenname nach Geschlecht der Person (#817, #849)
 
-Die Verwaltung nennt die Rolle einer bestimmten Person nach ihrem Geschlecht: «Stufenleiter» und «Gruppenleiter» für Männer, «Stufenleiterin» und «Gruppenleiterin» für Frauen, sonst «Stufenleitung» und «Gruppenleitung» (Helfer `rollenName` in `rollenname.js`). Die Angabe ist freiwillig und wird im Blatt der Person gepflegt (Abschnitt «Angaben», Auswahl «Geschlecht (optional)»); in «Mein Konto» steht sie als gesperrtes Feld. Allgemeine Beschriftungen ohne Person (Rechtekatalog, Auswahl der Rolle, Mitteilungsziele) und die öffentliche Website bleiben neutral.
+Die Verwaltung nennt die Rolle einer bestimmten Person nach ihrem Geschlecht: «Stufenleiter» und «Gruppenleiter» für Männer, «Stufenleiterin» und «Gruppenleiterin» für Frauen, sonst «Stufenleitung» und «Gruppenleitung» (Helfer `rollenName` in `rollenname.js`). Die Angabe ist freiwillig und wird im Blatt der Person gepflegt (Abschnitt «Angaben», Auswahl «Geschlecht (optional)»); in «Mein Konto» steht sie als gesperrtes Feld. Allgemeine Beschriftungen ohne Person (Rechtekatalog, Auswahl der Rolle, Mitteilungsziele) und die öffentliche Website bleiben neutral. Seit #857 ist die Angabe Pflicht und «Keine Angabe» fällt weg: Für die Auswahl im Blatt gilt Abschnitt 99 statt 92.1 und 92.3.
 
 ### Prüfpunkte
 
@@ -1949,3 +1949,21 @@ Bei der Sichtbarkeit «Bestimmte Gruppen» erscheint unter jeder gewählten Stuf
 Geprüft im Quelltext und mit Tests: Sicht je Rolle (SQL und Einzelprüfung, `test/sichtbarkeit.test.ts`), Zielgruppe und Anmeldung je Persona (`test/termine/anlaesse.test.ts`), Rundlauf der Rollen über die Routen (`test/termine/admin-anlaesse.test.ts`, `test/redaktion-seiten.test.ts`), Texte der Anmeldeseite (`test/website-termine-skripte.test.ts`).
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (98.1 bis 98.8 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
+
+## 99. Verwaltung: Geschlecht im Blatt der Person ist Pflicht (#857)
+
+Beim Erfassen und Bearbeiten einer Person ist «Geschlecht» Pflicht: Die Auswahl «Weiblich | Männlich» hat kein «(optional)» und kein «Keine Angabe» mehr. Konten ohne Angabe (Import aus der Cevi-Datenbank ohne Treffer, ältere Konten) zeigen im Blatt einen ruhigen Hinweis «Geschlecht fehlt». Bis dahin bleibt der Rollenname neutral. Modul: `personen-blatt.js` (`geschlechtFeld`), Fehler am Feld über `liste-hilfen.js`.
+
+### Prüfpunkte
+
+- [ ] **99.1** Die Auswahl ist eine Radiogruppe (`role="radiogroup"`, `aria-required="true"`) mit der sichtbaren Beschriftung «Geschlecht» (`aria-labelledby`) und dem Hilfetext (`aria-describedby`). Der Bildschirmleser nennt Gruppe, «erforderlich», Hilfetext, Option («Weiblich», «Männlich») und Zustand.
+- [ ] **99.2** Ohne Wahl zeigt «Speichern» oder «Erfassen» den Fehler «Wähle Weiblich oder Männlich.» unter der Auswahl, mit Warnsymbol (nie nur Farbe). Die Gruppe bekommt `aria-invalid="true"` und verweist mit `aria-describedby` auf den Fehler. Die Zusammenfassung «n Angaben prüfen» nennt «Geschlecht»; ihr Knopf setzt den Fokus auf die Gruppe.
+- [ ] **99.3** Sobald eine Option gewählt ist, verschwinden Fehler und `aria-invalid`.
+- [ ] **99.4** Ein Konto ohne Angabe zeigt über der Auswahl den Hinweis «Geschlecht fehlt. Bis du es wählst, heisst die Rolle neutral, z. B. Stufenleitung.» (`hinweis--info`, `role="note"`, Text statt nur Farbe). Beim Erfassen erscheint er nicht, dort zeigt erst «Erfassen» den Fehler.
+- [ ] **99.5** Tastatur und Darstellung wie 92.2 und 92.7: Tab erreicht die Gruppe, Pfeiltasten wechseln, Fokus sichtbar (mindestens 3 : 1) in Hell und Dunkel; bei 320 px Breite und 200 % Zoom kein waagrechtes Scrollen.
+
+### Stand der Prüfung (#857)
+
+Geprüft im Quelltext und mit Tests: zwei Optionen und Pflichtprüfung mit Fehlertext im Blatt (`test/admin-rollenname.test.ts`), API verlangt die Angabe beim Anlegen und lehnt `null` beim Ändern ab (`test/admin-personen.test.ts`).
+
+**Nicht geprüft:** alles im Browser und mit Bildschirmleser (99.1 bis 99.5 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
