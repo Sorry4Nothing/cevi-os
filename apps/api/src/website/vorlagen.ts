@@ -40,7 +40,7 @@ const text = (...absaetze: string[]): Baustein => ({
 });
 
 // Das Anmeldeformular (#881) für die Vorlage «Anmeldung» und den Befehl anmeldeformular.ts: dieselben Felder wie die frühere Anleitung «Schreib uns eine E-Mail». Feld-IDs sind bei jedem Aufruf neu.
-// Die Schulklasse ist eine Auswahl, damit die Abteilungsleitung nach Stufe sortieren kann; «Andere Schule» fängt den Rest.
+// Die Schulklasse ist eine Auswahl, damit die Abteilungsleitung nach Stufe sortieren kann.
 export const ANMELDUNG_ABSCHNITT = "So meldest du dich an";
 export const SCHULKLASSEN = [
   "Kindergarten",
@@ -54,7 +54,6 @@ export const SCHULKLASSEN = [
   "2. Sek",
   "3. Sek",
   "Gymnasium",
-  "Andere Schule",
 ];
 export function anmeldeFormular(titel?: string): Baustein {
   const id = () => randomUUID();
