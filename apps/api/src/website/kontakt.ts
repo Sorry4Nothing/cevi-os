@@ -182,7 +182,7 @@ function fussMarke(k: Kontext): string {
     quelle.breite && quelle.hoehe
       ? ` width="${quelle.breite}" height="${quelle.hoehe}"`
       : "";
-  return `<a class="fuss-marke fuss-marke--logo" href="/"><img class="${k.logo.dunkel ? "fuss-logo" : "fuss-logo fuss-logo--feld"}" ${bildQuelleAttr(quelle.id, quelle, hoeheGroesse(quelle.breite, quelle.hoehe, 3.25))} alt="${esc(k.logo.altText ?? "")}"${masse}><span class="nur-sr">${name}</span></a>`;
+  return `<a class="fuss-marke fuss-marke--logo" href="/"><img class="${k.logo.dunkel ? "fuss-logo" : "fuss-logo fuss-logo--feld"}"${bildQuelleAttr(quelle.id, quelle, hoeheGroesse(quelle.breite, quelle.hoehe, 3.25))} alt="${esc(k.logo.altText ?? "")}"${masse}><span class="nur-sr">${name}</span></a>`;
 }
 
 // Fuss (#580, neu gestaltet in #605): ein Raster über die ganze Breite. Marke, die Hauptbereiche der Navigation (nur die oberste Ebene), Kontakt und Rechtliches als Spalten, darunter «©» und «Nach oben».
