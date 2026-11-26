@@ -10,7 +10,8 @@ import { el, symbol, type HtmlKnoten } from "./rendern.js";
 // Das Formular sendet nichts selbst (form-action 'none' in der CSP): Ohne Skript fehlt nur das Senden, die Seite zeigt dann den Hinweis. Stil: public/website/formular.css.
 // Dieselben Knoten gehen als JSON an geschuetzt.js, wenn der Baustein nur für Angemeldete ist; knoten.js kennt dafür die Elemente und Attribute dieser Datei.
 
-export const STIL_FORMULAR = "/website/formular.css";
+// Das Skript stellt die Auswahlfelder auf das eigene Feld der Website um (auswahl.js, #887): Dessen Stil gehört dazu
+export const STILE_FORMULAR = ["/website/auswahl.css", "/website/formular.css"];
 export const SKRIPT_FORMULAR = "/website/formular.js";
 
 export type FormularStand = { ebene: number; schalter: number };
@@ -120,7 +121,7 @@ function feldKnoten(bausteinId: string, f: Feld): HtmlKnoten {
         }),
       );
     case "datum": {
-      // Ein Textfeld mit sichtbarem Format (keine nativen Wähler, Handbuch 2.7); das Skript liest «31.12.2026» und sendet «2026-12-31»
+      // Ein Textfeld mit sichtbarem Format (keine nativen Wähler, Handbuch 2.7); das Skript liest «31.12.2026» und sendet «2026-12-31». datum.js stellt den Knopf «Kalender öffnen» daneben (#887), ohne Skript bleibt das Textfeld
       const hinweis = `${f.hilfe ? `${f.hilfe} ` : ""}Format: TT.MM.JJJJ, zum Beispiel 31.12.2026.`;
       return el(
         "div",

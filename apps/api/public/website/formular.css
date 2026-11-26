@@ -43,8 +43,210 @@
   padding: 0.6875rem 0.9375rem;
 }
 
+/* Ohne Skript bleibt das Auswahlfeld des Browsers; mit Skript ersetzt es auswahl.js (#887) */
 .bf-form select.eingabe {
   appearance: auto;
+}
+
+/* Datum (#887): Textfeld und Knopf «Kalender öffnen» nebeneinander, der Kalender klappt darunter auf (datum.js) */
+.bf-datum {
+  position: relative;
+  display: flex;
+  gap: 0.5rem;
+  max-width: 20rem;
+}
+
+.bf-datum .eingabe {
+  flex: 1;
+  min-width: 0;
+}
+
+.bf-datum-knopf,
+.bf-kalender-pfeil {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3.25rem;
+  height: 3.25rem;
+  padding: 0;
+  border: 1px solid var(--outline);
+  border-radius: var(--r-sm);
+  background: var(--surface-container-low);
+  color: var(--accent);
+  cursor: pointer;
+}
+
+.bf-kalender-pfeil {
+  width: 2.75rem;
+  height: 2.75rem;
+  border-color: transparent;
+  background: transparent;
+}
+
+.bf-kalender-pfeil.zurueck .i {
+  transform: rotate(180deg);
+}
+
+.bf-datum-knopf:hover,
+.bf-datum-knopf[aria-expanded="true"] {
+  border-color: var(--accent);
+}
+
+.bf-kalender-pfeil:hover,
+.bf-kalender-tag:not(:disabled):hover {
+  background: var(--surface-container);
+}
+
+.bf-datum .i {
+  width: 1.5rem;
+  height: 1.5rem;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2;
+}
+
+.bf-datum .i .f {
+  fill: currentcolor;
+  stroke: none;
+}
+
+.bf-datum-knopf:focus-visible,
+.bf-kalender button:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.bf-kalender {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.375rem);
+  left: 0;
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 0.75rem;
+  border: 1px solid var(--outline-variant);
+  border-radius: var(--r-md);
+  background: var(--karte);
+  color: var(--on-surface);
+  box-shadow: var(--schatten);
+}
+
+.bf-datum.oben .bf-kalender {
+  top: auto;
+  bottom: calc(100% + 0.375rem);
+}
+
+.bf-kalender-kopf {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.bf-kalender-titel {
+  font-weight: 800;
+  color: var(--titel);
+}
+
+.bf-kalender-raster {
+  margin: 0.5rem 0;
+}
+
+.bf-kalender-zeile {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 0.125rem;
+}
+
+.bf-kalender-wochentag {
+  padding: 0.25rem 0;
+  color: var(--on-surface-variant);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+/* Jeder Tag mindestens 44 px hoch, auch mit der Maus (Handbuch 2.4) */
+.bf-kalender-leer,
+.bf-kalender-tag {
+  min-height: 2.75rem;
+}
+
+.bf-kalender-tag {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  padding: 0;
+  border: 2px solid transparent;
+  border-radius: var(--r-sm);
+  background: transparent;
+  color: var(--on-surface);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* Heute hat einen Rand, der gewählte Tag ist gefüllt: Form und Füllung, nicht nur Farbe */
+.bf-kalender-tag.heute {
+  border-color: var(--outline);
+}
+
+.bf-kalender-tag.gewaehlt {
+  background: var(--secondary);
+  color: var(--on-secondary);
+  font-weight: 800;
+}
+
+/* Gesperrte Tage (ausserhalb der Grenzen) sind durchgestrichen, nicht nur blasser */
+.bf-kalender-tag:disabled {
+  color: var(--on-surface-variant);
+  text-decoration: line-through;
+  cursor: not-allowed;
+}
+
+.bf-kalender-fuss {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+@media screen and (prefers-reduced-motion: no-preference) {
+  .bf-kalender {
+    animation: bf-kalender-auf var(--dauer) var(--kurve) both;
+  }
+
+  .bf-datum.oben .bf-kalender {
+    animation-name: bf-kalender-ab;
+  }
+}
+
+@keyframes bf-kalender-auf {
+  from {
+    opacity: 0;
+    transform: translateY(-0.375rem);
+  }
+}
+
+@keyframes bf-kalender-ab {
+  from {
+    opacity: 0;
+    transform: translateY(0.375rem);
+  }
+}
+
+@media (forced-colors: active) {
+  .bf-kalender {
+    border-color: CanvasText;
+  }
+
+  .bf-kalender-tag.gewaehlt {
+    border-color: Highlight;
+  }
+
+  .bf-kalender-tag:disabled {
+    color: GrayText;
+  }
 }
 
 .bf-optional {
