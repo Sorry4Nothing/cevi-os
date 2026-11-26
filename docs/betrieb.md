@@ -228,6 +228,24 @@ Die öffentliche Website besteht aus fertigen Dateien, die die API in ein eigene
 - **Feste Datenschutzseite (#712):** `/datenschutz-cevi-os` ist eine vom Code erzeugte Datei im Volume (Text im Repo, `apps/api/src/website/datenschutz-cevi-os-text.ts`), keine API-Route; der Edge-Caddy braucht dafür keine Zeile. Sie entsteht beim Abgleich wie `termine/` und fehlt nur, solange die Informationssperre die Ausgabe leert.
 - **Vom Netz nehmen:** Die Informationssperre mit «Öffentliche Website vom Netz nehmen» leert das Verzeichnis und schreibt eine Hinweisseite (siehe «Informationssperre»).
 
+### Anmeldeformular einsetzen (#881)
+
+Stellt eine bestehende Seite, zum Beispiel «Mitmachen, Anmeldung», ohne Handarbeit auf das Anmeldeformular um. In `deploy/`, immer `exec`:
+
+```sh
+docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/anmeldeformular.ts --pfad /mitmachen/anmeldung
+docker compose -f docker-compose.prod.yml exec api node --import tsx src/cli/anmeldeformular.ts --pfad /mitmachen/anmeldung --veroeffentlichen
+```
+
+- **Was er tut:** Er sucht auf der Seite den einen Baustein, der «So meldest du dich an» nennt. Ist es eine Überschrift, ersetzt das Formular die Text- und Knopf-Bausteine bis zur nächsten Überschrift gleicher oder höherer Ebene (Text, Schaltfläche, Aufruf, Hinweis, Hinweisbox, Schritte, Checkliste); sonst ersetzt es den Baustein selbst und einen direkt folgenden Knopf mit `mailto:`. Alle anderen Bausteine bleiben, wie sie sind. Die Felder sind die der Vorlage «Anmeldung» (`src/website/vorlagen.ts`).
+- **Entwurf oder veröffentlicht:** Ohne `--veroeffentlichen` landet das Formular im Entwurf; die Verwaltung zeigt ihn zum Prüfen, veröffentlicht wird dort. Mit `--veroeffentlichen` entsteht eine neue Version. Hat die Seite unveröffentlichte Änderungen anderer, bricht er mit `--veroeffentlichen` ab und ändert nichts.
+- **Wiederholbar:** Hat die Seite schon ein Formular, legt er nichts neu an; mit `--veroeffentlichen` veröffentlicht er einen Entwurf mit Formular, den die Website noch nicht zeigt.
+- **Nichts geändert, mit Meldung und Code 1**, wenn der Pfad fehlt, der Abschnitt fehlt oder mehrfach vorkommt, im Abschnitt andere Bausteine stehen (zum Beispiel ein Bild) oder das neue Dokument ungültig wäre. Ohne Abschnitt hängt `--anhaengen` das Formular ans Ende der Seite.
+- **Abteilung:** die einzige mit einer Seite unter dem Pfad, sonst `--abteilung <id>`.
+- **Audit:** `seite_anmeldeformular` (ersetzte Arten von Bausteinen, nie Text) und beim Veröffentlichen `seite_veroeffentlicht`, Akteur «cli».
+- **Website:** Die neue Version erscheint nach dem nächsten Abgleich, spätestens nach 10 Minuten. Die Antworten stehen in der Verwaltung unter «Website, Formulare»; neue tragen den Stand «Neu».
+- Lokal: `npm run website:anmeldeformular -w apps/api -- --pfad /mitmachen/anmeldung`.
+
 ## Ausgehende Verbindungen der API
 
 Die API ruft ausserhalb des Servers nur diese Dienste auf; der Dienst `api` braucht dafür das Docker-Netz `default` (Weg nach aussen).

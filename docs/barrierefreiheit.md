@@ -2026,3 +2026,32 @@ Entscheid des Auftraggebers (#869), ändert 8.2 und 84.2: Nur Bestätigungen (Er
 Ursache: kein defekter Zeitgeber. Die Regel aus #761 liess Fehler und Warnungen 8 Sekunden stehen und hielt jeden Toast mit Aktion bis zum Schliessen; Bestätigungen gingen nach 4 Sekunden. Geprüft mit Tests (`test/seiten.test.ts`: Dauer je Art, Aktion und Textlänge; `test/admin-rueckgaengig.test.ts`: «Erledigt.» nach 5 Sekunden; `test/admin-toasts.test.ts`) und im Browser (Chromium, Playwright) mit dem echten Bauteil (`rahmen.js`, `rueckgaengig.js`, `toast.css`) auf einer Probeseite: «Gespeichert.» weg nach 5 Sekunden; Fehler und Warnung nach 15 Sekunden noch da, Fehler mit `role="alert"`; Esc schliesst beide; Zeiger 7 Sekunden darauf hält an, danach weg nach 5 Sekunden; Fokus per F6 hält an; ein Satz mit 127 Zeichen (9,6 Sekunden) steht nach 6 Sekunden noch; vier Meldungen: die Bestätigung geht, drei Fehler bleiben; mit «Bewegung reduzieren» keine Animation und kein Ausblenden; «Erledigt.» nach «Rückgängig» geht nach 5 Sekunden.
 
 **Nicht geprüft:** in der angemeldeten Verwaltung selbst (die lokale Entwicklungsdatenbank liess sich nicht migrieren), mit Bildschirmleser (NVDA, VoiceOver) und am Handy.
+
+## 103. Website und Verwaltung: Anmeldeformular und Stand der Antworten (#881)
+
+Die Seite «Mitmachen, Anmeldung» bekommt ein Anmeldeformular (Baustein «Formular», Vorlage «Anmeldung» oder Befehl `anmeldeformular`). In der Verwaltung trägt jede Antwort einen Stand (neu, in Bearbeitung, erledigt). Es gelten alle Punkte von Abschnitt 95; hier steht, was dazukommt. Module: `formular.js` und `formular.css` (Website), `website-formulare.js` und `auswahl.js` (Verwaltung), `website-felder-formular.js` (Editor).
+
+### Prüfpunkte
+
+- [ ] **103.1** Automatisch ausfüllen (WCAG 1.3.5): Vorname `given-name`, Nachname `family-name`, Geburtsdatum `bday`, Strasse `street-address`, Postleitzahl `postal-code`, Ort `address-level2`, E-Mail `email`, Telefon `tel`; Felder ohne Bezug zur ausfüllenden Person (Notfallkontakt: Name, Cevi-Name, Schulklasse) `off` bzw. ohne. Ändert 95.3: Text- und Datumsfelder können einen Wert tragen, den die Redaktion im Editor wählt («Browser schlägt vor»).
+- [ ] **103.2** Jedes Pflichtfeld meldet beim Absenden ohne Eingabe am Feld «Diese Angabe fehlt.» (Auswahl: «Wähle eine Antwort.»), mit `aria-invalid` und über `aria-describedby` nach dem Hilfetext; eine zu kurze Postleitzahl meldet «Schreibe mindestens 4 Zeichen.».
+- [ ] **103.3** Die Reihenfolge der Felder ist die Lesereihenfolge (Vorname, Nachname, Geburtsdatum, Strasse, Postleitzahl, Ort, E-Mail, Schulklasse, Notfallkontakt Name und Telefon, Cevi-Name, Knopf); Enter in einem Feld sendet.
+- [ ] **103.4** Nach dem Senden steht der Text «Danke für deine Anmeldung …» in der Statusregion und hat den Fokus; es gibt keine Bestätigung per E-Mail.
+- [ ] **103.5** 390 Pixel: kein waagrechtes Scrollen, Felder 52 Pixel hoch, Knopf 48 Pixel und über die ganze Breite.
+- [ ] **103.6** Verwaltung, Liste der Formulare: Neue Antworten stehen als Link «3 neue Antworten», der direkt zum Filter «Neu» führt; ein Formular ohne Titel heisst «Formular auf «Seite»».
+- [ ] **103.7** Verwaltung, Formular: Filter «Stand» (Alle, Neu, In Bearbeitung, Erledigt) mit sichtbarem Label; der Wert steht in der Adresse (`#website/formulare/<id>/<stand>`), Zurück und Neuladen behalten ihn. Leer nach dem Filter: «Keine Antworten mit dem Stand «…».» mit Link «Alle Antworten zeigen».
+- [ ] **103.8** Verwaltung, Antwort: Der Stand steht in der Zusammenfassung als Text («Neu» fett und dicker umrandet, nicht nur Farbe). «Stand ändern» ist eine Auswahl mit Label und Hilfe («Antwort vom …. Speichert sofort.»), speichert beim Wählen, bestätigt mit einem Toast und zählt «davon n neu» in der Statusregion nach; bei einem Fehler springt die Auswahl zurück und ein Toast nennt den Fehler. Der Fokus bleibt auf der Auswahl.
+- [ ] **103.9** Die Auswahl von `auswahl.js` hat ihren Namen aus dem Label auch dann, wenn sie vor dem Einhängen ins Dokument verbessert wurde (`aria-labelledby`), und übernimmt `aria-describedby`.
+
+### Stand der Prüfung (#881)
+
+Im Browser (Chromium, Playwright) gegen eine eigene, frische Datenbank mit erfundenen Daten (Demo-Abteilung), die Seite mit dem Befehl umgestellt und veröffentlicht, Website über einen statischen Server, Verwaltung mit einer Test-Sitzung der Abteilungsleitung (zweiter Faktor):
+
+- **103.1:** Im ausgelieferten HTML genau einmal `given-name`, `family-name`, `bday`, `street-address`, `postal-code`, `address-level2`, `email`, `tel`, dreimal `off` (Test `test/website-formular.test.ts`).
+- **103.2:** Absenden leer: Zusammenfassung «10 Angaben prüfen» trägt den Fokus, zehn Felder mit `aria-invalid` und Fehlertext (Cevi-Name optional, ohne Fehler); Postleitzahl «80»: nur dieses Feld meldet «Schreibe mindestens 4 Zeichen.».
+- **103.3, 103.4:** Tab führt von Vorname zu Nachname; die Folge der fokussierbaren Elemente stimmt; Enter in der Postleitzahl sendet, «Gesendet. Danke für deine Anmeldung …» hat den Fokus, das Formular ist weg.
+- **103.5:** 390 Pixel: Dokument 376 Pixel breit (kein Scrollen), Felder und Auswahl 52, Knopf 48 hoch und 344 breit.
+- **103.6 bis 103.8:** Liste mit «3 neue Antworten» und «Formular auf «Anmeldung»»; der Link öffnet den Filter «Neu» (Adresse mit `/neu`); Wechsel des Filters auf «Erledigt» per Tastatur zeigt nur die erledigte Antwort, die Adresse endet auf `/erledigt`. Stand per Tastatur (Enter, Pfeiltasten, Enter) auf «In Bearbeitung» und zurück auf «Neu»: Marke und «davon n neu» folgen, Toast «Stand auf «…» gesetzt.», der Fokus bleibt auf der Auswahl. 390 Pixel in der Verwaltung: kein waagrechtes Scrollen, Auswahl 52 Pixel hoch.
+- **Beim Prüfen gefunden und behoben:** Die Auswahlfelder aus `dom.js` («auswahl») hatten keinen Namen, weil `auswahl.js` sie vor dem Einhängen verbessert und `select.labels` dann leer ist (betraf jede solche Auswahl der Verwaltung); jetzt sucht `auswahl.js` das Label im selben Baum. Der erste Entwurf sperrte die Auswahl beim Speichern, wodurch der Fokus verloren ging; jetzt bleibt sie bedienbar und speichert nacheinander.
+
+**Nicht geprüft:** Bildschirmleser (NVDA, VoiceOver, TalkBack), Safari und Firefox, Zoom 200 % und 400 %, Kontrast nicht gemessen (Werte aus den Tokens), dunkles Schema der Website, der Editor-Auswahl «Browser schlägt vor» im Browser (nur Code), ob Browser `bday` in einem Textfeld mit TT.MM.JJJJ richtig ausfüllen, Leerzustand nach dem Filter nur im Code, Fehlerfall beim Speichern des Stands nur im Code.
