@@ -19,7 +19,7 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 // Zyklus mit schema.ts (das diese Datei weiterreicht), harmlos: Die Verweise stehen nur in Funktionen, die erst beim Aufbau der Fremdschlüssel laufen
-import { abteilung, kind, medium, user } from "./schema.js";
+import { abteilung, kind, medium, seite, user } from "./schema.js";
 
 // Lager (#364), Modul Lager-Backend. Alle späteren Lager-Tabellen hängen mit ON DELETE CASCADE an lager.id und liegen ab Migration 0061 in eigenen Dateien dieses Verzeichnisses
 // Das Lager gehört einer Abteilung; jede Lager-Route lädt es auf die Abteilung der Sitzung gefiltert (fremd = 404)
@@ -69,6 +69,10 @@ export const lager = pgTable(
     logoMediumId: uuid("logo_medium_id").references(() => medium.id, {
       onDelete: "set null",
     }),
+    // Seite des Lagers auf der Website (#838): entsteht nur über «Seite anlegen» (POST /admin/lager/{id}/seite); wird die Seite gelöscht, wird die Verknüpfung leer
+    seiteId: uuid("seite_id").references(() => seite.id, {
+      onDelete: "set null",
+    }),
     // Folgenummer des Lagers (#366): Stand der letzten Änderung. Wer schreibt, zählt sie unter der Zeilensperre dieser Zeile hoch (lager/sync.ts)
     seq: bigint("seq", { mode: "number" }).notNull().default(0),
     // Älteste Folgenummer, ab der der Änderungsfeed lückenlos ist; ein Client mit seit < seq_min - 1 bekommt 410 (der Aufräumjob hebt sie an)
@@ -79,6 +83,8 @@ export const lager = pgTable(
   },
   (t) => [
     index("lager_abteilung_id_idx").on(t.abteilungId, t.von),
+    // Je Seite höchstens ein Lager; dient auch dem Nachschlagen im Editor und dem Leeren beim Löschen der Seite
+    uniqueIndex("lager_seite_eindeutig").on(t.seiteId),
     check("lager_seq_check", sql`${t.seq} >= 0 and ${t.seqMin} >= 1`),
     // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
     check(

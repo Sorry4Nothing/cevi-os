@@ -8469,6 +8469,8 @@ paths:
       description: |
         Struktur und Sichtbarkeit einer Seite, ohne Inhalt. `pfad` ist die volle Adresse über alle Elternseiten.
 
+        Nur hier (nicht in der Liste): `anlassId` und `lagerId` nennen den Anlass und das Lager, zu dem die Seite gehört (#838), damit der Editor dorthin führt. Sie sind `null`, wenn es keinen gibt oder die Person ihn in der Verwaltung nicht öffnen darf: den Anlass mit `anlass.verwalten`, `anlass.anmeldungen_sehen` oder `anlass.anmeldungen_exportieren` für diesen Anlass, das Lager mit `lager.verwalten` (je mit zweitem Faktor, wo das Recht ihn verlangt).
+
         Reihenfolge der Prüfungen: Pfad (400), Seite in der eigenen Abteilung (404, auch für Seiten anderer Abteilungen), dann das Recht an dieser Seite (403): Abteilungsleitung, Plattformrecht `seiten.bearbeiten`, Stufenleitung der Gruppe der Seite oder ein Recht auf genau diese Seite.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger ID. 403 ohne Recht an dieser Seite. 404 für unbekannte Seiten.
@@ -9215,6 +9217,54 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/LagerKonflikt409"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+        "429":
+          $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/admin/lager/{id}/seite:
+    post:
+      operationId: legeAdminLagerSeiteAn
+      summary: Seite des Lagers auf der Website anlegen
+      description: |
+        Legt die Seite des Lagers an (#838). Sie entsteht nie automatisch, nur über diese Route («Seite anlegen» in den Angaben des Lagers). Braucht `lager.verwalten` und `seiten.anlegen_loeschen` (Abteilungsleitung oder eine Rolle mit beiden Rechten, jeweils mit zweitem Faktor); kein eigenes Recht. Die Vorlage wählt der Server, darum ohne `vorlagen.nutzen` (wie bei der Seite eines Anlasses).
+
+        Die Seite entsteht in einer Transaktion aus der Vorlage «Anlass» als **Entwurf** (nichts ist veröffentlicht), auf der obersten Ebene, mit dem Titel des Lagers (höchstens 150 Zeichen) und einer daraus abgeleiteten freien Adresse, sichtbar nur für Angemeldete (fail-closed). Das Lager hält die Verknüpfung (`seiteId` in `GET /api/v1/admin/lager/{id}`); wird die Seite gelöscht, wird sie leer, und die Route legt wieder eine neue an. Auch ein abgeschlossenes oder archiviertes Lager bekommt eine Seite (Rückblick); die Daten des Lagers ändern sich nicht.
+
+        Idempotent: Hat das Lager schon eine Seite, antwortet die Route mit 200 und dieser Seite und legt keine zweite an; zwei Anfragen zugleich laufen nacheinander. Audit-Log: `seite_angelegt` (Vorlage `anlass`) und `lager_seite_angelegt` mit der Kennung der Seite, nie Titel. Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), `lager.verwalten` (403), `seiten.anlegen_loeschen` (403), zweiter Faktor (403 `ZWEITER_FAKTOR_FEHLT`).
+
+        Statuscodes: 201, wenn die Seite neu ist. 200, wenn das Lager schon eine hat. 400 bei ungültiger ID. 403 ohne eines der Rechte oder ohne zweiten Faktor. 404, wenn das Lager unbekannt ist oder zu einer anderen Abteilung gehört.
+      tags:
+        - Verwaltung
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Lagers (UUID).
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Das Lager hat schon eine Seite; es entsteht keine zweite.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLagerSeite"
+        "201":
+          description: Die Seite ist als Entwurf angelegt und mit dem Lager verknüpft.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminLagerSeite"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -31297,6 +31347,18 @@ components:
           type: string
           format: date-time
           description: Letzte Änderung an Struktur oder Entwurf der Seite.
+        anlassId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Nur in `GET /api/v1/redaktion/seiten/{id}` (#838). Der Anlass, zu dem die Seite gehört, wenn die Person ihn öffnen darf; sonst `null`.
+        lagerId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Nur in `GET /api/v1/redaktion/seiten/{id}` (#838). Das Lager, zu dem die Seite gehört, wenn die Person `lager.verwalten` hat; sonst `null`.
     RedaktionSeitenListe:
       type: object
       required:
@@ -31504,6 +31566,21 @@ components:
             - string
             - "null"
           format: uuid
+        seiteId:
+          type:
+            - string
+            - "null"
+          format: uuid
+          description: Nur in `GET /api/v1/admin/lager/{id}` (#838). Die Seite des Lagers auf der Website; `null`, solange keine angelegt ist oder nachdem sie gelöscht wurde.
+    AdminLagerSeite:
+      type: object
+      required:
+        - seiteId
+      properties:
+        seiteId:
+          type: string
+          format: uuid
+          description: Die Seite des Lagers; im Editor unter `#website/seiten/{seiteId}`.
     LagerListeneintrag:
       allOf:
         - $ref: "#/components/schemas/Lager"

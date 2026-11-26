@@ -955,6 +955,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "farbe",
       "anwesenheit_frist",
       "logo_medium_id",
+      "seite_id",
       "seq",
       "seq_min",
       "erstellt_am",

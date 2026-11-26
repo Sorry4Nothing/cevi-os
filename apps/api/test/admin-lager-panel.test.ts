@@ -62,6 +62,22 @@ describe("Panel der Abteilungsleitung: Lager", () => {
     expect(methoden(alle)).toContain("DELETE");
   });
 
+  // Seite des Lagers (#838): Anlegen nur mit dem Recht und nur ohne Seite, sonst der Link in den Editor; der Editor führt nur zurück, wenn die API den Bezug nennt
+  test("Seite des Lagers: «Seite anlegen» oder «Zur Seite», im Editor «Zum Lager» und «Zum Anlass»", () => {
+    const lager = lies("lager-detail.js");
+    expect(lager).toMatch(
+      /anfrage\("POST", `\$\{BASIS\}\/\$\{lager\.id\}\/seite`\)/,
+    );
+    expect(lager).toContain('darf("seiten.anlegen_loeschen")');
+    expect(lager).toContain("`#website/seiten/${lager.seiteId}`");
+    expect(lager).toContain('setAttribute("aria-busy", "true")');
+    const editor = lies("website-editor.js");
+    expect(editor).toMatch(/seite\.anlassId &&\s+el\(\s+"a"/);
+    expect(editor).toContain("`#anlaesse/${seite.anlassId}`");
+    expect(editor).toMatch(/seite\.lagerId &&\s+el\(\s+"a"/);
+    expect(editor).toContain("`#lager/lager/${seite.lagerId}/angaben`");
+  });
+
   test("kein Polling und keine Inline-Stile (strenge CSP)", () => {
     expect(alle).not.toMatch(/setInterval|\.style\b|setAttribute\("style"/);
     // Farben nur über Variablen: kein Hex-Wert in einer Deklaration

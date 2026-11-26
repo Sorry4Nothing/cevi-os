@@ -29,6 +29,8 @@ import {
 import { LAGER_ROLLEN, LAGER_STATUS } from "../../lager/rechte-katalog.js";
 import { aktivesKonto, type Person } from "../../rechte.js";
 import { verlange } from "../../rechtemodell/darf.js";
+import { erzeugeSeiteAusVorlage, sperre } from "../../website/automatik.js";
+import { meldeWebsiteEreignis } from "../../website/ereignisse.js";
 
 // Verwaltungsrouten des Lagers (#364). Nur die Abteilungsleitung legt Lager an, ändert sie und setzt die Mitglieder; die Lager-Rollen verleihen hier nichts. Reihenfolge wie bei den Tags: Pfad (400), Lager der eigenen Abteilung (404), Abteilungsleitung (403), dann der Zustand (409)
 const datum = z.iso.date();
@@ -245,7 +247,51 @@ export function erstelleAdminLagerRouten({
     .get("/:id", eingabe("param", pfad()), async (c) => {
       const person = c.get("person");
       const ziel = await ladeLager(db, person, c.req.valid("param").id);
-      return c.json(lagerAnsicht(ziel));
+      // Die Seite des Lagers (#838) nur hier: Die Apps lesen lagerAnsicht und brauchen sie nicht
+      return c.json({ ...lagerAnsicht(ziel), seiteId: ziel.seiteId });
+    })
+    .post("/:id/seite", eingabe("param", pfad()), async (c) => {
+      // Seite des Lagers auf der Website anlegen (#838): nie automatisch, nur über diesen Knopf. Wer das Lager verwaltet und Seiten anlegen darf; die Vorlage wählt der Server (wie bei der Anlassseite, darum ohne «vorlagen.nutzen»).
+      // Idempotent: Hat das Lager schon eine Seite, antwortet die Route mit ihr (200) und legt keine zweite an. Die Seite startet als Entwurf und nur für Angemeldete sichtbar (fail-closed, wie website/automatik.ts)
+      const person = c.get("person");
+      const { id } = c.req.valid("param");
+      const ergebnis = await db.transaction(async (tx) => {
+        // Erst die Sperre der Seiten, dann die Zeile des Lagers: dieselbe Reihenfolge wie beim Löschen einer Seite (das die Verknüpfung leert), sonst droht ein Deadlock. Zwei Klicks zugleich laufen so nacheinander
+        await sperre(tx, person.abteilungId);
+        const ziel = await ladeLager(tx, person, id, true);
+        await verlange(tx, person, "seiten.anlegen_loeschen");
+        if (ziel.seiteId) return { seiteId: ziel.seiteId, neu: false };
+        const seite = await erzeugeSeiteAusVorlage(tx, {
+          abteilungId: person.abteilungId,
+          // Ein Lager ist ein mehrtägiger Anlass: «Worum geht es?», «Wann und wo?» und die Termine passen; alles bleibt frei änderbar
+          vorlage: "anlass",
+          titel: ziel.titel.slice(0, 150),
+          sichtbarkeit: { art: "angemeldet" },
+          autorId: person.id,
+        });
+        await tx
+          .update(lager)
+          .set({ seiteId: seite.id })
+          .where(eq(lager.id, id));
+        // Nur Kennungen, nie der Titel
+        await tx.insert(auditLog).values({
+          abteilungId: person.abteilungId,
+          akteurId: person.id,
+          aktion: "lager_seite_angelegt",
+          zielTyp: "lager",
+          zielId: id,
+          details: { seiteId: seite.id },
+        });
+        return { seiteId: seite.id, neu: true };
+      });
+      if (ergebnis.neu) {
+        meldeWebsiteEreignis({
+          art: "seite_geaendert",
+          abteilungId: person.abteilungId,
+          seiteId: ergebnis.seiteId,
+        });
+      }
+      return c.json({ seiteId: ergebnis.seiteId }, ergebnis.neu ? 201 : 200);
     })
     .patch(
       "/:id",

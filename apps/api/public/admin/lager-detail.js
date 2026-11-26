@@ -146,6 +146,57 @@ async function vorlageDialog(lager, ctx, neu) {
   });
 }
 
+// Seite des Lagers auf der Website (#838): Sie entsteht nie von selbst, nur über «Seite anlegen». Ist eine verknüpft, führt «Zur Seite» in den Editor. Ohne Recht auf die Website bleibt nur der Hinweis; ohne Recht zum Anlegen fehlt der Knopf (die API würde ablehnen)
+function seiteKarte(lager, ctx) {
+  const website = ctx.zugang?.bereiche?.includes("website") === true;
+  const anlegen =
+    website && ctx.zugang?.darf("seiten.anlegen_loeschen") === true;
+  if (!lager.seiteId && !anlegen) return null;
+  const knopf = knopfMit("Seite anlegen", {
+    symbol: "plus",
+    onclick: async () => {
+      if (knopf.getAttribute("aria-busy") === "true") return;
+      knopf.setAttribute("aria-busy", "true");
+      knopf.setAttribute("aria-disabled", "true");
+      try {
+        const r = await anfrage("POST", `${BASIS}/${lager.id}/seite`);
+        ctx.melde(
+          "Die Seite ist angelegt. Sie ist ein Entwurf und nur für Angemeldete sichtbar.",
+        );
+        location.hash = `#website/seiten/${r.seiteId}`;
+      } catch (f) {
+        knopf.removeAttribute("aria-busy");
+        knopf.removeAttribute("aria-disabled");
+        ctx.melde(`Seite nicht angelegt. ${meldung(f)}`, "fehler");
+      }
+    },
+  });
+  return el(
+    "section",
+    { class: "flaeche" },
+    el("h2", {}, "Website"),
+    el(
+      "p",
+      { class: "leise" },
+      lager.seiteId
+        ? "Dieses Lager hat eine Seite auf der Website."
+        : "Dieses Lager hat noch keine Seite auf der Website. Sie entsteht als Entwurf und ist erst sichtbar, wenn du sie veröffentlichst.",
+    ),
+    (lager.seiteId ? website : anlegen) &&
+      el(
+        "div",
+        { class: "lg-fuss" },
+        lager.seiteId
+          ? zahlKnopf(
+              "Zur Seite",
+              `#website/seiten/${lager.seiteId}`,
+              "website",
+            )
+          : knopf,
+      ),
+  );
+}
+
 const zahlKnopf = (text, href, symbolName) => {
   const a = el("a", { class: "knopf", href }, text);
   if (symbolName) a.prepend(symbol(symbolName));
@@ -227,6 +278,7 @@ function zeichneDetail(bereich, ctx, lager, mitglieder, neuModul) {
             }),
           ),
       ),
+      seiteKarte(lager, ctx),
       !ohneMitglieder &&
         el(
           "section",

@@ -229,6 +229,24 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
           symbol("zurueck"),
           " Seiten",
         ),
+        // Gehört die Seite zu einem Anlass oder Lager (#838), führt ein Link direkt dorthin; die API nennt ihn nur, wenn die Person ihn öffnen darf
+        seite.anlassId &&
+          el(
+            "a",
+            { class: "klein", href: `#anlaesse/${seite.anlassId}` },
+            symbol("termine"),
+            " Zum Anlass",
+          ),
+        seite.lagerId &&
+          el(
+            "a",
+            {
+              class: "klein",
+              href: `#lager/lager/${seite.lagerId}/angaben`,
+            },
+            symbol("haken"),
+            " Zum Lager",
+          ),
       ),
     );
     zeileEl.parentElement.append(stand);

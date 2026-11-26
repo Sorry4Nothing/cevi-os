@@ -15,6 +15,9 @@
 }
 
 .ws-zurueck {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 24px;
   margin-bottom: 8px;
 }
 
