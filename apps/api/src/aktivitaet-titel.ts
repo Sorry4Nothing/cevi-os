@@ -469,6 +469,12 @@ export const AKTIVITAET_KATALOG: Record<string, AktivitaetKatalogEintrag> = {
     aktion: "geändert",
     gruppe: "geaendert",
   },
+  "PATCH /api/v1/admin/formulare/:p/antworten/:p": {
+    titel: "Stand einer Antwort setzen",
+    objekt: "Stand einer Antwort",
+    aktion: "gesetzt",
+    gruppe: "geaendert",
+  },
   "PATCH /api/v1/admin/kinder/:p": {
     titel: "Kind ändern",
     objekt: "Kind",

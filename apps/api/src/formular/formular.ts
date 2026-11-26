@@ -196,6 +196,8 @@ export type FormularZeile = {
   schliesstAm: string | null;
   aufbewahrenTage: number;
   anzahl: number;
+  // Antworten mit dem Stand «neu» (#881): noch niemand hat sie angeschaut
+  neu: number;
   letzteAm: Date | null;
 };
 
@@ -221,6 +223,7 @@ export async function listeFormulare(
       seiteId: sql<string>`(array_agg(${formularAntwort.seiteId} order by ${formularAntwort.id} desc))[1]`,
       versionId: sql<string>`(array_agg(${formularAntwort.versionId} order by ${formularAntwort.id} desc))[1]`,
       anzahl: sql<number>`count(*)::int`,
+      neu: sql<number>`(count(*) filter (where ${formularAntwort.stand} = 'neu'))::int`,
       letzteAm: sql<string>`max(${formularAntwort.erstelltAm})`,
     })
     .from(formularAntwort)
@@ -242,6 +245,7 @@ export async function listeFormulare(
       schliesstAm: b.data.daten.schliesstAm ?? null,
       aufbewahrenTage: b.data.daten.aufbewahrenTage,
       anzahl: z?.anzahl ?? 0,
+      neu: z?.neu ?? 0,
       letzteAm: z?.letzteAm ? new Date(z.letzteAm) : null,
     });
   }
@@ -274,6 +278,7 @@ export async function listeFormulare(
         schliesstAm: b?.daten.schliesstAm ?? null,
         aufbewahrenTage: b?.daten.aufbewahrenTage ?? 180,
         anzahl: z.anzahl,
+        neu: z.neu,
         letzteAm: new Date(z.letzteAm),
       });
     }

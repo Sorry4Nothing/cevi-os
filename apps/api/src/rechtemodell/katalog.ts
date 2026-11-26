@@ -350,6 +350,14 @@ export const RECHTE_KATALOG = {
     "erweitert",
     ALLE,
   ),
+  // Anmeldungen und andere Antworten nachverfolgen (#881)
+  "formular.antworten_bearbeiten": v(
+    "website",
+    "Antworten auf Formulare bearbeiten",
+    "Den Stand einer Antwort setzen: neu, in Bearbeitung oder erledigt. Wer das kann, sieht die Antworten nur mit dem Recht «Antworten auf Formulare ansehen».",
+    "erweitert",
+    ALLE,
+  ),
   "formular.antworten_exportieren": v(
     "website",
     "Antworten auf Formulare exportieren",

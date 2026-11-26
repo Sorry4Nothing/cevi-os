@@ -24,6 +24,7 @@
     "entwickler:entziehen": "tsx --env-file-if-exists=.env src/cli/entwickler.ts entziehen",
     "sitzungen:beenden": "tsx --env-file-if-exists=.env src/cli/sitzungen-beenden.ts",
     "zweiter-faktor:zuruecksetzen": "tsx --env-file-if-exists=.env src/cli/zweiter-faktor-zuruecksetzen.ts",
+    "website:anmeldeformular": "tsx --env-file-if-exists=.env src/cli/anmeldeformular.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run"
