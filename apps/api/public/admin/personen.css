@@ -552,7 +552,6 @@ a.pe-bearbeiten:hover {
   border-radius: var(--r-sm);
 }
 
-
 .st-leitung {
   display: flex;
   flex-direction: column;
@@ -1209,7 +1208,6 @@ a.pe-bearbeiten:hover {
   border-radius: 0.5rem;
   object-fit: contain;
 }
-
 
 /* Karten (Muster «profile-card»: Bild gross, Name, Kennzeichen unter einer Linie) */
 .mg-raster {
