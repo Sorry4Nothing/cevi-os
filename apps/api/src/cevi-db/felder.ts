@@ -1,3 +1,5 @@
+import type { Geschlecht } from "../geschlecht.js";
+
 // Welche Angaben der Cevi-Datenbank eine Anmeldung vorausfüllen darf (#691). Die Liste ist fest und kurz: nur, was eine Anmeldung wirklich fragt. Nie Gesundheit, nie Rollen, nie Zusatzfelder der Cevi-Datenbank, kein Name (den kennt das Konto).
 export const CEVI_QUELLEN = [
   "geburtsdatum",
@@ -30,6 +32,8 @@ export type CeviPerson = {
   strasse: string | null;
   plz: string | null;
   ort: string | null;
+  // Nie eine Quelle der Anmeldung: nur für das Konto einer zugeordneten Person (#843, cevi-db/geschlecht.ts)
+  geschlecht: Geschlecht | null;
 };
 
 const datumKurz = (iso: string) => {
