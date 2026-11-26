@@ -136,7 +136,7 @@ export const KATEGORIEN = {
   formulare: {
     titel: "Antworten auf Formulare der Website",
     zweck:
-      "Eine Seite der Website holt mit einem Formular Angaben ein (Umfrage, Rückmeldung, Bedarfsabfrage). Die Seite nennt über dem Knopf, wozu die Angaben dienen und wer sie sieht. Gespeichert sind die Antworten zu den Feldern, der Zeitpunkt und die Version der Seite. Wer angemeldet ist, sendet die Antwort mit dem eigenen Konto; ohne Anmeldung bleibt sie anonym, und die IP-Adresse wird nicht gespeichert (der Schutz vor Missbrauch zählt nur im Arbeitsspeicher). Die Antworten gehen nie per E-Mail oder an einen Dienst von Dritten: Nur wer das Recht dazu hat, sieht, exportiert und löscht sie in der Verwaltung. Formulare dürfen nicht nach Gesundheit fragen; eine Sperrliste prüft die Texte beim Speichern, und Dateien lassen sich nicht hochladen.",
+      "Eine Seite der Website holt mit einem Formular Angaben ein (Umfrage, Rückmeldung, Bedarfsabfrage). Die Seite nennt über dem Knopf, wozu die Angaben dienen und wer sie sieht. Gespeichert sind die Antworten zu den Feldern, der Zeitpunkt, die Version der Seite und der Stand der Bearbeitung (neu, in Bearbeitung, erledigt). Ein Anmeldeformular fragt nach Name, Geburtsdatum, Adresse, E-Mail-Adresse, Schulklasse, einer Person für den Notfall mit Telefonnummer und dem Cevi-Namen; die Angaben gehören oft einem Kind. Wer angemeldet ist, sendet die Antwort mit dem eigenen Konto; ohne Anmeldung bleibt sie anonym, und die IP-Adresse wird nicht gespeichert (der Schutz vor Missbrauch zählt nur im Arbeitsspeicher). Die Antworten gehen nie per E-Mail oder an einen Dienst von Dritten: Nur wer das Recht dazu hat, sieht, exportiert und löscht sie in der Verwaltung. Formulare dürfen nicht nach Gesundheit fragen; eine Sperrliste prüft die Texte beim Speichern, und Dateien lassen sich nicht hochladen.",
     frist:
       "Je Formular 7 bis 730 Tage nach der Antwort, vorgegeben 180; danach löscht ein täglicher Lauf sie. Mit dem Konto verschwindet nur die Zuordnung, die Antwort bleibt anonym. Wer das Recht hat, löscht einzelne Antworten oder alle eines Formulars jederzeit. Auf Anfrage löscht die Leitung Daten.",
     apple: ["User Content: Other User Content"],
@@ -784,6 +784,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "antworten",
       "erstellt_am",
       "loeschen_am",
+      "stand",
     ],
   },
   laden_bestellposition: {

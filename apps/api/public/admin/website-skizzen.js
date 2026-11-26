@@ -39,6 +39,12 @@ const SKIZZEN = {
     ...zeilen(6, 20, 4, 84),
     ...zeilen(6, 46, 3, 84),
   ],
+  // Überschrift und Formular: Felder untereinander, Knopf
+  anmeldung: () => [
+    flaeche(6, 6, 54, 6, "a"),
+    ...[18, 29, 40].map((y) => flaeche(6, y, 84, 7, "l")),
+    flaeche(6, 52, 30, 8, "a"),
+  ],
   leer: () => [
     form("rect", {
       x: 6,

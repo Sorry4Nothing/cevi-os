@@ -75,6 +75,22 @@ const EIGEN = [
   "optionen",
   "minAuswahl",
   "maxAuswahl",
+  "autocomplete",
+];
+
+// Automatisch ausfüllen (wie AUTOCOMPLETE in src/website/bausteine-formular.ts): nur für Angaben über die Person, die ausfüllt
+const AUTO_TEXT = [
+  ["", "Nicht vorschlagen"],
+  ["name", "Ganzer Name"],
+  ["given-name", "Vorname"],
+  ["family-name", "Nachname"],
+  ["street-address", "Strasse und Nummer"],
+  ["postal-code", "Postleitzahl"],
+  ["address-level2", "Ort"],
+];
+const AUTO_DATUM = [
+  ["", "Nicht vorschlagen"],
+  ["bday", "Geburtsdatum"],
 ];
 
 function neuesFeld() {
@@ -176,6 +192,33 @@ function typWahl(k, b, f, i) {
   );
 }
 
+function autoWahl(k, b, f, optionen) {
+  const id = neueId("fauto");
+  const hid = `${id}-h`;
+  const sel = el(
+    "select",
+    { id, class: "ws-select", "aria-describedby": hid },
+    optionen.map(([w, text]) => el("option", { value: w }, text)),
+  );
+  sel.value = f.autocomplete ?? "";
+  sel.addEventListener("change", () => {
+    if (sel.value === "") delete f.autocomplete;
+    else f.autocomplete = sel.value;
+    k.aendere(b);
+  });
+  return el(
+    "div",
+    { class: "feld" },
+    el("label", { for: id }, "Browser schlägt vor (optional)"),
+    el(
+      "p",
+      { class: "hilfe", id: hid },
+      "Der Browser füllt das Feld mit den gespeicherten Angaben der Person, die ausfüllt. Nur wählen, wenn das Feld nach ihr selbst fragt.",
+    ),
+    sel,
+  );
+}
+
 function feldZeile(k, b, reg, f, pfad) {
   const i = Number(pfad.split(".").at(-1));
   const teile = [
@@ -246,6 +289,8 @@ function feldZeile(k, b, reg, f, pfad) {
       ),
     );
   }
+  if (f.typ === "text") teile.push(autoWahl(k, b, f, AUTO_TEXT));
+  if (f.typ === "datum") teile.push(autoWahl(k, b, f, AUTO_DATUM));
   if (f.typ === "zahl") {
     teile.push(
       haken(k, b, f, "ganzzahl", "Nur ganze Zahlen"),

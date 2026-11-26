@@ -9,7 +9,7 @@ Cevi OS ist die App der Abteilung. Mit ihr sehen Eltern und Leitende die Program
 ### 11.1 Grundsätze
 
 - Cevi OS bearbeitet nur, was die Abteilung für Programme, Anmeldungen, den Chat, Lager und die Website braucht.
-- Ein Kind hat nur dann ein eigenes Konto, wenn die Abteilung es erlaubt und die Leitung es für dieses Kind erstellt, nachdem sie die Eltern informiert hat. Ohne Konto geben Kinder nichts ein.
+- Ein Kind hat nur dann ein eigenes Konto, wenn die Abteilung es erlaubt und die Leitung es für dieses Kind erstellt, nachdem sie die Eltern informiert hat. Ohne Konto geben Kinder nur dann etwas ein, wenn sie selbst ein Formular der Website absenden, zum Beispiel die Anmeldung.
 - Die Konten haben keine E-Mail-Adresse. Nur im Adressbuch eines Lagers kann die Lagerleitung die E-Mail-Adresse einer Person eintragen, die selbst kein Konto hat.
 - Cevi OS verschickt keine E-Mails. Es gibt kein Tracking, keine Analyse und keine Werbung.
 - Bilder gibt es nur als freiwilliges Profilbild von Personen und als Bilder, die Personen mit Zugang zur Website als Medien hochladen.
@@ -104,6 +104,12 @@ Zu jeder Kategorie stehen die Daten, der Zweck und die Aufbewahrung.
 - **Daten:** Wer bestellt hat, die bestellten Artikel mit Variante, Menge und Preis, die gewählte Übergabe, die Summe, der Stand und die Zeitpunkte der Bestellung.
 - **Zweck:** Angemeldete Personen bestellen im Lädeli der Abteilung Artikel, zum Beispiel Kleider und Abzeichen. Gespeichert ist, wer bestellt hat, was (Artikel, Variante, Menge, Preis zum Zeitpunkt der Bestellung), die gewählte Übergabe, die Summe und der Stand. Die Abteilungsleitung sieht die Bestellungen mit dem Namen der Person und setzt den Stand; die bestellende Person sieht ihre eigenen und kann eine offene stornieren. Cevi OS wickelt keine Zahlung ab und speichert keine Zahlungsdaten und keine Lieferadresse: Bezahlt wird bei der Übergabe. Der Warenkorb entsteht erst nach der Anmeldung und liegt bis zum Absenden nur im Browser der Person.
 - **Aufbewahrung:** 180 Tage nachdem die Bestellung übergeben oder storniert ist; eine Bestellung, die nie abgeschlossen wurde, ein Jahr nach der letzten Änderung. Mit dem Konto der bestellenden Person früher. Auf Anfrage löscht die Leitung Daten.
+
+#### Antworten auf Formulare der Website
+
+- **Daten:** Die Antworten zu den Feldern eines Formulars, der Zeitpunkt, die Version der Seite und der Stand der Bearbeitung (neu, in Bearbeitung, erledigt). Wer angemeldet ist, sendet mit dem eigenen Konto. Das Anmeldeformular fragt nach Vorname, Nachname, Geburtsdatum, Adresse, E-Mail-Adresse, aktueller Schulklasse, einer Person für den Notfall mit Telefonnummer und, freiwillig, dem Cevi-Namen; diese Angaben gehören oft einem Kind.
+- **Zweck:** Eine Seite der Website holt Angaben ein, zum Beispiel eine Anmeldung für die Abteilung, eine Umfrage oder eine Rückmeldung. Über dem Knopf steht, wozu die Angaben dienen und wer sie sieht. Die Antworten sehen nur Personen mit dem Recht dazu, in der Regel die Abteilungsleitung; sie setzen den Stand, laden die Antworten als CSV-Datei und löschen sie. Ohne Anmeldung bleibt eine Antwort ohne Konto, und die IP-Adresse wird nicht gespeichert. Formulare dürfen nicht nach Gesundheit fragen, und Dateien lassen sich nicht hochladen. Die Antworten gehen nie per E-Mail und an keinen Dienst von Dritten; nach dem Absenden zeigt die Seite eine Bestätigung.
+- **Aufbewahrung:** Je Formular 7 bis 730 Tage nach der Antwort, vorgegeben und beim Anmeldeformular 180 Tage; danach löscht ein täglicher Lauf sie. Wer das Recht hat, löscht einzelne Antworten oder alle eines Formulars jederzeit. Mit dem Konto verschwindet nur die Zuordnung, die Antwort bleibt ohne Konto. Auf Anfrage löscht die Leitung Daten.
 
 #### Chats
 
@@ -281,7 +287,7 @@ Zu jeder Kategorie stehen die Daten, der Zweck und die Aufbewahrung.
 
 ### 11.3 Woher die Daten stammen
 
-- Die Daten der Kinder stammen von den Eltern und von der Abteilung. Die Leitung trägt sie ein. Die Kinder selbst geben nichts ein; ein Kind mit eigenem Konto kann nur die Programme seiner Stufe beantworten und, wenn die Abteilung es erlaubt, im Gruppenchat schreiben.
+- Die Daten der Kinder stammen von den Eltern und von der Abteilung, bei einer Anmeldung über das Formular der Website von der Person, die es absendet. Die Leitung trägt sie ein. Die Kinder selbst geben nichts ein; ein Kind mit eigenem Konto kann nur die Programme seiner Stufe beantworten und, wenn die Abteilung es erlaubt, im Gruppenchat schreiben.
 - Angaben wie Geburtsdatum, Telefon, Adresse und E-Mail können aus der Cevi-Datenbank stammen, wo du sie selbst angegeben hast. Die Anmeldung füllt sie nur vor, wenn der Anlass sie fragt, und du kannst sie vor dem Absenden ändern oder löschen.
 - Das Geschlecht einer Person mit Konto kann aus der Cevi-Datenbank stammen, wenn die Person dort eindeutig zugeordnet ist. Eine Angabe in der Verwaltung hat immer Vorrang. Von Kindern übernimmt Cevi OS es nie.
 - Die Konten legt die Leitung an. Name und Benutzername stammen von ihr, das Startpasswort ebenfalls, du wählst danach dein eigenes.
@@ -333,6 +339,7 @@ Zeitliche Regeln gibt es für diese Daten:
 - Anmeldungen zu Anlässen: 180 Tage nach dem Ende des Anlasses.
 - Raumanfragen und Buchungen: 180 Tage nach dem Ende der angefragten Zeit.
 - Bestellungen im Lädeli: 180 Tage nach der Übergabe oder dem Stornieren; nie abgeschlossene ein Jahr nach der letzten Änderung.
+- Antworten auf Formulare der Website, auch Anmeldungen: die Frist des Formulars (7 bis 730 Tage, vorgegeben 180) nach der Antwort.
 - Terminvorschläge: keine automatische Frist; sie bleiben, bis die Leitung sie löscht oder die vorschlagende Person einen offenen zurückzieht.
 - Lager: Teilnehmende samt Einteilung und Abzählen sechs Monate nach dem Ende des Lagers; Kontakte im Adressbuch 180 Tage nach dem Ende des Lagers (ausser sie sind zum Behalten markiert); gelesene Benachrichtigungen 90 Tage; das Verzeichnis der Änderungen und die Ergebnisse gesammelter Änderungen 30 Tage.
 - Wetter, Aushänge und Suche speichern nichts über Personen; ein Aushang als PDF wird bei jedem Abruf neu erzeugt.
@@ -348,7 +355,7 @@ Zeitliche Regeln gibt es für diese Daten:
 
 ### 11.8 Die öffentliche Website
 
-Die öffentlichen Seiten der Abteilung sind fertige Dateien; ein Besuch fragt die Datenbank nicht ab. Die Website nutzt kein Tracking, keine Analyse und keine Werbung. Sie setzt keine Cookies und lädt keine Schriften, Skripte, Karten oder Videos von anderen Servern; ein Video erscheint nur als Link. Nur wer sich für geschützte Inhalte anmeldet, bekommt das Cookie der Sitzung (siehe Abschnitt 8.2.2), und nur dafür. Wie bei jeder Anfrage hält der Server die IP-Adresse in seinen Logs, 14 Tage lang. Auf den Seiten stehen von Leitenden höchstens der Cevi-Name und die Funktion, nie Telefon, E-Mail oder Foto.
+Die öffentlichen Seiten der Abteilung sind fertige Dateien; ein Besuch fragt die Datenbank nicht ab. Nur wer ein Formular absendet, schickt die Antwort an den Server; er zählt Versuche zum Schutz vor Missbrauch kurz im Arbeitsspeicher und speichert die IP-Adresse nicht. Die Website nutzt kein Tracking, keine Analyse und keine Werbung. Sie setzt keine Cookies und lädt keine Schriften, Skripte, Karten oder Videos von anderen Servern; ein Video erscheint nur als Link. Nur wer sich für geschützte Inhalte anmeldet, bekommt das Cookie der Sitzung (siehe Abschnitt 8.2.2), und nur dafür. Wie bei jeder Anfrage hält der Server die IP-Adresse in seinen Logs, 14 Tage lang. Auf den Seiten stehen von Leitenden höchstens der Cevi-Name und die Funktion, nie Telefon, E-Mail oder Foto.
 
 Der Datenplan der Abteilung ist öffentlich: Die Seite «Termine» zeigt ohne Anmeldung Titel, Datum, Zeit, Treffpunkt und Stufe der Programme und der öffentlichen Anlässe. Namen von Kindern, Eltern oder Leitenden, Anmeldungen und Teilnahmen stehen dort nie. Termine, die nur für Leitende gedacht sind, erscheinen nicht.
 `;

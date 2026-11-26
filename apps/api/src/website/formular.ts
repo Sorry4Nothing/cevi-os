@@ -93,7 +93,7 @@ function feldKnoten(bausteinId: string, f: Feld): HtmlKnoten {
         el("input", {
           ...gemeinsam,
           type: "text",
-          autocomplete: "off",
+          autocomplete: f.autocomplete ?? "off",
           maxlength: String(f.maxLaenge ?? STANDARD_TEXT_LAENGE),
           ...(f.minLaenge && { minlength: String(f.minLaenge) }),
         }),
@@ -131,7 +131,7 @@ function feldKnoten(bausteinId: string, f: Feld): HtmlKnoten {
           ...gemeinsam,
           type: "text",
           inputmode: "numeric",
-          autocomplete: "off",
+          autocomplete: f.autocomplete ?? "off",
           maxlength: "10",
           "aria-describedby": `${id}-h`,
           ...(f.von && { "data-min": f.von }),

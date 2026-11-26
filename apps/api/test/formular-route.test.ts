@@ -662,6 +662,30 @@ describe("Definition und Liste für die App", () => {
     expect((await definition(elternA, ang.formularId + "x")).status).toBe(400);
   });
 
+  test("je Adresse höchstens 120 Abrufe der Definition in zehn Minuten, dann 429 vor der Datenbank (#881, SR-71)", async () => {
+    const eigene = neueApp();
+    const f = await seite("oeffentlich");
+    const abruf = (adresse: string) =>
+      eigene.request(`/api/v1/formulare/${f.formularId}`, {
+        headers: { "x-forwarded-for": adresse },
+      });
+    for (let i = 0; i < 120; i++) {
+      expect((await abruf("203.0.113.9")).status).toBe(200);
+    }
+    const zuViel = await abruf("203.0.113.9");
+    expect(zuViel.status).toBe(429);
+    expect((await json(zuViel)).code).toBe("ZU_OFT");
+    // Auch ein unbekanntes Formular zählt: Erraten kostet gleich viel
+    expect(
+      (
+        await eigene.request(`/api/v1/formulare/${randomUUID()}`, {
+          headers: { "x-forwarded-for": "203.0.113.9" },
+        })
+      ).status,
+    ).toBe(429);
+    expect((await abruf("203.0.113.10")).status).toBe(200);
+  });
+
   test("geschlossen bleibt lesbar, mit geschlossen: true", async () => {
     const f = await seite("oeffentlich", { schliesstAm: "2000-01-01" });
     const a = await definition(null, f.formularId);
@@ -823,7 +847,11 @@ describe("Antworten in der Verwaltung", () => {
 
   test("Einzelansicht und Liste: mit Beschriftungen der Version, Person oder anonym", async () => {
     const kopf = await json(await hole(admin, `/${f.formularId}`));
-    expect(kopf.rechte).toEqual({ exportieren: true, loeschen: true });
+    expect(kopf.rechte).toEqual({
+      exportieren: true,
+      loeschen: true,
+      bearbeiten: true,
+    });
     expect(kopf.felder).toHaveLength(4);
     const a = await json(
       await hole(admin, `/${f.formularId}/antworten?limit=3`),
@@ -877,7 +905,7 @@ describe("Antworten in der Verwaltung", () => {
     expect([...bytes.slice(0, 3)]).toEqual([0xef, 0xbb, 0xbf]);
     const text = new TextDecoder("utf-8", { ignoreBOM: false }).decode(bytes);
     expect(text.split("\r\n")[0]).toBe(
-      "Eingang;Person;Name;Anzahl;Mitbringen;Einverstanden",
+      "Eingang;Stand;Person;Name;Anzahl;Mitbringen;Einverstanden",
     );
     // Keine Zelle beginnt mit einem Formelzeichen
     for (const zeile of text.split("\r\n").slice(1).filter(Boolean)) {
@@ -990,9 +1018,165 @@ describe("Antworten in der Verwaltung", () => {
     const csv = await (
       await hole(admin, `/${g.formularId}/antworten.csv`)
     ).text();
-    expect(csv).toContain("Eingang;Person;Vorname;Mitbringen;Einverstanden");
+    expect(csv).toContain(
+      "Eingang;Stand;Person;Vorname;Mitbringen;Einverstanden",
+    );
     expect(csv).toContain("Alt");
     expect(csv).toContain("Neu");
+  });
+});
+
+describe("Stand der Antworten (#881)", () => {
+  const url = (pfad = "") => `/api/v1/admin/formulare${pfad}`;
+  const hole = (konto: PersonaKonto | null, pfad: string) =>
+    app.request(url(pfad), { headers: konto?.headers ?? {} });
+  const setze = (konto: PersonaKonto, pfad: string, koerper: unknown) =>
+    app.request(url(pfad), {
+      method: "PATCH",
+      headers: { ...konto.headers, "content-type": "application/json" },
+      body: JSON.stringify(koerper),
+    });
+
+  test("neu, dann in Bearbeitung und erledigt: Zähler, Filter, CSV und Audit ohne Inhalt", async () => {
+    const g = await seite("oeffentlich");
+    for (const name of ["Ada", "Ben", "Cleo"]) {
+      await sende(null, g.formularId, body(gueltig({ [NAME]: name })));
+    }
+    const liste = async () =>
+      (
+        (await json(await hole(admin, ""))).formulare as Record<
+          string,
+          unknown
+        >[]
+      ).find((x) => x.formularId === g.formularId);
+    expect(await liste()).toMatchObject({ anzahl: 3, neu: 3 });
+    const [a, b] = (await json(await hole(admin, `/${g.formularId}/antworten`)))
+      .antworten as { id: string; stand: string }[];
+    expect(a!.stand).toBe("neu");
+
+    const r = await setze(admin, `/${g.formularId}/antworten/${a!.id}`, {
+      stand: "in_bearbeitung",
+    });
+    expect(r.status).toBe(200);
+    expect(await json(r)).toEqual({ id: a!.id, stand: "in_bearbeitung" });
+    await setze(admin, `/${g.formularId}/antworten/${b!.id}`, {
+      stand: "erledigt",
+    });
+    expect(await liste()).toMatchObject({ anzahl: 3, neu: 1 });
+
+    const nurNeu = await json(
+      await hole(admin, `/${g.formularId}/antworten?stand=neu`),
+    );
+    expect(nurNeu.antworten).toHaveLength(1);
+    const erledigt = await json(
+      await hole(admin, `/${g.formularId}/antworten?stand=erledigt`),
+    );
+    expect(erledigt.antworten.map((x: { id: string }) => x.id)).toEqual([
+      b!.id,
+    ]);
+    expect(
+      (await hole(admin, `/${g.formularId}/antworten?stand=offen`)).status,
+    ).toBe(400);
+
+    const csv = await (
+      await hole(admin, `/${g.formularId}/antworten.csv`)
+    ).text();
+    expect(csv).toContain(";In Bearbeitung;");
+    expect(csv).toContain(";Erledigt;");
+
+    const audit = await db
+      .select({ details: schema.auditLog.details })
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.aktion, "formular_antwort_stand"));
+    const eintrag = audit.find(
+      (x) => (x.details as { antwortId?: string }).antwortId === a!.id,
+    );
+    expect(eintrag?.details).toEqual({
+      antwortId: a!.id,
+      vorher: "neu",
+      stand: "in_bearbeitung",
+    });
+    expect(JSON.stringify(audit)).not.toMatch(/Ada|Ben|Cleo/);
+  });
+
+  test("gleicher Stand ändert nichts und schreibt kein Audit; ungültiger Stand 400; fremde Antwort 404", async () => {
+    const g = await seite("oeffentlich");
+    await sende(null, g.formularId, body(gueltig()));
+    const [a] = (await json(await hole(admin, `/${g.formularId}/antworten`)))
+      .antworten as { id: string }[];
+    const vorher = await db
+      .select({ n: count() })
+      .from(schema.auditLog)
+      .where(eq(schema.auditLog.aktion, "formular_antwort_stand"));
+    const r = await setze(admin, `/${g.formularId}/antworten/${a!.id}`, {
+      stand: "neu",
+    });
+    expect(await json(r)).toEqual({ id: a!.id, stand: "neu" });
+    expect(
+      await db
+        .select({ n: count() })
+        .from(schema.auditLog)
+        .where(eq(schema.auditLog.aktion, "formular_antwort_stand")),
+    ).toEqual(vorher);
+    expect(
+      (
+        await setze(admin, `/${g.formularId}/antworten/${a!.id}`, {
+          stand: "weg",
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await setze(admin, `/${g.formularId}/antworten/${a!.id}`, {
+          stand: "neu",
+          antworten: {},
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await setze(admin, `/${g.formularId}/antworten/${randomUUID()}`, {
+          stand: "erledigt",
+        })
+      ).status,
+    ).toBe(404);
+    // Eine Antwort eines anderen Formulars über den Pfad dieses Formulars: 404
+    const h = await seite("oeffentlich");
+    await sende(null, h.formularId, body(gueltig()));
+    const [fremd] = (
+      await json(await hole(admin, `/${h.formularId}/antworten`))
+    ).antworten as { id: string }[];
+    expect(
+      (
+        await setze(admin, `/${g.formularId}/antworten/${fremd!.id}`, {
+          stand: "erledigt",
+        })
+      ).status,
+    ).toBe(404);
+  });
+
+  test("ohne Recht 403 (Eltern, Stufenleitung, Leitende), andere Abteilung 404", async () => {
+    const g = await seite("oeffentlich");
+    await sende(null, g.formularId, body(gueltig()));
+    const [a] = (await json(await hole(admin, `/${g.formularId}/antworten`)))
+      .antworten as { id: string }[];
+    for (const k of [elternA, slA, leitendeA]) {
+      expect(
+        (
+          await setze(k, `/${g.formularId}/antworten/${a!.id}`, {
+            stand: "erledigt",
+          })
+        ).status,
+      ).toBe(403);
+    }
+    const demo = await legePersonaAn(welt, "demoAdmin");
+    expect(
+      (
+        await setze(demo, `/${g.formularId}/antworten/${a!.id}`, {
+          stand: "erledigt",
+        })
+      ).status,
+    ).toBe(404);
   });
 });
 

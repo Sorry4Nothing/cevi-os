@@ -65,7 +65,12 @@ export function verbessere(select) {
   liste.setAttribute("role", "listbox");
   liste.hidden = true;
 
-  const label = select.labels?.[0];
+  // labels ist leer, solange das Feld noch nicht im Dokument steht (dom.js «auswahl» verbessert vor dem Einhängen): dann das Label im selben Baum
+  const label =
+    select.labels?.[0] ??
+    (select.id
+      ? select.getRootNode().querySelector?.(`label[for="${select.id}"]`)
+      : null);
   if (label) {
     label.id ||= `${id}-b`;
     knopf.setAttribute("aria-labelledby", label.id);

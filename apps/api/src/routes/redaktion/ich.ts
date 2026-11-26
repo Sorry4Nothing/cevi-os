@@ -23,6 +23,7 @@ const BEREICH_NACH_RECHT: Record<string, readonly string[]> = {
   // Antworten auf Formulare der Website (#819): öffnen nur ihre eigene Seite («recht:formular.antworten_sehen»)
   formulare: [
     "formular.antworten_sehen",
+    "formular.antworten_bearbeiten",
     "formular.antworten_exportieren",
     "formular.antworten_loeschen",
   ],
