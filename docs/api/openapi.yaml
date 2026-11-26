@@ -4069,13 +4069,15 @@ paths:
       parameters:
         - $ref: "#/components/parameters/AppVersion"
       description: |
-        Ändert nur die eigenen Schalter «Push für Chats» und «Push für Programme» und die eigene Telefonnummer; die
+        Ändert nur die eigenen Push-Schalter und die eigene Telefonnummer; die
         Person kommt immer aus der Sitzung. Mindestens ein Feld muss im Body stehen. Der Body ist strikt: Jedes
         andere Feld (auch `abteilungId`) ergibt 400, ebenso ein leerer Body oder ein Schalter, der kein Boolean ist.
 
         **Push-Schalter.** `pushChat` (Pushes für neue Chat-Nachrichten) und `pushProgramme` (Pushes zu Programmen; bei einer Änderung oder Absage eines Programms sendet die API keinen) sind je ein Boolean und standardmässig an. Die API wertet sie bei jedem Versand aus; das Push-Token bleibt dabei bestehen. Ein Push trägt als Daten `typ` (`chat` oder `programm`) und `id` (Chat- oder Programm-ID), woraus die App das Ziel öffnet. Die Pushes des Lagers (`typ` `lager_*`) und ihre Schalter beschreibt `GET /api/v1/ich/lager-benachrichtigungen`.
 
         **Anmelde-Push.** `pushAnmeldungen` (Push an die Leitung bei An- und Abmeldung eines Kindes für ein Programm) ist ein Boolean und standardmässig an. `GET /api/v1/ich` gibt den Schalter nur Personen mit einer Stufenrolle zurück; setzen lässt er sich von jeder Person, ohne Wirkung ohne Stufenrolle.
+
+        **Entscheide zu Termin und Raum (#847).** `pushTerminEntscheid` (Push `termin_entscheid` an die Person, die einen Terminvorschlag eingereicht hat, wenn die Abteilungsleitung ihn freigibt oder ablehnt) und `pushRaumEntscheid` (Push `raum_entscheid` an die Person, die einen Raum angefragt hat, wenn die Anfrage angenommen oder abgelehnt ist) sind je ein Boolean, standardmässig an, und für jede Person sichtbar. Ausgeschaltet geht der Push nicht hinaus; der Entscheid selbst gilt trotzdem und steht in `GET /api/v1/termin-vorschlaege/meine` und `GET /api/v1/raeume/anfragen/meine`.
 
         **Telefonnummer.** Freiwillig, nur für SL. `telefon` ist ein Text mit Ziffern und den Zeichen
         `+ ( ) / . -` sowie Leerzeichen (6 bis 30 Zeichen, nach dem Trimmen); sonst 400. Ein leerer Text oder `null`
@@ -5167,6 +5169,56 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ChatListe"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/chats/ungelesen:
+    get:
+      operationId: zaehleUngeleseneChatNachrichten
+      summary: Ungelesene Chat-Nachrichten zählen
+      tags:
+        - Chat
+      description: |
+        Für Zähler am Dock und das Widget (#847): nur Zahlen, ohne Vorschautexte, Namen oder Stufen. Gleiche Rechte und gleiche Zählung wie `ungelesen` in `GET /api/v1/chats`: die Nachrichten anderer Personen, die die Person im Chat sieht und die nach ihrem Gelesen-Stand eingegangen sind, nur aus Chats, in denen die Person Mitglied ist.
+
+        `anzahl` ist die Summe über alle Chats. `chats` nennt nur Chats mit mindestens einer ungelesenen Nachricht, nach ID sortiert; ein Chat, der fehlt, hat keine. Wer in keinem Chat Mitglied ist, bekommt `{ anzahl: 0, chats: [] }`.
+
+        Statuscodes: 200 Erfolg; 401 nicht angemeldet oder Konto deaktiviert; 403 Konto muss zuerst das Passwort ändern; 426 App zu alt.
+
+        Datenbanklast: die Abfragen der Sitzung und eine Abfrage für die Zählung.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die Zahlen.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - anzahl
+                  - chats
+                properties:
+                  anzahl:
+                    type: integer
+                    minimum: 0
+                  chats:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - id
+                        - ungelesen
+                      properties:
+                        id:
+                          type: string
+                          format: uuid
+                        ungelesen:
+                          type: integer
+                          minimum: 1
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
         "403":
@@ -23300,6 +23352,55 @@ paths:
           $ref: "#/components/responses/AppVeraltet426"
         "429":
           $ref: "#/components/responses/ZuVieleAnfragen429"
+  /api/v1/termine/{id}.ics:
+    get:
+      operationId: termineMeinKalenderdatei
+      summary: Ein Termin als Kalenderdatei (ICS)
+      tags:
+        - Termine
+      description: |
+        Für «Zum Kalender hinzufügen» in den Apps (#847): ein einzelner Termin als Datei nach RFC 5545 (`text/calendar`, als Anhang). Wer aufrufen darf, wie bei `GET /api/v1/termine/{id}`: jede angemeldete Person, für die der Termin sichtbar ist. Ein Termin, den die Person nicht sieht, den es nicht gibt oder der zu einer anderen Abteilung gehört, ist 404, auch eine ID, die keine UUID ist.
+
+        Inhalt wie ein Eintrag des Kalenderabos (`/ical/{datei}`): ein `VEVENT` mit `UID` (`<id>@cevi-os`, gleich wie im Abo), Titel, Zeit, Ort und Status (`CONFIRMED`, `CANCELLED`, `TENTATIVE`). Nie Beschreibung, Tags, Kinder, Anmeldungen oder andere Personendaten. Ohne Kalendername und Abo-Intervall, damit der Kalender den Termin nur importiert. Zeiten stehen in UTC (`Z`), die Kalender-App zeigt sie in ihrer Zeitzone (in der Schweiz Europe/Zurich); ein ganztägiger Termin hat Tageswerte (`VALUE=DATE`), das Ende ist der Tag nach dem letzten Tag. Der Dateiname nennt den Tag des Beginns in Zürcher Zeit: `termin-JJJJ-MM-TT.ics`.
+
+        Kein Zwischenspeicher (`Cache-Control: private, no-store`).
+
+        Statuscodes: 200 Erfolg; 401 keine gültige Sitzung; 403 das Konto muss zuerst das Passwort ändern; 404 Termin unbekannt, nicht sichtbar oder fremd; 426 App-Version zu alt.
+
+        Datenbanklast: die Abfragen der Sitzung, eine für die Tags der Person und eine für den Termin.
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Termins (UUID), gefolgt von `.ics`.
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Kalenderdatei.
+          headers:
+            Content-Disposition:
+              description: '`attachment; filename="termin-<Datum>.ics"`.'
+              schema:
+                type: string
+            Cache-Control:
+              description: Immer `private, no-store`.
+              schema:
+                type: string
+          content:
+            text/calendar:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/termine/{id}:
     get:
       operationId: termineMeinDetail
@@ -23893,7 +23994,7 @@ paths:
       description: |
         Recht `vorschlag.entscheiden` (erweitert: zweiter Faktor); standardmässig nur die Abteilungsleitung, einer Plattform- oder Gruppenrolle einstellbar. Nie über den eigenen Vorschlag (403 `EIGENER_VORSCHLAG`). Erlaubt ist nur der Übergang `offen` zu `freigegeben` oder `abgelehnt`; sonst 409 `STATUS_UNGUELTIG`. Der Übergang ist ein bedingtes UPDATE: Bei gleichzeitigen Entscheiden gewinnt genau einer. Ablehnen braucht eine Begründung (1 bis 500 Zeichen), Freigeben hat keine. «Freigegeben» heisst: Die Abteilungsleitung trägt den Termin in Outlook von Hand ein und meldet es mit `/eingetragen`; Cevi OS legt Termine nie in Outlook an (Kategorien schreibt es seit #835, nur mit der Anbindung).
 
-        Nach dem Speichern geht ein Push `termin_entscheid` (Kanal `termine`, `data.id` ist die Vorschlags-ID) an die vorschlagende Person, mit festem Text je Entscheid; nie der Titel und nie die Begründung. Das Protokoll hält ID und neuen Stand fest, nie Inhalt oder Begründung. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
+        Nach dem Speichern geht ein Push `termin_entscheid` (Kanal `termine`, `data.id` ist die Vorschlags-ID) an die vorschlagende Person, wenn ihr Konto aktiv ist und ihr Schalter `pushTerminEntscheid` an ist (`PATCH /api/v1/ich`), mit festem Text je Entscheid; nie der Titel und nie die Begründung. Das Protokoll hält ID und neuen Stand fest, nie Inhalt oder Begründung. Erst wird der Vorschlag gesucht (404), dann das Recht geprüft (403).
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 für alle anderen und beim eigenen Vorschlag. 404 bei unbekanntem Vorschlag oder fremder Abteilung. 409 `STATUS_UNGUELTIG`, wenn schon entschieden ist.
       tags:
@@ -24717,7 +24818,7 @@ paths:
       operationId: entscheideRaumAnfrage
       summary: Eine Raumanfrage annehmen oder ablehnen
       description: |
-        Entscheiden darf, wer das Recht `raum.anfrage_entscheiden` für den Raum hat: wer den Team-Tag des Raums trägt (eine Person genügt, ohne zweiten Faktor), eine Gruppenrolle des Teams mit dem Recht (mit zweitem Faktor); bei einem Raum ohne Team die Abteilungsleitung (mit zweitem Faktor). Ein Team eines Raums, das die Rolle nicht trägt, entscheidet nicht (403). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push mit festem Text.
+        Entscheiden darf, wer das Recht `raum.anfrage_entscheiden` für den Raum hat: wer den Team-Tag des Raums trägt (eine Person genügt, ohne zweiten Faktor), eine Gruppenrolle des Teams mit dem Recht (mit zweitem Faktor); bei einem Raum ohne Team die Abteilungsleitung (mit zweitem Faktor). Ein Team eines Raums, das die Rolle nicht trägt, entscheidet nicht (403). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push `raum_entscheid` mit festem Text, wenn ihr Konto aktiv ist und ihr Schalter `pushRaumEntscheid` an ist (`PATCH /api/v1/ich`).
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`.
       tags:
@@ -26884,6 +26985,95 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /api/v1/formulare:
+    get:
+      operationId: listeMeineFormulare
+      summary: Offene Formulare, die die angemeldete Person sieht
+      description: |
+        Für die Apps (#847): die Formulare der Website, die die angemeldete Person ausfüllen kann. Massgebend sind die veröffentlichten Seiten der eigenen Abteilung und die Sichtbarkeit der Seite und des Bausteins, wie bei `POST /api/v1/formulare/{id}/antworten`. Nur angemeldet; jede angemeldete Person, kein eigenes Recht.
+
+        Nur offene Formulare: Nach dem letzten Tag (`schliesstAm`, Zürcher Zeit) fehlt ein Formular in der Liste, denn ausfüllen lässt es sich nicht mehr. Die Definition eines geschlossenen Formulars liefert weiterhin `GET /api/v1/formulare/{id}` (mit `geschlossen: true`). `beantwortet` sagt, ob die Person schon eine Antwort gesendet hat, die noch nicht gelöscht ist. Sortiert nach Seitentitel, dann Titel des Formulars.
+
+        Statuscodes: 200, 401 ohne Sitzung, 403 mit Passwortpflicht, 423 Sperre der Website.
+
+        Datenbanklast: die Abfragen der Sitzung, eine Abfrage für die Tags der Person, eine für die veröffentlichten Formulare der Abteilung, eine für die eigenen Antworten.
+      tags:
+        - Website
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+      responses:
+        "200":
+          description: Die offenen Formulare.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - formulare
+                properties:
+                  formulare:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/FormularFuerMich"
+        "401":
+          $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "423":
+          description: Die Website ist gesperrt (`GESPERRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
+  /api/v1/formulare/{id}:
+    get:
+      operationId: holeFormularDefinition
+      summary: Veröffentlichte Definition eines Formulars zum Ausfüllen
+      description: |
+        Für die Apps (#847): die veröffentlichte Definition des Bausteins «Formular», damit die App das Formular selbst zeigt und über `POST /api/v1/formulare/{id}/antworten` sendet. Dieselbe Sichtbarkeit wie das Senden: Seite und Baustein müssen für die Person sichtbar sein. Ohne Anmeldung (und mit einem Konto einer anderen Abteilung) nur auf einer öffentlichen Seite mit öffentlichem Baustein. Ein Formular, das es nicht gibt, nicht veröffentlicht ist oder das die Person nicht sehen darf, antwortet gleich: 404 `NICHT_GEFUNDEN`.
+
+        Nur, was das Ausfüllen braucht: `felder` ist die Liste der Felder genau wie im Baustein (`id`, `typ`, `beschriftung`, `hilfe`, `pflicht` und je Typ `optionen`, `minLaenge`, `maxLaenge`, `min`, `max`, `ganzzahl`, `von`, `bis`, `minAuswahl`, `maxAuswahl`); `datenschutz` ist der Hinweis, den die App vor dem Senden zeigt. Nie Aufbewahrung, Obergrenze der Antworten oder Antworten anderer. Ein geschlossenes Formular bleibt lesbar (`geschlossen: true`); Senden ergibt dann 410. `beantwortet` ist `true`, wenn die angemeldete Person schon eine Antwort gesendet hat, die noch nicht gelöscht ist; ohne Anmeldung immer `false`. Mit `eineProPerson` ist eine zweite Antwort 409.
+
+        Die Sperre der Website ist 423; die Wartung sperrt nur das Senden, nicht das Lesen.
+
+        Statuscodes: 200, 400 ID ist keine UUID, 403 mit Passwortpflicht, 404, 423.
+
+        Datenbanklast: eine Abfrage für die veröffentlichte Definition; bei Sitzung die Abfragen der Person, eine für die Tags und eine für die eigene Antwort.
+      tags:
+        - Website
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/AppVersion"
+        - name: id
+          in: path
+          required: true
+          description: ID des Bausteins «Formular».
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Die Definition.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FormularDefinition"
+        "400":
+          $ref: "#/components/responses/UngueltigeEingabe400"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
+        "404":
+          $ref: "#/components/responses/NichtGefunden404"
+        "423":
+          description: Die Website ist gesperrt (`GESPERRT`).
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Fehler"
+        "426":
+          $ref: "#/components/responses/AppVeraltet426"
   /api/v1/formulare/{id}/antworten:
     post:
       operationId: sendeFormularAntwort
@@ -27312,6 +27502,134 @@ components:
                   - OPTION
                   - ANZAHL
                   - STEUERZEICHEN
+    FormularFuerMich:
+      type: object
+      required:
+        - id
+        - titel
+        - seitenTitel
+        - schliesstAm
+        - beantwortet
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: ID des Bausteins, für `GET /api/v1/formulare/{id}`.
+        titel:
+          type: string
+          nullable: true
+        seitenTitel:
+          type: string
+        schliesstAm:
+          type: string
+          nullable: true
+          description: Letzter Tag für Antworten (`JJJJ-MM-TT`, Zürcher Zeit).
+        beantwortet:
+          type: boolean
+    FormularDefinition:
+      type: object
+      required:
+        - id
+        - titel
+        - einleitung
+        - felder
+        - datenschutz
+        - absenden
+        - danke
+        - schliesstAm
+        - geschlossen
+        - eineProPerson
+        - beantwortet
+      properties:
+        id:
+          type: string
+          format: uuid
+        titel:
+          type: string
+          nullable: true
+        einleitung:
+          type: string
+          nullable: true
+        felder:
+          type: array
+          items:
+            $ref: "#/components/schemas/FormularFeld"
+        datenschutz:
+          type: string
+          description: Wozu die Angaben dienen und wer die Antworten sieht; vor dem Senden zeigen.
+        absenden:
+          type: string
+          description: Text des Knopfs.
+        danke:
+          type: string
+          description: Bestätigung nach dem Senden.
+        schliesstAm:
+          type: string
+          nullable: true
+          description: Letzter Tag für Antworten (`JJJJ-MM-TT`, Zürcher Zeit).
+        geschlossen:
+          type: boolean
+          description: Nach dem letzten Tag; Senden ergibt dann 410.
+        eineProPerson:
+          type: boolean
+        beantwortet:
+          type: boolean
+    FormularFeld:
+      type: object
+      description: Ein Feld wie im Baustein. Die Grenzen gibt es nur beim passenden Typ (`minLaenge`, `maxLaenge` bei `text` und `textbereich`; `min`, `max`, `ganzzahl` bei `zahl`; `von`, `bis` bei `datum`; `optionen` bei `auswahl`, `optionsfelder`, `mehrfachwahl`; `minAuswahl`, `maxAuswahl` bei `mehrfachwahl`). Bei `zustimmung` ist `pflicht` immer `true`.
+      required:
+        - id
+        - typ
+        - beschriftung
+        - pflicht
+      properties:
+        id:
+          type: string
+          format: uuid
+        typ:
+          type: string
+          enum:
+            - text
+            - textbereich
+            - zahl
+            - datum
+            - email
+            - telefon
+            - auswahl
+            - optionsfelder
+            - mehrfachwahl
+            - janein
+            - zustimmung
+        beschriftung:
+          type: string
+        hilfe:
+          type: string
+        pflicht:
+          type: boolean
+        optionen:
+          type: array
+          items:
+            type: string
+        minLaenge:
+          type: integer
+        maxLaenge:
+          type: integer
+        min:
+          type: number
+        max:
+          type: number
+        ganzzahl:
+          type: boolean
+        von:
+          type: string
+          format: date
+        bis:
+          type: string
+          format: date
+        minAuswahl:
+          type: integer
+        maxAuswahl:
+          type: integer
     FormularZeile:
       type: object
       required:
@@ -27879,6 +28197,8 @@ components:
         - bildUrl
         - pushChat
         - pushProgramme
+        - pushTerminEntscheid
+        - pushRaumEntscheid
         - abteilungsleitung
         - entwickler
         - zweiterFaktor
@@ -27942,6 +28262,12 @@ components:
         pushAnmeldungen:
           type: boolean
           description: Push an die Leitung bei An- und Abmeldung für ein Programm. Fehlt für Personen ohne Stufenrolle.
+        pushTerminEntscheid:
+          type: boolean
+          description: Push «Entscheid zu deinem Terminvorschlag» (`termin_entscheid`) an die vorschlagende Person.
+        pushRaumEntscheid:
+          type: boolean
+          description: Push «Entscheid zu deiner Raumanfrage» (`raum_entscheid`) an die anfragende Person.
         abteilungsleitung:
           type: boolean
           description: Ob das Konto zur Abteilungsleitung gehört (es steht in `abteilungsleitung_person`). Ersetzt das Feld `admin`, das es nicht mehr gibt, ohne Alias. Die Apps und die Verwaltung lesen die Rolle hier; `role` von better-auth gibt es nicht mehr.
@@ -28018,6 +28344,10 @@ components:
         pushProgramme:
           type: boolean
         pushAnmeldungen:
+          type: boolean
+        pushTerminEntscheid:
+          type: boolean
+        pushRaumEntscheid:
           type: boolean
         telefon:
           type:
