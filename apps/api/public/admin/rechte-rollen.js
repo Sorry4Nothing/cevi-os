@@ -70,16 +70,7 @@ function zeigeUebersicht(inhalt, z) {
       ),
   );
   if (globale.length === 0) {
-    haenge(
-      inhalt,
-      leerKarte("Es gibt noch keine Rolle. Lege die erste an.", [
-        knopf("Neue Rolle", {
-          art: "haupt",
-          symbol: "plus",
-          onclick: () => neueRolle(z),
-        }),
-      ]),
-    );
+    haenge(inhalt, leerKarte("Es gibt noch keine Rolle. Lege die erste an."));
     return;
   }
   haenge(

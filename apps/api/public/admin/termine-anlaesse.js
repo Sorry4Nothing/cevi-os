@@ -246,12 +246,8 @@ function zeichneListe(bereich, ctx, erste) {
       werkzeuge.hidden = true;
       ersetze(
         liste,
-        leerKarte("Es gibt noch keine Anlässe mit Anmeldung.", [
-          knopf("Neuer Anlass", {
-            symbol: "plus",
-            onclick: (e) => anlegen(ctx, e.currentTarget),
-          }),
-        ]),
+        // Der Knopf «Neuer Anlass» steht im Kopf (mit Prüfung des Rechts), nicht doppelt in der Karte
+        leerKarte("Es gibt noch keine Anlässe mit Anmeldung."),
       );
       return;
     }
