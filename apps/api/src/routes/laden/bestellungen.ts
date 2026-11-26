@@ -11,6 +11,7 @@ import {
   user,
 } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { idempotenzSchluessel } from "../../idempotenz.js";
 import {
   artikelAnsicht,
   artikelVerfuegbar,
@@ -198,6 +199,7 @@ export function erstelleBestellRouten({ db }: { db: Db }) {
       // Bestellen. Je Person eine Sperre, damit gleichzeitige Bestellungen die Obergrenze nicht überspringen; die Artikel sind gesperrt (FOR SHARE), damit Preis und Verfügbarkeit bis zum Schreiben gelten. Abfragen: Sperre, Zählen, Artikel, Übergabearten, Bestellung, Positionen, Audit
       .post(
         "/laden/bestellungen",
+        idempotenzSchluessel(db),
         eingabe("json", bestellenSchema),
         async (c) => {
           const person = c.get("person");

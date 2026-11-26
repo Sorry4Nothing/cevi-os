@@ -119,9 +119,9 @@ Zu jeder Kategorie stehen die Daten, der Zweck und die Aufbewahrung.
 
 #### Technische Daten
 
-- **Daten:** Die Sitzung (Token und Ablauf), einmalige Codes für die Anmeldung, IP-Adressen in den Logs des Webservers und in der Begrenzung der Anfragen (zusammen mit dem Pfad der Anfrage). Die Sitzung selbst speichert weder IP-Adresse noch Gerätetyp. Die Logs der API enthalten keine Namen, Nachrichten oder Tokens.
-- **Zweck:** Sitzungen führen, Anfragen begrenzen und Fehler finden. Dazu gehören IP-Adressen in den Logs und für die Begrenzung.
-- **Aufbewahrung:** Logs 14 Tage. Die Begrenzung der Anfragen löscht ihre Einträge frühestens 15 Minuten nach der letzten Anfrage. Sitzungen enden nach 90 Tagen ohne Nutzung oder früher mit dem Abmelden.
+- **Daten:** Die Sitzung (Token und Ablauf), einmalige Codes für die Anmeldung, IP-Adressen in den Logs des Webservers und in der Begrenzung der Anfragen (zusammen mit dem Pfad der Anfrage), die erste Antwort auf eine Anlage aus der App, die die App bei einem Netzfehler wiederholen darf (sie kann den angelegten Text enthalten). Die Sitzung selbst speichert weder IP-Adresse noch Gerätetyp. Die Logs der API enthalten keine Namen, Nachrichten oder Tokens.
+- **Zweck:** Sitzungen führen, Anfragen begrenzen, Wiederholungen der App erkennen und Fehler finden. Dazu gehören IP-Adressen in den Logs und für die Begrenzung.
+- **Aufbewahrung:** Logs 14 Tage. Die Begrenzung der Anfragen löscht ihre Einträge frühestens 15 Minuten nach der letzten Anfrage. Sitzungen enden nach 90 Tagen ohne Nutzung oder früher mit dem Abmelden. Die erste Antwort auf eine Anlage gilt 24 Stunden und wird danach täglich gelöscht, mit dem Konto sofort.
 
 #### Protokoll der Verwaltung
 

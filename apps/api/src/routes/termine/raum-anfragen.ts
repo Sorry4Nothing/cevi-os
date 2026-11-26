@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { Db } from "../../db/client.js";
 import { auditLog, raum, raumBuchung, user } from "../../db/schema.js";
 import { eingabe } from "../../eingabe.js";
+import { idempotenzSchluessel } from "../../idempotenz.js";
 import type { Fcm } from "../../push.js";
 import { ladeRaum } from "../../termine/raum.js";
 import {
@@ -198,6 +199,7 @@ export function erstelleRaumAnfragenRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
       // Entscheiden: erst die Anfrage der eigenen Abteilung laden (fremd = 404), dann das Recht (403), dann die Sperre der eigenen Anfrage (403). Bedingtes UPDATE auf «angefragt»; beim Annehmen hält der Exclusion-Constraint Doppelbuchungen aus: Bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine, die andere ist 409 RAUM_BELEGT
       .post(
         "/raeume/anfragen/:id/entscheid",
+        idempotenzSchluessel(db),
         eingabe("param", pfad),
         eingabe("json", entscheidSchema),
         async (c) => {

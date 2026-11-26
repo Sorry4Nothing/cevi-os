@@ -162,9 +162,9 @@ export const KATEGORIEN = {
   technik: {
     titel: "Technische Daten",
     zweck:
-      "Sitzungen führen, die App als echte App erkennen, Anfragen begrenzen und Fehler finden. Dazu gehören IP-Adressen in den Logs und für die Begrenzung.",
+      "Sitzungen führen, die App als echte App erkennen, Anfragen begrenzen, Wiederholungen der App erkennen und Fehler finden. Dazu gehören IP-Adressen in den Logs und für die Begrenzung.",
     frist:
-      "Logs 14 Tage. Die Begrenzung der Anfragen löscht ihre Einträge frühestens 15 Minuten nach der letzten Anfrage. Sitzungen enden nach 90 Tagen ohne Nutzung oder früher mit dem Abmelden. Herausforderungen des App-Nachweises löscht der tägliche Lauf eine Stunde nach ihrem Ablauf.",
+      "Logs 14 Tage. Die Begrenzung der Anfragen löscht ihre Einträge frühestens 15 Minuten nach der letzten Anfrage. Sitzungen enden nach 90 Tagen ohne Nutzung oder früher mit dem Abmelden. Herausforderungen des App-Nachweises löscht der tägliche Lauf eine Stunde nach ihrem Ablauf. Die erste Antwort auf eine Anlage aus der App, die die App bei einem Netzfehler wiederholen darf, gilt 24 Stunden; der tägliche Lauf löscht sie danach.",
     apple: ["Diagnostics: Other Diagnostic Data"],
     google: ["App info and performance: Diagnostics"],
   },
@@ -574,6 +574,18 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
     ],
   },
   chat_status: { chat: ["chat_id", "user_id", "gelesen_bis"] },
+  // Idempotenz-Schlüssel (#873): die erste Antwort einer Direktanlage, damit eine Wiederholung nichts doppelt anlegt. Sie kann den angelegten Inhalt tragen (Text eines Beitrags oder To-dos), grössere Antworten nur ihre ID; nach 24 Stunden gelöscht, mit dem Konto sofort
+  idempotenz: {
+    technik: [
+      "person_id",
+      "route",
+      "schluessel",
+      "hash",
+      "status",
+      "antwort",
+      "erstellt_am",
+    ],
+  },
   kind: {
     kinder: [
       "id",

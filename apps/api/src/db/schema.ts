@@ -258,6 +258,28 @@ export const rateLimit = pgTable("rate_limit", {
   lastRequest: bigint("last_request", { mode: "number" }).notNull(),
 });
 
+// Idempotenz-Schlüssel der Direktanlagen (#873, idempotenz.ts): je Person, Methode mit Pfad und Schlüssel der Hash des Körpers und die erste Antwort 2xx. Ohne Status läuft die Anfrage noch. Der Körper der Antwort steht nur, wenn er klein ist, sonst nur seine ID. Ein Eintrag gilt 24 Stunden, der tägliche Lauf löscht ältere
+export const idempotenz = pgTable(
+  "idempotenz",
+  {
+    personId: uuid("person_id")
+      .notNull()
+      .references(() => user.id, { onDelete: "cascade" }),
+    route: text("route").notNull(),
+    schluessel: text("schluessel").notNull(),
+    hash: text("hash").notNull(),
+    status: smallint("status"),
+    antwort: jsonb("antwort"),
+    erstelltAm: timestamp("erstellt_am", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.personId, t.route, t.schluessel] }),
+    index("idempotenz_erstellt_am_idx").on(t.erstelltAm),
+  ],
+);
+
 export const twoFactor = pgTable(
   "two_factor",
   {
