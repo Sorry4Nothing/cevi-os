@@ -84,6 +84,8 @@ export type MedienDaten = {
   hoehe: number | null;
   // null = dekorativ (leerer Alt-Text)
   altText: string | null;
+  // Breiten der kleineren Fassungen (#868); fehlt die Angabe, gibt es nur das eine Bild
+  varianten?: readonly number[];
 };
 // Nur Cevi-Name und Funktion: Telefon, E-Mail und Foto zeigt die Website nicht, bis der Nutzer anders entscheidet
 export type Mitglied = { name: string; funktion: string | null };
@@ -180,8 +182,14 @@ export type Logo = {
   altText: string | null;
   breite: number | null;
   hoehe: number | null;
+  varianten?: readonly number[];
   // Fassung für den dunklen Modus (#558): helle Schrift, ohne Hintergrund. Fehlt sie, steht das Logo im dunklen Modus auf einem hellen Feld
-  dunkel?: { id: string; breite: number | null; hoehe: number | null };
+  dunkel?: {
+    id: string;
+    breite: number | null;
+    hoehe: number | null;
+    varianten?: readonly number[];
+  };
 };
 
 export type Kontext = {
@@ -201,6 +209,52 @@ export type SeiteZumRendern = {
 };
 
 export const medienUrl = (id: string) => `/api/v1/medien/${id}`;
+
+// Wie breit ein Bild im Inhalt höchstens steht: die Breite von .wrap (105rem), sonst das Fenster. Zu gross schadet nicht (schärfer), zu klein macht es unscharf
+export const GROESSE_INHALT = "(min-width: 105rem) 105rem, 100vw";
+// Ein Bild über die ganze Breite mit fester Höhe (rahmen, wie im Stil) und object-fit: cover: Ist es breiter als der Rahmen, steht es breiter als das Fenster und braucht mehr Pixel
+export const vollbildGroesse = (
+  breite: number | null,
+  hoehe: number | null,
+  rahmen: string,
+) =>
+  breite && hoehe
+    ? `max(100vw, calc(${rahmen} * ${(breite / hoehe).toFixed(3)}))`
+    : "100vw";
+
+// Ein Bild mit fester Höhe (Logo): so breit wie die Höhe mal das Seitenverhältnis
+export const hoeheGroesse = (
+  breite: number | null,
+  hoehe: number | null,
+  rem: number,
+) => `${breite && hoehe ? ((rem * breite) / hoehe).toFixed(2) : rem}rem`;
+
+// Quelle und Varianten eines Medienbilds (#868): srcset nennt jede Variante mit ihrer Breite und das Bild selbst als grösste; der Browser wählt nach sizes und Pixeldichte. Ohne Varianten nur src
+export function bildQuelle(
+  id: string,
+  m: Pick<MedienDaten, "breite" | "varianten">,
+  sizes = GROESSE_INHALT,
+): Record<string, string> {
+  const src = medienUrl(id);
+  if (!m.breite || !m.varianten?.length) return { src };
+  return {
+    src,
+    srcset: [
+      ...m.varianten.map((b) => `${src}?breite=${b} ${b}w`),
+      `${src} ${m.breite}w`,
+    ].join(", "),
+    sizes,
+  };
+}
+// Dasselbe als fertig maskierte Attribute für Markup, das als Text entsteht (Kopf, Fuss, Fehlerseiten)
+export const bildQuelleAttr = (
+  id: string,
+  m: Pick<MedienDaten, "breite" | "varianten">,
+  sizes?: string,
+) =>
+  Object.entries(bildQuelle(id, m, sizes))
+    .map(([n, w]) => ` ${n}="${esc(w)}"`)
+    .join("");
 
 // Ein Knoten des Markups: Text (wird beim Ausgeben maskiert) oder ein Element. Dieselben Knoten gehen als JSON an das Skript, das geschützte Bausteine nachlädt (#354); dort entstehen daraus DOM-Knoten ohne innerHTML.
 // attr: «true» ist ein Attribut ohne Wert (download)
@@ -288,7 +342,7 @@ export function bild(
 ): HtmlKnoten | null {
   if (!m || !m.mimeTyp.startsWith("image/")) return null;
   const img = el("img", {
-    src: medienUrl(id),
+    ...bildQuelle(id, m),
     alt: m.altText ?? "",
     ...(m.breite &&
       m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),
@@ -356,7 +410,7 @@ function stufenkarte(
       ...(foto && e.bild
         ? [
             el("img", {
-              src: medienUrl(e.bild),
+              ...bildQuelle(e.bild, foto),
               alt: foto.altText ?? "",
               ...(foto.breite &&
                 foto.hoehe && {
@@ -565,7 +619,7 @@ function rendereBaustein(
               ...(e.bild && m?.mimeTyp.startsWith("image/")
                 ? [
                     el("img", {
-                      src: medienUrl(e.bild),
+                      ...bildQuelle(e.bild, m),
                       alt: m.altText ?? "",
                       ...(m.breite &&
                         m.hoehe && {
@@ -601,7 +655,7 @@ function rendereBaustein(
                       "figure",
                       { class: "station-bild" },
                       el("img", {
-                        src: medienUrl(e.bild),
+                        ...bildQuelle(e.bild, foto),
                         alt: foto.altText ?? "",
                         ...(foto.breite &&
                           foto.hoehe && {
@@ -1080,6 +1134,26 @@ export function rendereGeschuetzte(
   return ergebnis;
 }
 
+// Das Titelbild steht über die ganze Breite mit fester Höhe (website.css: .titelbild img, .hero--seite): sizes rechnet das Seitenverhältnis mit (#868)
+function vollbild(k: HtmlKnoten, rahmen: string): HtmlKnoten {
+  if (typeof k === "string") return k;
+  if (k.tag === "img" && k.attr?.srcset) {
+    const { width, height } = k.attr;
+    return {
+      ...k,
+      attr: {
+        ...k.attr,
+        sizes: vollbildGroesse(
+          Number(width) || null,
+          Number(height) || null,
+          rahmen,
+        ),
+      },
+    };
+  }
+  return { ...k, kinder: k.kinder?.map((x) => vollbild(x, rahmen)) };
+}
+
 // Bilder im sichtbaren Bereich der Seite laden sofort; das Titelbild mit Vorrang (kein loading="lazy")
 function eifrig(k: HtmlKnoten, vorrang = true): HtmlKnoten {
   if (typeof k === "string") return k;
@@ -1403,18 +1477,23 @@ export function rendereSeite(s: SeiteZumRendern, k: Kontext): string {
     sichtbar(erstes) &&
     typeof erstes.knoten === "object"
       ? serialisiere(
-          eifrig({
-            ...erstes.knoten!,
-            attr: { class: "titelbild" },
-            // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
-            kinder: erstes.knoten!.kinder?.flatMap((kind) =>
-              typeof kind === "object" && kind.attr?.class === "bildgross"
-                ? (kind.kinder ?? []).filter(
-                    (x) => typeof x === "object" && x.tag === "img",
-                  )
-                : [kind],
-            ),
-          }),
+          vollbild(
+            eifrig({
+              ...erstes.knoten!,
+              attr: { class: "titelbild" },
+              // Das Titelbild ist Kulisse, kein Bild zum Öffnen: ohne den Link zur Grossansicht
+              kinder: erstes.knoten!.kinder?.flatMap((kind) =>
+                typeof kind === "object" && kind.attr?.class === "bildgross"
+                  ? (kind.kinder ?? []).filter(
+                      (x) => typeof x === "object" && x.tag === "img",
+                    )
+                  : [kind],
+              ),
+            }),
+            s.pfad === "/"
+              ? "clamp(18rem, 44vw, 44rem)"
+              : "clamp(13rem, 30vw, 30rem)",
+          ),
         )
       : null;
   const uebrige = titelbild ? eintraege.slice(1) : eintraege;

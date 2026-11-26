@@ -9,13 +9,17 @@ import {
   OFFEN_BIS_ALBEN,
   SCHRITT_BILDER,
   VIELE_ALBEN,
-  bildBreiten,
   bildName,
   filtereAlben,
+  groessteBis,
   gruppiereNachJahr,
+  herunterladeGroessen,
+  masseText,
   mengeBis,
   naechsteMenge,
+  srcsetAus,
   standardOffen,
+  vorhandeneGroessen,
   trefferText,
   verhaeltnisKlasse,
   // @ts-expect-error TS7016: kein Typ für die JavaScript-Datei
@@ -313,10 +317,77 @@ describe("Gruppen, Suche, Schritte und Namen (fotos-logik.js)", () => {
     }
   });
 
-  test("srcset: Die Stufen des Servers sind die lange Seite", () => {
-    expect(bildBreiten(320, 213)).toEqual({ klein: 320, mittel: 640 });
-    expect(bildBreiten(240, 320)).toEqual({ klein: 240, mittel: 480 });
-    expect(bildBreiten(0, 0)).toEqual({ klein: 320, mittel: 640 });
+  // Was der Server je Bild meldet (#867): Stufe → [Breite, Höhe], nur was Flickr liefert
+  const quer = {
+    "320": [320, 213],
+    "640": [640, 427],
+    "1024": [1024, 683],
+    "1600": [1600, 1067],
+    "2048": [2048, 1365],
+    "3072": [3072, 2048],
+    "4096": [4096, 2731],
+    "6144": [6144, 4096],
+    original: [6699, 4466],
+  };
+  const hoch = { "320": [213, 320], "800": [533, 800], "2048": [1365, 2048] };
+  const adresse = (s: string) => `/b?groesse=${s}`;
+
+  test("srcset: nur Stufen, die der Server meldet, mit der echten Breite der Datei", () => {
+    expect(srcsetAus(quer, adresse, 0, 1024)).toBe(
+      "/b?groesse=320 320w, /b?groesse=640 640w, /b?groesse=1024 1024w",
+    );
+    // Grossansicht bis 4K, ohne Original und ohne 6144
+    expect(srcsetAus(quer, adresse, 0, 4096)).toContain(
+      "/b?groesse=3072 3072w, /b?groesse=4096 4096w",
+    );
+    expect(srcsetAus(quer, adresse, 0, 4096)).not.toContain("6144");
+    expect(srcsetAus(quer, adresse, 0, 4096)).not.toContain("original");
+    // Hochformat: Die Breite ist die kurze Seite
+    expect(srcsetAus(hoch, adresse, 0, 4096)).toBe(
+      "/b?groesse=320 213w, /b?groesse=800 533w, /b?groesse=2048 1365w",
+    );
+    expect(groessteBis(quer, 4096)).toEqual({
+      stufe: "4096",
+      breite: 4096,
+      hoehe: 2731,
+    });
+    expect(groessteBis(hoch, 1024)?.stufe).toBe("800");
+    expect(groessteBis({}, 1024)).toBeNull();
+  });
+
+  test("srcset: kaputte oder fremde Angaben fallen weg", () => {
+    expect(vorhandeneGroessen(null)).toEqual([]);
+    expect(vorhandeneGroessen("x")).toEqual([]);
+    expect(
+      vorhandeneGroessen({
+        "320": [320, "x"],
+        "640": [0, 427],
+        "800": "800",
+        "1000": [1000, 667],
+        "1024": [1024, 683],
+      }),
+    ).toEqual([{ stufe: "1024", breite: 1024, hoehe: 683 }]);
+    expect(srcsetAus({}, adresse, 0, 4096)).toBe("");
+  });
+
+  test("Herunterladen: je Gruppe die grösste Stufe, das Original nur, wenn es da ist", () => {
+    expect(
+      herunterladeGroessen(quer).map((g: { name: string; stufe: string }) => [
+        g.name,
+        g.stufe,
+      ]),
+    ).toEqual([
+      ["Klein", "320"],
+      ["Mittel", "640"],
+      ["Gross", "2048"],
+      ["Extragross", "6144"],
+      ["Original", "original"],
+    ]);
+    expect(
+      herunterladeGroessen(hoch).map((g: { name: string }) => g.name),
+    ).toEqual(["Klein", "Mittel", "Gross"]);
+    expect(herunterladeGroessen({})).toEqual([]);
+    expect(masseText(6699, 4466)).toBe("6699 × 4466");
   });
 
   test("Name des Links zum Bild: «Foto 3 von 393», ein Dateiname gehört nicht dazu", () => {

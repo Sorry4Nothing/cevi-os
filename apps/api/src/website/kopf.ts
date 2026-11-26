@@ -1,7 +1,8 @@
 import {
   ANMELDEN_PFAD,
   esc,
-  medienUrl,
+  bildQuelleAttr,
+  hoeheGroesse,
   serialisiere,
   symbol,
   type Kontext,
@@ -74,16 +75,22 @@ function markeHtml(k: Kontext): string {
   if (!k.logo) {
     return `<a class="marke" href="/"><b>CEVI</b><span>${name}</span></a>`;
   }
-  const { id, altText, breite, hoehe, dunkel } = k.logo;
+  const { id, altText, breite, hoehe, varianten, dunkel } = k.logo;
   const alt = esc(altText ?? "");
   const bild = (
     klasse: string,
-    b: { id: string; breite: number | null; hoehe: number | null },
+    b: {
+      id: string;
+      breite: number | null;
+      hoehe: number | null;
+      varianten?: readonly number[];
+    },
   ) =>
-    `<img class="${klasse}" src="${medienUrl(b.id)}" alt="${alt}"${b.breite && b.hoehe ? ` width="${b.breite}" height="${b.hoehe}"` : ""}>`;
+    // Höhe wie .logo in kopf.css
+    `<img class="${klasse}"${bildQuelleAttr(b.id, b, hoeheGroesse(b.breite, b.hoehe, 1.875))} alt="${alt}"${b.breite && b.hoehe ? ` width="${b.breite}" height="${b.hoehe}"` : ""}>`;
   return dunkel
-    ? `<a class="marke marke--logo marke--zwei" href="/">${bild("logo logo--hell", { id, breite, hoehe })}${bild("logo logo--dunkel", dunkel)}<span class="nur-sr">${name}</span></a>`
-    : `<a class="marke marke--logo" href="/">${bild("logo", { id, breite, hoehe })}<span class="nur-sr">${name}</span></a>`;
+    ? `<a class="marke marke--logo marke--zwei" href="/">${bild("logo logo--hell", { id, breite, hoehe, varianten })}${bild("logo logo--dunkel", dunkel)}<span class="nur-sr">${name}</span></a>`
+    : `<a class="marke marke--logo" href="/">${bild("logo", { id, breite, hoehe, varianten })}<span class="nur-sr">${name}</span></a>`;
 }
 
 // Die Navigation am Computer hat eine Zeile. Der Server kennt die Titel, aber nicht ihre Breite im Browser:
