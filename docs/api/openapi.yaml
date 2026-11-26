@@ -3072,6 +3072,21 @@ paths:
             text/javascript:
               schema:
                 type: string
+  /admin/sicht-rollen.js:
+    get:
+      operationId: getAdminSichtRollenSkript
+      summary: Skript der Verwaltung – Rollen in der Sichtbarkeit «Bestimmte Gruppen»
+      tags:
+        - Allgemein
+      security: []
+      description: Statische Datei der Verwaltung (siehe `GET /admin`), ohne Anmeldung.
+      responses:
+        "200":
+          description: Datei (`text/javascript; charset=UTF-8`).
+          content:
+            text/javascript:
+              schema:
+                type: string
   /admin/tags-anlass.js:
     get:
       operationId: getAdminTagsAnlassSkript
@@ -24109,9 +24124,9 @@ paths:
       operationId: aendereAdminAnlass
       summary: Anmeldung, Frist und Sichtbarkeit eines Anlasses ändern
       description: |
-        Recht `anlass.verwalten` für diesen Anlass (erweitert: zweiter Faktor); eine Gruppenrolle des OK mit «eigene» ändert den Anlass ihrer Gruppe. Ohne Schlüssel bleibt der Wert; `frist: null` löscht die Frist. `anmeldungFuer` lässt sich nur ändern, solange es keine Anmeldungen gibt.
+        Recht `anlass.verwalten` für diesen Anlass (erweitert: zweiter Faktor); eine Gruppenrolle des OK mit «eigene» ändert den Anlass ihrer Gruppe. Ohne Schlüssel bleibt der Wert; `frist: null` löscht die Frist. `anmeldungFuer` älterer Clients wird ignoriert (#844).
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TAG_UNBEKANNT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört. 409 mit Code `ANMELDUNGEN_VORHANDEN`.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe oder `TAG_UNBEKANNT`. 403 für alle anderen. 404, wenn der Anlass nicht besteht oder zu einer anderen Abteilung gehört.
       tags:
         - Termine
       parameters:
@@ -24215,9 +24230,9 @@ paths:
       description: |
         Die Vorlage für die Anmeldung. Wer den Anlass sehen darf (Sichtbarkeit `oeffentlich` oder `angemeldet` für alle der Abteilung, `tags` für Personen mit einem der Tags, bei Eltern auch über die Stufe eines ihrer aktiven Kinder, die Abteilungsleitung immer), bekommt ihn; für alle anderen ist er 404, auch für Personen anderer Abteilungen.
 
-        `teilnehmende` sind bei `anmeldungFuer: kind` die eigenen aktiven Kinder (ohne Kind eine leere Liste), bei `person` die Person selbst. Je Teilnehmende gibt `konto` an, was das Konto schon kennt (bei der Person Name und Cevi-Name, bei Kindern Vorname, Nachname, Cevi-Name und Stufe). Die App zeigt es als «aus deinem Konto», nicht editierbar; Gesundheitsdaten gibt es nie. `anmeldung` ist die bisherige Anmeldung oder `null`; ein Kind hat eine Anmeldung, auch wenn der andere Elternteil sie angelegt hat. `anmeldungOffen` ist der Stand jetzt: Der Anlass erlaubt die Anmeldung, die Frist ist nicht vorbei, und der Termin ist weder abgesagt noch vorbei. Eine Platzzahl gibt es nicht.
+        `teilnehmende` sind die Personen, für die die Person anmelden darf (#844): sie selbst, wenn sie zur Zielgruppe gehört (`angemeldet` und `oeffentlich`: jede Person der Abteilung; `tags`: wer einen der Tags trägt, die Abteilungsleitung nicht von selbst; ein Kind mit eigenem Konto nie als Person), dann ihre verbundenen aktiven Kinder (als Elternteil oder eigenes Konto), deren Stufe zur Zielgruppe gehört (bei `tags` die Stufe unter den Tags). Gehört niemand dazu, ist die Liste leer. `anmeldungFuer` ist veraltet und nur noch abgeleitet. Je Teilnehmende gibt `konto` an, was das Konto schon kennt (bei der Person Name und Cevi-Name, bei Kindern Vorname, Nachname, Cevi-Name und Stufe). Die App zeigt es als «aus deinem Konto», nicht editierbar; Gesundheitsdaten gibt es nie. `anmeldung` ist die bisherige Anmeldung oder `null`; ein Kind hat eine Anmeldung, auch wenn der andere Elternteil sie angelegt hat. `anmeldungOffen` ist der Stand jetzt: Der Anlass erlaubt die Anmeldung, die Frist ist nicht vorbei, und der Termin ist weder abgesagt noch vorbei. Eine Platzzahl gibt es nicht.
 
-        Abfragen: 2 (Anlass mit Termin, Name und Feldern; Teilnehmende mit Anmeldungen), unabhängig von der Zahl der Kinder.
+        Abfragen: höchstens 3 (Anlass mit Termin, Name, Zielgruppe und Feldern; eigene Anmeldung; Kinder mit Anmeldungen), unabhängig von der Zahl der Kinder.
 
         Statuscodes: 200 bei Erfolg. 400 bei ungültiger `id`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist oder zu einer anderen Abteilung gehört.
       tags:
@@ -24247,17 +24262,17 @@ paths:
       operationId: meldeZuAnlassAn
       summary: Zu einem Anlass anmelden oder die Anmeldung ändern
       description: |
-        Meldet die Person (`anmeldungFuer: person`, ohne `kindId`) oder eines ihrer aktiven Kinder (`anmeldungFuer: kind`, mit `kindId`) an. Der Aufruf ist idempotent: Eine zweite Anmeldung ändert nur die Antworten, es bleibt eine Anmeldung je Person oder Kind, auch bei gleichzeitigen Aufrufen. Wer sich abgemeldet hat, meldet sich mit demselben Aufruf wieder an. Das Ändern geht bis zum Anmeldeschluss. Die Antwort ist die Bestätigung; es gibt keine E-Mail.
+        Meldet die Person selbst (ohne `kindId`) oder eines ihrer verbundenen aktiven Kinder (mit `kindId`) an, beide nur, wenn sie zur Zielgruppe gehören (wie `teilnehmende` beim Lesen, #844). Der Aufruf ist idempotent: Eine zweite Anmeldung ändert nur die Antworten, es bleibt eine Anmeldung je Person oder Kind, auch bei gleichzeitigen Aufrufen. Wer sich abgemeldet hat, meldet sich mit demselben Aufruf wieder an. Das Ändern geht bis zum Anmeldeschluss. Die Antwort ist die Bestätigung; es gibt keine E-Mail.
 
         Die Antworten gelten gegen die Felder des Anlasses: unbekannte Schlüssel, fehlende Pflichtfelder (bei Text zählt leer als fehlend), falscher Typ (`ja_nein` ist `true` oder `false`), eine Auswahl ausserhalb der Optionen, Text über 500 Zeichen oder mit Steuerzeichen (auch Zeilenumbruch) ergeben 400 mit `fehler: [{ schluessel, code }]` und den Codes `UNBEKANNT`, `PFLICHT`, `TYP`, `OPTION`, `ZU_LANG`, `STEUERZEICHEN`, nie mit dem Wert. Text wird getrimmt gespeichert.
 
-        Anmelden für ein Kind darf nur ein Elternteil des aktiven Kindes (`kind_eltern`): Jedes andere Kind ist 404, auch ein Kind einer anderen Abteilung. `kindId` ist bei `kind` Pflicht (400 `KIND_ID_PFLICHT`) und bei `person` verboten (400 `KIND_ID_VERBOTEN`).
+        Anmelden für ein Kind darf nur ein Elternteil des aktiven Kindes oder das eigene Konto des Kindes (Sicht `kind_zugang`): Jedes andere Kind ist 404, auch ein Kind einer anderen Abteilung. Gehört die Person oder das Kind nicht zur Zielgruppe, ist es 403 `NICHT_IN_ZIELGRUPPE`; ein Kind mit eigenem Konto meldet sich immer mit `kindId` an.
 
         Ratenbegrenzung: höchstens 30 Anmeldungen und Abmeldungen je Person und Minute (429). Audit: `anlass_angemeldet` mit der ID der Anmeldung, nie mit Antworten.
 
-        Abfragen: eine Transaktion, in der der Anlass gelesen und bis zum Ende festgehalten wird (1), das Kind geprüft (1, nur bei `kind`), die Anmeldung geschrieben (1) und das Audit geschrieben (1).
+        Abfragen: eine Transaktion, in der der Anlass gelesen und bis zum Ende festgehalten wird (1), das Kind geprüft (1, nur mit `kindId`), die Anmeldung geschrieben (1) und das Audit geschrieben (1).
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe, `ANTWORTEN_UNGUELTIG`, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist, zu einer anderen Abteilung gehört oder das Kind nicht zur Person gehört. 409 `ANMELDUNG_GESCHLOSSEN`, wenn die Anmeldung nicht offen ist (nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei). 429 bei zu vielen Anfragen.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe oder `ANTWORTEN_UNGUELTIG`. 403 `NICHT_IN_ZIELGRUPPE`. 404, wenn der Anlass nicht besteht, nicht sichtbar ist, zu einer anderen Abteilung gehört oder das Kind nicht zur Person gehört. 409 `ANMELDUNG_GESCHLOSSEN`, wenn die Anmeldung nicht offen ist (nicht erlaubt, Frist vorbei, Termin abgesagt oder vorbei). 429 bei zu vielen Anfragen.
       tags:
         - Termine
       parameters:
@@ -24280,6 +24295,8 @@ paths:
           $ref: "#/components/responses/AnlassAnmeldung400"
         "401":
           $ref: "#/components/responses/NichtAngemeldet401"
+        "403":
+          $ref: "#/components/responses/KeineBerechtigung403"
         "404":
           $ref: "#/components/responses/NichtGefunden404"
         "409":
@@ -24292,9 +24309,9 @@ paths:
       operationId: meldeVonAnlassAb
       summary: Von einem Anlass abmelden
       description: |
-        Setzt die Anmeldung der Person (ohne `kindId`) oder des Kindes (`kindId` als Query-Parameter) auf `abgemeldet` und löscht die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses). Idempotent: Wer schon abgemeldet ist oder nie angemeldet war, bekommt dasselbe 204. Die Regeln für `kindId`, Sichtbarkeit und Anmeldeschluss gelten wie beim Anmelden: Nach dem Anmeldeschluss ist auch das Abmelden 409. Audit: `anlass_abgemeldet` mit der ID der Anmeldung.
+        Setzt die Anmeldung der Person (ohne `kindId`) oder des Kindes (`kindId` als Query-Parameter) auf `abgemeldet` und löscht die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses). Idempotent: Wer schon abgemeldet ist oder nie angemeldet war, bekommt dasselbe 204. Die Regeln für `kindId` (fremdes Kind 404), Sichtbarkeit und Anmeldeschluss gelten wie beim Anmelden: Nach dem Anmeldeschluss ist auch das Abmelden 409. Die Zielgruppe gilt beim Abmelden nicht: Wer angemeldet ist, kann sich abmelden, auch wenn sich die Zielgruppe geändert hat. Audit: `anlass_abgemeldet` mit der ID der Anmeldung.
 
-        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 wie beim Anmelden. 409 `ANMELDUNG_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
+        Statuscodes: 204 bei Erfolg. 400 bei ungültiger Eingabe. 404 wie beim Anmelden. 409 `ANMELDUNG_GESCHLOSSEN`. 429 bei zu vielen Anfragen.
       tags:
         - Termine
       parameters:
@@ -24303,7 +24320,7 @@ paths:
         - name: kindId
           in: query
           required: false
-          description: "Das Kind, nur bei Anlässen mit `anmeldungFuer: kind` (dort Pflicht)."
+          description: Das verbundene Kind; ohne Angabe meldet sich die Person selbst ab.
           schema:
             type: string
             format: uuid
@@ -26739,7 +26756,7 @@ paths:
       description: |
         Die Anmeldung ruft diese Route einmal beim Öffnen auf und füllt damit freiwillige Angaben vor, die die Person in der Cevi-Datenbank selbst gemacht hat. Nur lesend; es wird nichts gespeichert, erst das Absenden der Anmeldung speichert, wie jede Antwort.
 
-        Wer den Anlass sehen darf (wie bei der Anmeldung), darf den Vorschlag für sich (`anmeldungFuer: person`, ohne `kindId`) oder für das eigene aktive Kind (`anmeldungFuer: kind`, mit `kindId`) abrufen; jedes andere Kind und jeder unsichtbare oder fremde Anlass ist 404. Es gibt keine Suche und nie eine Auskunft über Dritte.
+        Wer den Anlass sehen darf (wie bei der Anmeldung), darf den Vorschlag für sich (ohne `kindId`) oder für ein eigenes aktives Kind (mit `kindId`) abrufen; jedes andere Kind und jeder unsichtbare oder fremde Anlass ist 404. Es gibt keine Suche und nie eine Auskunft über Dritte.
 
         Der Server liefert nur Werte für Textfelder des Anlasses, die `ceviQuelle` gesetzt haben, und nie für ein Feld, das in der gespeicherten Anmeldung schon beantwortet ist (der eigene Wert gewinnt). Zugeordnet wird nur bei genau einem eindeutigen Treffer: über die gemerkte Nummer, sonst über die E-Mail (beim Kind die der Eltern) plus Vorname, sonst über Vorname, Nachname und Geburtsdatum. Ein Name allein genügt nie. Bei keinem oder mehreren Treffern ist `status` `kein_treffer`, ohne Hinweis, was von beidem zutrifft und ohne Namen Dritter.
 
@@ -26749,7 +26766,7 @@ paths:
 
         Abfragen: Anlass mit Feldern (1), Kind und Eltern (2, nur bei `kind`) oder Konto (1), bestehende Anmeldung (1), Audit (1); der Abruf bei der Cevi-Datenbank ist der Zwischenspeicher oder höchstens ein Abruf je 15 Minuten.
 
-        Statuscodes: 200 bei Erfolg (auch bei `aus`, `kein_treffer` und `nicht_erreichbar`). 400 bei ungültiger Eingabe, `KIND_ID_PFLICHT` oder `KIND_ID_VERBOTEN`. 404 für einen unbekannten oder unsichtbaren Anlass und ein fremdes Kind. 429 bei zu vielen Abrufen.
+        Statuscodes: 200 bei Erfolg (auch bei `aus`, `kein_treffer` und `nicht_erreichbar`). 400 bei ungültiger Eingabe. 404 für einen unbekannten oder unsichtbaren Anlass und ein fremdes Kind. 429 bei zu vielen Abrufen.
       tags:
         - Termine
       parameters:
@@ -31268,7 +31285,7 @@ components:
           description: Es folgen noch Medien nach dieser Seite.
     RedaktionSichtbarkeit:
       description: |
-        Wer die Seite sieht (Sichtbarkeitsmodul): `oeffentlich` ohne Anmeldung, `angemeldet` jede Person der Abteilung, `tags` nur Personen mit einem der Tags (ODER); die Abteilungsleitung sieht immer alles. Eine leere Tag-Menge sieht nur die Abteilungsleitung. Höchstens 50 Tags ohne Doppelte, alle aus der Abteilung.
+        Wer die Seite sieht (Sichtbarkeitsmodul): `oeffentlich` ohne Anmeldung, `angemeldet` jede Person der Abteilung, `tags` nur Personen mit einem der Tags (ODER), je Tag auf Rollen einschränkbar (`rollen`, #844); die Abteilungsleitung sieht immer alles. Eine leere Tag-Menge sieht nur die Abteilungsleitung. Höchstens 50 Tags ohne Doppelte, alle aus der Abteilung.
       oneOf:
         - type: object
           required:
@@ -31299,6 +31316,25 @@ components:
               items:
                 type: string
                 format: uuid
+            rollen:
+              $ref: "#/components/schemas/SichtbarkeitRollen"
+    SichtbarkeitRollen:
+      type: object
+      description: |
+        Untergruppen (#844): je Tag aus `tagIds` (Schlüssel klein geschrieben) die Rollen, die das Objekt sehen. Ohne Schlüssel sieht die ganze Gruppe es, wie ohne `rollen`; fehlt die Einschränkung, fehlt `rollen` auch in der Antwort. `leitung` ist die Gruppenleitung, `stufenleitung` die Stufenleitung (sie sieht auch, was die Gruppenleitung sieht), `teilnehmende` alle anderen Mitglieder der Gruppe; bei Anlässen dazu die Kinder der Stufe, ihre Eltern und ihr eigenes Konto. Ein Schlüssel ausserhalb von `tagIds`, eine unbekannte Rolle, eine leere oder doppelte Liste sind 400. Die Abteilungsleitung sieht weiterhin alles.
+      propertyNames:
+        format: uuid
+      additionalProperties:
+        type: array
+        minItems: 1
+        maxItems: 3
+        uniqueItems: true
+        items:
+          type: string
+          enum:
+            - teilnehmende
+            - leitung
+            - stufenleitung
     RedaktionSeite:
       type: object
       required:
@@ -40471,7 +40507,7 @@ components:
           enum: [freigegeben, abgelehnt, in_outlook_eingetragen]
     # termine-schemas: admin-anlaesse (die Einträge dieses Moduls stehen unter dieser Zeile, vor dem nächsten Marker)
     AnlassSichtbarkeit:
-      description: Wer den Anlass sieht (Sichtbarkeit nach Tags wie bei Seiten). Ohne Tags in `tagIds` sieht ihn bei `tags` nur die Abteilungsleitung.
+      description: Wer den Anlass sieht und zur Zielgruppe der Anmeldung gehört (Sichtbarkeit nach Tags wie bei Seiten, je Tag auf Rollen einschränkbar, #844). Ohne Tags in `tagIds` sieht ihn bei `tags` nur die Abteilungsleitung.
       oneOf:
         - type: object
           required:
@@ -40500,6 +40536,8 @@ components:
               items:
                 type: string
                 format: uuid
+            rollen:
+              $ref: "#/components/schemas/SichtbarkeitRollen"
     AdminAnlassFeldEingabe:
       type: object
       required:
@@ -40614,7 +40652,6 @@ components:
       type: object
       required:
         - programmId
-        - anmeldungFuer
         - anmeldungOffen
         - sichtbarkeit
       additionalProperties: false
@@ -40628,6 +40665,8 @@ components:
           enum:
             - kind
             - person
+          deprecated: true
+          description: Veraltet (#844), wird ignoriert. «Wer meldet sich an?» gibt es nicht mehr; wer sich für wen anmeldet, folgt aus der Zielgruppe (Sichtbarkeit).
         anmeldungOffen:
           type: boolean
         frist:
@@ -40674,7 +40713,8 @@ components:
           enum:
             - kind
             - person
-          description: Nur ohne Anmeldungen änderbar (sonst 409 `ANMELDUNGEN_VORHANDEN`).
+          deprecated: true
+          description: Veraltet (#844), wird ignoriert. «Wer meldet sich an?» gibt es nicht mehr; wer sich für wen anmeldet, folgt aus der Zielgruppe (Sichtbarkeit).
     AdminAnlassKopf:
       type: object
       required:
@@ -40687,7 +40727,6 @@ components:
         - tagVon
         - tagBis
         - art
-        - anmeldungFuer
         - anmeldungOffen
         - frist
         - sichtbarkeit
@@ -40731,11 +40770,6 @@ components:
           enum:
             - anlass
             - lager
-        anmeldungFuer:
-          type: string
-          enum:
-            - kind
-            - person
         anmeldungOffen:
           type: boolean
         frist:
@@ -41049,13 +41083,15 @@ components:
           enum:
             - kind
             - person
+          deprecated: true
+          description: Veraltet (#844), nur noch für ältere Apps. Abgeleitet aus `teilnehmende`, `kind`, sobald ein Kind darunter ist, sonst `person`. Neue Clients entscheiden je Eintrag über `kindId`.
         felder:
           type: array
           items:
             $ref: "#/components/schemas/AnlassVorlageFeld"
         teilnehmende:
           type: array
-          description: Bei `kind` die eigenen aktiven Kinder, bei `person` die Person selbst.
+          description: Für wen die Person anmelden darf (#844), zuerst sie selbst (`kindId` null), wenn sie zur Zielgruppe gehört, dann ihre verbundenen aktiven Kinder der Zielgruppe. Leer, wenn niemand dazugehört.
           items:
             $ref: "#/components/schemas/AnlassTeilnehmende"
     AnlassAnmeldungEingabe:
@@ -41067,7 +41103,7 @@ components:
         kindId:
           type: string
           format: uuid
-          description: "Pflicht bei `anmeldungFuer: kind`, verboten bei `person`."
+          description: Das verbundene Kind, für das angemeldet wird; ohne Angabe meldet sich die Person selbst an.
         antworten:
           type: object
           description: Schlüssel des Feldes auf den Wert; höchstens 20 Schlüssel. Text höchstens 500 Zeichen, ohne Steuerzeichen.
@@ -45021,7 +45057,7 @@ components:
             $ref: "#/components/schemas/Fehler"
     AnlassAnmeldung400:
       description: |
-        Ungültige Eingabe: allgemein `UNGUELTIGE_EINGABE`, dazu `ANTWORTEN_UNGUELTIG` (mit `fehler`), `KIND_ID_PFLICHT` und `KIND_ID_VERBOTEN`.
+        Ungültige Eingabe: allgemein `UNGUELTIGE_EINGABE`, dazu `ANTWORTEN_UNGUELTIG` (mit `fehler`).
       content:
         application/json:
           schema:

@@ -1919,3 +1919,24 @@ Im Website-Editor steht oben neben «Seiten» ein Link «Zum Anlass» oder «Zum
 Geprüft im Quelltext und mit Tests (`test/rechte-website-lager-plattform.test.ts`, `test/redaktion-seiten.test.ts`, Matrix `test/lager/matrix/lager.ts`, `test/admin-lager-panel.test.ts`): welche Personen `anlassId` und `lagerId` bekommen, dass «Seite anlegen» nur mit beiden Rechten wirkt und beim zweiten Klick keine zweite Seite entsteht, dass das Löschen der Seite die Verknüpfung leert, keine Inline-Stile.
 
 **Nicht geprüft:** alles im Browser und mit Bildschirmleser (97.1 bis 97.7 als Verhalten: Umbruch bei 320 px, Fokus, Ansage des Ladezustands, Zoom, Hell und Dunkel), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
+
+## 98. Verwaltung und Website: Untergruppen in «Bestimmte Gruppen» und Anmeldung für sich und die Kinder (#844)
+
+Bei der Sichtbarkeit «Bestimmte Gruppen» erscheint unter jeder gewählten Stufe die Frage «Wer in «Stufe» sieht es?» mit den Kästchen «Alle», «Teilnehmende», «Gruppenleitung» und «Stufenleitung» (Einstellungen eines Anlasses, Sichtbarkeit einer Seite und eines Bausteins). Die Frage «Wer meldet sich an?» entfällt. Auf der Anmeldeseite der Website wählt die Person, für wen sie anmeldet: «Dich selbst» und ihre Kinder, soweit sie zur Zielgruppe gehören. Module: `sicht-rollen.js`, `anlass-gemeinsam.js`, `website-sichtbarkeit.js`, `website-dialoge.js`, `public/website/anmeldung.js`, `public/website/anlass.js`.
+
+### Prüfpunkte
+
+- [ ] **98.1** Die Rollen einer Stufe sind ein `fieldset` mit `legend` («Wer in «Stufe» sieht es?»), jedes Kästchen hat ein `label`; der Hilfetext hängt über `aria-describedby` am `fieldset`. Die Beschriftungen sind neutral (keine Form nach Geschlecht).
+- [ ] **98.2** Die Rollen erscheinen nur, solange die Stufe gewählt ist, direkt darunter und eingerückt, in der Tab-Reihenfolge nach der Stufe. Andere Gruppen als Stufen haben keine Rollen.
+- [ ] **98.3** «Alle» und eine Auswahl schliessen sich aus: Wer eine Rolle wählt, nimmt den Haken bei «Alle» weg; wer «Alle» wählt, nimmt die Rollen weg; ohne Rolle gilt wieder «Alle». Der Bildschirmleser sagt den neuen Zustand jedes Kästchens an.
+- [ ] **98.4** Die Zusammenfassung nennt die Rollen in Worten («Imperius (Gruppenleitung, Stufenleitung)», beim Anlass «Bestimmte Gruppen (1, nur bestimmte Rollen)»), nicht nur Farbe oder Symbol.
+- [ ] **98.5** «Verwerfen» setzt auch die Rollen zurück; die Zahl der ungespeicherten Änderungen zählt eine Änderung der Rollen mit.
+- [ ] **98.6** Anmeldeseite: «Für wen meldest du an?» ist eine Gruppe von Umschaltknöpfen (`aria-pressed`) mit «Dich selbst» und den Vornamen der Kinder, per Pfeiltasten bedienbar. Gehört niemand zur Zielgruppe, steht statt des Formulars «Für diesen Anlass kannst du niemanden anmelden.» mit dem nächsten Schritt.
+- [ ] **98.7** Texte nach der Wahl: «Du bist angemeldet.», «Vorname ist angemeldet.», «Du und Vorname sind angemeldet.»; beim Abmelden «Du wirst von … abgemeldet.» oder «Vorname wird …».
+- [ ] **98.8** Tastatur und Darstellung: alles mit Tab, Leertaste und Pfeiltasten erreichbar, Fokus sichtbar (mindestens 3 : 1) in Hell und Dunkel; Kästchen 48 px hoch; bei 320 px Breite und 200 % Zoom brechen die Rollen in Zeilen um, ohne waagrechtes Scrollen.
+
+### Stand der Prüfung (#844)
+
+Geprüft im Quelltext und mit Tests: Sicht je Rolle (SQL und Einzelprüfung, `test/sichtbarkeit.test.ts`), Zielgruppe und Anmeldung je Persona (`test/termine/anlaesse.test.ts`), Rundlauf der Rollen über die Routen (`test/termine/admin-anlaesse.test.ts`, `test/redaktion-seiten.test.ts`), Texte der Anmeldeseite (`test/website-termine-skripte.test.ts`).
+
+**Nicht geprüft:** alles im Browser und mit Bildschirmleser (98.1 bis 98.8 als Verhalten), weil die Anmeldung mit zweitem Faktor in der Entwicklungsumgebung fehlt.
