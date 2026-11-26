@@ -899,6 +899,11 @@ export const medium = pgTable(
     }).notNull(),
     // Zufällig, ohne Dateinamen der Nutzer
     speicherSchluessel: text("speicher_schluessel").notNull().unique(),
+    // Breiten der kleineren Fassungen für srcset (#868), aufsteigend; die Dateien liegen unter variantenSchluessel(). Leer: nur das eine Bild (Bestand vor #868)
+    varianten: integer("varianten")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
     hochgeladenVon: uuid("hochgeladen_von").references(() => user.id, {
       onDelete: "set null",
     }),

@@ -73,14 +73,75 @@ export function verhaeltnisKlasse(breite, hoehe) {
   return `fr${String(zehntel).padStart(2, "0")}`;
 }
 
-// Breiten der Dateien für srcset: Die Stufen des Servers sind die lange Seite (klein 320, mittel 640)
-export function bildBreiten(breite, hoehe) {
-  const b = Number(breite);
-  const h = Number(hoehe);
-  const v = b > 0 && h > 0 ? b / h : 4 / 3;
-  const breiter = (lang) => Math.round(v >= 1 ? lang : lang * v);
-  return { klein: breiter(320), mittel: breiter(640) };
+// Stufen des Servers (#867), klein nach gross: die lange Seite in Pixeln, wie Flickr sie anbietet; dazu «original»
+export const STUFEN = [
+  "320",
+  "400",
+  "640",
+  "800",
+  "1024",
+  "1600",
+  "2048",
+  "3072",
+  "4096",
+  "5120",
+  "6144",
+  "original",
+];
+
+// Die Stufen, die der Server für ein Bild meldet («groessen»: Stufe → [Breite, Höhe]), klein nach gross; nur mit gültigen Massen
+export function vorhandeneGroessen(groessen) {
+  if (groessen === null || typeof groessen !== "object") return [];
+  return STUFEN.flatMap((stufe) => {
+    const m = Object.hasOwn(groessen, stufe) ? groessen[stufe] : null;
+    const breite = Array.isArray(m) ? Number(m[0]) : 0;
+    const hoehe = Array.isArray(m) ? Number(m[1]) : 0;
+    return Number.isInteger(breite) &&
+      Number.isInteger(hoehe) &&
+      breite > 0 &&
+      hoehe > 0
+      ? [{ stufe, breite, hoehe }]
+      : [];
+  });
 }
+
+// Die Stufen zwischen «von» und «bis» (lange Seite), ohne Original: für srcset
+const zwischen = (groessen, von, bis) =>
+  vorhandeneGroessen(groessen).filter(
+    (g) =>
+      g.stufe !== "original" &&
+      Number(g.stufe) >= von &&
+      Number(g.stufe) <= bis,
+  );
+
+// srcset mit w-Deskriptoren (echte Breite der Datei); adresse(stufe) gibt die Adresse. Leer, wenn keine Stufe passt
+export const srcsetAus = (groessen, adresse, von, bis) =>
+  zwischen(groessen, von, bis)
+    .map((g) => `${adresse(g.stufe)} ${g.breite}w`)
+    .join(", ");
+
+// Die grösste Stufe bis «bis», oder null
+export const groessteBis = (groessen, bis) =>
+  zwischen(groessen, 0, bis).at(-1) ?? null;
+
+// Zum Herunterladen je Gruppe die grösste Stufe, die es gibt, wie im Menü von Flickr; das Original nur, wenn Flickr es freigibt
+const GRUPPEN = [
+  ["Klein", ["320", "400"]],
+  ["Mittel", ["640", "800"]],
+  ["Gross", ["1024", "1600", "2048"]],
+  ["Extragross", ["3072", "4096", "5120", "6144"]],
+  ["Original", ["original"]],
+];
+export function herunterladeGroessen(groessen) {
+  const da = vorhandeneGroessen(groessen);
+  return GRUPPEN.flatMap(([name, stufen]) => {
+    const g = da.filter((x) => stufen.includes(x.stufe)).at(-1);
+    return g ? [{ name, ...g }] : [];
+  });
+}
+
+// «2048 × 1365» mit geschützten Leerzeichen um das Malzeichen
+export const masseText = (breite, hoehe) => `${breite}\u00a0×\u00a0${hoehe}`;
 
 // Der Name des Links zum Bild: «Foto 3 von 393»; ein Titel von Flickr kommt dazu, ausser er ist ein Dateiname («IMG_4021.jpg», «DSC00042»)
 const DATEINAME =

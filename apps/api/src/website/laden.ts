@@ -3,7 +3,7 @@ import {
   oeffentlicheEinstellung,
   preisText,
 } from "../laden/laden.js";
-import { el, medienUrl, type Daten, type HtmlKnoten } from "./rendern.js";
+import { bildQuelle, el, type Daten, type HtmlKnoten } from "./rendern.js";
 
 // Baustein «laden» (#566): das Lädeli der Abteilung als Laden mit Raster, Artikelfenster, Warenkorb und Bestellübersicht.
 // Die Artikel und die Übergabearten kommen beim Abgleich aus der Datenbank (laden/laden.ts: ladeLadenDaten) und stehen ganz in der erzeugten Datei: ein Besuch löst keine Abfrage aus.
@@ -41,7 +41,8 @@ function kachel(a: LadenArtikel, daten: Daten): HtmlKnoten {
     ...(a.mediumId && m && m.mimeTyp.startsWith("image/")
       ? [
           el("img", {
-            src: medienUrl(a.mediumId),
+            // Mindestens zwei Kacheln je Zeile (laden.css)
+            ...bildQuelle(a.mediumId, m, "(min-width: 105rem) 52rem, 50vw"),
             // Der Name steht daneben: Wiederholt der Alt-Text nur ihn, bleibt er leer
             alt: alt.toLowerCase() === a.name.trim().toLowerCase() ? "" : alt,
             ...(m.breite &&

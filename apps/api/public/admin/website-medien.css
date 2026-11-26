@@ -420,7 +420,7 @@
   margin: 0;
 }
 
-.medien--liste .medium .ws-alt {
+.medien--liste .medium .ws-aktionen {
   grid-area: aktion;
 }
 
@@ -443,10 +443,21 @@
     width: 4.5rem;
   }
 
-  .medien--liste .medium .ws-alt {
+  .medien--liste .medium .ws-aktionen {
     justify-self: start;
     margin-top: 4px;
   }
+}
+
+/* Alt-Text ändern und Original herunterladen (#868) nebeneinander, bei wenig Platz untereinander */
+.ws-aktionen {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ws-aktionen:empty {
+  display: none;
 }
 
 /* Alt-Text ändern: das Bild gross neben dem Feld */

@@ -3,6 +3,7 @@ import {
   begrenze,
   erstelleFlickr,
   MAX_BILD_BYTES,
+  MAX_ORIGINAL_BYTES,
   signiere,
 } from "../src/fotos/flickr.js";
 import { QuellFehler, type QuellBild } from "../src/fotos/quelle.js";
@@ -245,7 +246,7 @@ describe("Fehler", () => {
     expect(
       (await fehler(abruf(() => new Response("<html>")).alben(KONTO)))!.art,
     ).toBe("nicht_erreichbar");
-    const gross = new Response(new Uint8Array(3 * 1024 * 1024).fill(32));
+    const gross = new Response(new Uint8Array(5 * 1024 * 1024).fill(32));
     expect((await fehler(abruf(() => gross).alben(KONTO)))!.art).toBe(
       "nicht_erreichbar",
     );
@@ -253,22 +254,54 @@ describe("Fehler", () => {
 });
 
 describe("Album mit Bildern", () => {
+  // Adressen wie bei Flickr: ab 1600 und beim Original ein eigenes Secret je Grösse (misc.urls)
+  const adresse = (id: string, secret: string, suffix: string, typ = "jpg") =>
+    `https://live.staticflickr.com/4321/${id}_${secret}_${suffix}.${typ}`;
   const bilder = (seite: number, seiten: number, n: number) =>
     json({
       stat: "ok",
       photoset: {
         pages: seiten,
-        photo: Array.from({ length: n }, (_, i) => ({
-          id: String(6000000000 + seite * 1000 + i),
-          secret: "0a1b2c3d4e",
-          server: "4321",
-          title: i === 0 ? "Zelt" : "",
-          width_n: 320,
-          height_n: 240,
-          url_n: "x",
-          url_z: "x",
-          ...(i === 0 && { url_b: "x" }),
-        })),
+        photo: Array.from({ length: n }, (_, i) => {
+          const id = String(6000000000 + seite * 1000 + i);
+          return {
+            id,
+            secret: "0a1b2c3d4e",
+            server: "4321",
+            title: i === 0 ? "Zelt" : "",
+            url_n: adresse(id, "0a1b2c3d4e", "n"),
+            width_n: 320,
+            height_n: "240",
+            url_z: adresse(id, "0a1b2c3d4e", "z"),
+            width_z: 640,
+            height_z: 480,
+            ...(i === 0 && {
+              url_l: adresse(id, "0a1b2c3d4e", "b"),
+              width_l: 1024,
+              height_l: 768,
+              url_k: adresse(id, "aa11bb22cc", "k"),
+              width_k: 2048,
+              height_k: 1536,
+              url_o: adresse(id, "99ff88ee77", "o", "png"),
+              width_o: 6000,
+              height_o: 4500,
+              // Passt nicht: falsche Endung, anderes Bild, anderer Server, Unsinn, ohne Masse
+              url_h: adresse(id, "1234567890", "k"),
+              width_h: 1600,
+              height_h: 1200,
+              url_3k: adresse("6000000999", "1234567890", "3k"),
+              width_3k: 3072,
+              height_3k: 2304,
+              url_4k: `https://live.staticflickr.com/9999/${id}_1234567890_4k.jpg`,
+              width_4k: 4096,
+              height_4k: 3072,
+              url_5k: "javascript:alert(1)",
+              width_5k: 5120,
+              height_5k: 3840,
+              url_6k: adresse(id, "1234567890", "6k"),
+            }),
+          };
+        }),
       },
     });
 
@@ -297,14 +330,35 @@ describe("Album mit Bildern", () => {
       titel: "Zelt",
       breite: 320,
       hoehe: 240,
-      groessen: ["klein", "mittel", "gross"],
     });
-    expect(r.bilder[1]!.groessen).toEqual(["klein", "mittel"]);
+    // Nur, was Flickr für das Bild in der Stufe meldet, mit eigenem Secret und Dateityp
+    expect(r.bilder[0]!.groessen).toEqual({
+      "320": { secret: "0a1b2c3d4e", breite: 320, hoehe: 240, endung: "jpg" },
+      "640": { secret: "0a1b2c3d4e", breite: 640, hoehe: 480, endung: "jpg" },
+      "1024": { secret: "0a1b2c3d4e", breite: 1024, hoehe: 768, endung: "jpg" },
+      "2048": {
+        secret: "aa11bb22cc",
+        breite: 2048,
+        hoehe: 1536,
+        endung: "jpg",
+      },
+      original: {
+        secret: "99ff88ee77",
+        breite: 6000,
+        hoehe: 4500,
+        endung: "png",
+      },
+    });
+    expect(Object.keys(r.bilder[1]!.groessen)).toEqual(["320", "640"]);
     expect(aufrufe.map((a) => a.url.searchParams.get("method"))).toEqual([
       "flickr.photosets.getInfo",
       "flickr.photosets.getPhotos",
       "flickr.photosets.getPhotos",
     ]);
+    // Flickr nennt 1024 «url_l»; das Original nur, wenn das Konto es freigibt
+    expect(aufrufe[1]!.url.searchParams.get("extras")).toBe(
+      "url_n,url_w,url_z,url_c,url_l,url_h,url_k,url_3k,url_4k,url_5k,url_6k,url_o",
+    );
   });
 
   test("ein Album von Flickr, das es nicht gibt, ist «nicht gefunden»", async () => {
@@ -329,35 +383,71 @@ describe("Bilddatei", () => {
     titel: "",
     breite: 4,
     hoehe: 3,
-    groessen: ["klein", "mittel", "gross"],
+    groessen: {
+      "320": { secret: "0a1b2c3d4e", breite: 320, hoehe: 240, endung: "jpg" },
+      "640": { secret: "0a1b2c3d4e", breite: 640, hoehe: 480, endung: "jpg" },
+      "1024": { secret: "0a1b2c3d4e", breite: 1024, hoehe: 768, endung: "jpg" },
+      "2048": {
+        secret: "aa11bb22cc",
+        breite: 2048,
+        hoehe: 1536,
+        endung: "jpg",
+      },
+      original: {
+        secret: "99ff88ee77",
+        breite: 6000,
+        hoehe: 4500,
+        endung: "png",
+      },
+    },
     ...mehr,
   });
 
-  test("baut die Adresse nur aus geprüften Teilen am festen Bild-Host", async () => {
+  test("baut die Adresse nur aus geprüften Teilen am festen Bild-Host, mit dem Secret der Grösse", async () => {
     const { f, aufrufe } = attrappe(() => pixel());
     const q = erstelleFlickr({ apiKey: SCHLUESSEL, fetch: f });
-    const a = await q.datei(bild(), "gross");
+    const a = await q.datei(bild(), "1024");
     expect(a.typ).toBe("image/jpeg");
     const u = aufrufe[0]!.url;
     expect(u.href).toBe(
       "https://live.staticflickr.com/4321/6000000001_0a1b2c3d4e_b.jpg",
     );
     expect(aufrufe[0]!.init?.redirect).toBe("error");
-    await q.datei(bild(), "klein");
+    await q.datei(bild(), "320");
     expect(aufrufe[1]!.url.pathname).toBe("/4321/6000000001_0a1b2c3d4e_n.jpg");
-    await q.datei(bild(), "mittel");
-    expect(aufrufe[2]!.url.pathname).toBe("/4321/6000000001_0a1b2c3d4e_z.jpg");
+    await q.datei(bild(), "2048");
+    expect(aufrufe[2]!.url.pathname).toBe("/4321/6000000001_aa11bb22cc_k.jpg");
+    await q.datei(bild(), "original");
+    expect(aufrufe[3]!.url.pathname).toBe("/4321/6000000001_99ff88ee77_o.png");
   });
 
   test("fehlt eine Stufe, gilt die nächstkleinere, zuletzt die Datei ohne Endung", async () => {
     const { f, aufrufe } = attrappe(() => pixel());
     const q = erstelleFlickr({ apiKey: SCHLUESSEL, fetch: f });
-    await q.datei(bild({ groessen: ["klein", "mittel"] }), "gross");
-    expect(aufrufe[0]!.url.pathname).toBe("/4321/6000000001_0a1b2c3d4e_z.jpg");
-    await q.datei(bild({ groessen: [] }), "gross");
-    expect(aufrufe[1]!.url.pathname).toBe("/4321/6000000001_0a1b2c3d4e.jpg");
-    await q.datei(bild({ groessen: [] }), "klein");
-    expect(aufrufe[2]!.url.pathname).toBe("/4321/6000000001_0a1b2c3d4e.jpg");
+    const pfad = async (b: QuellBild, g: Parameters<typeof q.datei>[1]) => {
+      await q.datei(b, g);
+      return aufrufe.at(-1)!.url.pathname;
+    };
+    expect(await pfad(bild(), "4096")).toBe(
+      "/4321/6000000001_aa11bb22cc_k.jpg",
+    );
+    expect(await pfad(bild(), "400")).toBe("/4321/6000000001_0a1b2c3d4e_n.jpg");
+    // Ohne Original die grösste vorhandene
+    const ohneOriginal = bild();
+    delete ohneOriginal.groessen.original;
+    expect(await pfad(ohneOriginal, "original")).toBe(
+      "/4321/6000000001_aa11bb22cc_k.jpg",
+    );
+    // Nichts darunter: die 500er-Datei
+    const nurGross = bild({ groessen: { "2048": bild().groessen["2048"]! } });
+    expect(await pfad(nurGross, "640")).toBe("/4321/6000000001_0a1b2c3d4e.jpg");
+    // Titelbild (ohne Angaben): das Secret des Bildes bis 1024
+    expect(await pfad(bild({ groessen: {} }), "640")).toBe(
+      "/4321/6000000001_0a1b2c3d4e_z.jpg",
+    );
+    expect(await pfad(bild({ groessen: {} }), "original")).toBe(
+      "/4321/6000000001_0a1b2c3d4e_b.jpg",
+    );
   });
 
   test("SSRF: Server, Kennung und Secret mit Sonderzeichen werden nie abgerufen", async () => {
@@ -370,12 +460,18 @@ describe("Bilddatei", () => {
       bild({ id: "1/../../2" }),
       bild({ secret: "a/../b" }),
       bild({ secret: "a b" }),
-      bild({ secret: "x?y=z#" }),
+      bild({ secret: "x?y=z#", groessen: {} }),
     ]) {
-      await expect(q.datei(b, "mittel")).rejects.toMatchObject({
+      await expect(q.datei(b, "640")).rejects.toMatchObject({
         art: "nicht_gefunden",
       });
     }
+    // Auch das Secret einer einzelnen Grösse
+    const boese = bild();
+    boese.groessen["2048"] = { ...boese.groessen["2048"]!, secret: "a/../b" };
+    await expect(q.datei(boese, "2048")).rejects.toMatchObject({
+      art: "nicht_gefunden",
+    });
     expect(aufrufe).toHaveLength(0);
   });
 
@@ -384,9 +480,11 @@ describe("Bilddatei", () => {
       apiKey: SCHLUESSEL,
       fetch: attrappe(() => pixel()).f,
     });
-    await expect(
-      q.datei(bild(), "1024" as unknown as "gross"),
-    ).rejects.toBeInstanceOf(QuellFehler);
+    for (const g of ["1000", "gross", "../x"]) {
+      await expect(
+        q.datei(bild(), g as unknown as "1024"),
+      ).rejects.toBeInstanceOf(QuellFehler);
+    }
   });
 
   test("nur Bildtypen, nie Seiten, SVG oder Skripte", async () => {
@@ -399,7 +497,7 @@ describe("Bilddatei", () => {
         apiKey: SCHLUESSEL,
         fetch: attrappe(() => pixel(typ)).f,
       });
-      await expect(q.datei(bild(), "mittel")).rejects.toMatchObject({
+      await expect(q.datei(bild(), "640")).rejects.toMatchObject({
         art: "nicht_erreichbar",
       });
     }
@@ -410,7 +508,18 @@ describe("Bilddatei", () => {
       apiKey: SCHLUESSEL,
       fetch: attrappe(() => pixel("image/jpeg", MAX_BILD_BYTES + 1)).f,
     });
-    await expect(q1.datei(bild(), "mittel")).rejects.toMatchObject({
+    await expect(q1.datei(bild(), "640")).rejects.toMatchObject({
+      art: "nicht_erreichbar",
+    });
+    // Das Original darf grösser sein, aber nicht beliebig
+    expect((await q1.datei(bild(), "original")).laenge).toBe(
+      MAX_BILD_BYTES + 1,
+    );
+    const q2 = erstelleFlickr({
+      apiKey: SCHLUESSEL,
+      fetch: attrappe(() => pixel("image/png", MAX_ORIGINAL_BYTES + 1)).f,
+    });
+    await expect(q2.datei(bild(), "original")).rejects.toMatchObject({
       art: "nicht_erreichbar",
     });
     // Strom ohne ehrliche Länge: begrenze() bricht ab
@@ -439,7 +548,7 @@ describe("Bilddatei", () => {
         apiKey: SCHLUESSEL,
         fetch: attrappe(() => new Response("x", { status })).f,
       });
-      await expect(q.datei(bild(), "mittel")).rejects.toMatchObject({ art });
+      await expect(q.datei(bild(), "640")).rejects.toMatchObject({ art });
     }
   });
 
@@ -450,7 +559,7 @@ describe("Bilddatei", () => {
       bildBasis: "http://127.0.0.1:4999",
       fetch: f,
     });
-    await q.datei(bild(), "mittel");
+    await q.datei(bild(), "640");
     expect(aufrufe[0]!.url.host).toBe("127.0.0.1:4999");
   });
 });

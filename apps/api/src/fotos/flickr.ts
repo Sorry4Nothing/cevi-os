@@ -4,6 +4,7 @@ import {
   GROESSEN,
   MAX_BILDER,
   QuellFehler,
+  istGrosseStufe,
   istKennung,
   istKonto,
   type FotoQuelle,
@@ -11,30 +12,50 @@ import {
   type QuellAlbum,
   type QuellAntwort,
   type QuellBild,
+  type QuellDatei,
 } from "./quelle.js";
 
 // Flickr als Quelle der Fotos (#690). Nur der Server spricht mit Flickr: Der Browser lädt nie etwas von dort, die CSP bleibt bei img-src 'self'.
 // Hosts: Die Adressen sind fest (REST-API und Bild-Host von Flickr); eine Eingabe einer Person fliesst nie hinein, nur geprüfte Kennungen (Ziffern, Buchstaben). In Produktion gibt es keine andere Basis; für Tests und lokale Läufe lässt die Konfiguration eine eigene Basis zu (FLICKR_API_BASIS, FLICKR_BILD_BASIS).
 // Geheimnisse: Schlüssel, Secret und Token kommen nur als Parameter der Fabrik und stehen nie in einer Fehlermeldung, einem Log oder einer Antwort. Fehler tragen eine Art und höchstens den Fehlercode von Flickr (eine Zahl).
-// Begrenzungen: ein Zeitlimit je Abruf, keine Weiterleitung, gedeckelte Antworten (JSON 2 MiB, Bild 20 MiB), höchstens MAX_BILDER Bilder je Album.
+// Begrenzungen: ein Zeitlimit je Abruf, keine Weiterleitung, gedeckelte Antworten (JSON 4 MiB, Bild 40 MiB, Original 200 MiB), höchstens MAX_BILDER Bilder je Album.
 
 export const FLICKR_API = "https://api.flickr.com/services/rest/";
 export const FLICKR_BILDER = "https://live.staticflickr.com";
 const ZEITLIMIT_MS = 8_000;
 const BILD_ZEITLIMIT_MS = 15_000;
-const MAX_JSON_BYTES = 2 * 1024 * 1024;
-export const MAX_BILD_BYTES = 20 * 1024 * 1024;
+// Eine grosse Datei fliesst so schnell durch, wie die Person sie abnimmt: Am Handy dauert ein Original länger als 15 Sekunden
+const GROSS_ZEITLIMIT_MS = 5 * 60_000;
+// Zwölf Grössen je Bild und 500 Bilder je Seite (#867)
+const MAX_JSON_BYTES = 4 * 1024 * 1024;
+export const MAX_BILD_BYTES = 40 * 1024 * 1024;
+// Flickr nimmt Fotos bis 200 MB an
+export const MAX_ORIGINAL_BYTES = 200 * 1024 * 1024;
 const SEITE = 500;
 const BILD_TYPEN = /^image\/(jpeg|png|gif|webp)$/;
 const GEHEIM = /^[0-9a-zA-Z]{4,40}$/;
 const SERVER = /^[0-9]{1,10}$/;
 
-// Dateiendung der Grösse bei Flickr: «_n» 320, «_z» 640, «_b» 1024; ohne Endung 500 (die gibt es für jedes Bild). Eine Stufe gilt als vorhanden, wenn Flickr die Datei meldet (url_n, url_z, url_b); sonst nimmt sie die nächstkleinere
-const SUFFIX: Record<Groesse, string> = {
-  klein: "_n",
-  mittel: "_z",
-  gross: "_b",
+// Je Stufe das Extra der API (url_<extra>) und die Endung der Datei bei Flickr (misc.urls). 1024 heisst bei der API «l», die Datei «_b»; ohne Endung gibt es 500 für jedes Bild.
+// Eine Stufe gilt nur als vorhanden, wenn Flickr die Datei für das Bild meldet (#867); das Original nur, wenn Flickr es für das Konto freigibt
+const STUFE: Record<Groesse, { extra: string; suffix: string }> = {
+  "320": { extra: "n", suffix: "n" },
+  "400": { extra: "w", suffix: "w" },
+  "640": { extra: "z", suffix: "z" },
+  "800": { extra: "c", suffix: "c" },
+  "1024": { extra: "l", suffix: "b" },
+  "1600": { extra: "h", suffix: "h" },
+  "2048": { extra: "k", suffix: "k" },
+  "3072": { extra: "3k", suffix: "3k" },
+  "4096": { extra: "4k", suffix: "4k" },
+  "5120": { extra: "5k", suffix: "5k" },
+  "6144": { extra: "6k", suffix: "6k" },
+  original: { extra: "o", suffix: "o" },
 };
+const EXTRAS = GROESSEN.map((g) => `url_${STUFE[g].extra}`).join(",");
+// Die Adresse, die Flickr meldet: Nur Server, Kennung, Secret, Endung und Dateityp werden gelesen; den Host setzt der Server selbst (bildBasis)
+const DATEI_ADRESSE =
+  /^https?:\/\/[a-z0-9.:-]+\/([0-9]{1,10})\/([0-9]{1,20})_([0-9a-zA-Z]{4,40})_([0-9a-z]{1,2})\.(jpg|png|gif)$/;
 
 const zahl = z.coerce.number().int().min(0).catch(0);
 const text = z.union([z.string(), z.number()]).transform(String);
@@ -55,18 +76,12 @@ const albumZeile = z.object({
   title: inhalt.catch(""),
   date_create: z.coerce.number().optional(),
 });
-const bildZeile = z.object({
+// Je Stufe Adresse und Masse (url_*, width_*, height_*) bleiben roh: bildAus prüft sie, was nicht passt, fehlt
+const bildZeile = z.looseObject({
   id: text.pipe(z.string().regex(/^[0-9]{1,20}$/)),
   secret: z.string().regex(GEHEIM),
   server: text.pipe(z.string().regex(SERVER)),
   title: z.string().catch(""),
-  width_n: z.coerce.number().optional(),
-  height_n: z.coerce.number().optional(),
-  width_z: z.coerce.number().optional(),
-  height_z: z.coerce.number().optional(),
-  url_n: z.string().optional(),
-  url_z: z.string().optional(),
-  url_b: z.string().optional(),
 });
 const listeAntwort = z.object({
   stat: z.literal("ok"),
@@ -243,22 +258,43 @@ export function erstelleFlickr(o: FlickrOptionen): FotoQuelle {
   };
 
   function bildAus(zeile: z.infer<typeof bildZeile>): QuellBild {
-    const breite = zeile.width_n ?? zeile.width_z ?? 0;
-    const hoehe = zeile.height_n ?? zeile.height_z ?? 0;
-    const masse = breite > 0 && hoehe > 0;
+    const felder = zeile as Record<string, unknown>;
+    const groessen: QuellBild["groessen"] = {};
+    for (const g of GROESSEN) {
+      const { extra, suffix } = STUFE[g];
+      const m = DATEI_ADRESSE.exec(String(felder[`url_${extra}`] ?? ""));
+      const breite = Number(felder[`width_${extra}`]);
+      const hoehe = Number(felder[`height_${extra}`]);
+      // Nur eine Datei dieses Bildes in dieser Stufe, mit Massen; alles andere fehlt einfach
+      if (
+        m &&
+        m[1] === zeile.server &&
+        m[2] === zeile.id &&
+        GEHEIM.test(m[3]!) &&
+        m[4] === suffix &&
+        breite > 0 &&
+        hoehe > 0 &&
+        breite <= 100_000 &&
+        hoehe <= 100_000
+      ) {
+        groessen[g] = {
+          secret: m[3]!,
+          breite: Math.round(breite),
+          hoehe: Math.round(hoehe),
+          endung: m[5] as QuellDatei["endung"],
+        };
+      }
+    }
+    const mass = GROESSEN.map((g) => groessen[g]).find(Boolean);
     return {
       id: zeile.id,
       server: zeile.server,
       secret: zeile.secret,
       titel: zeile.title.trim().slice(0, 200),
       // Ohne Masse ein Querformat als Platzhalter; das Bild passt sich ein
-      breite: masse ? Math.round(breite) : 4,
-      hoehe: masse ? Math.round(hoehe) : 3,
-      groessen: [
-        ...(zeile.url_n ? (["klein"] as const) : []),
-        ...(zeile.url_z ? (["mittel"] as const) : []),
-        ...(zeile.url_b ? (["gross"] as const) : []),
-      ],
+      breite: mass?.breite ?? 4,
+      hoehe: mass?.hoehe ?? 3,
+      groessen,
     };
   }
 
@@ -280,7 +316,7 @@ export function erstelleFlickr(o: FlickrOptionen): FotoQuelle {
             titel: "",
             breite: 4,
             hoehe: 3,
-            groessen: [],
+            groessen: {},
           } satisfies QuellBild)
         : null;
     return {
@@ -330,7 +366,7 @@ export function erstelleFlickr(o: FlickrOptionen): FotoQuelle {
           await rest("flickr.photosets.getPhotos", {
             user_id: konto,
             photoset_id: albumId,
-            extras: "url_n,url_z,url_b",
+            extras: EXTRAS,
             media: "photos",
             per_page: String(SEITE),
             page: String(seite),
@@ -353,23 +389,24 @@ export function erstelleFlickr(o: FlickrOptionen): FotoQuelle {
       if (!dateiTeileOk(bild.id, bild.server, bild.secret)) {
         throw new QuellFehler("nicht_gefunden", "bild");
       }
-      // Fehlt «gross», gilt «mittel»; fehlt auch das, die 500er-Datei ohne Endung
-      const suffix = bild.groessen.includes(groesse)
-        ? SUFFIX[groesse]
-        : groesse === "gross" && bild.groessen.includes("mittel")
-          ? SUFFIX.mittel
-          : "";
+      const d = waehleDatei(bild, groesse);
+      if (!GEHEIM.test(d.secret)) {
+        throw new QuellFehler("nicht_gefunden", "bild");
+      }
       const url = new URL(
-        `${bildBasis}/${bild.server}/${bild.id}_${bild.secret}${suffix}.jpg`,
+        `${bildBasis}/${bild.server}/${bild.id}_${d.secret}${d.suffix}.${d.endung}`,
       );
       // Allowlist: nur der feste Bild-Host
       if (url.host !== bildHost) {
         throw new QuellFehler("nicht_gefunden", "host");
       }
+      const max = groesse === "original" ? MAX_ORIGINAL_BYTES : MAX_BILD_BYTES;
       let res: Response;
       try {
         res = await abruf(url, {
-          signal: AbortSignal.timeout(BILD_ZEITLIMIT_MS),
+          signal: AbortSignal.timeout(
+            istGrosseStufe(groesse) ? GROSS_ZEITLIMIT_MS : BILD_ZEITLIMIT_MS,
+          ),
           redirect: "error",
           headers: { accept: "image/jpeg,image/png,image/webp,image/gif" },
         });
@@ -394,12 +431,12 @@ export function erstelleFlickr(o: FlickrOptionen): FotoQuelle {
         throw new QuellFehler("nicht_erreichbar", "typ");
       }
       const laenge = Number(res.headers.get("content-length"));
-      if (Number.isFinite(laenge) && laenge > MAX_BILD_BYTES) {
+      if (Number.isFinite(laenge) && laenge > max) {
         void res.body.cancel();
         throw new QuellFehler("nicht_erreichbar", "zu_gross");
       }
       return {
-        body: begrenze(res.body, MAX_BILD_BYTES),
+        body: begrenze(res.body, max),
         typ,
         laenge: Number.isFinite(laenge) && laenge > 0 ? laenge : null,
       };
@@ -408,6 +445,34 @@ export function erstelleFlickr(o: FlickrOptionen): FotoQuelle {
 }
 
 // Reicht den Strom durch und bricht ab, sobald er mehr als max Bytes liefert (Content-Length kann fehlen oder lügen)
+// Welche Datei für eine Stufe: die Stufe selbst, wenn Flickr sie meldet, sonst die grösste kleinere (beim Original also die grösste vorhandene). Ohne gemeldete Grössen (Titelbild) gilt das Secret des Bildes bis 1024; zuletzt die 500er-Datei ohne Endung, die es für jedes Bild gibt
+export function waehleDatei(
+  bild: QuellBild,
+  groesse: Groesse,
+): { secret: string; suffix: string; endung: QuellDatei["endung"] } {
+  const bis = GROESSEN.indexOf(groesse);
+  for (let i = bis; i >= 0; i--) {
+    const g = GROESSEN[i]!;
+    const d = bild.groessen[g];
+    if (d) {
+      return {
+        secret: d.secret,
+        suffix: `_${STUFE[g].suffix}`,
+        endung: d.endung,
+      };
+    }
+  }
+  if (Object.keys(bild.groessen).length === 0) {
+    const g = GROESSEN[Math.min(bis, GROESSEN.indexOf("1024"))]!;
+    return {
+      secret: bild.secret,
+      suffix: `_${STUFE[g].suffix}`,
+      endung: "jpg",
+    };
+  }
+  return { secret: bild.secret, suffix: "", endung: "jpg" };
+}
+
 export function begrenze(
   quelle: ReadableStream<Uint8Array>,
   max: number,

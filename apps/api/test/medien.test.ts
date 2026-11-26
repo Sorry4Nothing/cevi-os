@@ -52,9 +52,8 @@ function attrappe() {
   const objekte = new Map<string, { inhalt: Uint8Array; typ: string }>();
   const fehler = { ablegen: false, holen: false, loeschen: false };
   const speicher: Medienspeicher = {
-    async ablegen(inhalt, typ) {
+    async ablegen(inhalt, typ, schluessel = randomUUID()) {
       if (fehler.ablegen) throw new Error("geheimer-bucket nicht erreichbar");
-      const schluessel = randomUUID();
       objekte.set(schluessel, { inhalt, typ });
       return schluessel;
     },
@@ -143,11 +142,11 @@ const lesen = async (
 describe("Upload von Bildern", () => {
   test("das Bild wird zu WebP, gedreht, verkleinert und ohne EXIF gespeichert", async () => {
     const { speicher, objekte } = attrappe();
-    // 3000 × 1000 mit Drehung um 90 Grad und Beschreibung in den Metadaten: danach 683 × 2048, höchstens 2048 px, ohne EXIF
+    // 6000 × 2000 mit Drehung um 90 Grad und Beschreibung in den Metadaten: danach 1365 × 4096, höchstens 4096 px (#868), ohne EXIF
     const quelle = await sharp({
       create: {
-        width: 3000,
-        height: 1000,
+        width: 6000,
+        height: 2000,
         channels: 3,
         background: "#aa3333",
       },
@@ -169,8 +168,9 @@ describe("Upload von Bildern", () => {
     const medium = (await res.json()) as Record<string, unknown>;
     expect(medium).toMatchObject({
       mimeTyp: "image/webp",
-      breite: 683,
-      hoehe: 2048,
+      breite: 1365,
+      hoehe: 4096,
+      varianten: [640, 1280],
       altText: "Blaues Feld",
       dekorativ: false,
       sichtbarkeit: "angemeldet",
@@ -184,7 +184,26 @@ describe("Upload von Bildern", () => {
     const gespeichert = objekte.get(zeile.speicherSchluessel)!;
     expect(gespeichert.typ).toBe("image/webp");
     const meta = await sharp(gespeichert.inhalt).metadata();
-    expect([meta.format, meta.width, meta.height]).toEqual(["webp", 683, 2048]);
+    expect([meta.format, meta.width, meta.height]).toEqual([
+      "webp",
+      1365,
+      4096,
+    ]);
+    // Die Varianten liegen unter abgeleiteten Schlüsseln, im Seitenverhältnis des Bildes
+    for (const [breite, hoehe] of [
+      [640, 1920],
+      [1280, 3841],
+    ]) {
+      const v = objekte.get(`${zeile.speicherSchluessel}-w${breite}`)!;
+      const vm = await sharp(v.inhalt).metadata();
+      expect([v.typ, vm.format, vm.width, vm.height]).toEqual([
+        "image/webp",
+        "webp",
+        breite,
+        hoehe,
+      ]);
+    }
+    expect(objekte.size).toBe(3);
     expect(meta.exif).toBeUndefined();
     expect(zeile.groesse).toBe(gespeichert.inhalt.length);
     expect(zeile.hochgeladenVon).not.toBeNull();
@@ -218,7 +237,7 @@ describe("Upload von Bildern", () => {
     });
   });
 
-  test("ein Bild über 10 MB wird mit 413 abgelehnt, bevor es dekodiert wird", async () => {
+  test("ein Bild über der Grenze (25 MB) wird mit 413 abgelehnt, bevor es dekodiert wird", async () => {
     const { speicher, objekte } = attrappe();
     const gross = Buffer.concat([
       Buffer.from([0xff, 0xd8, 0xff]),
@@ -229,10 +248,10 @@ describe("Upload von Bildern", () => {
     expect(objekte.size).toBe(0);
   });
 
-  test("ein Bild über 16 Mio. Pixel wird mit 415 abgelehnt", async () => {
+  test("ein Bild über 40 Mio. Pixel wird mit 415 abgelehnt", async () => {
     const { speicher, objekte } = attrappe();
     const bombe = await sharp({
-      create: { width: 4000, height: 4001, channels: 3, background: "#fff" },
+      create: { width: 8000, height: 5001, channels: 3, background: "#fff" },
     })
       .png({ compressionLevel: 9 })
       .toBuffer();
@@ -496,6 +515,84 @@ describe("Rechte", () => {
       "medium_geloescht",
       "medium_hochgeladen",
     ]);
+  });
+});
+
+describe("Varianten (#868)", () => {
+  // Breite der ausgelieferten Datei
+  const breiteVon = async (res: Response) =>
+    (await sharp(new Uint8Array(await res.arrayBuffer())).metadata()).width;
+
+  test("?breite wählt die kleinste Variante, die reicht; nie mehr als das Bild selbst", async () => {
+    const { speicher, objekte } = attrappe();
+    const app = neueApp(speicher);
+    const res = await hochladen({
+      app,
+      body: await jpeg(3000, 2000),
+      query: "sichtbarkeit=oeffentlich&altText=Blau",
+    });
+    const m = (await res.json()) as { id: string; varianten: number[] };
+    expect(m.varianten).toEqual([640, 1280, 1920, 2560]);
+    expect(objekte.size).toBe(5);
+    const hole = (q = "") => app.request(`/api/v1/medien/${m.id}${q}`);
+    expect(await breiteVon(await hole())).toBe(3000);
+    expect(await breiteVon(await hole("?breite=512"))).toBe(640);
+    expect(await breiteVon(await hole("?breite=1280"))).toBe(1280);
+    expect(await breiteVon(await hole("?breite=1281"))).toBe(1920);
+    expect(await breiteVon(await hole("?breite=2561"))).toBe(3000);
+    // Unsinn zählt nicht: das Bild selbst
+    for (const q of ["?breite=abc", "?breite=-5", "?breite=1.5", "?b=640"]) {
+      expect(await breiteVon(await hole(q))).toBe(3000);
+    }
+    // Löschen nimmt die Varianten mit
+    const admin = (await legePersonaAn(welt, "admin")).headers;
+    expect(
+      (
+        await app.request(`/api/v1/admin/medien/${m.id}`, {
+          method: "DELETE",
+          headers: admin,
+        })
+      ).status,
+    ).toBe(204);
+    expect(objekte.size).toBe(0);
+  });
+
+  test("ein kleines Bild hat keine Varianten und wird nie hochskaliert", async () => {
+    const { speicher } = attrappe();
+    const app = neueApp(speicher);
+    const m = (await (
+      await hochladen({
+        app,
+        body: await jpeg(600, 400),
+        query: "sichtbarkeit=oeffentlich&altText=Blau",
+      })
+    ).json()) as { id: string; varianten: number[]; breite: number };
+    expect([m.varianten, m.breite]).toEqual([[], 600]);
+    expect(
+      await breiteVon(await app.request(`/api/v1/medien/${m.id}?breite=1920`)),
+    ).toBe(600);
+  });
+
+  test("Bestand ohne Varianten: ?breite liefert das eine Bild", async () => {
+    const { speicher, objekte } = attrappe();
+    const app = neueApp(speicher);
+    const m = (await (
+      await hochladen({
+        app,
+        body: await jpeg(2000, 1000),
+        query: "sichtbarkeit=oeffentlich&altText=Blau",
+      })
+    ).json()) as { id: string };
+    // Wie vor #868: Spalte leer, Dateien der Varianten fehlen
+    await db
+      .update(schema.medium)
+      .set({ varianten: [] })
+      .where(eq(schema.medium.id, m.id));
+    for (const k of [...objekte.keys()])
+      if (k.includes("-w")) objekte.delete(k);
+    expect(
+      await breiteVon(await app.request(`/api/v1/medien/${m.id}?breite=640`)),
+    ).toBe(2000);
   });
 });
 

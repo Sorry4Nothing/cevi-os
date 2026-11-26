@@ -618,6 +618,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "dekorativ",
       "sichtbarkeit",
       "speicher_schluessel",
+      "varianten",
       "hochgeladen_von",
       "erstellt_am",
     ],
