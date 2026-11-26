@@ -1,6 +1,6 @@
 import { ApiFehler, anfrage, fehlertext, hochladen } from "./api.js";
 import { bildMitLader } from "./bildwahl.js";
-import { chip, el, feld, knopf, neueId, tag } from "./dom.js";
+import { chip, el, feld, icon, knopf, neueId, tag } from "./dom.js";
 import { filterleiste } from "./filterleiste.js";
 import { formularRaster } from "./formularraster.js";
 import { sk } from "./lader.js";
@@ -31,7 +31,12 @@ import { zuschneiden } from "./zuschneiden.js";
 const API = "/api/v1/redaktion/medien";
 const SEITE = 24;
 // Wie MEDIEN_BILD_MAX_BYTES und die Länge des Alt-Texts auf dem Server; er prüft es ohnehin
-const MAX_BYTES = 10 * 1024 * 1024;
+const MAX_BYTES = 25 * 1024 * 1024;
+// Wie MEDIEN_SEITE und MEDIEN_MAX_PIXEL (bild-sharp.ts, #868): Originalqualität bis 4K
+const MAX_SEITE = 4096;
+const MAX_PIXEL = 40_000_000;
+// Vorschau aus einer kleinen Variante (#868); ohne Varianten liefert der Server das Bild selbst
+const vorschauUrl = (m, breite = 640) => `${m.url}?breite=${breite}`;
 const MAX_ALT = 500;
 const TYP_FEHLER =
   "Dieser Dateityp ist nicht erlaubt. Erlaubt sind Bilder (JPEG, PNG, WebP).";
@@ -116,7 +121,7 @@ async function pruefeDatei(datei) {
     beginnt(0x52, 0x49, 0x46, 0x46) &&
     [0x57, 0x45, 0x42, 0x50].every((wert, i) => b[8 + i] === wert);
   if (!jpeg && !png && !webp) return TYP_FEHLER;
-  if (datei.size > MAX_BYTES) return "Die Datei ist zu gross. Höchstens 10 MB.";
+  if (datei.size > MAX_BYTES) return "Die Datei ist zu gross. Höchstens 25 MB.";
   return "";
 }
 
@@ -396,7 +401,7 @@ function zeichne(bereich, ctx, erste) {
     const vorschau = bild
       ? bildMitLader(
           el("img", {
-            src: m.url,
+            src: vorschauUrl(m),
             alt: "",
             width: m.breite,
             height: m.hoehe,
@@ -442,7 +447,24 @@ function zeichne(bereich, ctx, erste) {
           { class: "hilfe" },
           "Dateien zum Herunterladen verknüpfst du im Baustein «Datei zum Herunterladen» mit dem SharePoint. Dieses alte PDF kannst du nur löschen.",
         ),
-      alt,
+      // Die Aktionen einer Karte nebeneinander; das gespeicherte Bild in voller Grösse (#868), der Name nennt die Pixelmasse
+      el(
+        "div",
+        { class: "ws-aktionen" },
+        alt,
+        bild &&
+          el(
+            "a",
+            {
+              class: "knopf knopf--klein ws-original",
+              href: m.url,
+              download: `bild-${m.breite}x${m.hoehe}.webp`,
+              "aria-label": `Original herunterladen: ${kontext}`,
+            },
+            icon("ablage"),
+            "Original herunterladen",
+          ),
+      ),
     );
     return { m, li, box, alt };
   }
@@ -668,7 +690,7 @@ function zeichne(bereich, ctx, erste) {
           seite: [
             bildMitLader(
               el("img", {
-                src: m.url,
+                src: vorschauUrl(m, 1280),
                 alt: m.altText ?? "",
                 width: m.breite,
                 height: m.hoehe,
@@ -776,7 +798,7 @@ function zeichne(bereich, ctx, erste) {
       el(
         "p",
         { class: "hilfe" },
-        "Bilder (JPG, PNG, WebP), höchstens 10 MB. Du kannst sie vor dem Hochladen zuschneiden. Bilder werden automatisch verkleinert.",
+        "Bilder (JPG, PNG, WebP), höchstens 25 MB. Du kannst sie vor dem Hochladen zuschneiden. Grosse Bilder werden auf 4096 Pixel verkleinert, die Website lädt je nach Bildschirm eine passende Grösse.",
       ),
     );
     const gewaehlteBox = el("div", { hidden: true });
@@ -895,8 +917,9 @@ function zeichne(bereich, ctx, erste) {
           datei: d,
           beschreibung:
             "Schneide das Bild zu, bevor du es hochlädst, oder nimm es, wie es ist.",
-          maxSeite: 2048,
+          maxSeite: MAX_SEITE,
           maxBytes: MAX_BYTES,
+          maxPixel: MAX_PIXEL,
           ok: "Zuschneiden und übernehmen",
         });
         if (!ergebnis) {
@@ -1072,7 +1095,7 @@ function zeichne(bereich, ctx, erste) {
           f.fehler("Das Hochladen wurde abgebrochen.");
         } else {
           const gr = {
-            ZU_GROSS: "Das Bild ist zu gross. Höchstens 10 MB.",
+            ZU_GROSS: "Das Bild ist zu gross. Höchstens 25 MB.",
             MEDIEN_FORMAT: TYP_FEHLER,
             ALT_TEXT: ALT_FEHLT,
           }[fehler?.code];

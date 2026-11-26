@@ -52,7 +52,7 @@ export async function ladeTitelbilder(stufen) {
           `/api/v1/redaktion/seiten/${seite.id}/entwurf`,
         );
         const id = titelbildId(dokument);
-        if (id) bilder.set(s.id, `/api/v1/medien/${id}`);
+        if (id) bilder.set(s.id, `/api/v1/medien/${id}?breite=640`);
       }),
     );
   } catch {

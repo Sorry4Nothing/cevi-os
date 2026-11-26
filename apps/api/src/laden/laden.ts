@@ -440,6 +440,7 @@ export const ladeLadenDaten: Datenquelle = async (
           breite: m.breite,
           hoehe: m.hoehe,
           altText: m.altText,
+          varianten: m.varianten,
         },
       ]),
     ),

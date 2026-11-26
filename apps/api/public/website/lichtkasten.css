@@ -24,6 +24,8 @@ dialog.lichtkasten {
   --lk-grund: #0b1220;
   --lk-text: #f3f3ef;
   --lk-leise: #c6d4e4;
+  /* Die Liste zum Herunterladen hebt sich vom Grund ab */
+  --lk-flaeche: #1a2740;
 
   width: 100vw;
   max-width: none;
@@ -59,9 +61,7 @@ dialog.lichtkasten::backdrop {
 }
 
 .lk-figur img {
-  width: auto;
   max-width: 100%;
-  height: auto;
   min-height: 0;
   max-height: 100%;
   border-radius: var(--r-sm);
@@ -69,11 +69,20 @@ dialog.lichtkasten::backdrop {
   cursor: default;
 }
 
+/* Ein Bild ohne Stufen erscheint in der Grösse seiner Datei. Ein Foto mit Stufen (lk-passend, #867) bekommt die Grösse aus width und height, die lichtkasten.js aus dem freien Platz rechnet: Vorschau und scharfe Datei stehen gleich gross */
+.lk-figur img:not(.lk-passend) {
+  width: auto;
+  height: auto;
+}
+
 /* Während das Bild lädt, steht an seiner Stelle das Skelett (website.css, Abschnitt «Ladezustände»), hier in einem Ton, der auf dem dunklen Grund nicht grell ist */
 .lk-figur img[data-laedt] {
+  background-color: color-mix(in srgb, var(--lk-text) 14%, transparent);
+}
+
+.lk-figur img[data-laedt]:not(.lk-passend) {
   /* Ohne Bild hat das Element keine Grösse: Das Skelett nimmt die Breite der Spalte, die Höhe folgt aus width und height des Bildes */
   width: min(100%, 64rem);
-  background-color: color-mix(in srgb, var(--lk-text) 14%, transparent);
 }
 
 .lk-figur figcaption {
@@ -93,6 +102,100 @@ dialog.lichtkasten::backdrop {
   justify-content: space-between;
   min-height: 2.75rem;
   padding: 0.75rem var(--rand, 1rem) max(1rem, env(safe-area-inset-bottom));
+}
+
+.lk-aktionen {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+/* Herunterladen (#867): ein Knopf mit Rand, darüber die Liste der Grössen */
+.lk-laden {
+  position: relative;
+}
+
+.lk-laden-knopf {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0 1rem;
+  border-radius: var(--r-full);
+  box-shadow: inset 0 0 0 1px var(--lk-leise);
+  color: var(--lk-text);
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+
+.lk-laden-knopf::-webkit-details-marker {
+  display: none;
+}
+
+.lk-laden-knopf:hover,
+.lk-laden[open] > .lk-laden-knopf {
+  background: color-mix(in srgb, var(--lk-text) 12%, transparent);
+}
+
+.lk-laden-liste {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 0.5rem);
+  z-index: 1;
+  min-width: 15rem;
+  margin: 0;
+  padding: 0.25rem;
+  border-radius: var(--r-md);
+  background: var(--lk-flaeche);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--lk-leise) 40%, transparent),
+    0 0.5rem 1.5rem rgb(0 0 0 / 0.4);
+  list-style: none;
+}
+
+.lk-laden-eintrag {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 2.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: var(--r-sm);
+  color: var(--lk-text);
+  text-decoration: none;
+}
+
+.lk-laden-eintrag:hover {
+  background: color-mix(in srgb, var(--lk-text) 12%, transparent);
+}
+
+.lk-laden-name {
+  font-weight: 700;
+}
+
+.lk-laden-masse {
+  color: var(--lk-leise);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Am schmalen Handy nur das Symbol; der Name bleibt für Screenreader */
+@media (max-width: 30em) {
+  .lk-laden-knopf {
+    padding: 0;
+    justify-content: center;
+  }
+
+  .lk-laden-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
 }
 
 .lk-stand {
@@ -193,7 +296,9 @@ dialog.lichtkasten :focus-visible {
 }
 
 @media (forced-colors: active) {
-  dialog.lichtkasten button {
+  dialog.lichtkasten button,
+  .lk-laden-knopf,
+  .lk-laden-liste {
     border: 1px solid ButtonText;
   }
 }

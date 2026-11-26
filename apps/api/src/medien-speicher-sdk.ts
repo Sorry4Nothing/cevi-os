@@ -36,8 +36,7 @@ export function erstelleMedienspeicher({
     responseChecksumValidation: "WHEN_REQUIRED",
   });
   return {
-    async ablegen(inhalt, typ) {
-      const schluessel = randomUUID();
+    async ablegen(inhalt, typ, schluessel = randomUUID()) {
       await client.send(
         new PutObjectCommand({
           Bucket: bucket,

@@ -13,22 +13,46 @@ export type QuellAlbum = {
   titelbild: QuellBild | null;
 };
 
-// Ein Bild mit allem, was der Abruf der Datei braucht. «server» und «secret» sind die Teile der Dateiadresse beim Dienst; sie verlassen den Server nie
+// Ein Bild mit allem, was der Abruf der Datei braucht. «server» und die Secrets sind die Teile der Dateiadresse beim Dienst; sie verlassen den Server nie
 export type QuellBild = {
   id: string;
   server: string;
   secret: string;
   titel: string;
-  // Masse der mittleren Grösse, damit die Seite den Platz freihält, bevor das Bild geladen ist
+  // Seitenverhältnis (Masse einer kleinen Grösse), damit die Seite den Platz freihält, bevor das Bild geladen ist
   breite: number;
   hoehe: number;
-  // Stufen, für die der Dienst eine eigene Datei meldet; für die übrigen liefert die Quelle die nächstkleinere
-  groessen: readonly Groesse[];
+  // Nur die Grössen, die der Dienst für dieses Bild meldet (#867); für eine fehlende liefert die Quelle die nächstkleinere. Leer beim Titelbild eines Albums: Dort gilt das Secret des Bildes bis 1024
+  groessen: Partial<Record<Groesse, QuellDatei>>;
 };
 
-// Feste Stufen; ein Client nennt nie eine Pixelzahl oder eine Adresse
-export const GROESSEN = ["klein", "mittel", "gross"] as const;
+// Eine Datei des Dienstes: Ab 1600 und beim Original hat jede Grösse ihr eigenes Secret
+export type QuellDatei = {
+  secret: string;
+  breite: number;
+  hoehe: number;
+  endung: "jpg" | "png" | "gif";
+};
+
+// Feste Stufen nach der langen Seite in Pixeln, wie Flickr sie anbietet (#867), klein nach gross; «original» ist die hochgeladene Datei. Ein Client nennt nur eine dieser Stufen, nie eine Adresse
+export const GROESSEN = [
+  "320",
+  "400",
+  "640",
+  "800",
+  "1024",
+  "1600",
+  "2048",
+  "3072",
+  "4096",
+  "5120",
+  "6144",
+  "original",
+] as const;
 export type Groesse = (typeof GROESSEN)[number];
+// Ab dieser Stufe ist eine Datei gross (mehrere MB): eigene Grenze je Konto, längere Frist
+export const istGrosseStufe = (g: Groesse) =>
+  GROESSEN.indexOf(g) >= GROESSEN.indexOf("3072");
 
 export type QuellAntwort = {
   body: ReadableStream<Uint8Array>;

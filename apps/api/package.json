@@ -16,6 +16,8 @@
     "kalender:outlook-abgleichen": "tsx --env-file-if-exists=.env src/cli/outlook-abgleichen.ts",
     "admin:anlegen": "tsx --env-file-if-exists=.env src/cli/admin-anlegen.ts",
     "konto:anlegen": "tsx --env-file-if-exists=.env src/cli/konto-anlegen.ts",
+    "medien:varianten": "tsx --env-file-if-exists=.env src/cli/medien-varianten.ts",
+    "medien:aus-flickr": "tsx --env-file-if-exists=.env src/cli/medium-aus-flickr.ts",
     "abteilungsleitung:vergeben": "tsx --env-file-if-exists=.env src/cli/abteilungsleitung.ts vergeben",
     "abteilungsleitung:entziehen": "tsx --env-file-if-exists=.env src/cli/abteilungsleitung.ts entziehen",
     "entwickler:vergeben": "tsx --env-file-if-exists=.env src/cli/entwickler.ts vergeben",
