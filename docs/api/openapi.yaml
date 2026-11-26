@@ -13742,11 +13742,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Schreibschutz (409 `LAGER_GESCHLOSSEN`), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - name: id
           in: path
           required: true
@@ -13780,6 +13781,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -14297,11 +14300,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403, `zeitplan.bearbeiten` und `check.lesen`), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN` oder `LIMIT_ERREICHT`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - name: id
           in: path
           required: true
@@ -14337,6 +14341,8 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -14534,11 +14540,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - *a2
+        - $ref: "#/components/parameters/IdempotencyKey"
         - *a3
       requestBody:
         required: true
@@ -14563,6 +14570,8 @@ paths:
             application/json:
               schema: &a11
                 $ref: "#/components/schemas/Fehler"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426": *a8
         "429": *a9
   /api/v1/lager/{id}/hoecks/{hoeckId}:
@@ -16192,11 +16201,12 @@ paths:
 
         Reihenfolge der Prüfungen: Pfad (400), Lager in der eigenen Abteilung (404), Mitgliedschaft (404), Recht (403), Schreibschutz (409 `LAGER_GESCHLOSSEN`, nur schreibend), Eingabe (400).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED`, `RESSORT_UNBEKANNT`, `GRUPPE_UNBEKANNT`, `DATEI_UNBEKANNT` oder `ZEITFENSTER_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, `KEIN_MITGLIED`, `RESSORT_UNBEKANNT`, `GRUPPE_UNBEKANNT`, `DATEI_UNBEKANNT` oder `ZEITFENSTER_UNGUELTIG`. 401 ohne Anmeldung. 403 ohne das Recht. 404 bei unbekanntem Lager, fremder Abteilung oder ohne Mitgliedschaft. 409 bei `LAGER_GESCHLOSSEN`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Lager
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - name: id
           in: path
           required: true
@@ -16227,6 +16237,8 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/LagerVersionKonflikt409"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -24942,11 +24954,12 @@ paths:
       description: |
         Entscheiden darf, wer das Recht `raum.anfrage_entscheiden` für den Raum hat: wer den Team-Tag des Raums trägt (eine Person genügt), eine Gruppenrolle des Teams mit dem Recht; bei einem Raum ohne Team die Abteilungsleitung. Alle drei ohne zweiten Faktor, auch aus einer App-Sitzung (Entscheid vom 26.11.2026, #859: die App kennt ihn nicht; Abweichung von der Pflicht für erweiterte Rechte, Restrisiko im Bedrohungsmodell, Bedrohung 38). Nur eine Plattformrolle und der Entwickler brauchen ihn (403 `ZWEITER_FAKTOR_FEHLT` oder `ZWEITER_FAKTOR_SITZUNG`). Alle anderen erweiterten Rechte derselben Personen verlangen ihn weiter. Ein Team eines Raums, das die Rolle nicht trägt, entscheidet nicht (403). Über die eigene Anfrage entscheidet nie dieselbe Person. `ablehnen` braucht eine Begründung (1 bis 500 Zeichen), `annehmen` hat keine. Annehmen scheitert mit 409 `RAUM_BELEGT`, wenn sich die Zeit mit einer bestätigten Buchung überschneidet; bei zwei gleichzeitigen Bestätigungen überlappender Zeiten gewinnt genau eine (Exclusion-Constraint der Datenbank). Die anfragende Person bekommt einen Push `raum_entscheid` mit festem Text, wenn ihr Konto aktiv ist und ihr Schalter `pushRaumEntscheid` an ist (`PATCH /api/v1/ich`).
 
-        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`.
+        Statuscodes: 200 bei Erfolg. 400 bei ungültiger Eingabe. 401 ohne Sitzung. 403 für alle anderen und für die eigene Anfrage (`EIGENE_ANFRAGE`). 404, wenn die Anfrage nicht besteht oder zu einer anderen Abteilung gehört (vor dem Recht geprüft). 409 mit Code `STATUS_UNGUELTIG` (schon entschieden, storniert oder vorbei) oder `RAUM_BELEGT`. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
       tags:
         - Termine
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
         - $ref: "#/components/parameters/RaumAnfrageId"
       requestBody:
         required: true
@@ -24971,6 +24984,8 @@ paths:
           $ref: "#/components/responses/NichtGefunden404"
         "409":
           $ref: "#/components/responses/RaumAnfrageKonflikt409"
+        "422":
+          $ref: "#/components/responses/IdempotenzKonflikt422"
         "426":
           $ref: "#/components/responses/AppVeraltet426"
         "429":
@@ -25915,13 +25930,14 @@ paths:
 
         Grenzen: Die Abteilung stellt sie ein (Vorgaben: 20 Positionen, Menge 1 bis 10, 5 offene oder bereitgestellte Bestellungen je Person; GET /laden nennt sie), der Server prüft sie bei jeder Bestellung: zu viele Positionen 400 `POSITIONEN_ZU_VIELE`, zu grosse Menge 400 `MENGE_ZU_GROSS`, zu viele offene 409 `BESTELL_LIMIT`. Ist das Lädeli geschlossen, 409 `LADEN_GESCHLOSSEN` mit dem Text der Abteilung; liegt die Summe unter der Mindestbestellung, 409 `MINDESTBESTELLUNG` (mit `mindestRappen`). Derselbe Artikel in derselben Variante steht nur einmal (sonst 400), 10 Versuche je Konto in 10 Minuten (429; der Zähler liegt im Arbeitsspeicher einer Instanz).
 
-        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `LADEN_GESCHLOSSEN`, `MINDESTBESTELLUNG`, `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen.
+        Statuscodes: 201 bei Erfolg. 400 bei ungültiger Eingabe, bei einer Variante, die der Artikel nicht hat oder bei einem Artikel ohne Varianten nicht nennen darf (`VARIANTE_UNGUELTIG`), oder bei einer Übergabe, die es nicht gibt (`UEBERGABE_UNBEKANNT`). 401 ohne gültige Sitzung. 403 bei offenem Passwortwechsel. 409 mit `LADEN_GESCHLOSSEN`, `MINDESTBESTELLUNG`, `ARTIKEL_NICHT_VERFUEGBAR` (nicht verfügbar, unbekannt oder einer anderen Abteilung: alles dasselbe, mit `artikelIds`; auch ein Artikel, dessen Grössen alle nicht verfügbar sind), `PREIS_GEAENDERT` oder `BESTELL_LIMIT`. 422 mit `GROESSE_NICHT_VERFUEGBAR`, wenn eine bestellte Grösse nicht mehr zu haben ist: `feld` ist `positionen`, `positionen` nennt jede betroffene Position (`artikelId`, `variante`), `message` nennt Artikel und Grösse; nichts wird teilweise angelegt. 429 bei zu vielen Versuchen. Mit `Idempotency-Key` zusätzlich 409 `IN_BEARBEITUNG` (die erste Anfrage läuft noch) und 422 `IDEMPOTENZ_KONFLIKT` (anderer Körper).
 
         Datenbanklast: eine Transaktion mit je einer Abfrage für Sperre (je Person), Zählen der offenen Bestellungen, Artikel (`FOR SHARE`), Übergabearten, Bestellung, alle Positionen und Audit-Eintrag (nur Kennung und Anzahl, nie was bestellt wurde).
       tags:
         - Lädeli
       parameters:
         - $ref: "#/components/parameters/AppVersion"
+        - $ref: "#/components/parameters/IdempotencyKey"
       requestBody:
         required: true
         content:
@@ -25952,7 +25968,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/LadenKonflikt"
         "422":
-          description: Nichts bestellt. `GROESSE_NICHT_VERFUEGBAR`, mit den betroffenen Positionen.
+          description: Nichts bestellt. `GROESSE_NICHT_VERFUEGBAR`, mit den betroffenen Positionen; mit `Idempotency-Key` auch `IDEMPOTENZ_KONFLIKT` (Schlüssel schon mit anderem Körper benutzt, Schema `Fehler`).
           content:
             application/json:
               schema:
@@ -45084,6 +45100,20 @@ components:
       required: true
       schema:
         $ref: "#/components/schemas/PlattformBereich"
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: false
+      description: |
+        Optionaler Schlüssel, mit dem die App eine Anlage nach einem Netzfehler sicher wiederholen darf (#873): eine UUID oder 16 bis 64 Zeichen aus `A-Z`, `a-z`, `0-9`, `_` und `-` (sonst 400). Er gilt je Person, Methode mit Pfad und Schlüssel, 24 Stunden lang.
+        Die erste Anfrage läuft wie ohne Schlüssel; der Server merkt sich den Hash des Körpers und nur eine Antwort 2xx (Status und Körper; ist der Körper über 16 000 Zeichen lang, nur seine `id`). Jede andere Antwort bleibt nicht stehen: Eine Wiederholung führt die Route dann neu aus.
+        Eine Wiederholung mit demselben Schlüssel und demselben Körper (Byte für Byte) gibt die gespeicherte Antwort zurück, ohne die Route noch einmal auszuführen: Nichts wird doppelt angelegt, kein Push geht doppelt. Die Rechte prüft der Server wie sonst vor der Wiederholung; ein Entscheid über eine Raumanfrage prüft sie erst in der Route, seine Wiederholung gibt das Ergebnis auch nach einem Wechsel der Rechte zurück.
+        Derselbe Schlüssel mit anderem Körper ist 422 `IDEMPOTENZ_KONFLIKT`. Läuft die erste Anfrage noch, ist eine Wiederholung 409 `IN_BEARBEITUNG`: Die App fragt nach kurzer Zeit noch einmal.
+        Ohne den Header ändert sich nichts. Nach 24 Stunden gilt der Schlüssel als neu.
+      schema:
+        type: string
+        pattern: ^[A-Za-z0-9_-]{16,64}$
+        example: 0f8fad5b-d9cb-469f-a165-70867728950e
     AppVersion:
       name: X-App-Version
       in: header
@@ -45521,6 +45551,12 @@ components:
           example:
             code: ANWESENHEIT_GESCHLOSSEN
             message: Die Anwesenheit lässt sich erst nach Beginn des Programms und bis 14 Tage danach erfassen.
+    IdempotenzKonflikt422:
+      description: Der `Idempotency-Key` gehört schon zu einer Anfrage mit anderem Körper (code `IDEMPOTENZ_KONFLIKT`). Nichts wurde ausgeführt; für eine neue Anfrage braucht es einen neuen Schlüssel.
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Fehler"
     ZuVieleAnfragen429:
       description: Zu viele Anfragen (code ZU_VIELE_ANFRAGEN)
       content:

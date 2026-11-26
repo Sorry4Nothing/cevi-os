@@ -1583,6 +1583,24 @@ Bisher las Cevi OS den Outlook-Kalender nur über die geheime iCal-Adresse. Mit 
 
 **OWASP:** ASVS V5 Validation (Antworten Dritter), V13 Configuration (Geheimnisse), V10/V11 (Anmeldung über Standard-Fluss, keine Eigenbau-Kryptografie ausser der Verschlüsselung ruhender Daten mit `node:crypto`); API10 Unsafe Consumption of APIs, API4, API5; A02, A10.
 
+### 71. Idempotenz-Schlüssel der Direktanlagen (#873)
+
+Die Apps dürfen sechs Anlagen (Höck, Pinnwand-Beitrag, privates To-do, Check-Punkt, Entscheid über eine Raumanfrage, Lädeli-Bestellung) mit dem Kopf `Idempotency-Key` nach einem Netzfehler wiederholen. Der Server speichert dafür die erste Antwort 2xx 24 Stunden lang in `idempotenz`. Bedroht sind die Vertraulichkeit der gespeicherten Antworten, die Rechte (eine Wiederholung darf nichts zeigen oder auslösen, was die Route verbietet) und die Verfügbarkeit (Speicher, gesperrte Schlüssel).
+
+| Bedrohung (STRIDE)                                                                                             | Massnahme                                                                                                                                                                                                                                                  | Test oder Prüfpunkt                             | Stand     |
+| -------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------- | --------- |
+| Information Disclosure: Eine Person liest mit einem erratenen oder fremden Schlüssel die Antwort einer anderen | Der Eintrag gilt je Person (aus der Sitzung, nie aus der Anfrage), Methode mit Pfad und Schlüssel; eine andere Person mit demselben Schlüssel ist unabhängig                                                                                               | `test/idempotenz.test.ts`: andere Person        | vorhanden |
+| Elevation: Eine Wiederholung umgeht die Rechte (SR-10, SR-11)                                                  | Die Middleware hängt hinter der Policy der Lager-Routen; Lädeli und Raumentscheid haben keine Policy davor, die Antwort gehört aber nur der Person, die die Route schon einmal mit Erfolg ausgeführt hat                                                   | `test/idempotenz.test.ts`: Verdrahtung je Route | vorhanden |
+| Tampering: Derselbe Schlüssel mit anderem Inhalt legt etwas anderes an oder bekommt eine falsche Antwort       | SHA-256 des Körpers; anderer Körper ist 422 `IDEMPOTENZ_KONFLIKT`, nichts wird ausgeführt; eine gleichzeitige Wiederholung ist 409 `IN_BEARBEITUNG`                                                                                                        | `test/idempotenz.test.ts`                       | vorhanden |
+| Information Disclosure: Die Tabelle hält Inhalte (SR-41)                                                       | Nur Antworten 2xx, über 16 000 Zeichen nur die `id`; die sechs Routen liefern keine Gesundheitsdaten und keine Geheimnisse. 24 Stunden, täglicher Lauf, Cascade mit dem Konto; Kategorie «technik» in `datenkategorien.ts` und in der Datenschutzerklärung | `test/idempotenz.test.ts`: Ablauf und Lauf      | vorhanden |
+| Denial of Service: Viele Schlüssel füllen die Tabelle, ein verwaister Anspruch sperrt einen Schlüssel          | Ein Eintrag je erfolgreicher Anlage, die Routen haben ihre Obergrenzen; Schlüssel 16 bis 64 Zeichen. Ein Anspruch ohne Antwort, älter als fünf Minuten, geht an die nächste Wiederholung mit gleichem Körper                                               | Code-Review                                     | vorhanden |
+
+**Restrisiko:** Zwischen dem Commit der Route und dem Speichern der Antwort liegt ein kurzer Moment: Fällt der Server genau dann aus, legt eine Wiederholung nach fünf Minuten noch einmal an. Eine Wiederholung des Raumentscheids gibt das Ergebnis auch zurück, wenn der Person das Recht seither entzogen wurde (sie sieht nur, was sie selbst entschieden hat).
+
+**Abweichungen von den Anforderungen:** keine.
+
+**OWASP:** ASVS V11 Business Logic (Wiederholung), API6 Unrestricted Access to Sensitive Business Flows.
+
 ## Bewusst nicht umgesetzt
 
 ### Kein Zertifikat-Pinning
