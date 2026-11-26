@@ -10,6 +10,7 @@ export const VORLAGEN_SCHLUESSEL = [
   "stufenseite",
   "anlass",
   "textseite",
+  "anmeldung",
   "leer",
 ] as const;
 export type Vorlage = (typeof VORLAGEN_SCHLUESSEL)[number];
@@ -37,6 +38,131 @@ const text = (...absaetze: string[]): Baustein => ({
   daten: { inhalt: absaetze.map(absatz) },
   sichtbarkeit: "erbt",
 });
+
+// Das Anmeldeformular (#881) für die Vorlage «Anmeldung» und den Befehl anmeldeformular.ts: dieselben Felder wie die frühere Anleitung «Schreib uns eine E-Mail». Feld-IDs sind bei jedem Aufruf neu.
+// Die Schulklasse ist eine Auswahl, damit die Abteilungsleitung nach Stufe sortieren kann; «Andere Schule» fängt den Rest.
+export const ANMELDUNG_ABSCHNITT = "So meldest du dich an";
+export const SCHULKLASSEN = [
+  "Kindergarten",
+  "1. Klasse",
+  "2. Klasse",
+  "3. Klasse",
+  "4. Klasse",
+  "5. Klasse",
+  "6. Klasse",
+  "1. Sek",
+  "2. Sek",
+  "3. Sek",
+  "Gymnasium",
+  "Andere Schule",
+];
+export function anmeldeFormular(titel?: string): Baustein {
+  const id = () => randomUUID();
+  return {
+    id: id(),
+    typ: "formular",
+    sichtbarkeit: "erbt",
+    daten: {
+      ...(titel && { titel }),
+      einleitung:
+        "Die Anmeldung läuft über die Abteilungsleitung. Fülle das Formular aus und sende es ab. Die Abteilungsleitung meldet sich danach bei dir.",
+      felder: [
+        {
+          id: id(),
+          typ: "text",
+          beschriftung: "Vorname",
+          pflicht: true,
+          maxLaenge: 100,
+          autocomplete: "given-name",
+        },
+        {
+          id: id(),
+          typ: "text",
+          beschriftung: "Nachname",
+          pflicht: true,
+          maxLaenge: 100,
+          autocomplete: "family-name",
+        },
+        {
+          id: id(),
+          typ: "datum",
+          beschriftung: "Geburtsdatum",
+          pflicht: true,
+          autocomplete: "bday",
+        },
+        {
+          id: id(),
+          typ: "text",
+          beschriftung: "Strasse und Nummer",
+          pflicht: true,
+          maxLaenge: 200,
+          autocomplete: "street-address",
+        },
+        {
+          id: id(),
+          typ: "text",
+          beschriftung: "Postleitzahl",
+          pflicht: true,
+          minLaenge: 4,
+          maxLaenge: 10,
+          autocomplete: "postal-code",
+        },
+        {
+          id: id(),
+          typ: "text",
+          beschriftung: "Ort",
+          pflicht: true,
+          maxLaenge: 100,
+          autocomplete: "address-level2",
+        },
+        {
+          id: id(),
+          typ: "email",
+          beschriftung: "E-Mail-Adresse",
+          pflicht: true,
+        },
+        {
+          id: id(),
+          typ: "auswahl",
+          beschriftung: "Aktuelle Schulklasse",
+          pflicht: true,
+          optionen: SCHULKLASSEN,
+        },
+        {
+          id: id(),
+          typ: "text",
+          beschriftung: "Notfallkontakt: Name",
+          hilfe: "Eine Person, die wir im Notfall erreichen können.",
+          pflicht: true,
+          maxLaenge: 100,
+        },
+        {
+          id: id(),
+          typ: "telefon",
+          beschriftung: "Notfallkontakt: Telefonnummer",
+          hilfe: "Zum Beispiel 079 123 45 67.",
+          pflicht: true,
+        },
+        {
+          id: id(),
+          typ: "text",
+          beschriftung: "Cevi-Name",
+          hilfe: "Wenn du schon einen hast.",
+          pflicht: false,
+          maxLaenge: 100,
+        },
+      ],
+      datenschutz:
+        "Wir brauchen die Angaben, um deine Anmeldung zu bearbeiten und im Notfall jemanden zu erreichen. Sie sieht nur die Abteilungsleitung und wer von ihr das Recht dazu bekommt.",
+      absenden: "Anmeldung senden",
+      danke:
+        "Danke für deine Anmeldung. Die Abteilungsleitung meldet sich bei dir.",
+      eineProPerson: false,
+      aufbewahrenTage: 180,
+      maxAntworten: 2000,
+    },
+  };
+}
 
 type Eintrag = VorlagenInfo & {
   bausteine: (tagId: string | undefined) => Baustein[];
@@ -104,6 +230,13 @@ const EINTRAEGE: Record<Vorlage, Eintrag> = {
       ueberschrift("Überschrift"),
       text("Schreibe hier deinen Text."),
     ],
+  },
+  anmeldung: {
+    name: "Anmeldung",
+    beschreibung:
+      "Ein Anmeldeformular mit Name, Geburtsdatum, Adresse, Schulklasse und Notfallkontakt. Die Anmeldungen erscheinen unter «Website, Formulare».",
+    brauchtTag: false,
+    bausteine: () => [ueberschrift(ANMELDUNG_ABSCHNITT), anmeldeFormular()],
   },
   leer: {
     name: "Leere Seite",

@@ -68,12 +68,24 @@ const kopf = {
   hilfe: kurztext(MAX_FELD_HILFE).optional(),
 };
 const pflicht = { pflicht: z.boolean() };
+// Automatisch ausfüllen (WCAG 1.3.5): nur Angaben über die Person, die ausfüllt; ohne Angabe «off». E-Mail und Telefon haben ihren Wert fest
+export const AUTOCOMPLETE = [
+  "name",
+  "given-name",
+  "family-name",
+  "bday",
+  "street-address",
+  "postal-code",
+  "address-level2",
+] as const;
+const autocomplete = { autocomplete: z.enum(AUTOCOMPLETE).optional() };
 
 export const feldSchema = z.discriminatedUnion("typ", [
   z.strictObject({
     typ: z.literal("text"),
     ...kopf,
     ...pflicht,
+    ...autocomplete,
     minLaenge: z.number().int().min(1).max(MAX_TEXT_LAENGE).optional(),
     maxLaenge: z.number().int().min(1).max(MAX_TEXT_LAENGE).optional(),
   }),
@@ -96,6 +108,7 @@ export const feldSchema = z.discriminatedUnion("typ", [
     typ: z.literal("datum"),
     ...kopf,
     ...pflicht,
+    ...autocomplete,
     von: datumText.optional(),
     bis: datumText.optional(),
   }),

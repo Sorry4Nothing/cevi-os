@@ -2754,6 +2754,21 @@ const MATRIX: Record<string, Zeile> = {
       demoEltern: 404,
     },
   },
+  // Stand einer Antwort (#881): eigenes Recht, Standard nur Abteilungsleitung und Entwickler
+  "PATCH /api/v1/admin/formulare/:id/antworten/:antwortId": {
+    urlJeAnfrage: async () =>
+      `/api/v1/admin/formulare/${formularId}/antworten/${await wegwerfFormularAntwortId()}`,
+    body: () => ({ stand: "erledigt" }),
+    erwartet: {
+      ...alle(403),
+      admin: 200,
+      adminOhneZweitenFaktor: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      demoAdmin: 404,
+      demoEltern: 404,
+    },
+  },
   "DELETE /api/v1/admin/formulare/:id/antworten/:antwortId": {
     // Jede Anfrage löscht ihr Ziel
     urlJeAnfrage: async () =>

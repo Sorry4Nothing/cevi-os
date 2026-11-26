@@ -1,0 +1,22 @@
+$kind: http-request
+name: "PATCH /api/v1/admin/formulare/:id/antworten/:antwortId"
+order: 413500
+method: PATCH
+url: "{{baseUrl}}/api/v1/admin/formulare/{{ziel_424}}/antworten/01a218fd-537a-7ad1-81d9-763c308f6c80"
+headers:
+  - key: "Cookie"
+    value: "{{cookie}}"
+  - key: "expo-origin"
+    value: "{{expoOrigin}}"
+  - key: "X-Forwarded-For"
+    value: "{{ip}}"
+  - key: "X-App-Version"
+    value: "{{appVersion}}"
+  - key: "Content-Type"
+    value: "application/json"
+body:
+  type: json
+  content: |-
+    {
+      "stand": "erledigt"
+    }

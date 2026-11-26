@@ -42,6 +42,8 @@ const LIMIT_ADRESSE = 30;
 const LIMIT_ADRESSE_FORMULAR = 10;
 const LIMIT_PERSON_FORMULAR = 10;
 const LIMIT_FORMULAR_ANONYM = 300;
+// Lesen der Definition (#881, SR-71): je Adresse, vor der Datenbank. Die Website selbst fragt hier nie, nur die Apps
+const LIMIT_LESEN_ADRESSE = 120;
 
 const pfadSchema = z.strictObject({ id: z.string().refine(istFormularId) });
 const koerperSchema = z.strictObject({
@@ -113,6 +115,10 @@ export function erstelleFormularOeffentlichRoute({
     max: LIMIT_FORMULAR_ANONYM,
     fensterMs: FENSTER_MS,
   });
+  const lesenAdresse = erstelleBegrenzung({
+    max: LIMIT_LESEN_ADRESSE,
+    fensterMs: FENSTER_MS,
+  });
 
   // Gilt irgendwo eine Sperre der Website, sperrt schon diese Prüfung vor jeder anderen (wie die öffentlichen Medien); die Abteilung des Formulars prüft die Route danach genauer
   const sperreIrgendwo: MiddlewareHandler<Env> = async (c, next) => {
@@ -146,6 +152,8 @@ export function erstelleFormularOeffentlichRoute({
       sperreIrgendwo,
       eingabe("param", pfadSchema),
       async (c) => {
+        const ip = clientIp(c.req.header("x-forwarded-for")) ?? "unbekannt";
+        if (!lesenAdresse(ip)) return c.json(ZU_OFT, 429);
         const formularId = c.req.valid("param").id.toLowerCase();
         const v = await ladeVeroeffentlichtes(db, formularId);
         if (!v) return c.json(NICHT_GEFUNDEN, 404);

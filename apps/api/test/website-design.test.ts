@@ -4,6 +4,7 @@ import { describe, expect, test } from "vitest";
 import { pruefeDokument } from "../src/website/dokument.js";
 import {
   keineDaten,
+  PFAD_ABTEILUNGSLEITUNG,
   rendereAnmeldung,
   rendereHuelle,
   rendereSeite,
@@ -492,6 +493,13 @@ describe("Anmeldeseite (W9)", () => {
     // Menü, Konto-Menü, theme.js, ladezustand.js und anmelden.js, alle eigene Dateien
     expect(zaehle(html, "<script")).toBe(5);
     expect(html).toContain('src="/website/anmelden.js"');
+  });
+
+  test("«Abteilungsleitung» im Hinweis zum Passwort ist ein Link auf die Seite der Abteilungsleitung, im selben Tab (#882)", () => {
+    expect(PFAD_ABTEILUNGSLEITUNG).toBe("/ueber-uns/al");
+    expect(html).toContain(
+      'Passwort vergessen? Wende dich an die <a href="/ueber-uns/al">Abteilungsleitung</a>.',
+    );
   });
 });
 

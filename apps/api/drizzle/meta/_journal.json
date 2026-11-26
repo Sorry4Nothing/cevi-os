@@ -897,6 +897,13 @@
       "when": 1793645800000,
       "tag": "0175_idempotenz",
       "breakpoints": true
+    },
+    {
+      "idx": 176,
+      "version": "7",
+      "when": 1793645900000,
+      "tag": "0176_formular_stand",
+      "breakpoints": true
     }
   ]
 }
