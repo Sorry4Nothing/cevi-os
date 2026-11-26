@@ -81,6 +81,7 @@ const LAGER = "/api/v1/admin/lager";
 const neuePerson = () => ({
   vorname: "Vreni",
   nachname: "Muster",
+  geschlecht: "w",
   benutzername: `person.${randomUUID().slice(0, 8)}`,
   abteilungsleitung: false,
   rollen: [],
