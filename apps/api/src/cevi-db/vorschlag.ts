@@ -112,14 +112,21 @@ export async function ladeAnfrage(
     .from(user)
     .where(eq(user.id, person.id));
   if (!selbst) return null;
+  return { ziel: "user", zielId: person.id, ...anfrageVonKonto(selbst) };
+}
+
+// Die Anfrage für ein Konto; auch der tägliche Abgleich (cevi-db/abgleich.ts, #857) nutzt sie
+export function anfrageVonKonto(konto: {
+  name: string;
+  email: string;
+  ceviDbId: string | null;
+}): Anfrage {
   // Der Name im Konto ist ein Feld: der letzte Teil ist der Nachname, der Rest der Vorname
-  const teile = selbst.name.trim().split(/\s+/);
+  const teile = konto.name.trim().split(/\s+/);
   const nachname = teile.length > 1 ? teile.pop()! : null;
   return {
-    ziel: "user",
-    zielId: person.id,
-    ceviDbId: selbst.ceviDbId,
-    emails: [selbst.email],
+    ceviDbId: konto.ceviDbId,
+    emails: [konto.email],
     vorname: teile.join(" "),
     nachname,
     geburtsdatum: null,

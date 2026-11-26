@@ -123,7 +123,8 @@ const anlegenSchema = z.strictObject({
   vorname: text(100),
   nachname: text(100),
   ceviName: ceviNameFeld.optional(),
-  geschlecht: geschlechtFeld.optional(),
+  // Pflicht seit #857: Wer eine Person von Hand erfasst, kennt sie. Der Import (#257) legt ohne an, der Abgleich mit der Cevi-Datenbank füllt nach
+  geschlecht: geschlechtFeld,
   telefon: telefonSchema.optional(),
   benutzername: benutzernameFeld,
   abteilungsleitung: z.boolean(),
@@ -134,7 +135,8 @@ const anlegenSchema = z.strictObject({
 const aendernSchema = z.strictObject({
   name: text(201).optional(),
   ceviName: ceviNameFeld.nullable().optional(),
-  geschlecht: geschlechtFeld.nullable().optional(),
+  // Fehlen darf es (nur andere Felder ändern), leeren nicht mehr (#857)
+  geschlecht: geschlechtFeld.optional(),
   telefon: telefonSchema.optional(),
   abteilungsleitung: z.boolean().optional(),
   rollen: rollenFeld.optional(),

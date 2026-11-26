@@ -1,7 +1,7 @@
-import { and, eq, inArray, sql } from "drizzle-orm";
+import { and, eq, inArray, sql, type SQL } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { user } from "../db/schema.js";
-import { GESCHLECHTER } from "../geschlecht.js";
+import { GESCHLECHTER, type Geschlecht } from "../geschlecht.js";
 import { keinKindKonto } from "../kind-konto.js";
 import type { CeviPerson } from "./felder.js";
 
@@ -17,20 +17,42 @@ export async function uebernehmeGeschlecht(
       .filter((p) => p.geschlecht === wert)
       .map((p) => p.id);
     if (nummern.length === 0) continue;
-    const zeilen = await db
-      .update(user)
-      .set({ geschlecht: wert })
-      .where(
-        and(
-          eq(user.abteilungId, abteilungId),
-          inArray(user.ceviDbId, nummern),
-          eq(user.geschlechtVonHand, false),
-          sql`${user.geschlecht} is distinct from ${wert}`,
-          keinKindKonto(user.id),
-        ),
-      )
-      .returning({ id: user.id });
-    geaendert += zeilen.length;
+    geaendert += await setze(
+      db,
+      abteilungId,
+      inArray(user.ceviDbId, nummern),
+      wert,
+    );
   }
   return geaendert;
+}
+
+// Für ein Konto, das der tägliche Abgleich nur über Vorname plus Nachname zuordnet (#857): dieselben Grenzen, aber ohne gemerkte Nummer
+export const uebernehmeGeschlechtFuerKonto = (
+  db: Db,
+  abteilungId: string,
+  kontoId: string,
+  wert: Geschlecht | null,
+) => setze(db, abteilungId, eq(user.id, kontoId), wert);
+
+async function setze(
+  db: Db,
+  abteilungId: string,
+  welche: SQL,
+  wert: Geschlecht | null,
+) {
+  const zeilen = await db
+    .update(user)
+    .set({ geschlecht: wert })
+    .where(
+      and(
+        eq(user.abteilungId, abteilungId),
+        welche,
+        eq(user.geschlechtVonHand, false),
+        sql`${user.geschlecht} is distinct from ${wert}`,
+        keinKindKonto(user.id),
+      ),
+    )
+    .returning({ id: user.id });
+  return zeilen.length;
 }

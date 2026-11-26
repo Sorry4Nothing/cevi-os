@@ -624,6 +624,7 @@ const MATRIX: Record<string, Zeile> = {
     body: () => ({
       vorname: "Matrix",
       nachname: "Person",
+      geschlecht: "m",
       benutzername: `matrix.${randomUUID().slice(0, 8)}`,
       abteilungsleitung: false,
       rollen: [],
