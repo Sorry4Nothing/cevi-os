@@ -34,8 +34,8 @@ Zu jeder Kategorie stehen die Daten, der Zweck und die Aufbewahrung.
 
 #### Geschlecht der Person
 
-- **Daten:** Die freiwillige Angabe «weiblich», «männlich» oder «andere» (oder keine Angabe) zu einer Person mit Konto und ob sie von Hand stammt.
-- **Zweck:** Die Verwaltung nennt die Rolle einer Leitung so, wie die Person heisst: «Stufenleiterin», «Stufenleiter» oder, ohne Angabe oder bei anderer Angabe, «Stufenleitung». Wer Personen bearbeiten darf, trägt die Angabe ein; die Person sieht sie in ihrem Konto. Ist die Cevi-Datenbank verbunden, übernimmt Cevi OS die Angabe («weiblich» oder «männlich») von dort, aber nur für Personen mit Konto, die einem Eintrag dort eindeutig zugeordnet sind, und nie über eine Angabe, die jemand in der Verwaltung gesetzt oder geändert hat. Sie erscheint nur in der Verwaltung, dort, wo Name und Rolle der Person stehen: nie auf der öffentlichen Website, im Kalender, in Mitteilungen, in der App der Eltern oder in Exporten. Von Kindern wird sie nicht erfasst.
+- **Daten:** Die freiwillige Angabe «weiblich» oder «männlich» (oder keine Angabe) zu einer Person mit Konto und ob sie von Hand stammt.
+- **Zweck:** Die Verwaltung nennt die Rolle einer Leitung so, wie die Person heisst: «Stufenleiterin», «Stufenleiter» oder, ohne Angabe, «Stufenleitung». Wer Personen bearbeiten darf, trägt die Angabe ein; die Person sieht sie in ihrem Konto. Ist die Cevi-Datenbank verbunden, übernimmt Cevi OS die Angabe («weiblich» oder «männlich») von dort, aber nur für Personen mit Konto, die einem Eintrag dort eindeutig zugeordnet sind, und nie über eine Angabe, die jemand in der Verwaltung gesetzt oder geändert hat. Sie erscheint nur in der Verwaltung, dort, wo Name und Rolle der Person stehen: nie auf der öffentlichen Website, im Kalender, in Mitteilungen, in der App der Eltern oder in Exporten. Von Kindern wird sie nicht erfasst.
 - **Aufbewahrung:** Bis eine berechtigte Person die Angabe entfernt oder das Konto gelöscht wird. Eine Angabe aus der Cevi-Datenbank ändert sich oder verschwindet, wenn sie es dort tut.
 
 #### Persönlicher Kalenderlink
