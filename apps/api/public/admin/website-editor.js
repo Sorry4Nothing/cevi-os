@@ -878,7 +878,7 @@ function baue(bereich, ctx, id, { seite, entwurf, tags, alle }) {
         b &&
           el("img", {
             class: "ws-titelbild-bild",
-            src: `/api/v1/medien/${b.daten.mediumId}`,
+            src: `/api/v1/medien/${b.daten.mediumId}?breite=1280`,
             alt: "",
           }),
         el(

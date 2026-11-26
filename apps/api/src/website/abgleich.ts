@@ -184,7 +184,12 @@ export async function ladeFehlerbild(
   abteilungId: string,
 ): Promise<FehlerBild | undefined> {
   const [z] = await db
-    .select({ id: medium.id, breite: medium.breite, hoehe: medium.hoehe })
+    .select({
+      id: medium.id,
+      breite: medium.breite,
+      hoehe: medium.hoehe,
+      varianten: medium.varianten,
+    })
     .from(abteilung)
     .innerJoin(medium, eq(medium.id, abteilung.websiteFehlerbildMediumId))
     .where(
@@ -209,9 +214,11 @@ export async function ladeLogo(
       altText: medium.altText,
       breite: medium.breite,
       hoehe: medium.hoehe,
+      varianten: medium.varianten,
       dunkelId: logoDunkel.id,
       dunkelBreite: logoDunkel.breite,
       dunkelHoehe: logoDunkel.hoehe,
+      dunkelVarianten: logoDunkel.varianten,
     })
     .from(abteilung)
     .innerJoin(medium, eq(medium.id, abteilung.websiteLogoMediumId))
@@ -233,11 +240,16 @@ export async function ladeLogo(
       ),
     );
   if (!z) return undefined;
-  const { dunkelId, dunkelBreite, dunkelHoehe, ...logo } = z;
+  const { dunkelId, dunkelBreite, dunkelHoehe, dunkelVarianten, ...logo } = z;
   return {
     ...logo,
     ...(dunkelId && {
-      dunkel: { id: dunkelId, breite: dunkelBreite, hoehe: dunkelHoehe },
+      dunkel: {
+        id: dunkelId,
+        breite: dunkelBreite,
+        hoehe: dunkelHoehe,
+        varianten: dunkelVarianten ?? [],
+      },
     }),
   };
 }
@@ -284,6 +296,7 @@ export async function ladeDaten(
         breite: m.breite,
         hoehe: m.hoehe,
         altText: m.altText,
+        varianten: m.varianten,
       });
     }
   }

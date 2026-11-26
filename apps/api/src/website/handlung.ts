@@ -3,7 +3,8 @@ import { HANDLUNG_TYPEN } from "./bausteine-handlung.js";
 import { linkKnoten, telefonZiel } from "./kontakt.js";
 import {
   el,
-  medienUrl,
+  bildQuelle,
+  vollbildGroesse,
   symbol,
   verlinke,
   type Daten,
@@ -78,12 +79,17 @@ function kopfbereich(
     el(
       "figure",
       { class: "titelbild" },
+      // Über die ganze Breite (website.css: .kopfbereich--bild .titelbild img); das Kopfbild steht oben und lädt mit Vorrang (#868)
       el("img", {
-        src: medienUrl(d.bild),
+        ...bildQuelle(
+          d.bild,
+          m,
+          vollbildGroesse(m.breite, m.hoehe, "clamp(15rem, 36vw, 36rem)"),
+        ),
         alt: m.altText ?? "",
         ...(m.breite &&
           m.hoehe && { width: String(m.breite), height: String(m.hoehe) }),
-        loading: "lazy",
+        fetchpriority: "high",
         decoding: "async",
       }),
     ),
