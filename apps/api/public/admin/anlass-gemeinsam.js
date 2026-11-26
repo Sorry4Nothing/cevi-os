@@ -3,6 +3,7 @@ import { datumZeitFeld } from "./datumsfeld.js";
 import { ankreuzen, auswahl, chip, el, gruppe } from "./dom.js";
 import { heuteZuerich, stempel } from "./kalenderhilfen.js";
 import { ladeSeite } from "./anlass-anmeldungen.js";
+import { hatRollen, rollenWahl, rollenWert } from "./sicht-rollen.js";
 
 // Gemeinsame Teile der Anlässe (Liste, Anlass mit seinen Reitern, Zusatzfelder, Anmeldungen): Adressen, Texte, Stand der Anmeldung als Wort mit Symbol, die Felder der Einstellungen. Die Reiter eines Anlasses heissen «anmeldungen», «felder» und «einstellungen»; die Übersicht hat keinen Reiter in der Adresse.
 
@@ -49,14 +50,15 @@ export function leiteAltAdresseUm(pfad) {
   );
 }
 
-export const FUER = { kind: "Kinder", person: "Personen" };
 export const SICHT = {
   oeffentlich: "Öffentlich",
   angemeldet: "Nur angemeldet",
   tags: "Bestimmte Gruppen",
 };
 export const sichtText = (s) =>
-  s.art === "tags" ? `Bestimmte Gruppen (${s.tagIds.length})` : SICHT[s.art];
+  s.art === "tags"
+    ? `Bestimmte Gruppen (${s.tagIds.length}${s.rollen ? ", nur bestimmte Rollen" : ""})`
+    : SICHT[s.art];
 export const fristText = (a) =>
   a.frist ? `${stempel(a.frist)} Uhr` : "Keine Frist";
 
@@ -127,26 +129,8 @@ export function lokal(iso) {
   return `${d.getFullYear()}-${z(d.getMonth() + 1)}-${z(d.getDate())}T${z(d.getHours())}:${z(d.getMinutes())}`;
 }
 
-// Die Einstellungen eines Anlasses; Anlegen und Ändern teilen sie. start: { anmeldungFuer, anmeldungOffen, frist, sichtbarkeit }; fuerFest: wahr, wenn es schon Anmeldungen gibt (dann lässt sich «Wer meldet sich an?» nicht mehr ändern, der Server lehnt es mit 409 ab)
-export function einstellungsFelder(tags, start, { fuerFest = false } = {}) {
-  const fuer = auswahl({
-    label: "Wer meldet sich an?",
-    optionen: [
-      ["kind", "Eltern melden ihre Kinder an"],
-      ["person", "Jede Person meldet sich selbst an"],
-    ],
-    wert: start.anmeldungFuer,
-    disabled: fuerFest,
-  });
-  if (fuerFest) {
-    fuer.wurzel.append(
-      el(
-        "p",
-        { class: "hilfe" },
-        "Das lässt sich nicht mehr ändern, weil es schon Anmeldungen gibt.",
-      ),
-    );
-  }
+// Die Einstellungen eines Anlasses; Anlegen und Ändern teilen sie. start: { anmeldungOffen, frist, sichtbarkeit }. Wer sich für wen anmeldet, folgt aus der Sichtbarkeit (#844)
+export function einstellungsFelder(tags, start) {
   const offen = ankreuzen({
     label: "Die Anmeldung ist offen",
     gewaehlt: start.anmeldungOffen,
@@ -170,15 +154,33 @@ export function einstellungsFelder(tags, start, { fuerFest = false } = {}) {
   const gewaehlt = new Set(
     start.sichtbarkeit.art === "tags" ? start.sichtbarkeit.tagIds : [],
   );
-  const tagWahl = tags.map((t) =>
-    ankreuzen({ label: t.name, gewaehlt: gewaehlt.has(t.id), wert: t.id }),
-  );
+  // Je Stufe die Rollen, die den Anlass sehen und sich anmelden (#844); nur sichtbar, solange die Stufe gewählt ist
+  const startRollen = (id) =>
+    start.sichtbarkeit.art === "tags"
+      ? start.sichtbarkeit.rollen?.[id]
+      : undefined;
+  const TEILNEHMENDE =
+    "Teilnehmende sind die Kinder der Stufe und ihre Eltern.";
+  const tagWahl = tags.map((t) => {
+    const w = ankreuzen({
+      label: t.name,
+      gewaehlt: gewaehlt.has(t.id),
+      wert: t.id,
+    });
+    if (hatRollen(t)) {
+      w.rollen = rollenWahl(t.name, startRollen(t.id), TEILNEHMENDE);
+      const zeige = () => (w.rollen.wurzel.hidden = !w.eingabe.checked);
+      w.eingabe.addEventListener("change", zeige);
+      zeige();
+    }
+    return w;
+  });
   const tagGruppe = gruppe(
     "Gruppen",
     el(
       "div",
       {},
-      tagWahl.map((w) => w.wurzel),
+      tagWahl.map((w) => [w.wurzel, w.rollen?.wurzel]),
     ),
     { scrollen: true },
   );
@@ -196,25 +198,30 @@ export function einstellungsFelder(tags, start, { fuerFest = false } = {}) {
   const lies = () => {
     const art = sicht.eingabe.value;
     return {
-      anmeldungFuer: fuer.eingabe.value,
       anmeldungOffen: offen.eingabe.checked,
       frist: frist.eingabe.value
         ? new Date(frist.eingabe.value).toISOString()
         : null,
       sichtbarkeit:
         art === "tags"
-          ? {
-              art,
-              tagIds: tagWahl
-                .filter((w) => w.eingabe.checked)
-                .map((w) => w.eingabe.value),
-            }
+          ? (() => {
+              const an = tagWahl.filter((w) => w.eingabe.checked);
+              const rollen = rollenWert(
+                an
+                  .filter((w) => w.rollen)
+                  .map((w) => [w.eingabe.value, w.rollen]),
+              );
+              return {
+                art,
+                tagIds: an.map((w) => w.eingabe.value),
+                ...(rollen && { rollen }),
+              };
+            })()
           : { art },
     };
   };
   return {
     knoten: {
-      fuer: fuer.wurzel,
       offen: offen.wurzel,
       frist: frist.wurzel,
       sicht: sicht.wurzel,
@@ -236,8 +243,6 @@ export function einstellungsFelder(tags, start, { fuerFest = false } = {}) {
     lies,
     // Setzt die Felder auf einen Stand zurück («Verwerfen»)
     setze(stand) {
-      fuer.eingabe.value = stand.anmeldungFuer;
-      fuer.eingabe.dispatchEvent(new Event("change"));
       offen.eingabe.checked = stand.anmeldungOffen;
       frist.eingabe.value = stand.frist ? lokal(stand.frist) : "";
       sicht.eingabe.value = stand.sichtbarkeit.art;
@@ -245,14 +250,22 @@ export function einstellungsFelder(tags, start, { fuerFest = false } = {}) {
       const ids = new Set(
         stand.sichtbarkeit.art === "tags" ? stand.sichtbarkeit.tagIds : [],
       );
-      for (const w of tagWahl) w.eingabe.checked = ids.has(w.eingabe.value);
+      for (const w of tagWahl) {
+        w.eingabe.checked = ids.has(w.eingabe.value);
+        w.eingabe.dispatchEvent(new Event("change"));
+        w.rollen?.setze(
+          stand.sichtbarkeit.art === "tags"
+            ? stand.sichtbarkeit.rollen?.[w.eingabe.value]
+            : undefined,
+        );
+      }
     },
   };
 }
 
-// Wie viele der vier Einstellungen sich vom Stand unterscheiden (für «2 Änderungen»). Reine Funktion
+// Wie viele der drei Einstellungen sich vom Stand unterscheiden (für «2 Änderungen»). Reine Funktion
 export function anzahlAenderungen(alt, neu) {
-  return ["anmeldungFuer", "anmeldungOffen", "frist", "sichtbarkeit"].filter(
+  return ["anmeldungOffen", "frist", "sichtbarkeit"].filter(
     (k) => JSON.stringify(alt[k] ?? null) !== JSON.stringify(neu[k] ?? null),
   ).length;
 }

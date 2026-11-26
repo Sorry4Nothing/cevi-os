@@ -27,7 +27,6 @@ import { leerKarte } from "./zustaende.js";
 import { monatVon, monatsName, terminTage } from "./termine-monat.js";
 import {
   BASIS,
-  FUER,
   adresse,
   anzahlAenderungen,
   einstellungsFelder,
@@ -246,12 +245,8 @@ function zeichneListe(bereich, ctx, erste) {
       werkzeuge.hidden = true;
       ersetze(
         liste,
-        leerKarte("Es gibt noch keine Anlässe mit Anmeldung.", [
-          knopf("Neuer Anlass", {
-            symbol: "plus",
-            onclick: (e) => anlegen(ctx, e.currentTarget),
-          }),
-        ]),
+        // Der Knopf «Neuer Anlass» steht im Kopf (mit Prüfung des Rechts), nicht doppelt in der Karte
+        leerKarte("Es gibt noch keine Anlässe mit Anmeldung."),
       );
       return;
     }
@@ -409,7 +404,6 @@ async function anlegen(ctx, ausloeser) {
     hidden: true,
   });
   const rest = einstellungsFelder(tags.tags, {
-    anmeldungFuer: "kind",
     anmeldungOffen: true,
     frist: null,
     sichtbarkeit: { art: "angemeldet" },
@@ -428,7 +422,6 @@ async function anlegen(ctx, ausloeser) {
           { class: "hilfe" },
           "Die Liste zeigt die nächsten 100 Termine.",
         ),
-      k.fuer,
       k.offen,
       k.frist,
       k.sicht,
@@ -729,7 +722,6 @@ function zeichneUebersicht(
   );
 
   const angaben = [
-    ["Anmeldung für", FUER[a.anmeldungFuer]],
     ["Anmeldeschluss", fristText(a)],
     ["Sichtbar für", sichtText(a.sichtbarkeit)],
     [
@@ -849,7 +841,7 @@ function zeichneEinstellungen(
   bereich,
   { ctx, id, pfad, a, gesamt, neu, tags },
 ) {
-  const f = einstellungsFelder(tags, a, { fuerFest: gesamt > 0 });
+  const f = einstellungsFelder(tags, a);
   const k = f.knoten;
   const start = f.lies();
   const leiste = speicherLeiste({
@@ -875,7 +867,7 @@ function zeichneEinstellungen(
     knopfNode.setAttribute("aria-busy", "true");
     try {
       const neuer = f.lies();
-      // Nur, was sich geändert hat: «anmeldungFuer» steht nicht dabei, wenn es schon Anmeldungen gibt
+      // Nur, was sich geändert hat
       const aenderung = Object.fromEntries(
         Object.entries(neuer).filter(
           ([schluessel, wert]) =>
@@ -922,7 +914,6 @@ function zeichneEinstellungen(
       "section",
       { class: "flaeche", "aria-labelledby": "anl-e-anm" },
       el("h2", { id: "anl-e-anm" }, "Anmeldung"),
-      k.fuer,
       k.offen,
       k.frist,
     ),

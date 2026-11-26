@@ -1,18 +1,21 @@
 import { eq, sql } from "drizzle-orm";
-import { pgTable, text, uuid } from "drizzle-orm/pg-core";
+import { jsonb, pgTable, text, uuid } from "drizzle-orm/pg-core";
 import postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, test } from "vitest";
 import { erstelleDb } from "../src/db/client.js";
 import * as schema from "../src/db/schema.js";
 import {
-  ladeTagIds,
+  ladeGruppen,
+  rolleErlaubt,
   sichtbarFuer,
   sichtbarkeitAusSpalten,
   sichtbarkeitFilter,
   sichtbarkeitSchema,
   sichtbarkeitSpalten,
   tagsGehoerenZurAbteilung,
+  type Gruppe,
   type Sichtbarkeit,
+  type SichtRollen,
 } from "../src/sichtbarkeit.js";
 import { bereiteAuthTestsVor, erstelleTestAuth } from "./hilfen/auth.js";
 import { API_URL } from "./hilfen/datenbank.js";
@@ -31,7 +34,7 @@ const db = erstelleDb(sqlClient);
 const auth = erstelleTestAuth(db);
 afterAll(() => sqlClient.end());
 
-// Stand-in für ein Objekt eines Folge-Issues: dieselben zwei Spalten, wie sie das Modul beschreibt
+// Stand-in für ein Objekt eines Folge-Issues: dieselben drei Spalten, wie sie das Modul beschreibt
 const objekt = pgTable("sicht_objekt", {
   id: text("id").primaryKey(),
   abteilungId: uuid("abteilung_id").notNull(),
@@ -42,6 +45,10 @@ const objekt = pgTable("sicht_objekt", {
     .array()
     .notNull()
     .default(sql`'{}'`),
+  sichtbarkeitRollen: jsonb("sichtbarkeit_rollen")
+    .$type<SichtRollen>()
+    .notNull()
+    .default(sql`'{}'::jsonb`),
 });
 
 let welt: Welt;
@@ -52,7 +59,7 @@ let personen: Record<
     abteilungId: string;
     abteilungsleitung: boolean;
     entwickler: boolean;
-    tagIds: string[];
+    gruppen: Gruppe[];
   } | null
 >;
 let tags: { t1: string; t2: string; t3: string; demo: string };
@@ -75,6 +82,12 @@ const OBJEKT_IDS = [
   "demo-oeffentlich",
   "demo-angemeldet",
   "demo-tag",
+  // Untergruppen (#844): Stufe A ganz, nur Gruppenleitung (die Stufenleitung sieht mit), nur Stufenleitung; T1 nur Teilnehmende, nur Leitung
+  "a-alle",
+  "a-leitung",
+  "a-stufenleitung",
+  "t1-teilnehmende",
+  "t1-leitung",
 ] as const;
 
 beforeAll(async () => {
@@ -126,7 +139,7 @@ beforeAll(async () => {
           abteilungsleitung: u !== undefined,
           entwickler: false,
         };
-        return [p, { ...person, tagIds: await ladeTagIds(db, person) }];
+        return [p, { ...person, gruppen: await ladeGruppen(db, person) }];
       }),
     ),
   );
@@ -154,6 +167,35 @@ beforeAll(async () => {
         return { art: "tags", tagIds: [tags.demo] };
       case "demo-tag":
         return { art: "tags", tagIds: [tags.demo] };
+      case "a-alle":
+        return { art: "tags", tagIds: [welt.stufeAId] };
+      case "a-leitung":
+        return {
+          art: "tags",
+          tagIds: [welt.stufeAId],
+          rollen: { [welt.stufeAId]: ["leitung"] },
+        };
+      case "a-stufenleitung":
+        return {
+          art: "tags",
+          tagIds: [welt.stufeAId, tags.t3],
+          rollen: {
+            [welt.stufeAId]: ["stufenleitung"],
+            [tags.t3]: ["leitung"],
+          },
+        };
+      case "t1-teilnehmende":
+        return {
+          art: "tags",
+          tagIds: [tags.t1],
+          rollen: { [tags.t1]: ["teilnehmende"] },
+        };
+      case "t1-leitung":
+        return {
+          art: "tags",
+          tagIds: [tags.t1],
+          rollen: { [tags.t1]: ["leitung", "stufenleitung"] },
+        };
     }
   };
   objekte = OBJEKT_IDS.map((id) => ({
@@ -164,7 +206,7 @@ beforeAll(async () => {
 
   ausSql = await db.transaction(async (tx) => {
     await tx.execute(
-      sql`create temp table sicht_objekt (id text primary key, abteilung_id uuid not null, sichtbarkeit text not null, sichtbarkeit_tags uuid[] not null default '{}') on commit drop`,
+      sql`create temp table sicht_objekt (id text primary key, abteilung_id uuid not null, sichtbarkeit text not null, sichtbarkeit_tags uuid[] not null default '{}', sichtbarkeit_rollen jsonb not null default '{}') on commit drop`,
     );
     await tx.insert(objekt).values(
       objekte.map((o) => ({
@@ -180,7 +222,8 @@ beforeAll(async () => {
         .from(objekt)
         .where(sichtbarkeitFilter(personen[p], objekt))
         .orderBy(objekt.id);
-      ergebnis[p] = zeilen.map((z) => z.id);
+      // In JavaScript sortiert: Die Sortierung der Datenbank übergeht Bindestriche
+      ergebnis[p] = zeilen.map((z) => z.id).sort();
     }
     return ergebnis as Record<Persona, string[]>;
   });
@@ -207,6 +250,11 @@ describe("Sichtbarkeit je Persona", () => {
     "t3",
     "leer",
     "fremder-tag",
+    "a-alle",
+    "a-leitung",
+    "a-stufenleitung",
+    "t1-teilnehmende",
+    "t1-leitung",
   );
   const OHNE_TAG = ids("oeffentlich", "angemeldet");
   const ERWARTET: Record<Persona, string[]> = {
@@ -214,13 +262,31 @@ describe("Sichtbarkeit je Persona", () => {
     admin: ADMIN,
     adminOhneZweitenFaktor: ADMIN,
     // Zwei passende Tags auf «t1-und-t2»: trotzdem eine Zeile
-    slA: ids("oeffentlich", "angemeldet", "nur-t1", "t1-und-t2"),
-    elternA: ids("oeffentlich", "angemeldet", "nur-t1", "t1-und-t2"),
+    // Stufenleitung A: die ganze Stufe, «nur Gruppenleitung» und «nur Stufenleitung»; in T1 ohne Rolle, also Teilnehmende
+    slA: ids(
+      "oeffentlich",
+      "angemeldet",
+      "nur-t1",
+      "t1-und-t2",
+      "a-alle",
+      "a-leitung",
+      "a-stufenleitung",
+      "t1-teilnehmende",
+    ),
+    elternA: ids(
+      "oeffentlich",
+      "angemeldet",
+      "nur-t1",
+      "t1-und-t2",
+      "t1-teilnehmende",
+    ),
+    // In T3 ohne Rolle: «nur Gruppenleitung» für T3 schliesst die Teilnehmenden aus
     leitendeB: ids("oeffentlich", "angemeldet", "t3"),
+    // Gruppenleitung A: die ganze Stufe und «nur Gruppenleitung», nicht «nur Stufenleitung»
+    leitendeA: ids("oeffentlich", "angemeldet", "a-alle", "a-leitung"),
+    leitendeAElternB: ids("oeffentlich", "angemeldet", "a-alle", "a-leitung"),
     // Kein passender Tag: nur öffentlich und angemeldet
     slB: OHNE_TAG,
-    leitendeA: OHNE_TAG,
-    leitendeAElternB: OHNE_TAG,
     elternB: OHNE_TAG,
     mussPasswortAendern: OHNE_TAG,
     deaktiviert: OHNE_TAG,
@@ -255,13 +321,33 @@ describe("Sichtbarkeit je Persona", () => {
 });
 
 describe("Hilfen", () => {
-  test("ladeTagIds: nur Tags der eigenen Abteilung", async () => {
+  test("ladeGruppen: nur Tags der eigenen Abteilung, mit der Rolle darin", async () => {
     // Die Stufe ist seit 0035 ein Tag: Wer in Stufe A leitet, trägt ihn
-    expect([...personen.slA!.tagIds].sort()).toEqual(
-      [tags.t1, tags.t2, welt.stufeAId].sort(),
+    const sortiert = (g: Gruppe[]) =>
+      [...g].sort((a, b) => a.tagId.localeCompare(b.tagId));
+    expect(sortiert(personen.slA!.gruppen)).toEqual(
+      sortiert([
+        { tagId: tags.t1, rolle: "teilnehmende" },
+        { tagId: tags.t2, rolle: "teilnehmende" },
+        { tagId: welt.stufeAId, rolle: "stufenleitung" },
+      ]),
     );
-    expect(personen.demoEltern!.tagIds).toEqual([tags.demo]);
-    expect(personen.elternB!.tagIds).toEqual([]);
+    expect(personen.leitendeA!.gruppen).toEqual([
+      { tagId: welt.stufeAId, rolle: "leitung" },
+    ]);
+    expect(personen.demoEltern!.gruppen).toEqual([
+      { tagId: tags.demo, rolle: "teilnehmende" },
+    ]);
+    expect(personen.elternB!.gruppen).toEqual([]);
+  });
+
+  test("rolleErlaubt: ohne Einschränkung alle, die Stufenleitung sieht, was die Gruppenleitung sieht", () => {
+    expect(rolleErlaubt(undefined, "teilnehmende")).toBe(true);
+    expect(rolleErlaubt(["leitung"], "leitung")).toBe(true);
+    expect(rolleErlaubt(["leitung"], "stufenleitung")).toBe(true);
+    expect(rolleErlaubt(["leitung"], "teilnehmende")).toBe(false);
+    expect(rolleErlaubt(["stufenleitung"], "leitung")).toBe(false);
+    expect(rolleErlaubt(["teilnehmende"], "stufenleitung")).toBe(false);
   });
 
   test("tagsGehoerenZurAbteilung", async () => {
@@ -287,6 +373,11 @@ describe("Hilfen", () => {
       { art: "angemeldet" },
       { art: "tags", tagIds: [tags.t1, tags.t2] },
       { art: "tags", tagIds: [] },
+      {
+        art: "tags",
+        tagIds: [tags.t1, tags.t2],
+        rollen: { [tags.t1]: ["leitung", "teilnehmende"] },
+      },
     ] satisfies Sichtbarkeit[]) {
       const geparst = sichtbarkeitSchema.parse(wert);
       expect(sichtbarkeitAusSpalten(sichtbarkeitSpalten(geparst))).toEqual(
@@ -296,13 +387,38 @@ describe("Hilfen", () => {
     expect(sichtbarkeitSpalten({ art: "angemeldet" })).toEqual({
       sichtbarkeit: "angemeldet",
       sichtbarkeitTags: [],
+      sichtbarkeitRollen: {},
     });
+    // Ohne Einschränkung fehlt «rollen», wie vor #844
+    expect(
+      sichtbarkeitAusSpalten({
+        sichtbarkeit: "tags",
+        sichtbarkeitTags: [tags.t1],
+        sichtbarkeitRollen: {},
+      }),
+    ).toEqual({ art: "tags", tagIds: [tags.t1] });
     for (const falsch of [
       { art: "geheim" },
       { art: "oeffentlich", tagIds: [] },
       { art: "tags" },
       { art: "tags", tagIds: ["kein-uuid"] },
       { art: "tags", tagIds: [tags.t1, tags.t1] },
+      // Rollen (#844): nur für gewählte Tags, nur bekannte Rollen, keine leere oder doppelte Liste, Schlüssel klein
+      { art: "tags", tagIds: [tags.t1], rollen: { [tags.t2]: ["leitung"] } },
+      { art: "tags", tagIds: [tags.t1], rollen: { [tags.t1]: ["eltern"] } },
+      { art: "tags", tagIds: [tags.t1], rollen: { [tags.t1]: [] } },
+      {
+        art: "tags",
+        tagIds: [tags.t1],
+        rollen: { [tags.t1]: ["leitung", "leitung"] },
+      },
+      {
+        art: "tags",
+        tagIds: [tags.t1.toUpperCase()],
+        rollen: { [tags.t1.toUpperCase()]: ["leitung"] },
+      },
+      { art: "tags", tagIds: [tags.t1], rollen: { "kein-uuid": ["leitung"] } },
+      { art: "angemeldet", rollen: {} },
     ]) {
       expect(sichtbarkeitSchema.safeParse(falsch).success).toBe(false);
     }

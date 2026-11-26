@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Geschlecht } from "../geschlecht.js";
 import type { CeviPerson } from "./felder.js";
 
 // Lesender Abruf der Cevi-Datenbank (hitobito, JSON:API) mit dem Dienstkonto-Token der Abteilung (#691). Nur der Server ruft sie ab; das Token steht nur in der Umgebung und nie in einer Antwort, einem Log, einem Fehlertext oder dem Audit. Nur lesen: Es gibt hier kein Schreiben.
@@ -55,6 +56,8 @@ const personSchema = z.object({
     address: text,
     zip_code: z.union([z.string(), z.number()]).nullish(),
     town: text,
+    // hitobito: «m», «w» oder null; nur lesbar mit dem Recht auf Details, sonst fehlt es (#843). Ein anderer Typ bricht den Abruf nicht ab, er ist keine Angabe
+    gender: z.unknown().optional(),
   }),
   relationships: z
     .object({
@@ -90,6 +93,9 @@ const sauber = (wert: string | number | null | undefined, max = 200) => {
 };
 const datum = (wert: string | null | undefined) =>
   wert && /^\d{4}-\d{2}-\d{2}$/.test(wert) ? wert : null;
+// Nur die zwei Werte, die hitobito kennt (Person::GENDERS); leer, fehlend oder anders ist keine Angabe, nie eine Vermutung
+export const geschlechtAus = (wert: unknown): Geschlecht | null =>
+  wert === "w" || wert === "m" ? wert : null;
 
 // Liest den Körper höchstens bis MAX_BYTES_SEITE; mehr ist ein Fehler
 async function leseGedeckelt(res: Response): Promise<string> {
@@ -183,6 +189,7 @@ export function erstelleCeviDbClient({
             strasse: sauber(a.address, 200),
             plz: sauber(a.zip_code, 20),
             ort: sauber(a.town, 100),
+            geschlecht: geschlechtAus(a.gender),
           });
         }
         // Eine leere Seite oder eine ohne neue Person (die Gegenseite ignoriert die Seitenzahl) beendet den Abruf

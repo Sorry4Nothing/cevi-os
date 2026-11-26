@@ -132,7 +132,6 @@ describe("Frist, Prozente, Änderungen", () => {
 
   test("die Zahl der Änderungen zählt Einstellungen, nicht Eingaben", () => {
     const alt = {
-      anmeldungFuer: "kind",
       anmeldungOffen: true,
       frist: "2026-12-07T22:59:00.000Z",
       sichtbarkeit: { art: "tags", tagIds: ["a", "b"] },

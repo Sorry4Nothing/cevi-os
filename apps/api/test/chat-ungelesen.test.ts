@@ -154,6 +154,66 @@ describe("Ungelesen-Zähler", () => {
   });
 });
 
+describe("GET /api/v1/chats/ungelesen (#847)", () => {
+  const zahlen = async (konto: PersonaKonto) => {
+    const antwort = await aufruf(konto, "GET", "/api/v1/chats/ungelesen");
+    expect(antwort.status).toBe(200);
+    return (await antwort.json()) as {
+      anzahl: number;
+      chats: { id: string; ungelesen: number }[];
+    };
+  };
+
+  test("nur Zahlen, dieselben wie in der Chatliste; ohne Vorschau und ohne Namen", async () => {
+    const [eltern, sl, andere] = await Promise.all([
+      person("elternA"),
+      person("slA"),
+      person("elternB"),
+    ]);
+    expect(await zahlen(sl)).toEqual({ anzahl: 0, chats: [] });
+    await sende(eltern, welt.gruppenchatAId, "Geheimer Vorschautext");
+    await sende(eltern, welt.gruppenchatAId, "Zwei");
+    const roh = await (
+      await aufruf(sl, "GET", "/api/v1/chats/ungelesen")
+    ).text();
+    expect(roh).not.toContain("Geheimer");
+    expect(JSON.parse(roh)).toEqual({
+      anzahl: 2,
+      chats: [{ id: welt.gruppenchatAId, ungelesen: 2 }],
+    });
+    expect(await ungelesen(sl, welt.gruppenchatAId)).toBe(2);
+    // Eigene Nachrichten zählen nie; wer nicht Mitglied ist, sieht den Chat nicht
+    expect(await zahlen(eltern)).toEqual({ anzahl: 0, chats: [] });
+    expect(await zahlen(andere)).toEqual({ anzahl: 0, chats: [] });
+    await gelesen(sl, welt.gruppenchatAId);
+    expect(await zahlen(sl)).toEqual({ anzahl: 0, chats: [] });
+  });
+
+  test("zählt über alle Chats der Person zusammen", async () => {
+    const [eltern, sl] = await Promise.all([person("elternA"), person("slA")]);
+    const { id } = (await (
+      await aufruf(eltern, "POST", "/api/v1/chats/direkt", {
+        stufeId: welt.stufeAId,
+      })
+    ).json()) as { id: string };
+    await sende(eltern, id, "Frage");
+    await sende(eltern, welt.gruppenchatAId, "Hallo");
+    const z = await zahlen(sl);
+    expect(z.anzahl).toBe(2);
+    expect(z.chats).toHaveLength(2);
+    expect(z.chats).toEqual(
+      expect.arrayContaining([
+        { id, ungelesen: 1 },
+        { id: welt.gruppenchatAId, ungelesen: 1 },
+      ]),
+    );
+  });
+
+  test("ohne Sitzung 401", async () => {
+    expect((await app.request("/api/v1/chats/ungelesen")).status).toBe(401);
+  });
+});
+
 describe("PUT /api/v1/chats/:id/gelesen", () => {
   const stand = async (konto: PersonaKonto) => {
     const [zeile] = await db

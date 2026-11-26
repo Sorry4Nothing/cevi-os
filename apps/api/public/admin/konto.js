@@ -64,11 +64,10 @@ const PASSWORT_FEHLER = {
   ],
 };
 
-// Anzeige der freiwilligen Angabe (#817); «d» und leer heissen für die Rolle gleich
+// Anzeige der freiwilligen Angabe (#817, seit #849 nur w oder m)
 const GESCHLECHT_TEXT = {
   w: "Weiblich",
   m: "Männlich",
-  d: "Andere",
   keine: "Keine Angabe",
 };
 

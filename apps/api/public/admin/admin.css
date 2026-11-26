@@ -1419,6 +1419,21 @@ fieldset .feld .aw {
   overflow-y: auto;
 }
 
+/* Rollen einer gewählten Stufe in «Bestimmte Gruppen» (#844): eingerückt unter der Stufe, mit Linie, damit klar ist, wozu sie gehören */
+.sicht-rollen {
+  margin: 0 0 8px 12px;
+  padding: 0 0 0 24px;
+  border: 0;
+  border-left: 2px solid var(--rand-leise);
+  border-radius: 0;
+}
+
+.sicht-rollen-wahl {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: 16px;
+}
+
 /* Ankreuzfeld: Haken statt nur Farbe. Gilt für jedes Kästchen der Verwaltung, auch in Zeilen, die als Ganzes ein label sind (#668); ein rohes Browser-Kästchen gibt es nicht */
 .wahl {
   display: flex;

@@ -593,12 +593,6 @@ function zeigeArtikel(bereich, ctx) {
       bereich.append(
         leerKarte(
           "Das Lädeli hat noch keine Artikel. Lege den ersten an; er erscheint auf der Website, sobald eine Seite den Baustein «Lädeli» hat.",
-          [
-            knopf("Neuer Artikel", {
-              symbol: "plus",
-              onclick: () => artikelBlatt({ ctx, neu, anzahl: 0 }),
-            }),
-          ],
         ),
       );
       return;

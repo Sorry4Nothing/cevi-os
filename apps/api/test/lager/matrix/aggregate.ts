@@ -41,6 +41,14 @@ export const ZEILEN: LagerMatrix = {
       abgeschlossen: status({ ...nichtMitglied }, 200),
     },
   },
+  // Widget-Stand (#848): jedes Mitglied, auch im abgeschlossenen Lager (Tage und Glocke gehören jeder Rolle)
+  "GET /api/v1/lager/:id/widget": {
+    url: pfad("widget"),
+    erwartet: {
+      aktiv: status({ ...nichtMitglied }, 200),
+      abgeschlossen: status({ ...nichtMitglied }, 200),
+    },
+  },
   "GET /api/v1/lager/:id/start": {
     url: pfad("start"),
     erwartet: {

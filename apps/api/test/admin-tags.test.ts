@@ -654,7 +654,6 @@ describe("Gruppentyp «anlass» (#626)", () => {
         abteilungId,
         programmId: p.id,
         art,
-        anmeldungFuer: "person",
         sichtbarkeit: "angemeldet",
       })
       .returning({ id: schema.anlass.id });

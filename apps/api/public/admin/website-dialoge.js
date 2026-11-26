@@ -1,3 +1,4 @@
+import { ROLLEN } from "./sicht-rollen.js";
 import { el, flussKopf, neueId } from "./dom.js";
 import { oeffneFluss } from "./fluss.js";
 import { symbol } from "./website-symbole.js";
@@ -229,8 +230,14 @@ export function sichtbarkeitText(s, tagNamen) {
   if (s.art === "oeffentlich") return "Öffentlich";
   if (s.art === "angemeldet") return "Nur angemeldet";
   if (s.tagIds.length === 0) return "Bestimmte Gruppen (keine gewählt)";
+  // Mit Rollen (#844): «Imperius (Gruppenleitung, Stufenleitung)»
+  const name = new Map(ROLLEN);
   return s.tagIds
-    .map((id) => tagNamen.get(id) ?? "unbekannte Gruppe")
+    .map((id) => {
+      const gruppe = tagNamen.get(id) ?? "unbekannte Gruppe";
+      const r = s.rollen?.[id];
+      return r ? `${gruppe} (${r.map((x) => name.get(x)).join(", ")})` : gruppe;
+    })
     .join(", ");
 }
 

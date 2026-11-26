@@ -8,11 +8,13 @@ import {
   entscheideTausch,
   ladeTausche,
   legeTauschAn,
+  nimmEntscheidZurueck,
   tauschAbfrage,
   tauschAnlegen,
   tauschAnsicht,
   tauschEntscheiden,
   tauschMitNamen,
+  tauschZuruecknehmen,
   tauschZurueckziehen,
   type TauschFehler,
   ziehTauschZurueck,
@@ -52,6 +54,7 @@ const FEHLER: Record<TauschFehler, [403 | 400 | 409, string]> = {
     409,
     "Eine der Personen hat im neuen Abschnitt schon einen anderen Dienst.",
   ],
+  NICHT_ENTSCHIEDEN: [409, "Die Anfrage ist nicht entschieden."],
 };
 const fehlerAntwort = (fehler: TauschFehler) => {
   const [status, message] = FEHLER[fehler];
@@ -162,6 +165,32 @@ export function erstelleDiensttauschRouten({ db, fcm }: { db: Db; fcm?: Fcm }) {
           }
           for (const z of ergebnis.zustellungen) {
             await z.senden({ db, fcm, c });
+          }
+          return c.json(
+            (await tauschMitNamen(db, c.get("lager"), [ergebnis.tausch]))[0],
+          );
+        },
+      )
+      // Entscheid zurücknehmen (#848): Die Anfrage ist wieder offen, ein angenommener Tausch bucht zurück (Regeln in lager/diensttausch.ts)
+      .post(
+        "/:id/diensttausch/:tauschId/entscheid/zuruecknehmen",
+        entscheiden,
+        eingabe("param", tauschPfad),
+        eingabe("json", tauschZuruecknehmen),
+        async (c) => {
+          const person = c.get("person");
+          const ergebnis = await db.transaction((tx) =>
+            nimmEntscheidZurueck(
+              tx,
+              { lagerId: c.get("lager").lager.id, personId: person.id },
+              person.abteilungId,
+              c.req.valid("param").tauschId,
+              c.req.valid("json").version,
+            ),
+          );
+          if ("fehler" in ergebnis) {
+            const a = fehlerAntwort(ergebnis.fehler);
+            return c.json(a.body, a.status);
           }
           return c.json(
             (await tauschMitNamen(db, c.get("lager"), [ergebnis.tausch]))[0],

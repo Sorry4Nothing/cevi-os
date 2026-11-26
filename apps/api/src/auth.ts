@@ -270,6 +270,16 @@ export function erstelleAuth(
         pushChat: { type: "boolean", input: false, defaultValue: true },
         pushProgramme: { type: "boolean", input: false, defaultValue: true },
         pushAnmeldungen: { type: "boolean", input: false, defaultValue: true },
+        pushTerminEntscheid: {
+          type: "boolean",
+          input: false,
+          defaultValue: true,
+        },
+        pushRaumEntscheid: {
+          type: "boolean",
+          input: false,
+          defaultValue: true,
+        },
         datenschutzGelesenAm: { type: "date", input: false, required: false },
       },
     },

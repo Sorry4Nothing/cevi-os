@@ -140,7 +140,7 @@ export function sendeFehler(r) {
 
 // --- Ansichten
 // z: { a, wahl (Index der Person), werte: {schluessel: Wert}, fehler: {schluessel: Text}, zusammenfassung, senden, offline, band, bearbeiten }
-// Bei mehreren Kindern: für wen die Anmeldung gilt
+// Bei mehreren Personen (die Person selbst und ihre Kinder, #844): für wen die Anmeldung gilt
 export function wahlView(z) {
   if (z.a.teilnehmende.length < 2) return null;
   return h(
@@ -161,7 +161,7 @@ export function wahlView(z) {
             ...(z.senden && { "aria-disabled": "true" }),
           },
           i === z.wahl ? icon("haken") : null,
-          vorname(p),
+          p.kindId ? vorname(p) : "Dich selbst",
         ),
       ),
     ),
@@ -425,11 +425,12 @@ export function formularView(z) {
 export function sperreView(z, heuteTag) {
   const a = z.a;
   const t = a.teilnehmende[z.wahl];
-  if (a.anmeldungFuer === "kind" && a.teilnehmende.length === 0) {
+  // Weder die Person noch ein verbundenes Kind gehört zur Zielgruppe des Anlasses (#844)
+  if (a.teilnehmende.length === 0) {
     return zustandView({
       symbol: "info",
-      titel: "Zu deinem Konto gehört noch kein Kind.",
-      text: "Wende dich an die Abteilungsleitung.",
+      titel: "Für diesen Anlass kannst du niemanden anmelden.",
+      text: "Er richtet sich an eine andere Gruppe. Fehlt ein Kind in deinem Konto, wende dich an die Abteilungsleitung.",
     });
   }
   const bestehend = t.anmeldung?.status === "angemeldet";
@@ -437,7 +438,7 @@ export function sperreView(z, heuteTag) {
     return bandView({
       art: "ok",
       symbol: "haken",
-      titel: `${a.anmeldungFuer === "kind" ? vorname(t) + " ist" : "Du bist"} schon angemeldet.`,
+      titel: `${t.kindId ? vorname(t) + " ist" : "Du bist"} schon angemeldet.`,
       text: `Angemeldet am ${zeitpunktText(t.anmeldung.geaendertAm)}.`,
       attr: { tabindex: "-1", id: "tm-erfolg" },
       aktion: a.anmeldungOffen
@@ -717,7 +718,7 @@ function start(doc, wurzel) {
     const t = z.a.teilnehmende[z.wahl];
     const ja = await bestaetige(doc, wurzel, {
       titel: "Abmelden?",
-      text: `${a_name(t)} wird von «${z.a.titel}» abgemeldet. Die Angaben werden gelöscht.`,
+      text: `${t.kindId ? vorname(t) + " wird" : "Du wirst"} von «${z.a.titel}» abgemeldet. Die Angaben werden gelöscht.`,
       ja: "Abmelden",
     });
     if (!ja) return;
@@ -736,7 +737,6 @@ function start(doc, wurzel) {
     }
     return fehlerBehandeln(sendeFehler(r), "abmelden");
   }
-  const a_name = (t) => (z.a.anmeldungFuer === "kind" ? vorname(t) : "Du");
 
   wurzel.addEventListener("submit", (e) => {
     e.preventDefault();

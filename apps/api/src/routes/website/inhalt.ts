@@ -5,7 +5,7 @@ import type { Db } from "../../db/client.js";
 import { seite, seiteVersion } from "../../db/schema.js";
 import type { Person } from "../../rechte.js";
 import {
-  ladeTagIds,
+  ladeGruppen,
   sichtbarFuer,
   sichtbarkeitAusSpalten,
 } from "../../sichtbarkeit.js";
@@ -65,6 +65,7 @@ export function erstelleInhaltRoute({ db }: { db: Db }) {
           tagId: seite.tagId,
           sichtbarkeit: seite.sichtbarkeit,
           sichtbarkeitTags: seite.sichtbarkeitTags,
+          sichtbarkeitRollen: seite.sichtbarkeitRollen,
           veroeffentlichteVersionId: seite.veroeffentlichteVersionId,
         })
         .from(seite)
@@ -78,7 +79,7 @@ export function erstelleInhaltRoute({ db }: { db: Db }) {
 
       const sicht = {
         ...person,
-        tagIds: await ladeTagIds(db, person),
+        gruppen: await ladeGruppen(db, person),
       };
       const abteilungId = person.abteilungId;
       if (

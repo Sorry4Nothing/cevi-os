@@ -15,6 +15,7 @@ import { eingabe } from "../../eingabe.js";
 import {
   sichtbarkeitAusSpalten,
   type Sichtbarkeit,
+  type SichtRollen,
   sichtbarkeitSchema,
   sichtbarkeitSpalten,
   tagsGehoerenZurAbteilung,
@@ -49,23 +50,24 @@ export const LESEN = [
   "anlass.anmeldungen_sehen",
   "anlass.anmeldungen_exportieren",
 ] as const;
-const anmeldungFuer = z.enum(["kind", "person"]);
+// «Wer meldet sich an?» gibt es nicht mehr (#844); ältere Clients dürfen den Schlüssel noch senden, er wird ignoriert
+const anmeldungFuerAlt = z.enum(["kind", "person"]).optional();
 const frist = z.iso.datetime({ offset: true }).transform((s) => new Date(s));
 
 const anlegenSchema = z.strictObject({
   programmId: z.uuid(),
-  anmeldungFuer,
+  anmeldungFuer: anmeldungFuerAlt,
   anmeldungOffen: z.boolean(),
   frist: frist.nullable().optional(),
   sichtbarkeit: sichtbarkeitSchema,
   felder: felderSchema.default([]),
 });
-// Ohne Schlüssel bleibt der Wert; frist null löscht die Frist. «anmeldungFuer» nur ohne Anmeldungen
+// Ohne Schlüssel bleibt der Wert; frist null löscht die Frist
 const aendernSchema = z.strictObject({
   anmeldungOffen: z.boolean().optional(),
   frist: frist.nullable().optional(),
   sichtbarkeit: sichtbarkeitSchema.optional(),
-  anmeldungFuer: anmeldungFuer.optional(),
+  anmeldungFuer: anmeldungFuerAlt,
 });
 const felderBody = z.strictObject({ felder: felderSchema });
 const listeSchema = z.strictObject({
@@ -115,11 +117,11 @@ const anlassSpalten = {
   tagVon: programm.tagVon,
   tagBis: programm.tagBis,
   art: anlass.art,
-  anmeldungFuer: anlass.anmeldungFuer,
   anmeldungOffen: anlass.anmeldungOffen,
   frist: anlass.frist,
   sichtbarkeit: anlass.sichtbarkeit,
   sichtbarkeitTags: anlass.sichtbarkeitTags,
+  sichtbarkeitRollen: anlass.sichtbarkeitRollen,
   seiteId: anlass.seiteId,
   // Die Gruppe vom Typ «anlass» zu diesem Anlass (zum Beispiel das OK), höchstens eine (#626); null ohne Gruppe
   gruppe: sql<{
@@ -132,12 +134,17 @@ function ausgabe<
   T extends {
     sichtbarkeit: Sichtbarkeit["art"];
     sichtbarkeitTags: string[];
+    sichtbarkeitRollen: SichtRollen;
   },
 >(zeile: T) {
-  const { sichtbarkeit, sichtbarkeitTags, ...rest } = zeile;
+  const { sichtbarkeit, sichtbarkeitTags, sichtbarkeitRollen, ...rest } = zeile;
   return {
     ...rest,
-    sichtbarkeit: sichtbarkeitAusSpalten({ sichtbarkeit, sichtbarkeitTags }),
+    sichtbarkeit: sichtbarkeitAusSpalten({
+      sichtbarkeit,
+      sichtbarkeitTags,
+      sichtbarkeitRollen,
+    }),
   };
 }
 
@@ -154,7 +161,6 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
     const abfrage = tx
       .select({
         id: anlass.id,
-        anmeldungFuer: anlass.anmeldungFuer,
         anmeldungOffen: anlass.anmeldungOffen,
         seiteId: anlass.seiteId,
       })
@@ -228,7 +234,6 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
                 programmId: termin.id,
                 anmeldungOffen: b.anmeldungOffen,
                 frist: b.frist ?? null,
-                anmeldungFuer: b.anmeldungFuer,
                 ...sichtbarkeitSpalten(b.sichtbarkeit),
                 seiteId: seite.id,
                 erstelltVon: person.id,
@@ -376,8 +381,8 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
           ) {
             return c.json(TAG_UNBEKANNT, 400);
           }
-          const antwort = await db.transaction(async (tx) => {
-            // Sperrt den Anlass: Eine Anmeldung, die zugleich entsteht, wartet (Fremdschlüssel) und zählt dann mit
+          await db.transaction(async (tx) => {
+            // Sperrt den Anlass: Eine Anmeldung, die zugleich entsteht, wartet, bis die neue Sichtbarkeit gilt
             const ziel = await ladeKurz(
               tx,
               person,
@@ -385,25 +390,15 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
               "anlass.verwalten",
               true,
             );
-            if (
-              b.anmeldungFuer !== undefined &&
-              b.anmeldungFuer !== ziel.anmeldungFuer &&
-              (await zaehleAnmeldungen(tx, id)) > 0
-            ) {
-              return ANMELDUNGEN_VORHANDEN;
-            }
             const aenderung = {
               ...(b.anmeldungOffen !== undefined && {
                 anmeldungOffen: b.anmeldungOffen,
               }),
               ...(b.frist !== undefined && { frist: b.frist }),
               ...(b.sichtbarkeit && sichtbarkeitSpalten(b.sichtbarkeit)),
-              ...(b.anmeldungFuer !== undefined && {
-                anmeldungFuer: b.anmeldungFuer,
-              }),
             };
             // Ohne Schlüssel wirft Drizzle bei set({}): kein Schreibzugriff
-            if (Object.keys(aenderung).length === 0) return null;
+            if (Object.keys(aenderung).length === 0) return;
             await tx.update(anlass).set(aenderung).where(eq(anlass.id, id));
             // Für das Änderungsprotokoll: Offen oder zu, vorher und nachher
             if (
@@ -424,9 +419,7 @@ export function erstelleAdminAnlaesseRouten({ db }: { db: Db }) {
               zielId: id,
               details: { felder: Object.keys(b) },
             });
-            return null;
           });
-          if (antwort) return c.json(antwort, 409);
           return c.body(null, 204);
         },
       )

@@ -19,6 +19,8 @@ const profilSchema = z
     pushChat: z.boolean(),
     pushProgramme: z.boolean(),
     pushAnmeldungen: z.boolean(),
+    pushTerminEntscheid: z.boolean(),
+    pushRaumEntscheid: z.boolean(),
     telefon: telefonSchema,
   })
   .partial()
@@ -44,6 +46,8 @@ export function erstelleIchRouten({ db }: { db: Db }) {
             pushChat: user.pushChat,
             pushProgramme: user.pushProgramme,
             pushAnmeldungen: user.pushAnmeldungen,
+            pushTerminEntscheid: user.pushTerminEntscheid,
+            pushRaumEntscheid: user.pushRaumEntscheid,
             bildUrl,
           })
           .from(user)

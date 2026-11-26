@@ -113,6 +113,7 @@ Die Leisten stehen im Kopf, nicht in einer Seitenleiste (G4). Unter 1100 px rüc
 | `lager-rechte.js`                                                      | Rechte der Rollen eines Lagers in Klartext (Bereiche, Filter, Leiste mit Änderungen)                                                   |
 | `termine-monat.js`                                                     | Monatsansicht des Kalenders: reine Funktionen und Knoten (Klassenvorsatz `tm-`, Stile in `termine.css`)                                |
 | `anlass-gemeinsam.js`, `anlass-anmeldungen.js`                         | Anlässe: Adressen, Texte, Stand der Anmeldung, Einstellungsfelder, Speicher; Reiter «Anmeldungen» mit Export (#608)                    |
+| `sicht-rollen.js`                                                      | Rollen je Stufe in «Bestimmte Gruppen» für Anlass, Seite und Baustein (#844)                                                           |
 | `anlass-felder.js`, `termine-anlaesse.css`                             | Anlässe: Reiter «Zusatzfelder» (Sortierliste, Speicherleiste); Stile der Anlässe (Klassenvorsatz `anl-`)                               |
 | `konto.js`, `konto.css`                                                | Mein Konto (#konto): Profilkarte, Deine Angaben, Sicherheit, Datenschutz; Klassenvorsatz `kt-` (#621)                                  |
 | `hinweisband.js`                                                       | Hinweisband unter dem Kopf bei Wartung oder Informationssperre (#593); `BEREICHE` der Plattform                                        |

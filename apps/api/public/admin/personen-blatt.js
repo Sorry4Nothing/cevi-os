@@ -519,18 +519,17 @@ export function funktionenFelder(person, funktionen, ich) {
   };
 }
 
-// Geschlecht (#817): freiwillig, bestimmt nur, wie die Rolle dieser Person heisst. Eine Wahl «Weiblich | Männlich | Keine Angabe oder andere», die Wahl gilt mit «Speichern»
-// wert() ist, was die API erwartet: «w», «m», «d» (bleibt, wenn es schon so steht) oder null (keine Angabe, neutrale Form)
+// Geschlecht (#817): freiwillig, bestimmt nur, wie die Rolle dieser Person heisst. Eine Wahl «Weiblich | Männlich | Keine Angabe» (seit #849 ohne «andere»), die Wahl gilt mit «Speichern»
+// wert() ist, was die API erwartet: «w», «m» oder null (keine Angabe, neutrale Form)
 export const GESCHLECHT_WAHL = [
   ["w", "Weiblich"],
   ["m", "Männlich"],
-  ["", "Keine Angabe oder andere"],
+  ["", "Keine Angabe"],
 ];
 export function geschlechtFeld(gewaehlt) {
   const name = neueId("geschlecht");
   const legendeId = neueId("geschlecht-legende");
   const hilfeId = neueId("geschlecht-hilfe");
-  // Eine «d»-Angabe (andere) steht bei «Keine Angabe oder andere»: Beide heissen in der Verwaltung gleich, neutral
   const aktuell = gewaehlt === "w" || gewaehlt === "m" ? gewaehlt : "";
   const optionen = GESCHLECHT_WAHL.map(([wert, text]) => {
     const id = neueId("geschlecht-option");
@@ -567,10 +566,7 @@ export function geschlechtFeld(gewaehlt) {
   );
   return {
     wurzel,
-    // Wer «d» hat und nichts ändert, behält «d»; beide Werte heissen neutral
-    wert: () =>
-      wurzel.querySelector("input:checked").value ||
-      (gewaehlt === "d" ? "d" : null),
+    wert: () => wurzel.querySelector("input:checked").value || null,
   };
 }
 

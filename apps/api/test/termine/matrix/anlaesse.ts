@@ -46,7 +46,6 @@ export async function VORBEREITUNG(welt: Welt) {
     .values({
       abteilungId: welt.testabteilungId,
       programmId: termin.id,
-      anmeldungFuer: "kind",
       anmeldungOffen: true,
       sichtbarkeit: "angemeldet",
     })

@@ -1,7 +1,13 @@
 import { and, eq, inArray, lt, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
 import { formularAntwort, seite, seiteVersion } from "../db/schema.js";
-import { sichtbarkeitAusSpalten, type Sichtbarkeit } from "../sichtbarkeit.js";
+import type { Person } from "../rechte.js";
+import {
+  sichtbarFuer,
+  sichtbarkeitAusSpalten,
+  type Sichtbarkeit,
+  type SichtRollen,
+} from "../sichtbarkeit.js";
 import {
   formularBausteine,
   type FormularBaustein,
@@ -58,6 +64,7 @@ export async function ladeVeroeffentlichtes(
       abteilungId: seite.abteilungId,
       sichtbarkeit: seite.sichtbarkeit,
       sichtbarkeitTags: seite.sichtbarkeitTags,
+      sichtbarkeitRollen: seite.sichtbarkeitRollen,
       versionId: seiteVersion.id,
       inhalt: seiteVersion.inhalt,
     })
@@ -80,6 +87,103 @@ export async function ladeVeroeffentlichtes(
     seiteSichtbarkeit: sichtbarkeitAusSpalten(z),
     baustein,
   };
+}
+
+type Sicht = Parameters<typeof sichtbarFuer>[0];
+
+// Die Seite und der Baustein müssen beide für diese Person sichtbar sein; null ist die Person ohne Anmeldung
+export function darfFormularSehen(
+  sicht: Sicht,
+  abteilungId: string,
+  seiteSichtbarkeit: Sichtbarkeit,
+  b: FormularBaustein,
+) {
+  return (
+    sichtbarFuer(sicht, { abteilungId, sichtbarkeit: seiteSichtbarkeit }) &&
+    (b.sichtbarkeit === "erbt" ||
+      sichtbarFuer(sicht, { abteilungId, sichtbarkeit: b.sichtbarkeit }))
+  );
+}
+
+// Die Formulare, die die Person beantwortet hat (solange die Antwort noch nicht gelöscht ist)
+export async function beantworteteFormulare(
+  db: Pick<Db, "selectDistinct">,
+  person: Pick<Person, "id" | "abteilungId">,
+  formularIds?: readonly string[],
+): Promise<Set<string>> {
+  if (formularIds?.length === 0) return new Set();
+  const zeilen = await db
+    .selectDistinct({ formularId: formularAntwort.formularId })
+    .from(formularAntwort)
+    .where(
+      and(
+        eq(formularAntwort.abteilungId, person.abteilungId),
+        eq(formularAntwort.userId, person.id),
+        formularIds
+          ? inArray(formularAntwort.formularId, [...formularIds])
+          : undefined,
+      ),
+    );
+  return new Set(zeilen.map((z) => z.formularId));
+}
+
+export type SichtbaresFormular = {
+  id: string;
+  titel: string | null;
+  seitenTitel: string;
+  schliesstAm: string | null;
+  beantwortet: boolean;
+};
+
+// Die offenen Formulare der veröffentlichten Seiten der Abteilung, die die angemeldete Person sieht (Seite und Baustein). Zwei Abfragen
+export async function listeSichtbareFormulare(
+  db: Db,
+  sicht: NonNullable<Sicht> & Pick<Person, "id">,
+  jetzt: Date,
+): Promise<SichtbaresFormular[]> {
+  const seiten = await db.execute<{
+    titel: string;
+    sichtbarkeit: Sichtbarkeit["art"];
+    sichtbarkeit_tags: string[];
+    sichtbarkeit_rollen: SichtRollen;
+    baustein: unknown;
+  }>(sql`
+    select s.titel, s.sichtbarkeit, s.sichtbarkeit_tags::text[] as sichtbarkeit_tags, s.sichtbarkeit_rollen, b as baustein
+    from seite s
+    join seite_version v on v.id = s.veroeffentlichte_version_id
+    cross join lateral jsonb_array_elements(v.inhalt -> 'bausteine') b
+    where s.abteilung_id = ${sicht.abteilungId} and b ->> 'typ' = 'formular'
+  `);
+  const offen = seiten.flatMap((z) => {
+    const b = formularBausteine[0].safeParse(z.baustein);
+    if (!b.success || istGeschlossen(b.data, jetzt)) return [];
+    const seiteSicht = sichtbarkeitAusSpalten({
+      sichtbarkeit: z.sichtbarkeit,
+      sichtbarkeitTags: z.sichtbarkeit_tags,
+      sichtbarkeitRollen: z.sichtbarkeit_rollen,
+    });
+    if (!darfFormularSehen(sicht, sicht.abteilungId, seiteSicht, b.data))
+      return [];
+    return [{ seitenTitel: z.titel, baustein: b.data }];
+  });
+  const beantwortet = await beantworteteFormulare(
+    db,
+    sicht,
+    offen.map((f) => f.baustein.id.toLowerCase()),
+  );
+  return offen
+    .map(({ seitenTitel, baustein: b }) => ({
+      id: b.id.toLowerCase(),
+      titel: b.daten.titel ?? null,
+      seitenTitel,
+      schliesstAm: b.daten.schliesstAm ?? null,
+      beantwortet: beantwortet.has(b.id.toLowerCase()),
+    }))
+    .sort(
+      (a, b) =>
+        a.seitenTitel.localeCompare(b.seitenTitel, "de") ||
+        (a.titel ?? "").localeCompare(b.titel ?? "", "de"),
+    );
 }
 
 export type FormularZeile = {

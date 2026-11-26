@@ -9,6 +9,7 @@ import {
 import { erstelleApp } from "./app.js";
 import { erstelleCeviDbClient } from "./cevi-db/client.js";
 import { erstelleCeviDbDienst } from "./cevi-db/dienst.js";
+import { uebernehmeGeschlecht } from "./cevi-db/geschlecht.js";
 import { speichereStand } from "./cevi-db/stand.js";
 import { sucheBeiGeoAdmin } from "./ortssuche/geoadmin.js";
 import { erstelleOrtssuche } from "./ortssuche/index.js";
@@ -134,6 +135,15 @@ const ceviDb =
           token: konfiguration.CEVI_DB_TOKEN,
         }),
         beiAbruf: speichereStand(db),
+        beiPersonen: async (abteilungId, personen) => {
+          const anzahl = await uebernehmeGeschlecht(db, abteilungId, personen);
+          // Nur die Zahl, nie wer
+          if (anzahl > 0)
+            log(undefined, {
+              ereignis: "cevi_db_geschlecht_uebernommen",
+              anzahl,
+            });
+        },
       })
     : undefined;
 // Wartungsmodus und Sperre (#424, #425): einmal aus der Datenbank geladen, danach nur im Speicher. Ohne diesen Stand startet die API nicht, damit eine Sperre nie durch einen Neustart verschwindet

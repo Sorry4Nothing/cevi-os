@@ -60,7 +60,11 @@ export async function legePersonAn(
       .update(schema.user)
       .set({
         ...(eingaben.telefon && { telefon: eingaben.telefon }),
-        ...(eingaben.geschlecht && { geschlecht: eingaben.geschlecht }),
+        // Von Hand gesetzt: Die Cevi-Datenbank überschreibt sie nie (#843)
+        ...(eingaben.geschlecht && {
+          geschlecht: eingaben.geschlecht,
+          geschlechtVonHand: true,
+        }),
       })
       .where(eq(schema.user.id, neu.id));
   }

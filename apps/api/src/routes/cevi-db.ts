@@ -50,22 +50,6 @@ export function erstelleCeviDbRouten({
       const r = await ermittle({ db, dienst, person, anlassId, kindId });
       // Fremder oder unsichtbarer Anlass und fremdes Kind: dasselbe 404 wie bei der Anmeldung
       if ("fehler" in r) {
-        if (r.fehler === "kind_pflicht")
-          return c.json(
-            {
-              code: "KIND_ID_PFLICHT",
-              message: "Bei diesem Anlass gehört die Anmeldung zu einem Kind.",
-            },
-            400,
-          );
-        if (r.fehler === "kind_verboten")
-          return c.json(
-            {
-              code: "KIND_ID_VERBOTEN",
-              message: "Bei diesem Anlass meldet sich die Person selbst an.",
-            },
-            400,
-          );
         throw new HTTPException(404);
       }
       if (r.vorschlag.status !== "aus") {

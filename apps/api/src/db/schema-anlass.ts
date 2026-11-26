@@ -36,9 +36,6 @@ export const anlass = pgTable(
       .default("anlass"),
     anmeldungOffen: boolean("anmeldung_offen").notNull().default(false),
     frist: timestamp("frist", { withTimezone: true }),
-    anmeldungFuer: text("anmeldung_fuer", {
-      enum: ["kind", "person"],
-    }).notNull(),
     sichtbarkeit: text("sichtbarkeit", {
       enum: ["oeffentlich", "angemeldet", "tags"],
     }).notNull(),
@@ -46,6 +43,18 @@ export const anlass = pgTable(
       .array()
       .notNull()
       .default(sql`'{}'`),
+    // Je Tag die Rollen, die das Objekt sehen (#844, sichtbarkeit.ts); ohne Schlüssel die ganze Gruppe
+    sichtbarkeitRollen: jsonb("sichtbarkeit_rollen")
+      .$type<
+        Partial<
+          Record<
+            string,
+            readonly ("teilnehmende" | "leitung" | "stufenleitung")[]
+          >
+        >
+      >()
+      .notNull()
+      .default(sql`'{}'::jsonb`),
     // Die Anlassseite der Website (Entwurf); sie bleibt, wenn der Anlass gelöscht wird
     seiteId: uuid("seite_id").references(() => seite.id, {
       onDelete: "set null",
@@ -64,12 +73,12 @@ export const anlass = pgTable(
     // text({ enum }) prüft nur in TypeScript, nicht in der Datenbank
     check("anlass_art_check", sql`${t.art} in ('anlass', 'lager')`),
     check(
-      "anlass_anmeldung_fuer_check",
-      sql`${t.anmeldungFuer} in ('kind', 'person')`,
-    ),
-    check(
       "anlass_sichtbarkeit_check",
       sql`${t.sichtbarkeit} in ('oeffentlich', 'angemeldet', 'tags')`,
+    ),
+    check(
+      "anlass_sichtbarkeit_rollen_check",
+      sql`jsonb_typeof(${t.sichtbarkeitRollen}) = 'object'`,
     ),
   ],
 );
@@ -126,7 +135,7 @@ export const anlassFeld = pgTable(
   ],
 );
 
-// Eine Anmeldung zu einem Anlass (#443): einer Person oder, bei «kind», eines Kindes (kind_id), angemeldet von einem Elternteil (user_id).
+// Eine Anmeldung zu einem Anlass (#443): der Person selbst (kind_id leer) oder eines verbundenen Kindes (kind_id), angemeldet von einem Elternteil oder dem eigenen Konto des Kindes (user_id). Wer für wen darf, entscheidet die Zielgruppe des Anlasses (#844, termine/anlass-sicht.ts).
 // Sie speichert nur die Antworten auf die Zusatzfelder, keine Kopie der Kontodaten: Name, Cevi-Name und Stufe liest jede Ansicht live aus dem Konto. Die ID ist das Ziel von teilnehmer.anmeldung_id des Lager-Moduls (kein Fremdschlüssel von dort, bis #363 ihn setzt).
 // Abmelden setzt den Status und leert die Antworten; die Zeile bleibt bis zur Löschfrist (180 Tage nach dem Ende des Anlasses).
 export const anlassAnmeldung = pgTable(

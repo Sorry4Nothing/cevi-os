@@ -34,7 +34,6 @@ async function neuerAnlass(welt: Welt) {
     .values({
       abteilungId: welt.testabteilungId,
       programmId: termin.id,
-      anmeldungFuer: "kind",
       sichtbarkeit: "angemeldet",
     })
     .returning({ id: schema.anlass.id });
@@ -58,7 +57,6 @@ export const ZEILEN: TermineMatrix = {
     erwartet: status({ abteilungsleitung: 201, fremdeEltern: 403 }),
     body: (k) => ({
       programmId: k.ids["admin-anlaesse"]!.programm,
-      anmeldungFuer: "kind",
       anmeldungOffen: true,
       sichtbarkeit: { art: "angemeldet" },
       felder: [],

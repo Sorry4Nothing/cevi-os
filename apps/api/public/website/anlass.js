@@ -83,10 +83,12 @@ export function ladeKasten() {
 export function anmeldungInhalt(a, heuteTag) {
   const da = angemeldete(a);
   if (da.length > 0) {
+    // Wer sich selbst angemeldet hat, heisst «Du»; Kinder mit Vornamen (#844)
+    const namen = da.map((t) => (t.kindId ? vorname(t) : "Du"));
     const wer =
-      a.anmeldungFuer === "kind"
-        ? `${da.map(vorname).join(" und ")} ${da.length === 1 ? "ist" : "sind"} angemeldet.`
-        : "Du bist angemeldet.";
+      namen.length === 1 && !da[0].kindId
+        ? "Du bist angemeldet."
+        : `${namen.join(" und ")} ${namen.length === 1 ? "ist" : "sind"} angemeldet.`;
     return bandView({
       art: "ok",
       symbol: "haken",

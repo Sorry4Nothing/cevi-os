@@ -130,7 +130,7 @@ export async function pushNeueAnfrage(
   }
 }
 
-// Push «raum_entscheid» an die anfragende Person, wenn ihr Konto aktiv ist. Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für das Konto, dann die von sendePush
+// Push «raum_entscheid» an die anfragende Person, wenn ihr Konto aktiv ist und sie den Schalter pushRaumEntscheid nicht ausgeschaltet hat (#847). Nach dem Commit aufrufen. Wirft nie; ohne Fcm entfällt alles. Eine Abfrage für das Konto, dann die von sendePush
 export async function pushEntscheid(
   { db, fcm, c }: { db: Db; fcm?: Fcm; c?: Context },
   opt: {
@@ -145,7 +145,13 @@ export async function pushEntscheid(
     const [konto] = await db
       .select({ id: user.id })
       .from(user)
-      .where(and(aktivesKonto(opt.abteilungId), eq(user.id, opt.vonId)));
+      .where(
+        and(
+          aktivesKonto(opt.abteilungId),
+          eq(user.id, opt.vonId),
+          eq(user.pushRaumEntscheid, true),
+        ),
+      );
     if (!konto) return;
     await sendePush({ db, fcm, c }, [konto.id], {
       typ: "raum_entscheid",

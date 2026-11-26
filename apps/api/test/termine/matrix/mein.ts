@@ -56,4 +56,24 @@ export const ZEILEN: TermineMatrix = {
       fremdeEltern: 404,
     },
   },
+  // Kalenderdatei eines Termins (#847): dieselbe Sicht wie das Detail
+  "GET /api/v1/termine/:id.ics": {
+    url: (k) => `/api/v1/termine/${k.ids.mein.terminId}.ics`,
+    erwartet: {
+      abteilungsleitung: 404,
+      adminOhneFaktor: 404,
+      stufenleitungA: 200,
+      stufenleitungB: 404,
+      leitungA: 200,
+      leitungB: 404,
+      leitungAElternB: 200,
+      elternA: 200,
+      elternB: 404,
+      passwortPflicht: 403,
+      deaktiviert: 401,
+      ohneLogin: 401,
+      fremdeAbteilungsleitung: 404,
+      fremdeEltern: 404,
+    },
+  },
 };

@@ -11,6 +11,7 @@ import {
 import type { Person } from "../rechte.js";
 import { anlassSichtbar } from "../termine/anlass-sicht.js";
 import type { CeviDbDienst } from "./dienst.js";
+import { uebernehmeGeschlecht } from "./geschlecht.js";
 import { wertFuer, type CeviQuelle } from "./felder.js";
 import { ordneZu, type Anfrage } from "./zuordnung.js";
 
@@ -36,7 +37,6 @@ const KEIN_ZUGRIFF = null;
 async function ladeAnlassFelder(db: Db, person: Person, anlassId: string) {
   const zeilen = await db
     .select({
-      anmeldungFuer: anlass.anmeldungFuer,
       schluessel: anlassFeld.schluessel,
       quelle: anlassFeld.ceviQuelle,
     })
@@ -56,7 +56,6 @@ async function ladeAnlassFelder(db: Db, person: Person, anlassId: string) {
   const kopf = zeilen[0];
   if (!kopf) return KEIN_ZUGRIFF;
   return {
-    anmeldungFuer: kopf.anmeldungFuer,
     felder: zeilen.flatMap((z) =>
       z.schluessel && z.quelle
         ? [{ schluessel: z.schluessel, quelle: z.quelle as CeviQuelle }]
@@ -143,15 +142,11 @@ export async function ermittle({
   anlassId: string;
   kindId: string | undefined;
 }): Promise<
-  | { fehler: "anlass" | "kind" | "kind_pflicht" | "kind_verboten" }
+  | { fehler: "anlass" | "kind" }
   | { vorschlag: Vorschlag; gefunden: string | null }
 > {
   const a = await ladeAnlassFelder(db, person, anlassId);
   if (!a) return { fehler: "anlass" };
-  if (a.anmeldungFuer === "kind" && kindId === undefined)
-    return { fehler: "kind_pflicht" };
-  if (a.anmeldungFuer === "person" && kindId !== undefined)
-    return { fehler: "kind_verboten" };
   const anfrage = await ladeAnfrage(db, person, kindId);
   if (!anfrage) return { fehler: "kind" };
   if (!dienst || a.felder.length === 0)
@@ -228,5 +223,7 @@ export async function merkeNummer({
       .update(user)
       .set({ ceviDbId: z.person.id })
       .where(and(eq(user.id, anfrage.zielId), isNull(user.ceviDbId)));
+    // Gleich übernehmen, nicht erst beim nächsten Abruf (#843)
+    await uebernehmeGeschlecht(db, person.abteilungId, [z.person]);
   }
 }
