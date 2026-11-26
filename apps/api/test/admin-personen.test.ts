@@ -483,13 +483,12 @@ describe("Geschlecht (#817)", () => {
     expect(await geschlechtVon(mit.id)).toBe("m");
     await anfrage(admin, "PATCH", `/${mit.id}`, { name: "Neuer Name" });
     expect(await geschlechtVon(mit.id)).toBe("m");
-    await anfrage(admin, "PATCH", `/${mit.id}`, { geschlecht: "d" });
-    expect(await geschlechtVon(mit.id)).toBe("d");
     await anfrage(admin, "PATCH", `/${mit.id}`, { geschlecht: null });
     expect(await geschlechtVon(mit.id)).toBeNull();
   });
 
-  test.each([["x"], ["W"], [""], [1], [true]])(
+  // «d» gibt es seit #849 nicht mehr
+  test.each([["d"], ["x"], ["W"], [""], [1], [true]])(
     "der Wert %j ergibt 400 und ändert nichts",
     async (wert) => {
       const person = await legePersonAn({ geschlecht: "w" });
@@ -505,11 +504,41 @@ describe("Geschlecht (#817)", () => {
     },
   );
 
-  test("die Datenbank lehnt einen anderen Wert ab", async () => {
+  test("von Hand (#843): Anlegen mit Angabe und jede Änderung markieren, Speichern mit gleichem Wert nicht", async () => {
+    const vonHand = async (id: string) =>
+      (
+        await sql<
+          { v: boolean }[]
+        >`select geschlecht_von_hand as v from "user" where id = ${id}`
+      )[0]!.v;
+    expect(await vonHand((await legePersonAn({ geschlecht: "m" })).id)).toBe(
+      true,
+    );
     const person = await legePersonAn();
-    await expect(
-      sql`update "user" set geschlecht = 'x' where id = ${person.id}`,
-    ).rejects.toThrow(/user_geschlecht_check/);
+    expect(await vonHand(person.id)).toBe(false);
+    // Das Blatt sendet die Angabe bei jedem Speichern mit: gleicher Wert ist keine Wahl
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: null });
+    expect(await vonHand(person.id)).toBe(false);
+    // Aus der Cevi-Datenbank übernommen, im Blatt unverändert gespeichert: bleibt übernommen
+    await sql`update "user" set geschlecht = 'w' where id = ${person.id}`;
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: "w" });
+    expect(await vonHand(person.id)).toBe(false);
+    // Auf «keine Angabe» geändert: von Hand, auch ohne Wert
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: null });
+    expect(await vonHand(person.id)).toBe(true);
+    expect(await geschlechtVon(person.id)).toBeNull();
+    // Einmal von Hand, immer von Hand
+    await anfrage(admin, "PATCH", `/${person.id}`, { geschlecht: null });
+    expect(await vonHand(person.id)).toBe(true);
+  });
+
+  test("die Datenbank lehnt einen anderen Wert ab, auch d (#849)", async () => {
+    const person = await legePersonAn();
+    for (const wert of ["x", "d"]) {
+      await expect(
+        sql`update "user" set geschlecht = ${wert} where id = ${person.id}`,
+      ).rejects.toThrow(/user_geschlecht_check/);
+    }
   });
 
   test("ohne das Recht Personen zu verwalten geht es nicht (403)", async () => {

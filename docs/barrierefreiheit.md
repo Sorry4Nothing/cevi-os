@@ -1748,18 +1748,18 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server mit Kopie der Vors
 
 **Nicht geprüft:** 91.5 (Bewegung reduzieren) und 91.7 (Netzfehler) nur im Quelltext und mit den reinen Funktionen (Test), nicht im Browser; 91.8 (Verwaltung) nicht im Browser; Bildschirmleser, Safari, Firefox, Zoom 200 %; ein Konto eines Kindes (es hat keine eigene Regel und folgt `sichtbarFuer` wie jedes Konto; ein Konto ohne Gruppe wurde mit Eltern geprüft); Albumdaten von Flickr (ohne Schlüssel im Dev-Server).
 
-## 92. Verwaltung: Rollenname nach Geschlecht der Person (#817)
+## 92. Verwaltung: Rollenname nach Geschlecht der Person (#817, #849)
 
 Die Verwaltung nennt die Rolle einer bestimmten Person nach ihrem Geschlecht: «Stufenleiter» und «Gruppenleiter» für Männer, «Stufenleiterin» und «Gruppenleiterin» für Frauen, sonst «Stufenleitung» und «Gruppenleitung» (Helfer `rollenName` in `rollenname.js`). Die Angabe ist freiwillig und wird im Blatt der Person gepflegt (Abschnitt «Angaben», Auswahl «Geschlecht (optional)»); in «Mein Konto» steht sie als gesperrtes Feld. Allgemeine Beschriftungen ohne Person (Rechtekatalog, Auswahl der Rolle, Mitteilungsziele) und die öffentliche Website bleiben neutral.
 
 ### Prüfpunkte
 
-- [ ] **92.1** Die Auswahl «Geschlecht (optional)» im Blatt der Person ist eine Radiogruppe (`role="radiogroup"`) mit sichtbarer Beschriftung (`aria-labelledby`) und dem Hilfetext «Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin. Ohne Angabe heisst sie neutral, z. B. Stufenleitung.» (`aria-describedby`). Der Bildschirmleser nennt Gruppe, Hilfetext, Option («Weiblich», «Männlich», «Keine Angabe oder andere») und Zustand (ausgewählt).
+- [ ] **92.1** Die Auswahl «Geschlecht (optional)» im Blatt der Person ist eine Radiogruppe (`role="radiogroup"`) mit sichtbarer Beschriftung (`aria-labelledby`) und dem Hilfetext «Bestimmt, wie die Rolle heisst, z. B. Stufenleiterin. Ohne Angabe heisst sie neutral, z. B. Stufenleitung.» (`aria-describedby`). Der Bildschirmleser nennt Gruppe, Hilfetext, Option («Weiblich», «Männlich», «Keine Angabe») und Zustand (ausgewählt).
 - [ ] **92.2** Die Auswahl ist mit Tab erreichbar, die Pfeiltasten wechseln die Option, der Fokusring ist sichtbar; jede Option ist mindestens 44 Pixel hoch. Der gewählte Zustand zeigt einen Haken, nie nur Farbe.
-- [ ] **92.3** Die Wahl gilt erst mit «Speichern»; ohne Wahl bleibt «Keine Angabe oder andere» (neutrale Form). Beim Erfassen ist die Angabe leer.
+- [ ] **92.3** Die Wahl gilt erst mit «Speichern»; ohne Wahl bleibt «Keine Angabe» (neutrale Form). Beim Erfassen ist die Angabe leer.
 - [ ] **92.4** Wo eine Person mit Rolle steht, stimmt die Form: Chips im Blatt und in der Personenliste, Untertitel des Blatts, Chips der Gruppe einer Stufe («Mitglieder»), «Was darf wer?» (Personenliste), Anwesenheit (Leitende), Kopf und «Mein Konto». Die Gruppierung «Funktion» bleibt neutral («Stufenleitung», «Leitung»), damit eine Gruppe nicht in Männer und Frauen zerfällt.
 - [ ] **92.5** Die Suche findet beide Formen: «Stufenleitung» findet auch eine Stufenleiterin (Befehlspalette, «Was darf wer?», Mitglieder einer Gruppe).
-- [ ] **92.6** In «Mein Konto» ist das Feld «Geschlecht» gesperrt (`readonly`), hat Beschriftung und Hilfetext und zeigt «Weiblich», «Männlich», «Andere» oder «Keine Angabe».
+- [ ] **92.6** In «Mein Konto» ist das Feld «Geschlecht» gesperrt (`readonly`), hat Beschriftung und Hilfetext und zeigt «Weiblich», «Männlich» oder «Keine Angabe».
 - [ ] **92.7** Bei 390 und 1280 Pixel, hell und dunkel: kein waagrechtes Scrollen, die Auswahl bricht um, statt abgeschnitten zu werden; Kontrast von Text und gewählter Option mindestens 4,5 zu 1.
 
 ### Stand der Prüfung (#817)
@@ -1773,6 +1773,15 @@ Im Browser (Chromium headless, Playwright, eigener Dev-Server, frische Datenbank
 - **92.7:** bei 390 Pixel kein waagrechtes Scrollen (`scrollWidth` gleich `clientWidth`).
 
 **Nicht geprüft:** Bildschirmleser (VoiceOver, TalkBack, NVDA), Safari und Firefox, Zoom 200 %, erzwungene Farben, Kontrast nicht gemessen (nur Ansicht), 92.4 bei Anwesenheit (Leitende), «Was darf wer?» und Kopf im Browser (nur Test), 92.5 im Browser (nur Test).
+
+### Stand der Prüfung (#849)
+
+Nur noch «Weiblich», «Männlich» und «Keine Angabe»; die Option «Keine Angabe oder andere» heisst jetzt «Keine Angabe», «Mein Konto» zeigt nie mehr «Andere».
+
+- **92.1, 92.3:** Die Auswahl hat drei Optionen mit diesen Namen (`test/admin-rollenname.test.ts`).
+- **92.6:** Text gelesen: Die Anzeige kennt nur noch «Weiblich», «Männlich» und «Keine Angabe».
+
+**Nicht geprüft:** im Browser (kein Dev-Server gestartet), Bildschirmleser; 92.2, 92.4, 92.5 und 92.7 sind unverändert und nicht erneut geprüft.
 
 ## 93. Eine Anmeldeseite für Website und Verwaltung (#818)
 

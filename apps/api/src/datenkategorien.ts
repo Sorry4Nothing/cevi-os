@@ -33,9 +33,9 @@ export const KATEGORIEN = {
   geschlecht: {
     titel: "Geschlecht der Person",
     zweck:
-      "Die Verwaltung nennt die Rolle einer Leitung so, wie die Person heisst: «Stufenleiterin», «Stufenleiter» oder, ohne Angabe oder bei anderer Angabe, «Stufenleitung». Die Angabe ist freiwillig. Wer Personen bearbeiten darf, trägt sie ein; die Person sieht sie in ihrem Konto. Sie erscheint nur dort, wo die Verwaltung den Namen und die Rolle der Person zeigt: nie auf der öffentlichen Website, im Kalender, in Mitteilungen, in der App der Eltern oder in Exporten. Von Kindern wird sie nicht erfasst.",
+      "Die Verwaltung nennt die Rolle einer Leitung so, wie die Person heisst: «Stufenleiterin», «Stufenleiter» oder, ohne Angabe, «Stufenleitung». Die Angabe («weiblich» oder «männlich») ist freiwillig. Wer Personen bearbeiten darf, trägt sie ein; die Person sieht sie in ihrem Konto. Ist die Cevi-Datenbank verbunden, übernimmt Cevi OS die Angabe («weiblich» oder «männlich») von dort, aber nur für Personen mit Konto, die einem Eintrag dort eindeutig zugeordnet sind, und nie über eine Angabe, die jemand in der Verwaltung gesetzt oder geändert hat; dafür merkt sich Cevi OS, ob die Angabe von Hand stammt. Sie erscheint nur dort, wo die Verwaltung den Namen und die Rolle der Person zeigt: nie auf der öffentlichen Website, im Kalender, in Mitteilungen, in der App der Eltern oder in Exporten. Von Kindern wird sie nicht erfasst.",
     frist:
-      "Bis eine berechtigte Person die Angabe entfernt oder das Konto gelöscht wird.",
+      "Bis eine berechtigte Person die Angabe entfernt oder das Konto gelöscht wird. Eine Angabe aus der Cevi-Datenbank ändert sich oder verschwindet, wenn sie es dort tut.",
     apple: ["Other Data"],
     google: ["Personal info: Other info"],
   },
@@ -389,7 +389,7 @@ export const KATEGORIEN = {
   cevi_db: {
     titel: "Angaben aus der Cevi-Datenbank",
     zweck:
-      "Die Anmeldung füllt Angaben vor, die du in der Cevi-Datenbank selbst gemacht hast, damit du sie nicht noch einmal eintippst: Geburtsdatum, Telefon, Adresse und E-Mail, aber nur die Angaben, die der Anlass in der Anmeldung fragt. Der Server liest sie beim Öffnen der Anmeldung mit dem Zugang der Abteilung, nur lesend, ordnet dich nur bei einem eindeutigen Treffer zu und zeigt sie als Vorschlag, den du ändern kannst. Gespeichert wird erst, was du mit der Anmeldung absendest, dann wie jede andere Antwort. Gesundheitsangaben holt Cevi OS nie. Was in der Cevi-Datenbank fehlt, fragt die Anmeldung wie sonst. Zusätzlich merkt sich Cevi OS die Nummer deines Eintrags in der Cevi-Datenbank, damit die nächste Zuordnung eindeutig ist, und in den Einstellungen die Gruppe der Abteilung und den Stand des letzten Abrufs (Zeitpunkt, Ergebnis und Zahl der Personen).",
+      "Die Anmeldung füllt Angaben vor, die du in der Cevi-Datenbank selbst gemacht hast, damit du sie nicht noch einmal eintippst: Geburtsdatum, Telefon, Adresse und E-Mail, aber nur die Angaben, die der Anlass in der Anmeldung fragt. Der Server liest sie beim Öffnen der Anmeldung mit dem Zugang der Abteilung, nur lesend, ordnet dich nur bei einem eindeutigen Treffer zu und zeigt sie als Vorschlag, den du ändern kannst. Gespeichert wird erst, was du mit der Anmeldung absendest, dann wie jede andere Antwort. Ausnahme ist das Geschlecht einer Person mit Konto, die eindeutig zugeordnet ist (siehe «Geschlecht der Person»). Gesundheitsangaben holt Cevi OS nie. Was in der Cevi-Datenbank fehlt, fragt die Anmeldung wie sonst. Zusätzlich merkt sich Cevi OS die Nummer deines Eintrags in der Cevi-Datenbank, damit die nächste Zuordnung eindeutig ist, und in den Einstellungen die Gruppe der Abteilung und den Stand des letzten Abrufs (Zeitpunkt, Ergebnis und Zahl der Personen).",
     frist:
       "Die Personen aus der Cevi-Datenbank liegen höchstens 15 Minuten im Arbeitsspeicher des Servers und nie in der Datenbank. Die Nummer bleibt, bis das Konto oder das Kind gelöscht wird. Die übernommenen Angaben löscht der Server mit der Anmeldung. Auf Anfrage löscht die Leitung Daten.",
     apple: [
@@ -1682,7 +1682,7 @@ export const SPALTEN: Record<string, Partial<Record<KategorieId, string[]>>> = {
       "datenschutz_gelesen_am",
     ],
     telefon: ["telefon"],
-    geschlecht: ["geschlecht"],
+    geschlecht: ["geschlecht", "geschlecht_von_hand"],
     cevi_db: ["cevi_db_id"],
     benachrichtigungen: ["push_chat", "push_programme", "push_anmeldungen"],
   },

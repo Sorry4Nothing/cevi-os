@@ -29,12 +29,18 @@ export function erstelleCeviDbDienst({
   jetzt = Date.now,
   // Hält Stand und Anzahl fest (Verwaltung > System > Cevi-Datenbank); nie ein Text der Gegenseite
   beiAbruf,
+  // Nach jedem erfolgreichen Abruf: Geschlecht der zugeordneten Konten übernehmen (#843)
+  beiPersonen,
 }: {
   client: CeviDbClient;
   jetzt?: () => number;
   beiAbruf?: (
     abteilungId: string,
     stand: { ok: boolean; anzahl: number | null },
+  ) => Promise<void>;
+  beiPersonen?: (
+    abteilungId: string,
+    personen: readonly CeviPerson[],
   ) => Promise<void>;
 }): CeviDbDienst {
   const gespeichert = new Map<string, { bis: number; ergebnis: Ergebnis }>();
@@ -68,6 +74,14 @@ export function erstelleCeviDbDienst({
       });
     } catch {
       // Der Stand ist eine Anzeige: Fällt sie aus, bleibt die Anmeldung unberührt
+    }
+    if (ergebnis.ok) {
+      try {
+        await beiPersonen?.(abteilungId, ergebnis.personen);
+      } catch {
+        // Wie beim Stand: Die Anmeldung hängt nicht davon ab, der nächste Abruf versucht es wieder
+        log(undefined, { ereignis: "cevi_db_geschlecht_fehler" });
+      }
     }
     return ergebnis;
   }

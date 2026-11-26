@@ -11,6 +11,7 @@ import {
 import type { Person } from "../rechte.js";
 import { anlassSichtbar } from "../termine/anlass-sicht.js";
 import type { CeviDbDienst } from "./dienst.js";
+import { uebernehmeGeschlecht } from "./geschlecht.js";
 import { wertFuer, type CeviQuelle } from "./felder.js";
 import { ordneZu, type Anfrage } from "./zuordnung.js";
 
@@ -222,5 +223,7 @@ export async function merkeNummer({
       .update(user)
       .set({ ceviDbId: z.person.id })
       .where(and(eq(user.id, anfrage.zielId), isNull(user.ceviDbId)));
+    // Gleich übernehmen, nicht erst beim nächsten Abruf (#843)
+    await uebernehmeGeschlecht(db, person.abteilungId, [z.person]);
   }
 }

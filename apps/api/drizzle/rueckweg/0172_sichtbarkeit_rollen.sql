@@ -1,6 +1,6 @@
--- Rückweg zu 0170_sichtbarkeit_rollen (#844), als Besitzer der Datenbank in einer Transaktion ausführen:
---   psql -1 -f rueckweg/0170_sichtbarkeit_rollen.sql
--- Danach den Code auf den Stand vor 0170 zurückstellen. Der alte Code kennt keine Rollen: Damit niemand mehr sieht als eingestellt (fail-closed), fällt jeder eingeschränkte Tag ganz aus der Menge, bei Seiten, Anlässen und Bausteinen (Entwurf und Versionen). Bleibt kein Tag, sieht nur noch die Abteilungsleitung das Objekt.
+-- Rückweg zu 0172_sichtbarkeit_rollen (#844), als Besitzer der Datenbank in einer Transaktion ausführen:
+--   psql -1 -f rueckweg/0172_sichtbarkeit_rollen.sql
+-- Danach den Code auf den Stand vor 0172 zurückstellen. Der alte Code kennt keine Rollen: Damit niemand mehr sieht als eingestellt (fail-closed), fällt jeder eingeschränkte Tag ganz aus der Menge, bei Seiten, Anlässen und Bausteinen (Entwurf und Versionen). Bleibt kein Tag, sieht nur noch die Abteilungsleitung das Objekt.
 UPDATE "seite" SET "sichtbarkeit_tags" = ARRAY(SELECT t FROM unnest("sichtbarkeit_tags") AS t WHERE NOT "sichtbarkeit_rollen" ? t::text) WHERE "sichtbarkeit_rollen" <> '{}'::jsonb;--> statement-breakpoint
 UPDATE "anlass" SET "sichtbarkeit_tags" = ARRAY(SELECT t FROM unnest("sichtbarkeit_tags") AS t WHERE NOT "sichtbarkeit_rollen" ? t::text) WHERE "sichtbarkeit_rollen" <> '{}'::jsonb;--> statement-breakpoint
 CREATE FUNCTION pg_temp.ohne_rollen(dok jsonb) RETURNS jsonb LANGUAGE sql AS $$

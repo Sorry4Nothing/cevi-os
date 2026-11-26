@@ -1,6 +1,14 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, count, eq, isNull, sql } from "drizzle-orm";
 import type { Db } from "../db/client.js";
-import { aufgabe, lagertag, ressort } from "../db/schema.js";
+import {
+  aufgabe,
+  lagerBenachrichtigung,
+  lagertag,
+  ressort,
+  schicht,
+  tagesseite,
+  tagesseiteBlock,
+} from "../db/schema.js";
 import { ladeZusammenfassung } from "./anwesenheit.js";
 import {
   beteiligt,
@@ -252,5 +260,115 @@ export async function ladeStart(db: Leser, zugriff: LagerZugriff, jetzt: Date) {
     },
     ueberfaellig: ueberfaellig ? ueberfaellig.aufgaben : null,
     eigene: eigene ? eigene.aufgaben : null,
+  };
+}
+
+// Kompakter Stand für die Widgets der Apps (#848): ein Aufruf mit nur Zahlen und Daten, nie Namen oder Texte. Jeder Teil folgt dem Leserecht seiner Quelle wie «Heute» und «Meine Woche»; fehlt es, ist der Teil null. Die Tage bis Beginn und Ende und die ungelesenen Benachrichtigungen sieht jedes Mitglied, darum nie 403. Abfragen: vier, parallel und unabhängig von der Zahl der Zeilen
+export async function ladeWidget(
+  db: Leser,
+  zugriff: LagerZugriff,
+  jetzt: Date,
+) {
+  const lagerId = zugriff.lager.id;
+  const heute = datumInZuerich(jetzt);
+  const ich = zugriff.personId;
+
+  const [dienste, wichtig, aufgaben, ungelesen] = await Promise.all([
+    darf(zugriff, "einteilung.lesen")
+      ? db
+          .select({ anzahl: count() })
+          .from(schicht)
+          .innerJoin(
+            lagertag,
+            and(
+              eq(lagertag.lagerId, schicht.lagerId),
+              eq(lagertag.id, schicht.lagertagId),
+            ),
+          )
+          .where(
+            and(
+              eq(schicht.lagerId, lagerId),
+              eq(schicht.personId, ich),
+              eq(lagertag.datum, heute),
+            ),
+          )
+          .then((z) => z[0]!.anzahl)
+      : undefined,
+    darf(zugriff, "tagesseiten.lesen")
+      ? db
+          .select({ anzahl: count() })
+          .from(tagesseiteBlock)
+          .innerJoin(
+            tagesseite,
+            and(
+              eq(tagesseite.lagerId, tagesseiteBlock.lagerId),
+              eq(tagesseite.id, tagesseiteBlock.seiteId),
+            ),
+          )
+          .innerJoin(
+            lagertag,
+            and(
+              eq(lagertag.lagerId, tagesseite.lagerId),
+              eq(lagertag.id, tagesseite.lagertagId),
+            ),
+          )
+          .where(
+            and(
+              eq(tagesseiteBlock.lagerId, lagerId),
+              eq(tagesseiteBlock.art, "wichtig"),
+              eq(lagertag.datum, heute),
+            ),
+          )
+          .then((z) => z[0]!.anzahl)
+      : undefined,
+    // Nur die eigenen Aufgaben, auch wenn die Rolle alle liest (wie «Meine Woche»)
+    leseUmfang(zugriff)
+      ? db
+          .select({
+            offen: sql<number>`count(*)`.mapWith(Number),
+            ueberfaellig:
+              sql<number>`count(*) filter (where ${aufgabe.frist} < ${heute})`.mapWith(
+                Number,
+              ),
+            heute:
+              sql<number>`count(*) filter (where ${aufgabe.frist} = ${heute})`.mapWith(
+                Number,
+              ),
+            naechsteFrist: sql<
+              string | null
+            >`min(${aufgabe.frist}) filter (where ${aufgabe.frist} >= ${heute})`,
+          })
+          .from(aufgabe)
+          .leftJoin(ressort, ressortJoin)
+          .where(
+            and(
+              eq(aufgabe.lagerId, lagerId),
+              sql`${aufgabe.status} <> 'erledigt'`,
+              beteiligt(ich),
+            ),
+          )
+          .then((z) => z[0]!)
+      : undefined,
+    db
+      .select({ anzahl: count() })
+      .from(lagerBenachrichtigung)
+      .where(
+        and(
+          eq(lagerBenachrichtigung.lagerId, lagerId),
+          eq(lagerBenachrichtigung.personId, ich),
+          isNull(lagerBenachrichtigung.gelesenAm),
+        ),
+      )
+      .then((z) => z[0]!.anzahl),
+  ]);
+
+  return {
+    heute,
+    tageBisBeginn: tageBis(heute, zugriff.lager.von),
+    tageBisEnde: tageBis(heute, zugriff.lager.bis),
+    eigeneDiensteHeute: dienste ?? null,
+    wichtigHeute: wichtig ?? null,
+    eigeneAufgaben: aufgaben ?? null,
+    ungelesen,
   };
 }

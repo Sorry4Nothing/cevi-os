@@ -460,6 +460,55 @@ describe("Nummer merken", () => {
       .where(eq(schema.kind.id, welt.kindAId));
   });
 
+  test("meldet sich eine Person selbst an, übernimmt ihr Konto mit der Nummer gleich das Geschlecht (#843)", async () => {
+    const id = await neuerAnlass(
+      [{ schluessel: "tel", quelle: "telefon" }],
+      "person",
+    );
+    const [u] = await db
+      .select({ name: schema.user.name, email: schema.user.email })
+      .from(schema.user)
+      .where(eq(schema.user.id, konten.leitendeA.id!));
+    const teile = u.name.split(" ");
+    const nachname = teile.pop()!;
+    personenListe = [
+      cevi(7340292, {
+        first_name: teile.join(" "),
+        last_name: nachname,
+        email: u.email,
+        gender: "w",
+        nickname: "Sunny",
+      }),
+    ];
+    try {
+      const r = await anfrage(
+        "leitendeA",
+        "PUT",
+        `/api/v1/anlaesse/${id}/anmeldung`,
+        { antworten: { tel: "079 000 00 00" } },
+      );
+      expect(r.status).toBe(200);
+      const [nachher] = await db
+        .select({
+          nr: schema.user.ceviDbId,
+          geschlecht: schema.user.geschlecht,
+          vonHand: schema.user.geschlechtVonHand,
+        })
+        .from(schema.user)
+        .where(eq(schema.user.id, konten.leitendeA.id!));
+      expect(nachher).toEqual({
+        nr: "7340292",
+        geschlecht: "w",
+        vonHand: false,
+      });
+    } finally {
+      await db
+        .update(schema.user)
+        .set({ ceviDbId: null, geschlecht: null })
+        .where(eq(schema.user.id, konten.leitendeA.id!));
+    }
+  });
+
   test("mehrdeutig: nichts wird gemerkt", async () => {
     const id = await neuerAnlass([
       { schluessel: "geb", quelle: "geburtsdatum" },

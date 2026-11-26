@@ -102,6 +102,11 @@ export const ZEILEN: LagerMatrix = {
     body: () => ({ entscheid: "abgelehnt", version: 1 }),
     erwartet: entscheidenSchreiben(404),
   },
+  "POST /api/v1/lager/:id/diensttausch/:tauschId/entscheid/zuruecknehmen": {
+    url: (w, z) => `${pfad(w, z)}/${randomUUID()}/entscheid/zuruecknehmen`,
+    body: () => ({ version: 1 }),
+    erwartet: entscheidenSchreiben(404),
+  },
   "POST /api/v1/lager/:id/diensttausch/:tauschId/zurueckziehen": {
     url: (w, z) => `${pfad(w, z)}/${randomUUID()}/zurueckziehen`,
     body: () => ({ version: 1 }),
